@@ -1,26 +1,37 @@
 import Stripe from 'stripe'
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
-})
+// Lazy initialization — avoids crash during build when env vars aren't set
+let _stripe: Stripe | null = null
+
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error('STRIPE_SECRET_KEY não configurada')
+    }
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-02-24.acacia',
+    })
+  }
+  return _stripe
+}
 
 export const PLANS = {
   perPhoto: {
     name: 'Pay-per-foto',
-    price: 1900, // R$19 em centavos
-    priceId: process.env.STRIPE_PRICE_PER_PHOTO!,
+    price: 1900,
+    priceId: process.env.STRIPE_PRICE_PER_PHOTO ?? '',
     credits: 1,
   },
   subscription: {
     name: 'Assinatura Mensal',
-    price: 5900, // R$59
-    priceId: process.env.STRIPE_PRICE_SUBSCRIPTION!,
+    price: 5900,
+    priceId: process.env.STRIPE_PRICE_SUBSCRIPTION ?? '',
     credits: 10,
   },
   package: {
     name: 'Pacote 10 Créditos',
-    price: 12900, // R$129
-    priceId: process.env.STRIPE_PRICE_PACKAGE!,
+    price: 12900,
+    priceId: process.env.STRIPE_PRICE_PACKAGE ?? '',
     credits: 10,
   },
 } as const

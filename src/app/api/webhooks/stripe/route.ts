@@ -1,4 +1,6 @@
-import { stripe, PLANS } from '@/lib/stripe'
+export const dynamic = 'force-dynamic'
+
+import { getStripe, PLANS } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
@@ -7,9 +9,14 @@ export async function POST(req: NextRequest) {
   const body      = await req.text()
   const signature = req.headers.get('stripe-signature')!
 
+  const stripe = getStripe()
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!)
+    event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    )
   } catch {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
@@ -23,9 +30,10 @@ export async function POST(req: NextRequest) {
 
     const plan = PLANS[planId as keyof typeof PLANS]
 
-    // Add credits and update plan
     if (planId === 'subscription') {
-      await supabase.from('users').update({ plan: 'subscription', credits: plan.credits }).eq('id', userId)
+      await supabase.from('users')
+        .update({ plan: 'subscription', credits: plan.credits })
+        .eq('id', userId)
     } else {
       await supabase.rpc('add_credits', { user_id_param: userId, amount: plan.credits })
       if (planId === 'package') {
@@ -33,7 +41,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Save order
     await supabase.from('orders').insert({
       user_id:   userId,
       type:      planId === 'perPhoto' ? 'per_photo' : planId === 'subscription' ? 'subscription' : 'package',
@@ -44,7 +51,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.type === 'customer.subscription.deleted') {
-    const sub  = event.data.object as Stripe.Subscription
+    const sub    = event.data.object as Stripe.Subscription
     const custId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
     await supabase.from('users')
       .update({ plan: 'free', credits: 0 })

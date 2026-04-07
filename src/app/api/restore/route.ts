@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { createClient } from '@/lib/supabase/server'
 import { diagnosePhoto, MODEL_VERSIONS } from '@/lib/diagnose'
 import { NextRequest, NextResponse } from 'next/server'
