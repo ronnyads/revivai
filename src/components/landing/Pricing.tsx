@@ -8,8 +8,8 @@ const plans = [
     name: 'Pay-per-foto',
     price: 'R$19',
     period: 'por foto, sem cadastro',
-    features: ['1 foto restaurada', 'Download em alta resolução', '4 modelos de IA disponíveis', 'Resultado em segundos'],
-    cta: 'Começar agora',
+    features: ['1 foto restaurada', 'Download em alta resolução', '4 modelos de IA disponíveis', 'Resultado em segundos', 'PIX, cartão ou boleto'],
+    cta: 'Pagar com PIX →',
     featured: false,
   },
   {
@@ -17,8 +17,8 @@ const plans = [
     name: 'Assinatura',
     price: 'R$59',
     period: 'por mês · 10 fotos incluídas',
-    features: ['10 fotos por mês', 'Histórico completo', 'Download em 4K', 'Prioridade no processamento', 'Suporte prioritário'],
-    cta: 'Assinar agora',
+    features: ['10 fotos por mês', 'Histórico completo', 'Download em 4K', 'Prioridade no processamento', 'Suporte prioritário', 'PIX, cartão ou boleto'],
+    cta: 'Assinar agora →',
     featured: true,
   },
   {
@@ -26,8 +26,8 @@ const plans = [
     name: 'Pacote de créditos',
     price: 'R$129',
     period: '10 créditos · sem expiração',
-    features: ['10 créditos permanentes', 'Use quando quiser', 'Download em alta resolução', 'Histórico salvo'],
-    cta: 'Comprar créditos',
+    features: ['10 créditos permanentes', 'Use quando quiser', 'Download em alta resolução', 'Histórico salvo', 'PIX, cartão ou boleto'],
+    cta: 'Comprar créditos →',
     featured: false,
   },
 ]
@@ -60,8 +60,17 @@ export default function Pricing() {
           Pague pelo que <em className="italic text-accent">usar</em>
         </h2>
         <p className="text-base text-muted max-w-md mx-auto leading-relaxed">
-          Sem mensalidade obrigatória. Escolha o plano que faz sentido pra você.
+          Sem mensalidade obrigatória. Pague via <strong>PIX</strong>, cartão ou boleto.
         </p>
+        {/* Payment badges */}
+        <div className="flex items-center justify-center gap-3 mt-4">
+          {['PIX', 'Cartão', 'Boleto'].map(m => (
+            <span key={m} className="text-xs px-3 py-1.5 rounded-full bg-surface border border-[#E8E8E8] text-muted font-medium">
+              {m}
+            </span>
+          ))}
+          <span className="text-xs text-muted">via Mercado Pago</span>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
@@ -79,8 +88,12 @@ export default function Pricing() {
                 Popular
               </span>
             )}
-            <p className={`text-xs font-medium tracking-widest uppercase mb-6 ${p.featured ? 'text-white/50' : 'text-muted'}`}>{p.name}</p>
-            <div className="font-display text-[56px] font-normal tracking-[-2px] leading-none mb-1">{p.price}</div>
+            <p className={`text-xs font-medium tracking-widest uppercase mb-6 ${p.featured ? 'text-white/50' : 'text-muted'}`}>
+              {p.name}
+            </p>
+            <div className="font-display text-[56px] font-normal tracking-[-2px] leading-none mb-1">
+              {p.price}
+            </div>
             <p className={`text-sm mb-8 ${p.featured ? 'text-white/50' : 'text-muted'}`}>{p.period}</p>
             <ul className="flex flex-col gap-3.5 mb-9">
               {p.features.map(f => (
@@ -106,6 +119,14 @@ export default function Pricing() {
           </div>
         ))}
       </div>
+
+      {/* Security badge */}
+      <p className="text-center text-xs text-muted mt-8 flex items-center justify-center gap-2">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        Pagamentos processados com segurança pelo Mercado Pago. Seus dados estão protegidos.
+      </p>
     </section>
   )
 }

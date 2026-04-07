@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
-import { getStripe, PLANS, type PlanType } from '@/lib/stripe'
+import { getMPClient, PLANS, type PlanType } from '@/lib/mercadopago'
+import { Preference } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
@@ -10,37 +11,52 @@ export async function POST(req: NextRequest) {
 
   const { planId } = await req.json() as { planId: PlanType }
   const plan = PLANS[planId]
-  if (!plan) return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
+  if (!plan) return NextResponse.json({ error: 'Plano inválido' }, { status: 400 })
 
-  const stripe = getStripe()
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!
+  const client = getMPClient()
 
-  let customerId: string | undefined
-  if (user) {
-    const { data: profile } = await supabase
-      .from('users').select('stripe_customer_id').eq('id', user.id).single()
-    customerId = profile?.stripe_customer_id ?? undefined
+  const preference = new Preference(client)
 
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email!,
-        metadata: { supabase_id: user.id },
-      })
-      customerId = customer.id
-      await supabase.from('users').update({ stripe_customer_id: customerId }).eq('id', user.id)
-    }
+  const body = {
+    items: [
+      {
+        id: planId,
+        title: `reviv.ai — ${plan.name}`,
+        description: plan.description,
+        quantity: 1,
+        currency_id: 'BRL',
+        unit_price: plan.price,
+      },
+    ],
+    payer: user?.email ? { email: user.email } : undefined,
+    back_urls: {
+      success: `${appUrl}/dashboard?success=1&plan=${planId}`,
+      failure: `${appUrl}/#pricing?error=1`,
+      pending: `${appUrl}/dashboard?pending=1`,
+    },
+    auto_return: 'approved' as const,
+    notification_url: `${appUrl}/api/webhooks/mercadopago`,
+    metadata: {
+      planId,
+      userId: user?.id ?? '',
+      credits: plan.credits,
+    },
+    payment_methods: {
+      // Aceita todos: PIX, cartão, boleto
+      excluded_payment_types: [],
+      installments: planId === 'perPhoto' ? 1 : 12,
+    },
+    expires: false,
+    statement_descriptor: 'REVIV.AI',
   }
 
-  const session = await stripe.checkout.sessions.create({
-    customer: customerId,
-    mode: planId === 'subscription' ? 'subscription' : 'payment',
-    line_items: [{ price: plan.priceId, quantity: 1 }],
-    success_url: `${appUrl}/dashboard?success=1&plan=${planId}`,
-    cancel_url: `${appUrl}/#pricing`,
-    metadata: { planId, userId: user?.id ?? '' },
-    allow_promotion_codes: true,
-    locale: 'pt-BR',
-  })
+  const response = await preference.create({ body })
 
-  return NextResponse.json({ url: session.url })
+  // Sandbox: sandbox_init_point | Produção: init_point
+  const checkoutUrl = process.env.NODE_ENV === 'production'
+    ? response.init_point
+    : response.sandbox_init_point
+
+  return NextResponse.json({ url: checkoutUrl, preferenceId: response.id })
 }
