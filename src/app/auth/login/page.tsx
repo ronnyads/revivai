@@ -30,13 +30,15 @@ export default function LoginPage() {
       ? supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback` } })
       : supabase.auth.signInWithPassword({ email, password })
 
-    const { error: err } = await fn
+    const { data, error: err } = await fn
     if (err) { setError(err.message); setLoading(false); return }
 
     if (mode === 'register') {
       setSent(true)
     } else {
-      window.location.href = '/dashboard'
+      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
+      const isAdmin = adminEmail && data?.user?.email === adminEmail
+      window.location.href = isAdmin ? '/admin' : '/dashboard'
     }
     setLoading(false)
   }
