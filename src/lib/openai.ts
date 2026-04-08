@@ -79,3 +79,96 @@ Regras de Análise:
     return { needs_scratch_removal: false, needs_colorization: true, needs_face_restoration: true }
   }
 }
+
+// ─── AI Quality Gate ──────────────────────────────────────────────────────────
+
+export interface QualityAssessment {
+  passed: boolean
+  score: number   // 0-100
+  reason: string
+}
+
+export async function assessRestorationQuality(
+  originalUrl: string,
+  restoredUrl: string,
+): Promise<QualityAssessment> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) return { passed: true, score: 80, reason: 'API key ausente — assumindo aprovado' }
+
+  const prompt = `
+Você é um especialista em restauração de fotos antigas. Compare a foto ORIGINAL (primeira) com a foto RESTAURADA (segunda).
+
+Avalie se a restauração foi fiel ao original:
+- Os rostos das pessoas foram PRESERVADOS (não recriados ou distorcidos)?
+- O cenário/fundo é reconhecível como o mesmo da foto original?
+- Há alucinações óbvias (partes do corpo extras, rostos fundidos, elementos inventados)?
+- A qualidade visual geral melhorou sem deturpar o conteúdo?
+
+Pontue de 0 a 100:
+- 90-100: Restauração perfeita, fiel ao original
+- 70-89: Boa restauração com pequenas alterações aceitáveis
+- 50-69: Restauração aceitável mas com alterações notáveis
+- 30-49: Muitas distorções, rostos alterados significativamente
+- 0-29: Alucinações severas, foto irreconhecível
+
+Responda APENAS no JSON Schema exigido.
+`
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: prompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Compare as duas imagens: ORIGINAL e RESTAURADA.' },
+              { type: 'image_url', image_url: { url: originalUrl, detail: 'auto' } },
+              { type: 'image_url', image_url: { url: restoredUrl, detail: 'auto' } },
+            ],
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'quality_assessment',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                score:  { type: 'number' },
+                reason: { type: 'string' },
+              },
+              required: ['score', 'reason'],
+              additionalProperties: false,
+            },
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) throw new Error(`OpenAI error: ${await response.text()}`)
+
+    const data    = await response.json()
+    const content = data.choices[0]?.message?.content
+    if (!content) throw new Error('OpenAI retornou vazio')
+
+    const parsed = JSON.parse(content) as { score: number; reason: string }
+    console.log(`[quality-gate] AI score=${parsed.score} reason=${parsed.reason}`)
+
+    return {
+      passed: parsed.score >= 65,
+      score:  parsed.score,
+      reason: parsed.reason,
+    }
+  } catch (err: any) {
+    console.warn('[quality-gate] AI QC falhou (non-blocking):', err.message)
+    return { passed: true, score: 75, reason: 'Erro na avaliação — aprovado por padrão' }
+  }
+}

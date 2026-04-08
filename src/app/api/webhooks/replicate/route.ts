@@ -14,6 +14,7 @@ import {
 } from '@/lib/quality'
 import Replicate from 'replicate'
 import { getModelVersion, createPredictionWithRetry } from '@/lib/replicate'
+import { assessRestorationQuality } from '@/lib/openai'
 
 export const dynamic = 'force-dynamic'
 
@@ -201,14 +202,49 @@ export async function POST(req: NextRequest) {
     // Use the new result if QC passed, otherwise keep whatever was best before
     const newBestUrl = qcPassed ? resultUrl : (p.bestUrl || resultUrl)
 
-    // ── FINAL STEP DONE ───────────────────────────────────────────────────────
+    // ── FINAL STEP DONE — AI Quality Gate ────────────────────────────────────
     if (isLastStep) {
-      console.log(`[pipeline] ✅ Pipeline complete! Delivering: ${newBestUrl}`)
+      const { data: photoRow } = await supabase
+        .from('photos').select('original_url').eq('id', p.photoId).single()
+      const originalUrl = photoRow?.original_url ?? ''
+
+      const aiQC = await assessRestorationQuality(originalUrl, newBestUrl)
+      console.log(`[pipeline] ✅ Final AI QC: score=${aiQC.score} passed=${aiQC.passed} | ${aiQC.reason}`)
+
+      // Reprovado e ainda há retries → relança a última etapa com params mais conservadores
+      if (!aiQC.passed && p.retry < MAX_RETRIES) {
+        console.log(`[pipeline] AI QC reprovado (score=${aiQC.score}). Retrying step ${p.step}...`)
+        try {
+          const replicate  = new Replicate({ auth: process.env.REPLICATE_API_TOKEN })
+          const baseUrl    = getBaseUrl(req)
+          const webhookUrl = buildWebhookUrl(baseUrl, { ...p, retry: p.retry + 1 })
+          const predId     = await launchPrediction(replicate, currentModel, p.bestUrl || originalUrl, webhookUrl, true)
+
+          await supabase.from('photos').update({
+            diagnosis:    `Verificando qualidade... (tentativa ${p.retry + 2}/${MAX_RETRIES + 1})`,
+            restored_url: encodePipeState(p.step, predId),
+          }).eq('id', p.photoId)
+
+          return NextResponse.json({ ok: true, retrying: true, aiScore: aiQC.score })
+        } catch (retryErr: any) {
+          console.error('[pipeline] AI QC retry failed:', retryErr.message)
+          // Fall through para entrega
+        }
+      }
+
+      // Score crítico após tentativas: original é melhor que alucinação
+      if (aiQC.score < 40 && originalUrl) {
+        console.warn(`[pipeline] Score crítico (${aiQC.score}). Entregando foto original.`)
+        await deliverResult(supabase, p.photoId, p.userId, originalUrl,
+          'Restauração preservou seu original — qualidade garantida ⚠️')
+        return NextResponse.json({ ok: true, done: true, usedOriginal: true })
+      }
+
       await deliverResult(
         supabase, p.photoId, p.userId, newBestUrl,
-        qcPassed ? 'Restauração concluída ✨' : 'Restauração entregue ⚠️'
+        aiQC.passed ? 'Restauração concluída ✨' : 'Restauração entregue ⚠️'
       )
-      return NextResponse.json({ ok: true, done: true })
+      return NextResponse.json({ ok: true, done: true, aiScore: aiQC.score })
     }
 
     // ── LAUNCH NEXT STEP ──────────────────────────────────────────────────────
