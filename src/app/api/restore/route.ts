@@ -11,20 +11,13 @@ import {
   encodePipeState,
   decodePipeState,
 } from '@/lib/pipeline'
+import { getModelVersion, createPredictionWithRetry } from '@/lib/replicate'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getReplicate() {
   if (!process.env.REPLICATE_API_TOKEN) throw new Error('REPLICATE_API_TOKEN não configurada')
   return new Replicate({ auth: process.env.REPLICATE_API_TOKEN })
-}
-
-async function getModelVersion(replicate: Replicate, fullName: string): Promise<string> {
-  const [owner, name] = fullName.split('/')
-  const info    = await replicate.models.get(owner, name)
-  const version = info.latest_version?.id
-  if (!version) throw new Error(`No version for ${fullName}`)
-  return version
 }
 
 async function getBaseUrlFromHeaders(): Promise<string> {
@@ -142,14 +135,14 @@ export async function POST(req: NextRequest) {
       retry:    0,
     })
 
-    const prediction = await replicate.predictions.create({
+    const prediction = await createPredictionWithRetry(replicate, {
       version,
       input,
       webhook: webhookUrl,
       webhook_events_filter: ['completed'],
-    } as any)
+    })
 
-    predictionId = prediction.id
+    predictionId = prediction.id as string
 
     // Store PIPE state in DB
     await supabase.from('photos').update({
@@ -288,10 +281,10 @@ export async function GET(req: NextRequest) {
             retry:    0,
           })
 
-          const chainedPred = await replicate2.predictions.create({
+          const chainedPred = await createPredictionWithRetry(replicate2, {
             version, input, webhook: webhookUrl,
             webhook_events_filter: ['completed'],
-          } as any)
+          })
 
           const { createAdminClient } = await import('@/lib/supabase/admin')
           await createAdminClient().from('photos').update({

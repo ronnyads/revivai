@@ -13,6 +13,7 @@ import {
   checkFaceRestoration,
 } from '@/lib/quality'
 import Replicate from 'replicate'
+import { getModelVersion, createPredictionWithRetry } from '@/lib/replicate'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,14 +28,6 @@ function extractUrl(output: unknown): string | null {
   return null
 }
 
-async function getModelVersion(replicate: Replicate, fullName: string): Promise<string> {
-  const [owner, name] = fullName.split('/')
-  const info    = await replicate.models.get(owner, name)
-  const version = info.latest_version?.id
-  if (!version) throw new Error(`No version found for ${fullName}`)
-  return version
-}
-
 async function launchPrediction(
   replicate: Replicate,
   modelKey: PipelineModel,
@@ -46,12 +39,12 @@ async function launchPrediction(
   const input   = config.buildInput(inputUrl, retry)
   const version = await getModelVersion(replicate, config.name)
 
-  const pred = await replicate.predictions.create({
+  const pred = await createPredictionWithRetry(replicate, {
     version,
     input,
     webhook: webhookUrl,
     webhook_events_filter: ['completed'],
-  } as any)
+  })
 
   return pred.id
 }
