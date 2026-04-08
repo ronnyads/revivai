@@ -59,8 +59,13 @@ function getBaseUrl(req: NextRequest): string {
 
 // ─── Damage Mask Generation + FLUX Fill Inpainting ───────────────────────────
 
-// Returns base64 data URI — avoids Supabase storage permission issues with Replicate
-async function generateDamageMaskBase64(originalUrl: string): Promise<string> {
+// Upload mask to user's Supabase folder (publicly accessible) and return URL
+async function generateDamageMask(
+  supabase: ReturnType<typeof createAdminClient>,
+  originalUrl: string,
+  userId: string,
+  photoId: string,
+): Promise<string> {
   const sharp = (await import('sharp')).default
 
   const res = await fetch(originalUrl)
@@ -85,29 +90,35 @@ async function generateDamageMaskBase64(originalUrl: string): Promise<string> {
     dilated[i] = (blurred[i] as number) > 30 ? 255 : 0
   }
 
-  // Output as RGB PNG (FLUX Fill expects 3-channel mask)
+  // PNG mask (grayscale: white=fill, black=keep)
   const maskPng = await sharp(dilated, { raw: { width: info.width, height: info.height, channels: 1 } })
-    .toColorspace('srgb')
-    .png()
-    .toBuffer()
+    .png().toBuffer()
 
-  return `data:image/png;base64,${maskPng.toString('base64')}`
+  // Upload under user's folder so it inherits public bucket policy
+  const maskPath = `${userId}/${photoId}_mask.png`
+  await supabase.storage.from('photos').upload(maskPath, maskPng, { contentType: 'image/png', upsert: true })
+  const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(maskPath)
+  console.log(`[inpainting] Mask uploaded: ${publicUrl}`)
+  return publicUrl
 }
 
 async function launchInpainting(
   replicate: Replicate,
+  supabase: ReturnType<typeof createAdminClient>,
   imageUrl: string,
   originalUrl: string,
+  userId: string,
+  photoId: string,
   webhookUrl: string,
 ): Promise<string> {
-  const maskDataUri = await generateDamageMaskBase64(originalUrl)
-  console.log(`[inpainting] Mask generated (base64, ${Math.round(maskDataUri.length / 1024)}KB)`)
+  const maskUrl = await generateDamageMask(supabase, originalUrl, userId, photoId)
+  console.log(`[inpainting] Launching FLUX Fill with mask: ${maskUrl}`)
 
   const pred = await createPredictionWithRetry(replicate, {
     model:                 'black-forest-labs/flux-fill-pro',
     input: {
       image:    imageUrl,
-      mask:     maskDataUri,
+      mask:     maskUrl,
       prompt:   'restore old photograph, fill damaged area naturally, vintage portrait, seamless background reconstruction',
       steps:    28,
       guidance: 3.5,
@@ -363,7 +374,7 @@ export async function POST(req: NextRequest) {
         const { data: photoRow } = await supabase
           .from('photos').select('original_url').eq('id', p.photoId).single()
         const originalUrl = photoRow?.original_url ?? newBestUrl
-        predId = await launchInpainting(replicate, newBestUrl, originalUrl, webhookUrl)
+        predId = await launchInpainting(replicate, supabase, newBestUrl, originalUrl, p.userId, p.photoId, webhookUrl)
       } else {
         predId = await launchPrediction(replicate, nextModel, newBestUrl, webhookUrl)
       }
@@ -378,11 +389,11 @@ export async function POST(req: NextRequest) {
     } catch (launchErr: any) {
       console.error(`[pipeline] Failed to launch step ${nextStep}:`, launchErr.message)
       // Couldn't launch the next step — deliver best result so far
+      // NOTE: deliverResult already calls debit_credit — do NOT call it again here
       await deliverResult(
         supabase, p.photoId, p.userId, newBestUrl,
         `Restauração parcial entregue ⚠️ (${launchErr.message})`
       )
-      await supabase.rpc('debit_credit', { user_id_param: p.userId })
     }
 
     return NextResponse.json({ ok: true })
