@@ -1,7 +1,7 @@
 import { formatDate } from '@/lib/utils'
 import { Download, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import type { Photo } from '@/types'
-import Link from 'next/link'
+import DeletePhotoButton from './DeletePhotoButton'
 
 const STATUS_MAP = {
   pending:    { icon: Clock,       color: 'text-muted',  label: 'Aguardando' },
@@ -49,6 +49,9 @@ export default function PhotoCard({ photo }: { photo: Photo }) {
           >
             <Download size={13} /> Baixar
           </a>
+        )}
+        {photo.status === 'error' && (
+          <DeletePhotoButton photoId={photo.id} />
         )}
       </div>
     </div>
