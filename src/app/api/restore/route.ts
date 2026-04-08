@@ -146,10 +146,13 @@ async function runRestoration({
     const config    = MODEL_CONFIGS[diagnosis.model]
     const input     = config.buildInput(originalUrl)
 
-    console.log(`[reviv.ai] Starting ${diagnosis.model} for photo ${photoId}`)
-    console.log(`[reviv.ai] Input:`, JSON.stringify(input))
+    // Get host from headers as req.url can be unreliable on some serverless platforms
+    const headersList = await import('next/headers').then(m => m.headers())
+    const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'revivai.vercel.app'
+    const protocol = headersList.get('x-forwarded-proto') || 'https'
+    const baseHostUrl = `${protocol}://${host}`
 
-    const webhookUrl = `${baseUrl}/api/webhooks/replicate?photoId=${photoId}&userId=${userId}`
+    const webhookUrl = `${baseHostUrl}/api/webhooks/replicate?photoId=${photoId}&userId=${userId}`
 
     // Start model prediction with webhook (Returns INSTANTLY, no 10s timeouts taking down the function!)
     await replicate.predictions.create({

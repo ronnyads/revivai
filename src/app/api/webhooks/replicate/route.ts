@@ -31,31 +31,39 @@ export async function POST(req: NextRequest) {
 
     const supabase = createAdminClient()
 
-    if (status === 'succeeded' && output) {
-      // Extract URL from different output shapes
-      let restoredUrl: string
-      if (typeof output === 'string') {
-        restoredUrl = output
-      } else if (Array.isArray(output)) {
-        restoredUrl = output[0]
-      } else if (output && typeof output === 'object' && 'url' in output) {
-        restoredUrl = output.url as string
-      } else {
-        throw new Error(`Unexpected Replicate output shape: ${JSON.stringify(output)}`)
+    try {
+      if (status === 'succeeded' && output) {
+        // Extract URL from different output shapes
+        let restoredUrl: string
+        if (typeof output === 'string') {
+          restoredUrl = output
+        } else if (Array.isArray(output)) {
+          restoredUrl = output[0]
+        } else if (output && typeof output === 'object' && 'url' in output) {
+          restoredUrl = output.url as string
+        } else {
+          throw new Error(`Unexpected Replicate output shape: ${JSON.stringify(output)}`)
+        }
+
+        console.log(`[reviv.ai webhook] Success! ${photoId} -> ${restoredUrl}`)
+
+        const { error: dbUpdateErr } = await supabase.from('photos').update({
+          restored_url: restoredUrl,
+          status:       'done',
+        }).eq('id', photoId)
+        
+        if (dbUpdateErr) console.error('[reviv.ai webhook] Failed to update photo done:', dbUpdateErr)
+
+        // Debit 1 credit only on success
+        const { error: rpcErr } = await supabase.rpc('debit_credit', { user_id_param: userId })
+        if (rpcErr) console.error('[reviv.ai webhook] Failed to debit_credit:', rpcErr)
+
+      } else if (status === 'failed' || status === 'canceled') {
+        console.error(`[reviv.ai webhook] Replicate reported failure for ${photoId}:`, body.error)
+        await supabase.from('photos').update({ status: 'error' }).eq('id', photoId)
       }
-
-      console.log(`[reviv.ai webhook] Success! ${photoId} -> ${restoredUrl}`)
-
-      await supabase.from('photos').update({
-        restored_url: restoredUrl,
-        status:       'done',
-      }).eq('id', photoId)
-
-      // Debit 1 credit only on success
-      await supabase.rpc('debit_credit', { user_id_param: userId })
-
-    } else if (status === 'failed' || status === 'canceled') {
-      console.error(`[reviv.ai webhook] Replicate reported failure for ${photoId}:`, body.error)
+    } catch (dbErr) {
+      console.error(`[reviv.ai webhook] Internal DB Error for ${photoId}:`, dbErr)
       await supabase.from('photos').update({ status: 'error' }).eq('id', photoId)
     }
 
