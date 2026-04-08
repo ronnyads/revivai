@@ -55,23 +55,32 @@ export default function UploadPage() {
       setPhotoId(pid); setOriginalUrl(oUrl); setDiagnosis(diag); setImageInfo(info)
       setProgress(35); setStep('restoring')
 
-      // Poll every 3s
+      // Poll every 3s — tracks chained predictions automatically
       let attempts = 0
       let currentPredId = predId
       const pollId = setInterval(async () => {
         attempts++
-        setProgress(Math.min(35 + attempts * 5, 90))
+        setProgress(Math.min(35 + attempts * 4, 90))
         try {
           const params = new URLSearchParams()
           params.append('photoId', pid)
           if (currentPredId) params.append('predictionId', currentPredId)
 
           const r = await fetch(`/api/restore?${params.toString()}`)
-          const { status, restored_url, newPredictionId, detail } = await r.json()
+          const data = await r.json()
+          const { status, restored_url, newPredictionId, diagnosis: phaseDiag } = data
 
-          if (newPredictionId) {
+          // If backend chained to a new prediction (Stage 2), update our tracker
+          if (newPredictionId && newPredictionId !== currentPredId) {
             currentPredId = newPredictionId
-            console.log('Chained prediction started:', newPredictionId)
+            // Update diagnosis label to phase 2
+            if (phaseDiag) setDiagnosis((prev: any) => prev ? { ...prev, description: phaseDiag } : prev)
+            console.log('[pipeline] Chained to Stage 2:', newPredictionId)
+          }
+
+          // Update phase description if backend sends it
+          if (phaseDiag && !newPredictionId) {
+            setDiagnosis((prev: any) => prev ? { ...prev, description: phaseDiag } : prev)
           }
 
           if (status === 'done' && restored_url) {
@@ -83,9 +92,8 @@ export default function UploadPage() {
             setStep('error')
           }
         } catch (e: any) {
-          clearInterval(pollId)
-          setError('Erro de conexão ao verificar a foto.')
-          setStep('error')
+          // Don't kill poll on transient network error — try again next tick
+          console.warn('[poll] transient error:', e.message)
         }
       }, 3000)
     } catch (e: any) {
@@ -173,7 +181,7 @@ export default function UploadPage() {
               </p>
             )}
             <h2 className="font-display text-3xl font-normal mb-2">Restaurando sua memória...</h2>
-            <p className="text-muted text-sm mb-8">{diagnosis.description}</p>
+            <p className="text-muted text-sm mb-8">{diagnosis.description || 'Processando com IA em duas etapas...'}</p>
             <div className="w-full bg-[#E8E8E8] rounded-full h-1.5 mb-3">
               <div className="bg-accent h-1.5 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
             </div>

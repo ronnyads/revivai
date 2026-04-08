@@ -1,113 +1,147 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { MODEL_CONFIGS } from '@/lib/diagnose'
+import Replicate from 'replicate'
 
 export const dynamic = 'force-dynamic'
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: get latest version hash from Replicate API
+// ─────────────────────────────────────────────────────────────────────────────
+async function getModelVersion(replicate: Replicate, owner: string, name: string): Promise<string> {
+  const modelInfo = await replicate.models.get(owner, name)
+  const version = modelInfo.latest_version?.id
+  if (!version) throw new Error(`No latest_version for ${owner}/${name}`)
+  return version
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: extract URL from various Replicate output shapes
+// ─────────────────────────────────────────────────────────────────────────────
+function extractOutputUrl(output: unknown): string | null {
+  if (typeof output === 'string' && output.startsWith('http')) return output
+  if (Array.isArray(output) && typeof output[0] === 'string') return output[0]
+  if (output && typeof output === 'object' && 'url' in output) return (output as any).url
+  return null
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: build Webhook URL for a given stage
+// ─────────────────────────────────────────────────────────────────────────────
+function buildWebhookUrl(baseUrl: string, photoId: string, userId: string, stage: string): string {
+  return `${baseUrl}/api/webhooks/replicate?photoId=${photoId}&userId=${userId}&stage=${stage}`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/webhooks/replicate
+// Replicate calls this when a prediction finishes
+// ─────────────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const body     = await req.json()
+    const status   = body.status as string
+    const output   = body.output
 
-    // Replicate sends the full prediction object. We parse it:
-    // https://replicate.com/docs/webhooks
-    const predictionId = body.id
-    const status = body.status // 'starting' | 'processing' | 'succeeded' | 'failed' | 'canceled'
-    const output = body.output // URL or array of URLs if succeeded
-    
-    // We embedded the photoId in the webhook URL query params!
-    // Example: /api/webhooks/replicate?photoId=123
     const { searchParams } = new URL(req.url)
-    const photoId = searchParams.get('photoId')
-    const userId = searchParams.get('userId')
+    const photoId  = searchParams.get('photoId')
+    const userId   = searchParams.get('userId')
+    const stage    = searchParams.get('stage') ?? 'stage1_colorize'
 
     if (!photoId || !userId) {
-       console.error(`[reviv.ai webhook] Missing photoId or userId in webhook URL!`)
-       return NextResponse.json({ error: 'Missing params' }, { status: 400 })
+      console.error('[webhook] Missing photoId or userId')
+      return NextResponse.json({ error: 'Missing params' }, { status: 400 })
     }
 
+    // Ignore intermediate statuses (starting, processing)
     if (status !== 'succeeded' && status !== 'failed' && status !== 'canceled') {
-      // Just an intermediate update, ignore
-      return NextResponse.json({ success: true })
+      return NextResponse.json({ ok: true, ignored: true })
     }
 
     const supabase = createAdminClient()
 
-    try {
-      if (status === 'succeeded' && output) {
-        // Extract URL from different output shapes
-        let restoredUrl: string
-        if (typeof output === 'string') {
-          restoredUrl = output
-        } else if (Array.isArray(output)) {
-          restoredUrl = output[0]
-        } else if (output && typeof output === 'object' && 'url' in output) {
-          restoredUrl = output.url as string
-        } else {
-          throw new Error(`Unexpected Replicate output shape: ${JSON.stringify(output)}`)
-        }
-
-        const { data: photoData } = await supabase.from('photos').select('*').eq('id', photoId).single()
-        
-        if (photoData?.model_used === 'piddnad/ddcolor' && photoData?.diagnosis !== 'Fase 2 (Upscale)') {
-           console.log(`[reviv.ai webhook] Colorization done! Launching Face Restore...`)
-           const { MODEL_CONFIGS } = await import('@/lib/diagnose')
-           const Replicate = (await import('replicate')).default
-           const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN })
-           
-           const codeformerConfig = MODEL_CONFIGS['sczhou/codeformer']
-           const codeformerInput = codeformerConfig.buildInput(restoredUrl)
-           
-           const modelInfo = await replicate.models.get('sczhou', 'codeformer')
-           
-           const reqUrl = new URL(req.url)
-           const webhookUrl = `${reqUrl.protocol}//${reqUrl.host}/api/webhooks/replicate?photoId=${photoId}&userId=${userId}`
-
-           const chainedPrediction = await replicate.predictions.create({
-             version: modelInfo.latest_version?.id,
-             input: codeformerInput,
-             webhook: webhookUrl,
-             webhook_events_filter: ["completed"]
-           } as any)
-
-           await supabase.from('photos').update({ 
-             diagnosis: 'Fase 2 (Upscale)',
-             restored_url: `CHAIN:${chainedPrediction.id}` 
-           }).eq('id', photoId)
-
-           return NextResponse.json({ success: true, chained: true })
-        }
-
-        console.log(`[reviv.ai webhook] Success! ${photoId} -> ${restoredUrl}`)
-
-        const { error: dbUpdateErr } = await supabase.from('photos').update({
-          restored_url: restoredUrl,
-          status:       'done',
-        }).eq('id', photoId)
-        
-        if (dbUpdateErr) console.error('[reviv.ai webhook] Failed to update photo done:', dbUpdateErr)
-
-        // Debit 1 credit only on success
-        const { error: rpcErr } = await supabase.rpc('debit_credit', { user_id_param: userId })
-        if (rpcErr) console.error('[reviv.ai webhook] Failed to debit_credit:', rpcErr)
-
-      } else if (status === 'failed' || status === 'canceled') {
-        console.error(`[reviv.ai webhook] Replicate reported failure for ${photoId}:`, body.error)
-        await supabase.from('photos').update({ 
-          status: 'error',
-          restored_url: `Webhook report: ${body.error}`
-        }).eq('id', photoId)
-      }
-    } catch (dbErr: any) {
-      console.error(`[reviv.ai webhook] Internal DB Error for ${photoId}:`, dbErr)
-      await supabase.from('photos').update({ 
-        status: 'error',
-        restored_url: `Internal webhook error: ${dbErr.message || JSON.stringify(dbErr)}`
+    // ── FAILED ────────────────────────────────────────────────────────────────
+    if (status === 'failed' || status === 'canceled') {
+      const errMsg = body.error ? String(body.error) : 'Replicate rejected the request'
+      console.error(`[webhook] ${stage} FAILED for photo ${photoId}:`, errMsg)
+      await supabase.from('photos').update({
+        status:       'error',
+        restored_url: `❌ Erro em ${stage}: ${errMsg}`,
       }).eq('id', photoId)
+      return NextResponse.json({ ok: true })
     }
 
-    return NextResponse.json({ success: true })
+    // ── SUCCEEDED ─────────────────────────────────────────────────────────────
+    const resultUrl = extractOutputUrl(output)
+    if (!resultUrl) {
+      console.error(`[webhook] ${stage} succeeded but output is unreadable:`, output)
+      await supabase.from('photos').update({
+        status:       'error',
+        restored_url: `❌ Saída inválida em ${stage}: ${JSON.stringify(output)}`,
+      }).eq('id', photoId)
+      return NextResponse.json({ ok: true })
+    }
+
+    console.log(`[webhook] ${stage} completed for photo ${photoId}: ${resultUrl}`)
+
+    // ── STAGE 1 DONE — launch Stage 2 ────────────────────────────────────────
+    if (stage === 'stage1_colorize') {
+      console.log(`[webhook] Launching Stage 2 (CodeFormer) for photo ${photoId}`)
+
+      try {
+        const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN })
+        const config    = MODEL_CONFIGS['sczhou/codeformer']
+        const [owner, name] = config.name.split('/')
+        const version   = await getModelVersion(replicate, owner, name)
+        const input     = config.buildInput(resultUrl)
+
+        const reqUrl    = new URL(req.url)
+        const baseUrl   = `${reqUrl.protocol}//${reqUrl.host}`
+        const webhookUrl = buildWebhookUrl(baseUrl, photoId, userId, 'stage2_restore')
+
+        const prediction = await replicate.predictions.create({
+          version,
+          input,
+          webhook: webhookUrl,
+          webhook_events_filter: ['completed'],
+        } as any)
+
+        // Store colorized intermediate + stage marker
+        await supabase.from('photos').update({
+          diagnosis:    'Fase 2: Restaurando rostos e detalhes...',
+          restored_url: `CHAIN:${prediction.id}:${resultUrl}`,
+        }).eq('id', photoId)
+
+        console.log(`[webhook] Stage 2 dispatched: ${prediction.id}`)
+
+      } catch (err: any) {
+        // Stage 2 failed to start — still deliver stage 1 result as fallback
+        console.error('[webhook] Stage 2 launch failed, delivering stage 1 result:', err.message)
+        await supabase.from('photos').update({
+          status:       'done',
+          restored_url: resultUrl,
+        }).eq('id', photoId)
+        await supabase.rpc('debit_credit', { user_id_param: userId })
+      }
+
+      return NextResponse.json({ ok: true })
+    }
+
+    // ── STAGE 2 DONE — mark as final ─────────────────────────────────────────
+    if (stage === 'stage2_restore') {
+      console.log(`[webhook] Final result for photo ${photoId}: ${resultUrl}`)
+      await supabase.from('photos').update({
+        status:       'done',
+        restored_url: resultUrl,
+        diagnosis:    'Restauração concluída ✨',
+      }).eq('id', photoId)
+      await supabase.rpc('debit_credit', { user_id_param: userId })
+      return NextResponse.json({ ok: true })
+    }
+
+    return NextResponse.json({ ok: true })
 
   } catch (err: any) {
-    console.error(`[reviv.ai webhook] Error:`, err)
+    console.error('[webhook] Unhandled error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

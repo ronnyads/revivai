@@ -61,101 +61,63 @@ export async function analyzeImage(buffer: Buffer): Promise<ImageStats> {
 }
 
 /**
- * Smart model selection based on real image analysis
+ * Smart model selection based on real image analysis.
+ * ALWAYS starts with colorization (DDColor) as phase 1.
+ * Phase 2 (Codeformer) is always run after, regardless.
  */
 export function selectModel(stats: ImageStats, userHint?: string): DiagnosisResult {
-  // User-provided hint overrides auto-detection
-  if (userHint === 'colorize' || stats.isGrayscale) {
-    return {
-      model: 'arielreplicate/deoldify',
-      label: 'Colorização',
-      description: 'Foto em preto e branco detectada. Adicionaremos cores realistas com IA.',
-      icon: '🎨',
-      confidence: stats.isGrayscale ? 95 : 75,
-    }
-  }
-
-  if (userHint === 'inpaint') {
-    return {
-      model: 'stability-ai/stable-diffusion-inpainting',
-      label: 'Remoção de danos',
-      description: 'Eliminaremos rasgos, manchas e deterioração com IA generativa.',
-      icon: '✦',
-      confidence: 80,
-    }
-  }
-
-  if (userHint === 'face') {
-    return {
-      model: 'sczhou/codeformer',
-      label: 'Restauração de rosto',
-      description: 'Reconstruiremos o rosto com altíssimo nível de detalhe e naturalidade.',
-      icon: '👤',
-      confidence: 85,
-    }
-  }
-
-  // Auto-detect: very low brightness + grayscale-like = old degraded photo
-  if (stats.avgBrightness < 80 && stats.saturation < 15) {
-    return {
-      model: 'arielreplicate/deoldify',
-      label: 'Colorização',
-      description: 'Foto antiga e desbotada detectada. Aplicaremos colorização inteligente.',
-      icon: '🎨',
-      confidence: 82,
-    }
-  }
-
-  // Low or degraded resolution = upscaling
-  if (stats.isLowRes) {
-    return {
-      model: 'nightmareai/real-esrgan',
-      label: 'Upscaling 4x',
-      description: `Resolução de ${stats.width}×${stats.height}px detectada. Aumentaremos em até 4x.`,
-      icon: '📐',
-      confidence: 90,
-    }
-  }
-
-  // Default = upscaling + sharpening (best general restoration)
+  // All photos go through colorization pipeline first
+  // (DDColor handles both color and B&W photos — it enhances existing colors too)
   return {
-    model: 'nightmareai/real-esrgan',
-    label: 'Restauração geral',
-    description: 'Aplicaremos upscaling e nitidez avançada para recuperar cada detalhe.',
-    icon: '📐',
-    confidence: 75,
+    model: 'arielreplicate/deoldify', // maps to piddnad/ddcolor internally
+    label: 'Restauração Completa',
+    description: stats.isGrayscale
+      ? 'Foto em preto e branco detectada. Coloriremos e restauraremos com IA em duas etapas.'
+      : 'Aplicaremos colorização avançada e restauração de detalhes em duas etapas.',
+    icon: '✨',
+    confidence: 95,
   }
 }
 
-// ── Replicate models ──
-export const MODEL_CONFIGS: Record<ReplicateModel, {
+// ── Pipeline stages ──
+// Stage 1: DDColor (colorize / enhance colors)
+// Stage 2: CodeFormer (face restoration + upscaling)
+export type PipelineStage = 'stage1_colorize' | 'stage2_restore'
+
+// ── Replicate models config ──
+export const MODEL_CONFIGS: Record<string, {
   name: string
   buildInput: (imageUrl: string) => Record<string, unknown>
 }> = {
-  'nightmareai/real-esrgan': {
-    name: 'nightmareai/real-esrgan',
+  // Stage 1: DDColor — colorizes and enhances any photo
+  'piddnad/ddcolor': {
+    name: 'piddnad/ddcolor',
     buildInput: (url) => ({
       image: url,
-      scale: 4,
-      face_enhance: true,   // também melhora rostos
     }),
   },
+  // Stage 2: CodeFormer — face restoration + upscale
   'sczhou/codeformer': {
     name: 'sczhou/codeformer',
     buildInput: (url) => ({
       image: url,
-      codeformer_fidelity: 0.7,
+      codeformer_fidelity: 0.5, // balanced: 0=max reconstruct, 1=max preserve
       background_enhance: true,
       face_upsample: true,
       upscale: 2,
     }),
   },
+  // Legacy mappings (kept for backward compat)
   'arielreplicate/deoldify': {
-    name: 'piddnad/ddcolor', // Modern DDColor is more stable and active than old Deoldify wrappers
+    name: 'piddnad/ddcolor',
+    buildInput: (url) => ({ image: url }),
+  },
+  'nightmareai/real-esrgan': {
+    name: 'nightmareai/real-esrgan',
     buildInput: (url) => ({
       image: url,
-      // fallback in case it uses input_image
-      input_image: url, 
+      scale: 4,
+      face_enhance: true,
     }),
   },
   'stability-ai/stable-diffusion-inpainting': {
