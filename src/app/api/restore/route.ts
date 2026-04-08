@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
       user_id:         user.id,
       original_url:    originalUrl,
       status:          'processing',
-      model_used:      'gemini-2.0-flash-exp-image-generation',
+      model_used:      'gemini-2.0-flash-exp',
       diagnosis:       'Restaurando com IA Gemini...',
       damage_analysis: aiDiagnosis,
     })
