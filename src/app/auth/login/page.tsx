@@ -3,30 +3,59 @@ export const dynamic = 'force-dynamic'
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { Eye, EyeOff } from 'lucide-react'
+
+type Mode = 'password' | 'magic' | 'register'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
+  const [mode, setMode]       = useState<Mode>('password')
+  const [email, setEmail]     = useState('')
+  const [password, setPassword] = useState('')
+  const [showPw, setShowPw]   = useState(false)
   const [loading, setLoading] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState('')
+  const [sent, setSent]       = useState(false)
+  const [error, setError]     = useState('')
+
+  const getSupabase = async () => {
+    const { createClient } = await import('@/lib/supabase/client')
+    return createClient()
+  }
+
+  const handlePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true); setError('')
+    const supabase = await getSupabase()
+
+    const fn = mode === 'register'
+      ? supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback` } })
+      : supabase.auth.signInWithPassword({ email, password })
+
+    const { error: err } = await fn
+    if (err) { setError(err.message); setLoading(false); return }
+
+    if (mode === 'register') {
+      setSent(true)
+    } else {
+      window.location.href = '/dashboard'
+    }
+    setLoading(false)
+  }
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true); setError('')
-    const { createClient } = await import('@/lib/supabase/client')
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithOtp({
+    const supabase = await getSupabase()
+    const { error: err } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback` }
     })
-    if (error) setError(error.message)
+    if (err) setError(err.message)
     else setSent(true)
     setLoading(false)
   }
 
   const handleGoogle = async () => {
-    const { createClient } = await import('@/lib/supabase/client')
-    const supabase = createClient()
+    const supabase = await getSupabase()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback` }
@@ -56,42 +85,98 @@ export default function LoginPage() {
           <Link href="/" className="font-display text-xl font-semibold lg:hidden block mb-10">
             reviv<span className="text-accent">.</span>ai
           </Link>
-          <h1 className="font-display text-4xl font-normal tracking-tight mb-2">Entrar</h1>
-          <p className="text-muted text-sm mb-10">Acesse sua conta para gerenciar suas restaurações.</p>
+
+          <h1 className="font-display text-4xl font-normal tracking-tight mb-2">
+            {mode === 'register' ? 'Criar conta' : 'Entrar'}
+          </h1>
+          <p className="text-muted text-sm mb-8">
+            {mode === 'register' ? 'Crie sua conta gratuita.' : 'Acesse suas restaurações.'}
+          </p>
+
+          {/* Mode tabs */}
+          <div className="flex gap-1 bg-surface rounded-lg p-1 mb-8">
+            {([['password','Senha'],['magic','Magic Link'],['register','Criar conta']] as [Mode,string][]).map(([m, label]) => (
+              <button
+                key={m}
+                onClick={() => { setMode(m); setError(''); setSent(false) }}
+                className={`flex-1 py-2 rounded-md text-xs font-medium transition-all ${
+                  mode === m ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
           {sent ? (
             <div className="bg-accent-light border border-accent/30 rounded-xl p-6 text-center">
-              <p className="text-accent font-medium mb-1">Link enviado! ✓</p>
+              <p className="text-accent font-medium mb-1">
+                {mode === 'register' ? 'Conta criada! Verifique o e-mail ✓' : 'Link enviado! ✓'}
+              </p>
               <p className="text-sm text-muted">Verifique <strong>{email}</strong> e clique no link para entrar.</p>
             </div>
           ) : (
             <>
-              <form onSubmit={handleMagicLink} className="flex flex-col gap-4 mb-6">
-                <div>
-                  <label className="text-xs font-medium text-muted mb-1.5 block uppercase tracking-wide">E-mail</label>
-                  <input
-                    type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                    placeholder="seu@email.com"
-                    className="w-full px-4 py-3 rounded-lg border border-[#E8E8E8] text-sm focus:outline-none focus:border-accent transition-colors"
-                  />
-                </div>
-                {error && <p className="text-red-500 text-xs">{error}</p>}
-                <button
-                  type="submit" disabled={loading}
-                  className="bg-ink text-white py-3 rounded-lg text-sm font-medium hover:bg-accent transition-colors disabled:opacity-60"
-                >
-                  {loading ? 'Enviando...' : 'Continuar com e-mail →'}
-                </button>
-              </form>
+              {/* Password / Register form */}
+              {(mode === 'password' || mode === 'register') && (
+                <form onSubmit={handlePassword} className="flex flex-col gap-4 mb-6">
+                  <div>
+                    <label className="text-xs font-medium text-muted mb-1.5 block uppercase tracking-wide">E-mail</label>
+                    <input
+                      type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                      placeholder="seu@email.com"
+                      className="w-full px-4 py-3 rounded-lg border border-[#E8E8E8] text-sm focus:outline-none focus:border-accent transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted mb-1.5 block uppercase tracking-wide">Senha</label>
+                    <div className="relative">
+                      <input
+                        type={showPw ? 'text' : 'password'} required value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder={mode === 'register' ? 'Mínimo 8 caracteres' : '••••••••'}
+                        minLength={8}
+                        className="w-full px-4 py-3 rounded-lg border border-[#E8E8E8] text-sm focus:outline-none focus:border-accent transition-colors pr-11"
+                      />
+                      <button type="button" onClick={() => setShowPw(!showPw)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink">
+                        {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  {error && <p className="text-red-500 text-xs">{error}</p>}
+                  <button type="submit" disabled={loading}
+                    className="bg-ink text-white py-3 rounded-lg text-sm font-medium hover:bg-accent transition-colors disabled:opacity-60">
+                    {loading ? 'Aguarde...' : mode === 'register' ? 'Criar conta →' : 'Entrar →'}
+                  </button>
+                </form>
+              )}
+
+              {/* Magic Link form */}
+              {mode === 'magic' && (
+                <form onSubmit={handleMagicLink} className="flex flex-col gap-4 mb-6">
+                  <div>
+                    <label className="text-xs font-medium text-muted mb-1.5 block uppercase tracking-wide">E-mail</label>
+                    <input
+                      type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                      placeholder="seu@email.com"
+                      className="w-full px-4 py-3 rounded-lg border border-[#E8E8E8] text-sm focus:outline-none focus:border-accent transition-colors"
+                    />
+                  </div>
+                  {error && <p className="text-red-500 text-xs">{error}</p>}
+                  <button type="submit" disabled={loading}
+                    className="bg-ink text-white py-3 rounded-lg text-sm font-medium hover:bg-accent transition-colors disabled:opacity-60">
+                    {loading ? 'Enviando...' : 'Enviar link de acesso →'}
+                  </button>
+                </form>
+              )}
 
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex-1 h-px bg-[#E8E8E8]" /><span className="text-xs text-muted">ou</span><div className="flex-1 h-px bg-[#E8E8E8]" />
               </div>
 
-              <button
-                onClick={handleGoogle}
-                className="w-full flex items-center justify-center gap-3 border border-[#E8E8E8] py-3 rounded-lg text-sm font-medium hover:border-accent hover:text-accent transition-colors"
-              >
+              <button onClick={handleGoogle}
+                className="w-full flex items-center justify-center gap-3 border border-[#E8E8E8] py-3 rounded-lg text-sm font-medium hover:border-accent hover:text-accent transition-colors">
                 <svg width="18" height="18" viewBox="0 0 48 48">
                   <path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 2.9L37.4 10C33.8 6.8 29.1 5 24 5 12.9 5 4 13.9 4 25s8.9 20 20 20c11 0 20-8 20-20 0-1.3-.1-2.7-.4-5z"/>
                   <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3.1 0 5.8 1.1 8 2.9L37.4 10C33.8 6.8 29.1 5 24 5 16.3 5 9.6 9 6.3 14.7z"/>
@@ -102,7 +187,11 @@ export default function LoginPage() {
               </button>
             </>
           )}
-          <p className="text-xs text-muted text-center mt-8">Não tem conta? Cadastro automático no primeiro acesso.</p>
+
+          <p className="text-xs text-muted text-center mt-8">
+            Ao entrar, você concorda com os{' '}
+            <a href="/termos" className="text-accent hover:underline">Termos de Uso</a>.
+          </p>
         </div>
       </div>
     </div>
