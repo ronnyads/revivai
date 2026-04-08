@@ -3,22 +3,14 @@ import { ImageStats, PipelineModel } from './diagnose'
 // ─── Pipeline Builder ─────────────────────────────────────────────────────────
 
 /**
- * Builds the optimal premium processing pipeline.
- * ALWAYS 3 stages regardless of input quality:
- *
- *  1. DDColor     — colorize + enhance colors (every photo benefits)
- *  2. Real-ESRGAN — upscale 4x BEFORE face restoration
- *                   (Codeformer recovers 4× more detail when it has more pixels to analyze)
- *  3. Codeformer  — face restoration + final polish on the high-res upscaled image
- *
- * Cost per restoration: ~3 Replicate predictions (~$0.08–0.15 total)
- * Quality improvement: professional-grade output on every photo type
+ * Premium 2-stage pipeline (confirmed working models only):
+ *  1. DDColor     — colorize + enhance colors
+ *  2. Codeformer  — face restoration + 2x upscale with identity preservation
  */
 export function buildPipeline(_stats: ImageStats): PipelineModel[] {
   return [
-    'piddnad/ddcolor',          // Stage 1: colorize / enhance
-    'nightmareai/real-esrgan',  // Stage 2: 4x upscale for maximum face detail
-    'sczhou/codeformer',        // Stage 3: face restoration on high-res input
+    'piddnad/ddcolor',    // Stage 1: colorize / enhance
+    'sczhou/codeformer',  // Stage 2: face restoration + upscale
   ]
 }
 
