@@ -59,11 +59,8 @@ function getBaseUrl(req: NextRequest): string {
 
 // ─── Damage Mask Generation + FLUX Fill Inpainting ───────────────────────────
 
-async function generateDamageMask(
-  supabase: ReturnType<typeof createAdminClient>,
-  originalUrl: string,
-  photoId: string,
-): Promise<string> {
+// Returns base64 data URI — avoids Supabase storage permission issues with Replicate
+async function generateDamageMaskBase64(originalUrl: string): Promise<string> {
   const sharp = (await import('sharp')).default
 
   const res = await fetch(originalUrl)
@@ -88,35 +85,32 @@ async function generateDamageMask(
     dilated[i] = (blurred[i] as number) > 30 ? 255 : 0
   }
 
+  // Output as RGB PNG (FLUX Fill expects 3-channel mask)
   const maskPng = await sharp(dilated, { raw: { width: info.width, height: info.height, channels: 1 } })
-    .png().toBuffer()
+    .toColorspace('srgb')
+    .png()
+    .toBuffer()
 
-  // Upload mask to Supabase storage
-  const maskPath = `masks/${photoId}.png`
-  await supabase.storage.from('photos').upload(maskPath, maskPng, { contentType: 'image/png', upsert: true })
-  const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(maskPath)
-  return publicUrl
+  return `data:image/png;base64,${maskPng.toString('base64')}`
 }
 
 async function launchInpainting(
   replicate: Replicate,
-  supabase: ReturnType<typeof createAdminClient>,
   imageUrl: string,
   originalUrl: string,
-  photoId: string,
   webhookUrl: string,
 ): Promise<string> {
-  const maskUrl = await generateDamageMask(supabase, originalUrl, photoId)
-  console.log(`[inpainting] Mask generated: ${maskUrl}`)
+  const maskDataUri = await generateDamageMaskBase64(originalUrl)
+  console.log(`[inpainting] Mask generated (base64, ${Math.round(maskDataUri.length / 1024)}KB)`)
 
   const pred = await createPredictionWithRetry(replicate, {
     model:                 'black-forest-labs/flux-fill-pro',
     input: {
       image:    imageUrl,
-      mask:     maskUrl,
+      mask:     maskDataUri,
       prompt:   'restore old photograph, fill damaged area naturally, vintage portrait, seamless background reconstruction',
-      steps:    30,
-      guidance: 30,
+      steps:    28,
+      guidance: 3.5,
     },
     webhook:               webhookUrl,
     webhook_events_filter: ['completed'],
@@ -369,7 +363,7 @@ export async function POST(req: NextRequest) {
         const { data: photoRow } = await supabase
           .from('photos').select('original_url').eq('id', p.photoId).single()
         const originalUrl = photoRow?.original_url ?? newBestUrl
-        predId = await launchInpainting(replicate, supabase, newBestUrl, originalUrl, p.photoId, webhookUrl)
+        predId = await launchInpainting(replicate, newBestUrl, originalUrl, webhookUrl)
       } else {
         predId = await launchPrediction(replicate, nextModel, newBestUrl, webhookUrl)
       }
