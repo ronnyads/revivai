@@ -13,14 +13,6 @@ export function buildEnterprisePipeline(analysis: EnterpriseAnalysis): PipelineM
     pipe.push('microsoft/bringing-old-photos-back-to-life')
   }
 
-  // Step 0b: Generative inpainting for severe damage
-  // Triggers when: mold/tears detected, OR physical damage is moderate+
-  // (catches mold that GPT misclassifies as scratches — both need fill treatment)
-  if (analysis.has_mold_or_stains || analysis.has_tears_or_holes ||
-      (analysis.has_scratches && analysis.damage_severity !== 'light')) {
-    pipe.push('black-forest-labs/flux-fill-pro')
-  }
-
   // Step 1: Optical damage (blur + grain — NAFNet handles both)
   if (analysis.has_blur || analysis.has_grain_or_noise) {
     pipe.push('megvii-research/nafnet')
