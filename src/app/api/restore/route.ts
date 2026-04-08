@@ -176,5 +176,6 @@ async function runRestoration({
   } catch (err) {
     console.error(`[reviv.ai] Error restoring ${photoId}:`, err)
     await supabase.from('photos').update({ status: 'error' }).eq('id', photoId)
+    throw err; // Rethrow to be caught by the main handler
   }
 }

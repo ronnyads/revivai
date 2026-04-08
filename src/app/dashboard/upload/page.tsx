@@ -68,11 +68,13 @@ export default function UploadPage() {
             setRestoredUrl(restored_url); setProgress(100); setStep('done')
           } else if (status === 'error') {
             clearInterval(pollId)
-            throw new Error('A IA encontrou um erro ao processar a imagem.')
+            setError('A IA da Replicate recusou e deu erro (provavelmente sua Key não tem Cartão cadastrado no Billing). Vá na Replicate e ative o billing.')
+            setStep('error')
           }
-        } catch (e) {
+        } catch (e: any) {
           clearInterval(pollId)
-          throw e
+          setError('Erro de conexão ao verificar a foto.')
+          setStep('error')
         }
       }, 3000)
     } catch (e: any) {
