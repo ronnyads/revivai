@@ -8,12 +8,19 @@ import { ImageStats, PipelineModel } from './diagnose'
  *  2. Real-ESRGAN — upscale 4x BEFORE face restoration (gets much better results)
  *  3. Codeformer  — face restoration + 2x upscale with identity preservation
  */
-export function buildPipeline(_stats: ImageStats): PipelineModel[] {
-  return [
+export function buildPipeline(_stats: ImageStats, hint?: string): PipelineModel[] {
+  const base: PipelineModel[] = [
     'piddnad/ddcolor',          // Stage 1: colorize / enhance
-    'nightmareai/real-esrgan',  // Stage 2: 4x upscale for maximum face detail
-    'sczhou/codeformer',        // Stage 3: face restoration on high-res input
+    'nightmareai/real-esrgan',  // Stage 2: upscale 
+    'sczhou/codeformer',        // Stage 3: face restoration
   ]
+
+  if (hint === 'inpaint') {
+    // Stage 0: Remove physical scratches before colorizing or restoring faces
+    return ['microsoft/bringing-old-photos-back-to-life', ...base]
+  }
+
+  return base
 }
 
 // ─── Phase Labels ─────────────────────────────────────────────────────────────
@@ -22,6 +29,8 @@ const MODEL_LABELS: Record<PipelineModel, string> = {
   'piddnad/ddcolor':          'Colorindo e melhorando cores',
   'nightmareai/real-esrgan':  'Aumentando resolução',
   'sczhou/codeformer':        'Restaurando rostos e detalhes',
+  'microsoft/bringing-old-photos-back-to-life': 'Removendo riscos e danos',
+  'arielreplicate/deoldify':  'Colorindo (Legacy)',
 }
 
 export function getPhaseLabel(stepIndex: number, totalSteps: number, model: PipelineModel): string {

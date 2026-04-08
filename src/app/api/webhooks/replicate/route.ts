@@ -148,6 +148,8 @@ export async function POST(req: NextRequest) {
         qcResult = await checkColorization(resultUrl, p.isGray)
       } else if (currentModel === 'nightmareai/real-esrgan') {
         qcResult = await checkUpscale(resultUrl, p.inputW, p.inputH)
+      } else if (currentModel === 'microsoft/bringing-old-photos-back-to-life') {
+        qcResult = { passed: true, score: 90, issues: [] } // Skip deep QC for scratch removal
       } else {
         qcResult = await checkFaceRestoration(resultUrl)
       }

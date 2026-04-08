@@ -75,9 +75,10 @@ export async function POST(req: NextRequest) {
   }
 
   const diagnosis = selectModel(imageStats)
-  const pipeline  = buildPipeline(imageStats) // e.g. ['piddnad/ddcolor', 'sczhou/codeformer']
+  const hint      = formData.get('hint') as string
+  const pipeline  = buildPipeline(imageStats, hint) // e.g. ['microsoft/...', 'piddnad/ddcolor', ...]
 
-  console.log(`[restore] Pipeline for ${file.name}:`, pipeline, '| isGray:', imageStats.isGrayscale, '| lowRes:', imageStats.isLowRes)
+  console.log(`[restore] Pipeline for ${file.name}:`, pipeline, '| isGray:', imageStats.isGrayscale, '| lowRes:', imageStats.isLowRes, '| hint:', hint)
 
   // ── Upload original photo ──
   const ext      = file.name.split('.').pop() ?? 'jpg'

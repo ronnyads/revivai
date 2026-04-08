@@ -12,6 +12,8 @@ export type PipelineModel =
   | 'piddnad/ddcolor'
   | 'nightmareai/real-esrgan'
   | 'sczhou/codeformer'
+  | 'microsoft/bringing-old-photos-back-to-life'
+  | 'arielreplicate/deoldify'
 
 export interface DiagnosisResult {
   model: ReplicateModel
@@ -105,6 +107,14 @@ export const MODEL_CONFIGS: Record<string, {
       background_enhance:  true,
       face_upsample:       true,
       upscale:             1, // ESRGAN already upscaled, no need for 2x more here
+    }),
+  },
+  'microsoft/bringing-old-photos-back-to-life': {
+    name: 'microsoft/bringing-old-photos-back-to-life',
+    buildInput: (url) => ({
+      image: url,
+      HR: true,
+      with_scratch: true
     }),
   },
   // Legacy aliases
