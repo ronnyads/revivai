@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createMode, deleteMode } from './actions'
+import { createMode, deleteMode, seedDefaultModes } from './actions'
 import ModeEditor from './ModeEditor'
 
 const MODELS = [
@@ -29,7 +29,14 @@ export default async function PromptsPage() {
           <ModeEditor key={mode.id} mode={mode} models={MODELS} deleteMode={deleteMode} />
         ))}
         {(!modes || modes.length === 0) && (
-          <p className="text-white/30 text-sm text-center py-12">Nenhum modo cadastrado.</p>
+          <div className="text-center py-12">
+            <p className="text-white/30 text-sm mb-4">Nenhum modo cadastrado.</p>
+            <form action={seedDefaultModes}>
+              <button type="submit" className="text-sm px-4 py-2 bg-white/10 hover:bg-white/20 text-white/60 rounded-lg transition-colors">
+                ✦ Criar modos padrão
+              </button>
+            </form>
+          </div>
         )}
       </div>
 
@@ -40,20 +47,20 @@ export default async function PromptsPage() {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-white/40 mb-1 block">Ícone</label>
-              <input name="icon" defaultValue="✨" className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
+              <input name="icon" defaultValue="✨" className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
             </div>
             <div className="col-span-2">
               <label className="text-xs text-white/40 mb-1 block">Nome</label>
-              <input name="name" placeholder="Ex: Foto danificada" required className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
+              <input name="name" placeholder="Ex: Foto danificada" required className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
             </div>
           </div>
           <div>
             <label className="text-xs text-white/40 mb-1 block">Descrição (aparece para o cliente)</label>
-            <input name="description" placeholder="Ex: Rasgos, rachaduras, manchas" className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
+            <input name="description" placeholder="Ex: Rasgos, rachaduras, manchas" className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
           </div>
           <div>
             <label className="text-xs text-white/40 mb-1 block">Modelo Gemini</label>
-            <select name="model" className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30">
+            <select name="model" className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30">
               {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
           </div>

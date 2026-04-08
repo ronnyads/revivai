@@ -47,27 +47,27 @@ export default function ModeEditor({ mode, models, deleteMode }: {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-white/40 mb-1 block">Ícone</label>
-              <input name="icon" defaultValue={mode.icon} className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
+              <input name="icon" defaultValue={mode.icon} className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
             </div>
             <div className="col-span-2">
               <label className="text-xs text-white/40 mb-1 block">Nome</label>
-              <input name="name" defaultValue={mode.name} required className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
+              <input name="name" defaultValue={mode.name} required className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
             </div>
           </div>
           <div>
             <label className="text-xs text-white/40 mb-1 block">Descrição</label>
-            <input name="description" defaultValue={mode.description} className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
+            <input name="description" defaultValue={mode.description} className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs text-white/40 mb-1 block">Modelo Gemini</label>
-              <select name="model" defaultValue={mode.model} className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30">
+              <select name="model" defaultValue={mode.model} className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30">
                 {models.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs text-white/40 mb-1 block">Status</label>
-              <select name="is_active" defaultValue={String(mode.is_active)} className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30">
+              <select name="is_active" defaultValue={String(mode.is_active)} className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30">
                 <option value="true">Ativo</option>
                 <option value="false">Inativo</option>
               </select>
