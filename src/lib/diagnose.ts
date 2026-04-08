@@ -155,7 +155,7 @@ export const MODEL_CONFIGS: Record<ReplicateModel, {
     buildInput: (url) => ({
       image: url, // try both image and input_image just to be safe
       input_image: url,
-      model_name: 'ColorizeStable',
+      model_name: 'Artistic', // Replicate demands strictly "Artistic" or "Stable"
       render_factor: 35,
     }),
   },
