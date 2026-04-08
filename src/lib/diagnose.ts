@@ -93,9 +93,8 @@ export const MODEL_CONFIGS: Record<string, {
     name: 'nightmareai/real-esrgan',
     buildInput: (url, retry) => ({
       image:        url,
-      scale:        retry ? 2 : 4,     // 4x upscale gives Codeformer 16x more pixels to work with
-      face_enhance: true,              // ESRGAN also pre-enhances faces before Codeformer
-      model:        'RealESRGAN_x4plus', // best quality model for photos
+      scale:        retry ? 2 : 4,  // 4x upscale → 16x more pixels for Codeformer
+      face_enhance: true,            // pre-enhances faces before Codeformer pass
     }),
   },
   'sczhou/codeformer': {
