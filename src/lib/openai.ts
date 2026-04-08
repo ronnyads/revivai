@@ -80,6 +80,117 @@ Regras de Análise:
   }
 }
 
+// ─── Enterprise Damage Analysis ──────────────────────────────────────────────
+
+export interface EnterpriseAnalysis {
+  has_scratches: boolean        // riscos, arranhões, dobras
+  has_tears_or_holes: boolean   // rasgos, buracos, partes faltando
+  has_mold_or_stains: boolean   // mofo, manchas d'água, manchas químicas
+  has_blur: boolean             // desfoque de movimento ou foco
+  has_grain_or_noise: boolean   // granulação de filme, ruído digital
+  has_jpeg_artifacts: boolean   // blocos JPEG, pixelização por compressão
+  has_faces: boolean            // rostos de pessoas identificáveis
+  is_grayscale_or_sepia: boolean // P&B, sépia ou monocromático
+  damage_severity: 'light' | 'moderate' | 'severe'
+}
+
+export async function analyzeEnterpriseDamage(imageUrl: string): Promise<EnterpriseAnalysis> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    console.warn('[enterprise] OPENAI_API_KEY não configurada. Usando fallback conservador.')
+    return {
+      has_scratches: false, has_tears_or_holes: false, has_mold_or_stains: false,
+      has_blur: false, has_grain_or_noise: true, has_jpeg_artifacts: false,
+      has_faces: true, is_grayscale_or_sepia: true, damage_severity: 'moderate',
+    }
+  }
+
+  const prompt = `
+Você é um especialista técnico em restauração de fotos antigas. Analise a imagem com precisão.
+
+AVALIE CADA CAMPO COM RIGOR:
+
+1. has_scratches: TRUE se há riscos lineares, arranhões, dobras ou amassados VISÍVEIS
+2. has_tears_or_holes: TRUE se há rasgos, buracos ou partes COMPLETAMENTE ausentes
+3. has_mold_or_stains: TRUE se há manchas circulares de mofo, manchas d'água ou manchas químicas difusas
+4. has_blur: TRUE se a imagem está tremida ou desfocada (movimento ou foco incorreto)
+5. has_grain_or_noise: TRUE se há granulação de filme antigo ou ruído digital visível
+6. has_jpeg_artifacts: TRUE se há blocos quadrados 8x8 ou pixelização por compressão JPEG
+7. has_faces: TRUE se há rostos de pessoas identificáveis na foto
+8. is_grayscale_or_sepia: TRUE se a foto é Preto e Branco, Sépia ou Monocromática
+9. damage_severity:
+   - "light" = dano leve, estrutura bem preservada
+   - "moderate" = danos moderados, foto reconhecível mas com problemas claros
+   - "severe" = danos severos, partes significativas perdidas ou extremamente degradadas
+
+IMPORTANTE: Seja conservador. Marque TRUE apenas se o problema for claramente visível.
+`
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: prompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Analise detalhadamente a foto e preencha todos os campos.' },
+              { type: 'image_url', image_url: { url: imageUrl, detail: 'high' } },
+            ],
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'enterprise_analysis',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                has_scratches:        { type: 'boolean' },
+                has_tears_or_holes:   { type: 'boolean' },
+                has_mold_or_stains:   { type: 'boolean' },
+                has_blur:             { type: 'boolean' },
+                has_grain_or_noise:   { type: 'boolean' },
+                has_jpeg_artifacts:   { type: 'boolean' },
+                has_faces:            { type: 'boolean' },
+                is_grayscale_or_sepia:{ type: 'boolean' },
+                damage_severity:      { type: 'string', enum: ['light', 'moderate', 'severe'] },
+              },
+              required: [
+                'has_scratches', 'has_tears_or_holes', 'has_mold_or_stains',
+                'has_blur', 'has_grain_or_noise', 'has_jpeg_artifacts',
+                'has_faces', 'is_grayscale_or_sepia', 'damage_severity',
+              ],
+              additionalProperties: false,
+            },
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) throw new Error(`OpenAI Erro: ${await response.text()}`)
+    const data = await response.json()
+    const content = data.choices[0]?.message?.content
+    if (!content) throw new Error('OpenAI retornou vazio')
+
+    const analysis = JSON.parse(content) as EnterpriseAnalysis
+    console.log('[enterprise] Damage analysis:', JSON.stringify(analysis))
+    return analysis
+
+  } catch (error: any) {
+    console.error('[enterprise] Falha na análise:', error.message)
+    return {
+      has_scratches: false, has_tears_or_holes: false, has_mold_or_stains: false,
+      has_blur: false, has_grain_or_noise: true, has_jpeg_artifacts: false,
+      has_faces: true, is_grayscale_or_sepia: true, damage_severity: 'moderate',
+    }
+  }
+}
+
 // ─── AI Quality Gate ──────────────────────────────────────────────────────────
 
 export interface QualityAssessment {

@@ -13,6 +13,8 @@ export type PipelineModel =
   | 'nightmareai/real-esrgan'
   | 'sczhou/codeformer'
   | 'microsoft/bringing-old-photos-back-to-life'
+  | 'megvii-research/nafnet'
+  | 'jingyunliang/swinir'
   | 'arielreplicate/deoldify'
 
 export interface DiagnosisResult {
@@ -115,6 +117,21 @@ export const MODEL_CONFIGS: Record<string, {
       image: url,
       HR: false, // Turn off HR to bypass Red Mask bug on extreme physical damage
       with_scratch: true
+    }),
+  },
+  'megvii-research/nafnet': {
+    name: 'megvii-research/nafnet',
+    buildInput: (url) => ({
+      image: url,
+      task_type: 'Image Deblurring', // handles both motion blur and noise
+    }),
+  },
+  'jingyunliang/swinir': {
+    name: 'jingyunliang/swinir',
+    buildInput: (url) => ({
+      image:     url,
+      task_type: 'JPEG Compression Artifact Reduction',
+      jpeg:      40, // threshold for artifact removal
     }),
   },
   // Legacy aliases

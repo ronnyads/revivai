@@ -23,6 +23,33 @@ export default function UploadPage() {
   const [progress, setProgress]   = useState(0)
 
   const [pipeline, setPipeline]   = useState<string[]>([])
+  const [colorizationSuggested, setColorizationSuggested] = useState(false)
+  const [colorizationUrl, setColorizationUrl]             = useState<string | null>(null)
+  const [colorizing, setColorizing]                       = useState(false)
+
+  const handleColorize = async () => {
+    if (!photoId || colorizing) return
+    setColorizing(true)
+    try {
+      const res = await fetch('/api/colorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoId }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        if (res.status === 402) { router.push('/#pricing'); return }
+        throw new Error(err.error || 'Erro na colorização')
+      }
+      const { colorization_url } = await res.json()
+      setColorizationUrl(colorization_url)
+      setColorizationSuggested(false)
+    } catch (e: any) {
+      alert(e.message || 'Erro ao colorizar. Tente novamente.')
+    } finally {
+      setColorizing(false)
+    }
+  }
 
   const handleRestore = async () => {
     if (!file) return
@@ -75,7 +102,11 @@ export default function UploadPage() {
 
           if (status === 'done' && restored_url) {
             clearInterval(pollId)
-            setRestoredUrl(restored_url); setProgress(100); setStep('done')
+            setRestoredUrl(restored_url)
+            setProgress(100)
+            setStep('done')
+            if (data.colorization_suggested) setColorizationSuggested(true)
+            if (data.colorization_url) setColorizationUrl(data.colorization_url)
           } else if (status === 'error') {
             clearInterval(pollId)
             setError(`A IA encontrou um erro: ${restored_url || 'Falha ao processar.'}`)
@@ -150,17 +181,26 @@ export default function UploadPage() {
             <h2 className="font-display text-3xl font-normal mb-2">Restaurando sua memória...</h2>
             <p className="text-muted text-sm mb-6">{diagnosis.description || 'Processando com IA em 3 etapas...'}</p>
 
-            {/* 3-stage visual indicator */}
+            {/* Pipeline stage indicator */}
             {pipeline.length > 0 && (
-              <div className="flex items-center justify-center gap-3 mb-6">
-                {['🎨 Colorização', '📐 Upscale 4x', '👤 Restauração'].slice(0, pipeline.length).map((label, i) => {
+              <div className="flex items-center justify-center flex-wrap gap-2 mb-6">
+                {pipeline.map((model, i) => {
+                  const LABELS: Record<string, string> = {
+                    'microsoft/bringing-old-photos-back-to-life': '✂️ Danos',
+                    'megvii-research/nafnet':  '🔍 Desfoque',
+                    'jingyunliang/swinir':     '🗜️ JPEG',
+                    'nightmareai/real-esrgan': '📐 Upscale',
+                    'sczhou/codeformer':       '👤 Rostos',
+                    'piddnad/ddcolor':         '🎨 Cores',
+                  }
+                  const label = LABELS[model] || model.split('/')[1]
                   const currentStage = Math.floor(((progress - 35) / 55) * pipeline.length)
-                  const isDone = i < currentStage
+                  const isDone   = i < currentStage
                   const isActive = i === currentStage
                   return (
                     <div key={i} className="flex items-center gap-2">
                       <div className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition-all ${
-                        isDone ? 'bg-green-100 text-green-700 font-medium' :
+                        isDone   ? 'bg-green-100 text-green-700 font-medium' :
                         isActive ? 'bg-accent-light text-accent font-medium animate-pulse' :
                         'bg-[#F5F5F5] text-muted'
                       }`}>
@@ -190,13 +230,43 @@ export default function UploadPage() {
               </div>
               <BeforeAfterSlider before={originalUrl} after={restoredUrl} />
             </div>
+            {/* Colorization result */}
+            {colorizationUrl && (
+              <div className="bg-white rounded-2xl border border-[#E8E8E8] p-6 mt-2">
+                <div className="flex items-center gap-2 text-amber-600 text-sm font-medium mb-4">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" /> Colorização concluída!
+                </div>
+                <BeforeAfterSlider before={restoredUrl} after={colorizationUrl} />
+                <a href={colorizationUrl} download target="_blank" rel="noreferrer"
+                  className="mt-4 w-full flex items-center justify-center gap-2 bg-amber-500 text-white py-3 rounded-xl text-sm font-medium hover:bg-amber-600 transition-colors">
+                  ↓ Baixar foto colorizada
+                </a>
+              </div>
+            )}
+
+            {/* Colorization suggestion */}
+            {colorizationSuggested && !colorizationUrl && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-semibold text-amber-800 text-sm mb-1">🎨 Quer ver ela em cores?</p>
+                  <p className="text-amber-700 text-xs">A IA vai colorir sua foto restaurada preservando todos os detalhes originais.</p>
+                </div>
+                <button
+                  onClick={handleColorize}
+                  disabled={colorizing}
+                  className="shrink-0 bg-amber-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-amber-600 transition-colors disabled:opacity-60 disabled:cursor-wait">
+                  {colorizing ? 'Colorindo...' : 'Colorizar — 1 crédito'}
+                </button>
+              </div>
+            )}
+
             <div className="flex gap-3">
-              <a href={restoredUrl} download target="_blank" rel="noreferrer"
+              <a href={colorizationUrl || restoredUrl} download target="_blank" rel="noreferrer"
                 className="flex-1 flex items-center justify-center gap-2 bg-ink text-white py-3.5 rounded-xl text-sm font-medium hover:bg-accent transition-colors">
                 ↓ Baixar foto restaurada
               </a>
               <button
-                onClick={() => { setStep('upload'); setFile(null); setRestoredUrl(''); setOriginalUrl('') }}
+                onClick={() => { setStep('upload'); setFile(null); setRestoredUrl(''); setOriginalUrl(''); setColorizationSuggested(false); setColorizationUrl(null) }}
                 className="flex-1 border border-[#E8E8E8] text-ink py-3.5 rounded-xl text-sm font-medium hover:border-accent hover:text-accent transition-colors">
                 Restaurar outra
               </button>

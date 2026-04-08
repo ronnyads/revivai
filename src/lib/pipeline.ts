@@ -1,34 +1,60 @@
 import { ImageStats, PipelineModel } from './diagnose'
-import { SovereignAnalysis } from './openai'
+import { SovereignAnalysis, EnterpriseAnalysis } from './openai'
 
-// ─── Pipeline Builder ─────────────────────────────────────────────────────────
+// ─── Enterprise Pipeline Builder ─────────────────────────────────────────────
+// Phase 1: Restoration only. DDColor is NEVER included here.
+// Colorization is Phase 2 (separate credit, /api/colorize).
+
+export function buildEnterprisePipeline(analysis: EnterpriseAnalysis): PipelineModel[] {
+  const pipe: PipelineModel[] = []
+
+  // Step 0: Physical damage (scratches, tears, mold, folds)
+  if (analysis.has_scratches || analysis.has_tears_or_holes || analysis.has_mold_or_stains) {
+    pipe.push('microsoft/bringing-old-photos-back-to-life')
+  }
+
+  // Step 1: Optical damage (blur + grain — NAFNet handles both)
+  if (analysis.has_blur || analysis.has_grain_or_noise) {
+    pipe.push('megvii-research/nafnet')
+  }
+
+  // Step 2: Digital compression artifacts (before upscale — ESRGAN would amplify them)
+  if (analysis.has_jpeg_artifacts) {
+    pipe.push('jingyunliang/swinir')
+  }
+
+  // Step 3: Upscale (always)
+  pipe.push('nightmareai/real-esrgan')
+
+  // Step 4: Face restoration
+  if (analysis.has_faces) {
+    pipe.push('sczhou/codeformer')
+  }
+
+  return pipe
+}
+
+// ─── Legacy Pipeline Builder (kept for compatibility) ─────────────────────────
 
 export function buildPipelineFromSovereign(analysis: SovereignAnalysis): PipelineModel[] {
   const pipe: PipelineModel[] = []
-
-  // Stage 0: Scratch cleanup
   if (analysis.needs_scratch_removal) pipe.push('microsoft/bringing-old-photos-back-to-life')
-  
-  // Stage 1: Colorization
-  if (analysis.needs_colorization) pipe.push('piddnad/ddcolor')
-  
-  // Stage 2: Upscale (Always yes to preserve details)
+  // NOTE: needs_colorization intentionally excluded — colorization is now Phase 2
   pipe.push('nightmareai/real-esrgan')
-
-  // Stage 3: Face restore
   if (analysis.needs_face_restoration) pipe.push('sczhou/codeformer')
-
   return pipe
 }
 
 // ─── Phase Labels ─────────────────────────────────────────────────────────────
 
 const MODEL_LABELS: Record<PipelineModel, string> = {
-  'piddnad/ddcolor':          'Colorindo e melhorando cores',
-  'nightmareai/real-esrgan':  'Aumentando resolução',
-  'sczhou/codeformer':        'Restaurando rostos e detalhes',
-  'microsoft/bringing-old-photos-back-to-life': 'Removendo riscos e danos',
-  'arielreplicate/deoldify':  'Colorindo (Legacy)',
+  'piddnad/ddcolor':                            'Colorindo e melhorando cores',
+  'nightmareai/real-esrgan':                    'Aumentando resolução',
+  'sczhou/codeformer':                          'Restaurando rostos e detalhes',
+  'microsoft/bringing-old-photos-back-to-life': 'Removendo riscos e danos físicos',
+  'megvii-research/nafnet':                      'Removendo desfoque e granulação',
+  'jingyunliang/swinir':                        'Removendo artefatos de compressão',
+  'arielreplicate/deoldify':                    'Colorindo (Legacy)',
 }
 
 export function getPhaseLabel(stepIndex: number, totalSteps: number, model: PipelineModel): string {

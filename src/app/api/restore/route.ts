@@ -5,14 +5,14 @@ import Replicate from 'replicate'
 import { createClient } from '@/lib/supabase/server'
 import { analyzeImage, selectModel, MODEL_CONFIGS, PipelineModel } from '@/lib/diagnose'
 import {
-  buildPipelineFromSovereign,
+  buildEnterprisePipeline,
   buildWebhookUrl,
   getPhaseLabel,
   encodePipeState,
   decodePipeState,
 } from '@/lib/pipeline'
 import { getModelVersion, createPredictionWithRetry } from '@/lib/replicate'
-import { analyzeSovereignGPT } from '@/lib/openai'
+import { analyzeEnterpriseDamage } from '@/lib/openai'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -100,11 +100,11 @@ export async function POST(req: NextRequest) {
   const { data: { publicUrl: originalUrl } } = supabase.storage
     .from('photos').getPublicUrl(fileName)
 
-  // ── Sovereign Diagnosis (GPT-4o) ──
-  const aiDiagnosis = await analyzeSovereignGPT(originalUrl)
-  const pipeline  = buildPipelineFromSovereign(aiDiagnosis)
-  
-  console.log(`[restore] Sovereign Pipeline for ${file.name}:`, pipeline, '| Analysis:', aiDiagnosis)
+  // ── Enterprise Diagnosis (GPT-4o-mini Vision) ──
+  const aiDiagnosis = await analyzeEnterpriseDamage(originalUrl)
+  const pipeline    = buildEnterprisePipeline(aiDiagnosis)
+
+  console.log(`[restore] Enterprise Pipeline for ${file.name}:`, pipeline, '| Analysis:', JSON.stringify(aiDiagnosis))
 
   // ── Create photo record ──
   const firstModel  = pipeline[0]
@@ -113,11 +113,12 @@ export async function POST(req: NextRequest) {
   const { data: photo, error: dbError } = await supabase
     .from('photos')
     .insert({
-      user_id:      user.id,
-      original_url: originalUrl,
-      status:       'processing',
-      model_used:   pipeline.join(','),  // store full pipeline
-      diagnosis:    firstPhase,
+      user_id:         user.id,
+      original_url:    originalUrl,
+      status:          'processing',
+      model_used:      pipeline.join(','),
+      diagnosis:       firstPhase,
+      damage_analysis: aiDiagnosis,
     })
     .select()
     .single()
@@ -177,11 +178,14 @@ export async function POST(req: NextRequest) {
     predictionId,
     originalUrl,
     diagnosis: {
-      label:       aiDiagnosis.needs_scratch_removal ? 'Restauração Extrema' : 'Restauração Avançada',
+      label: aiDiagnosis.damage_severity === 'severe'   ? 'Restauração Extrema'  :
+             aiDiagnosis.damage_severity === 'moderate' ? 'Restauração Avançada' : 'Restauração Leve',
       description: firstPhase,
-      icon:        aiDiagnosis.needs_scratch_removal ? '✂️' : '✨',
-      confidence:  99,
-      model:       pipeline[0],
+      icon:  aiDiagnosis.has_tears_or_holes || aiDiagnosis.has_scratches ? '✂️' :
+             aiDiagnosis.has_blur           ? '🔍' :
+             aiDiagnosis.has_grain_or_noise ? '🎞️' : '✨',
+      confidence: 99,
+      model: pipeline[0],
     },
     imageInfo: {
       width:      imageStats.width,
@@ -206,7 +210,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('photos')
-    .select('status, restored_url, diagnosis, model_used, user_id')
+    .select('status, restored_url, diagnosis, model_used, user_id, colorization_suggested, colorization_url')
     .eq('id', photoId)
     .single()
 
@@ -215,9 +219,11 @@ export async function GET(req: NextRequest) {
   // ── Terminal states ────────────────────────────────────────────────────────
   if (data.status === 'done' || data.status === 'error') {
     return NextResponse.json({
-      status:       data.status,
-      restored_url: data.restored_url,
-      diagnosis:    data.diagnosis,
+      status:                   data.status,
+      restored_url:             data.restored_url,
+      diagnosis:                data.diagnosis,
+      colorization_suggested:   data.colorization_suggested ?? false,
+      colorization_url:         data.colorization_url ?? null,
     })
   }
 

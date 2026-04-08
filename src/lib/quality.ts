@@ -120,6 +120,74 @@ export async function checkUpscale(
 }
 
 /**
+ * NAFNet (deblur/denoise) quality check:
+ *  - URL accessible                (+30)
+ *  - Valid dimensions              (+30)
+ *  - Brightness normal             (+40)
+ *  Pass threshold: 60/100
+ */
+export async function checkDeblurDenoise(
+  outputUrl: string,
+  inputW: number,
+  inputH: number,
+): Promise<QualityResult> {
+  const issues: string[] = []
+  let score = 0
+
+  const buffer = await fetchImageBuffer(outputUrl)
+  if (!buffer) return { passed: false, score: 0, issues: ['Output URL inacessível'] }
+  score += 30
+
+  try {
+    const { width, height, brightness, saturation } = await analyzeBuffer(buffer)
+
+    if (width > 0 && height > 0) score += 30
+    else issues.push('Dimensões inválidas')
+
+    if (brightness >= 40 && brightness <= 220) score += 40
+    else issues.push(`Brilho anormal: ${brightness.toFixed(1)}`)
+
+    return { passed: score >= 60, score, issues, outputStats: { width, height, saturation, brightness } }
+  } catch (err: any) {
+    return { passed: false, score, issues: [`Sharp error: ${err.message}`] }
+  }
+}
+
+/**
+ * SwinIR (JPEG artifact removal) quality check:
+ *  - URL accessible                            (+30)
+ *  - Dimensions preserved (≥ input)            (+40)
+ *  - Brightness normal                         (+30)
+ *  Pass threshold: 60/100
+ */
+export async function checkArtifactRemoval(
+  outputUrl: string,
+  inputW: number,
+  inputH: number,
+): Promise<QualityResult> {
+  const issues: string[] = []
+  let score = 0
+
+  const buffer = await fetchImageBuffer(outputUrl)
+  if (!buffer) return { passed: false, score: 0, issues: ['Output URL inacessível'] }
+  score += 30
+
+  try {
+    const { width, height, brightness, saturation } = await analyzeBuffer(buffer)
+
+    if (width >= inputW && height >= inputH) score += 40
+    else issues.push(`Dimensões menores que entrada: ${width}×${height} vs ${inputW}×${inputH}`)
+
+    if (brightness >= 40 && brightness <= 220) score += 30
+    else issues.push(`Brilho anormal: ${brightness.toFixed(1)}`)
+
+    return { passed: score >= 60, score, issues, outputStats: { width, height, saturation, brightness } }
+  } catch (err: any) {
+    return { passed: false, score, issues: [`Sharp error: ${err.message}`] }
+  }
+}
+
+/**
  * Codeformer (final) quality check:
  *  - URL accessible                (+30)
  *  - Valid dimensions              (+30)

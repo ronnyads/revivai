@@ -11,6 +11,8 @@ import {
   checkColorization,
   checkUpscale,
   checkFaceRestoration,
+  checkDeblurDenoise,
+  checkArtifactRemoval,
 } from '@/lib/quality'
 import Replicate from 'replicate'
 import { getModelVersion, createPredictionWithRetry } from '@/lib/replicate'
@@ -150,7 +152,11 @@ export async function POST(req: NextRequest) {
       } else if (currentModel === 'nightmareai/real-esrgan') {
         qcResult = await checkUpscale(resultUrl, p.inputW, p.inputH)
       } else if (currentModel === 'microsoft/bringing-old-photos-back-to-life') {
-        qcResult = { passed: true, score: 90, issues: [] } // Skip deep QC for scratch removal
+        qcResult = { passed: true, score: 90, issues: [] }
+      } else if (currentModel === 'megvii-research/nafnet') {
+        qcResult = await checkDeblurDenoise(resultUrl, p.inputW, p.inputH)
+      } else if (currentModel === 'jingyunliang/swinir') {
+        qcResult = await checkArtifactRemoval(resultUrl, p.inputW, p.inputH)
       } else {
         qcResult = await checkFaceRestoration(resultUrl)
       }
@@ -244,6 +250,23 @@ export async function POST(req: NextRequest) {
         supabase, p.photoId, p.userId, newBestUrl,
         aiQC.passed ? 'Restauração concluída ✨' : 'Restauração entregue ⚠️'
       )
+
+      // ── Sugestão de colorização (Phase 2) ────────────────────────────────────
+      // Se a foto é P&B ou sépia, sugerir colorização como próximo passo
+      try {
+        const { data: photoData } = await supabase
+          .from('photos').select('damage_analysis').eq('id', p.photoId).single()
+        const analysis = photoData?.damage_analysis as { is_grayscale_or_sepia?: boolean } | null
+        if (analysis?.is_grayscale_or_sepia) {
+          await supabase.from('photos')
+            .update({ colorization_suggested: true })
+            .eq('id', p.photoId)
+          console.log(`[pipeline] Colorization suggested for ${p.photoId}`)
+        }
+      } catch (e: any) {
+        console.warn('[pipeline] Failed to set colorization_suggested:', e.message)
+      }
+
       return NextResponse.json({ ok: true, done: true, aiScore: aiQC.score })
     }
 
