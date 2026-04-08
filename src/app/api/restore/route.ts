@@ -306,6 +306,10 @@ export async function GET(req: NextRequest) {
           })
         } catch (chainErr: any) {
           console.error('[restore GET] Failed to chain next step:', chainErr.message)
+          const { createAdminClient } = await import('@/lib/supabase/admin')
+          await createAdminClient().from('photos').update({
+            diagnosis: `Fall back polling retry error: ${chainErr.message}`
+          }).eq('id', photoId)
           return NextResponse.json({ status: 'processing', diagnosis: data.diagnosis })
         }
 

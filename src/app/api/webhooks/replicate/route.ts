@@ -254,7 +254,7 @@ export async function POST(req: NextRequest) {
       // Couldn't launch the next step — deliver best result so far
       await deliverResult(
         supabase, p.photoId, p.userId, newBestUrl,
-        'Restauração parcial entregue ⚠️'
+        `Restauração parcial entregue ⚠️ (${launchErr.message})`
       )
       await supabase.rpc('debit_credit', { user_id_param: p.userId })
     }
