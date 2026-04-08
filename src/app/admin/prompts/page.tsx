@@ -73,19 +73,14 @@ export default async function PromptsPage() {
             <textarea name="prompt" rows={6} required placeholder="Escreva o prompt completo aqui..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
           </div>
           <div>
-            <label className="text-xs text-white/40 mb-1 block">Prompt de Retry <span className="text-white/20">(se QC score &lt; 70)</span></label>
+            <label className="text-xs text-white/40 mb-1 block">Prompt de Retry <span className="text-white/20">(se QC score abaixo do limiar)</span></label>
             <textarea name="retry_prompt" rows={3} placeholder="Prompt conservador para segunda tentativa..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-white/40 mb-1 block">URL "Antes" <span className="text-white/20">(opcional)</span></label>
-              <input name="example_before_url" type="url" placeholder="https://..." className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
-            </div>
-            <div>
-              <label className="text-xs text-white/40 mb-1 block">URL "Depois" <span className="text-white/20">(opcional)</span></label>
-              <input name="example_after_url" type="url" placeholder="https://..." className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
-            </div>
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Limiar de Qualidade <span className="text-white/20">(0–100, padrão 70)</span></label>
+            <input name="qc_threshold" type="number" min={0} max={100} step={5} defaultValue={70} className="w-32 bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
           </div>
+          <p className="text-xs text-white/20">💡 Após criar, edite o modo para fazer upload das imagens de exemplo.</p>
           <button type="submit" className="self-start bg-accent text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-accent-dark transition-colors">
             Criar modo
           </button>

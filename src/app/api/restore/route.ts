@@ -129,23 +129,25 @@ export async function POST(req: NextRequest) {
 
   let modePersona: string | null = null
   let modeRetryPrompt: string | null = null
+  let modeQcThreshold = 70
 
   if (modeId) {
     const { createAdminClient: getAdmin } = await import('@/lib/supabase/admin')
     const { data: modeRow } = await getAdmin()
       .from('restoration_modes')
-      .select('prompt, model, persona, retry_prompt')
+      .select('prompt, model, persona, retry_prompt, qc_threshold')
       .eq('id', modeId)
       .single()
     if (modeRow) {
       modePrompt      = modeRow.prompt
       modeModel       = modeRow.model
-      modePersona     = modeRow.persona     ?? null
+      modePersona     = modeRow.persona      ?? null
       modeRetryPrompt = modeRow.retry_prompt ?? null
+      modeQcThreshold = modeRow.qc_threshold ?? 70
     }
   }
 
-  console.log(`[restore] mode=${modeId ?? 'default'} model=${modeModel} persona=${!!modePersona}`)
+  console.log(`[restore] mode=${modeId ?? 'default'} model=${modeModel} persona=${!!modePersona} qc_threshold=${modeQcThreshold}`)
 
   // ── Restore with Gemini (synchronous) ──
   try {
@@ -172,7 +174,7 @@ export async function POST(req: NextRequest) {
     let finalScore = qc.score
 
     // Retry com prompt conservador se qualidade baixa
-    if (qc.score < 70) {
+    if (qc.score < modeQcThreshold) {
       try {
         console.log(`[gemini] Score baixo (${qc.score}), retrying com prompt conservador...`)
         const retryBuffer = await restoreWithGemini(cleanBuffer, modePrompt, modeModel, true, modePersona, modeRetryPrompt)
