@@ -13,6 +13,12 @@ export function buildEnterprisePipeline(analysis: EnterpriseAnalysis): PipelineM
     pipe.push('microsoft/bringing-old-photos-back-to-life')
   }
 
+  // Step 0b: Generative inpainting for severe damage (mold/tears destroy large areas)
+  // FLUX Fill Pro reconstructs missing regions using surrounding context
+  if (analysis.has_mold_or_stains || analysis.has_tears_or_holes) {
+    pipe.push('black-forest-labs/flux-fill-pro')
+  }
+
   // Step 1: Optical damage (blur + grain — NAFNet handles both)
   if (analysis.has_blur || analysis.has_grain_or_noise) {
     pipe.push('megvii-research/nafnet')
@@ -54,6 +60,7 @@ const MODEL_LABELS: Record<PipelineModel, string> = {
   'microsoft/bringing-old-photos-back-to-life': 'Removendo riscos e danos físicos',
   'megvii-research/nafnet':                      'Removendo desfoque e granulação',
   'jingyunliang/swinir':                        'Removendo artefatos de compressão',
+  'black-forest-labs/flux-fill-pro':            'Reconstruindo áreas severamente danificadas',
   'arielreplicate/deoldify':                    'Colorindo (Legacy)',
 }
 

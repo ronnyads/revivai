@@ -15,6 +15,7 @@ export type PipelineModel =
   | 'microsoft/bringing-old-photos-back-to-life'
   | 'megvii-research/nafnet'
   | 'jingyunliang/swinir'
+  | 'black-forest-labs/flux-fill-pro'
   | 'arielreplicate/deoldify'
 
 export interface DiagnosisResult {
@@ -133,6 +134,11 @@ export const MODEL_CONFIGS: Record<string, {
       task_type: 'JPEG Compression Artifact Reduction',
       jpeg:      40, // threshold for artifact removal
     }),
+  },
+  'black-forest-labs/flux-fill-pro': {
+    name: 'black-forest-labs/flux-fill-pro',
+    // input is built dynamically in the webhook (needs mask URL from original image)
+    buildInput: (url) => ({ image: url }),
   },
   // Legacy aliases
   'arielreplicate/deoldify': {

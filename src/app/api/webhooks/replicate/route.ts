@@ -57,6 +57,74 @@ function getBaseUrl(req: NextRequest): string {
   return `${url.protocol}//${url.host}`
 }
 
+// ─── Damage Mask Generation + FLUX Fill Inpainting ───────────────────────────
+
+async function generateDamageMask(
+  supabase: ReturnType<typeof createAdminClient>,
+  originalUrl: string,
+  photoId: string,
+): Promise<string> {
+  const sharp = (await import('sharp')).default
+
+  const res = await fetch(originalUrl)
+  if (!res.ok) throw new Error(`Mask fetch failed: ${res.status}`)
+  const buf = Buffer.from(await res.arrayBuffer())
+
+  // Grayscale raw pixels
+  const { data, info } = await sharp(buf).grayscale().raw().toBuffer({ resolveWithObject: true })
+
+  // Threshold >235 = very bright (mold/white damage) → white in mask
+  const maskData = Buffer.alloc(data.length)
+  for (let i = 0; i < data.length; i++) {
+    maskData[i] = (data[i] as number) > 235 ? 255 : 0
+  }
+
+  // Blur to dilate mask edges (+15px), then re-threshold
+  const blurred = await sharp(maskData, { raw: { width: info.width, height: info.height, channels: 1 } })
+    .blur(15).raw().toBuffer()
+
+  const dilated = Buffer.alloc(blurred.length)
+  for (let i = 0; i < blurred.length; i++) {
+    dilated[i] = (blurred[i] as number) > 30 ? 255 : 0
+  }
+
+  const maskPng = await sharp(dilated, { raw: { width: info.width, height: info.height, channels: 1 } })
+    .png().toBuffer()
+
+  // Upload mask to Supabase storage
+  const maskPath = `masks/${photoId}.png`
+  await supabase.storage.from('photos').upload(maskPath, maskPng, { contentType: 'image/png', upsert: true })
+  const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(maskPath)
+  return publicUrl
+}
+
+async function launchInpainting(
+  replicate: Replicate,
+  supabase: ReturnType<typeof createAdminClient>,
+  imageUrl: string,
+  originalUrl: string,
+  photoId: string,
+  webhookUrl: string,
+): Promise<string> {
+  const maskUrl = await generateDamageMask(supabase, originalUrl, photoId)
+  console.log(`[inpainting] Mask generated: ${maskUrl}`)
+
+  const pred = await createPredictionWithRetry(replicate, {
+    model:                 'black-forest-labs/flux-fill-pro',
+    input: {
+      image:    imageUrl,
+      mask:     maskUrl,
+      prompt:   'restore old photograph, fill damaged area naturally, vintage portrait, seamless background reconstruction',
+      steps:    30,
+      guidance: 30,
+    },
+    webhook:               webhookUrl,
+    webhook_events_filter: ['completed'],
+  })
+
+  return pred.id
+}
+
 // ─── Deliver final result ─────────────────────────────────────────────────────
 
 async function deliverResult(
@@ -151,7 +219,8 @@ export async function POST(req: NextRequest) {
         qcResult = await checkColorization(resultUrl, p.isGray)
       } else if (currentModel === 'nightmareai/real-esrgan') {
         qcResult = await checkUpscale(resultUrl, p.inputW, p.inputH)
-      } else if (currentModel === 'microsoft/bringing-old-photos-back-to-life') {
+      } else if (currentModel === 'microsoft/bringing-old-photos-back-to-life' ||
+                 currentModel === 'black-forest-labs/flux-fill-pro') {
         qcResult = { passed: true, score: 90, issues: [] }
       } else if (currentModel === 'megvii-research/nafnet') {
         qcResult = await checkDeblurDenoise(resultUrl, p.inputW, p.inputH)
@@ -294,7 +363,16 @@ export async function POST(req: NextRequest) {
         retry:   0,
       })
 
-      const predId = await launchPrediction(replicate, nextModel, newBestUrl, webhookUrl)
+      let predId: string
+      if (nextModel === 'black-forest-labs/flux-fill-pro') {
+        // Inpainting needs original image to generate damage mask
+        const { data: photoRow } = await supabase
+          .from('photos').select('original_url').eq('id', p.photoId).single()
+        const originalUrl = photoRow?.original_url ?? newBestUrl
+        predId = await launchInpainting(replicate, supabase, newBestUrl, originalUrl, p.photoId, webhookUrl)
+      } else {
+        predId = await launchPrediction(replicate, nextModel, newBestUrl, webhookUrl)
+      }
       const phase  = getPhaseLabel(nextStep, p.pipeline.length, nextModel)
 
       await supabase.from('photos').update({
