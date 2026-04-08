@@ -307,8 +307,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Score crítico após tentativas: original é melhor que alucinação
-      if (aiQC.score < 40 && originalUrl) {
+      // Score crítico após tentativas: original é melhor que alucinação severa
+      if (aiQC.score < 20 && originalUrl) {
         console.warn(`[pipeline] Score crítico (${aiQC.score}). Entregando foto original.`)
         await deliverResult(supabase, p.photoId, p.userId, originalUrl,
           'Restauração preservou seu original — qualidade garantida ⚠️')

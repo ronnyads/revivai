@@ -112,7 +112,7 @@ AVALIE CADA CAMPO COM RIGOR:
 
 1. has_scratches: TRUE se há riscos lineares, arranhões, dobras ou amassados VISÍVEIS
 2. has_tears_or_holes: TRUE se há rasgos, buracos ou partes COMPLETAMENTE ausentes
-3. has_mold_or_stains: TRUE se há manchas circulares de mofo, manchas d'água ou manchas químicas difusas
+3. has_mold_or_stains: TRUE se há manchas de mofo (áreas brancas/acinzentadas difusas que parecem bolor), manchas d'água, manchas químicas, degradação química que cria áreas esbranquiçadas ou desbotadas, ou qualquer área onde a emulsão fotográfica foi destruída deixando manchas claras irregulares
 4. has_blur: TRUE se a imagem está tremida ou desfocada (movimento ou foco incorreto)
 5. has_grain_or_noise: TRUE se há granulação de filme antigo ou ruído digital visível
 6. has_jpeg_artifacts: TRUE se há blocos quadrados 8x8 ou pixelização por compressão JPEG
