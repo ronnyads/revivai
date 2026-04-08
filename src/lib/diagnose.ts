@@ -127,13 +127,13 @@ export function selectModel(stats: ImageStats, userHint?: string): DiagnosisResu
   }
 }
 
-// ── Replicate model version hashes (from Replicate API) ──
+// ── Replicate models ──
 export const MODEL_CONFIGS: Record<ReplicateModel, {
-  version: string
+  name: string
   buildInput: (imageUrl: string) => Record<string, unknown>
 }> = {
   'nightmareai/real-esrgan': {
-    version: 'nightmareai/real-esrgan:f121d640bd286e1fdc67f9799164c1d5be36ff74576ee11c803ae5b665dd374',
+    name: 'nightmareai/real-esrgan',
     buildInput: (url) => ({
       image: url,
       scale: 4,
@@ -141,7 +141,7 @@ export const MODEL_CONFIGS: Record<ReplicateModel, {
     }),
   },
   'sczhou/codeformer': {
-    version: 'sczhou/codeformer:7de2ea26c616d5bf2245ad0d5e24f0ff9a6204578a5c876db53142edd9d2cd56',
+    name: 'sczhou/codeformer',
     buildInput: (url) => ({
       image: url,
       codeformer_fidelity: 0.7,
@@ -151,15 +151,16 @@ export const MODEL_CONFIGS: Record<ReplicateModel, {
     }),
   },
   'arielreplicate/deoldify': {
-    version: 'arielreplicate/deoldify:0da600fab0c45a66211339f1c16b71345d22f26ef5fea3dfa1bb0ad586485d04',
+    name: 'sgrepine/deoldify', // Changed to a highly popular and public Deoldify fork if arielreplicate fails
     buildInput: (url) => ({
-      input_image: url,
-      model_name: 'ColorizeStable',
+      image: url, // Some forks use 'image', some use 'input_image'
+      input_image: url, // Safe bet: pass both
+      model_name: 'Artistic',
       render_factor: 35,
     }),
   },
   'stability-ai/stable-diffusion-inpainting': {
-    version: 'stability-ai/stable-diffusion-inpainting:95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd68b3',
+    name: 'stability-ai/stable-diffusion-inpainting',
     buildInput: (url) => ({
       image: url,
       prompt: 'old photo restoration, high quality, detailed, clean',

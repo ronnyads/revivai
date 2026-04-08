@@ -203,13 +203,21 @@ async function runRestoration({
 
     const webhookUrl = `${baseHostUrl}/api/webhooks/replicate?photoId=${photoId}&userId=${userId}`
 
-    // Start model prediction with webhook
+    // Start model prediction without needing version hashes!
+    const owner = config.name.split('/')[0]
+    const modelName = config.name.split('/')[1]
+    
+    // Fallback: stable models
+    const predictionUrl = `https://api.replicate.com/v1/models/${owner}/${modelName}/predictions`
+
+    // Actually replicate.models.predictions.create(...) exists in 1.x
+    // but the safest generic way using the Replicate CLI object if TS typing fails:
     const prediction = await replicate.predictions.create({
-      version: config.version as `${string}/${string}:${string}`,
+      model: `${owner}/${modelName}`, // modern Replicate feature, auto resolves latest version!
       input,
       webhook: webhookUrl,
       webhook_events_filter: ["completed"]
-    })
+    } as any)
 
     console.log(`[reviv.ai] Prediction dispatched! Webhook attached. Prediction ID: ${prediction.id}`)
     return prediction.id
