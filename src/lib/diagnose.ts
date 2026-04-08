@@ -151,11 +151,11 @@ export const MODEL_CONFIGS: Record<ReplicateModel, {
     }),
   },
   'arielreplicate/deoldify': {
-    name: 'cjwbw/deoldify', // Dynamic version fetching avoids 404s completely!
+    name: 'arielreplicate/deoldify_image', // Valid model confirmed by dynamic script!
     buildInput: (url) => ({
-      image: url, 
-      input_image: url, // Fallback parameters if needed by specific fork
-      model_name: 'Artistic',
+      image: url, // try both image and input_image just to be safe
+      input_image: url,
+      model_name: 'ColorizeStable',
       render_factor: 35,
     }),
   },
