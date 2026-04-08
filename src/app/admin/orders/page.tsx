@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { formatCurrency, formatDate } from '@/lib/utils'
 
 export default async function AdminOrders() {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data: orders } = await supabase
     .from('orders')
     .select('*, users(email)')

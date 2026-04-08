@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { formatDate } from '@/lib/utils'
 
 export default async function AdminPhotos() {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const { data: photos, count } = await supabase
     .from('photos')
     .select('*, users(email)', { count: 'exact' })
