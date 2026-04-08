@@ -276,8 +276,16 @@ export async function GET(req: NextRequest) {
         }
 
         // Not the last step — launch next step via polling path
-        const nextStep  = currentStep + 1
-        const nextModel = pipeline[nextStep]
+        let nextStep  = currentStep + 1
+        let nextModel = pipeline[nextStep]
+
+        // FLUX Fill requires mask generation — only supported in webhook path.
+        // Skip it in polling fallback to avoid 422 loop.
+        if (nextModel === 'black-forest-labs/flux-fill-pro') {
+          console.warn('[restore GET] Skipping flux-fill-pro in polling fallback — webhook handles it')
+          nextStep  = nextStep + 1
+          nextModel = pipeline[nextStep]
+        }
 
         if (!nextModel) {
           return NextResponse.json({ status: 'processing', diagnosis: data.diagnosis })
