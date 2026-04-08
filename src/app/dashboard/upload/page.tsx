@@ -57,12 +57,23 @@ export default function UploadPage() {
 
       // Poll every 3s
       let attempts = 0
+      let currentPredId = predId
       const pollId = setInterval(async () => {
         attempts++
         setProgress(Math.min(35 + attempts * 5, 90))
         try {
-          const r = await fetch(`/api/restore?photoId=${pid}${predId ? `&predictionId=${predId}` : ''}`)
-          const { status, restored_url } = await r.json()
+          const params = new URLSearchParams()
+          params.append('photoId', pid)
+          if (currentPredId) params.append('predictionId', currentPredId)
+
+          const r = await fetch(`/api/restore?${params.toString()}`)
+          const { status, restored_url, newPredictionId, detail } = await r.json()
+
+          if (newPredictionId) {
+            currentPredId = newPredictionId
+            console.log('Chained prediction started:', newPredictionId)
+          }
+
           if (status === 'done' && restored_url) {
             clearInterval(pollId)
             setRestoredUrl(restored_url); setProgress(100); setStep('done')

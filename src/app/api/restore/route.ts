@@ -148,7 +148,26 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({ status: 'processing', detail: 'Waiting for output shape...' }) 
         }
 
-        console.log(`[reviv.ai polling] Success! ${photoId} -> ${restoredUrl}`)
+        // --- CHAIN MODEL: If it was Colorizer Phase 1, start Upscaler Phase 2! ---
+        if (data.model_used === 'piddnad/ddcolor' && data.diagnosis !== 'Fase 2 (Upscale)') {
+          console.log(`[reviv.ai chaining] Colorization done! Launching Face Restore...`)
+          
+          await adminClient.from('photos').update({ diagnosis: 'Fase 2 (Upscale)' }).eq('id', photoId)
+          
+          const codeformerConfig = MODEL_CONFIGS['sczhou/codeformer'];
+          const codeformerInput = codeformerConfig.buildInput(restoredUrl);
+          
+          const modelInfo = await replicate.models.get('sczhou', 'codeformer')
+          const chainedPrediction = await replicate.predictions.create({
+            version: modelInfo.latest_version?.id,
+            input: codeformerInput,
+          } as any)
+
+          return NextResponse.json({ status: 'processing', detail: 'Colorização concluída! Restaurando detalhes...', newPredictionId: chainedPrediction.id })
+        }
+        // --------------------------------------------------------------------------
+
+        console.log(`[reviv.ai polling] Final Success! ${photoId} -> ${restoredUrl}`)
 
         // Update DB
         await adminClient.from('photos').update({
