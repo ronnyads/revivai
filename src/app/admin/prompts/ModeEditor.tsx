@@ -6,6 +6,7 @@ interface Mode {
   id: string; name: string; description: string; icon: string
   prompt: string; model: string; is_active: boolean; sort_order: number
   example_before_url?: string | null; example_after_url?: string | null
+  persona?: string | null; retry_prompt?: string | null
 }
 
 export default function ModeEditor({ mode, models, deleteMode }: {
@@ -77,8 +78,16 @@ export default function ModeEditor({ mode, models, deleteMode }: {
             </div>
           </div>
           <div>
-            <label className="text-xs text-white/40 mb-1 block">Prompt Gemini</label>
+            <label className="text-xs text-white/40 mb-1 block">Persona do Agente <span className="text-white/20">(system instruction)</span></label>
+            <textarea name="persona" defaultValue={mode.persona ?? ''} rows={5} placeholder="Ex: Você é um restaurador de fotos com 30 anos de experiência..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
+          </div>
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Prompt Gemini <span className="text-white/20">(tarefa)</span></label>
             <textarea name="prompt" defaultValue={mode.prompt} rows={8} required className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
+          </div>
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Prompt de Retry <span className="text-white/20">(usado se QC score &lt; 70)</span></label>
+            <textarea name="retry_prompt" defaultValue={mode.retry_prompt ?? ''} rows={4} placeholder="Prompt conservador para segunda tentativa..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
           </div>
           <div className="border-t border-white/10 pt-4">
             <p className="text-xs text-white/40 mb-3 uppercase tracking-widest">Exemplo de Restauração</p>

@@ -65,8 +65,16 @@ export default async function PromptsPage() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-white/40 mb-1 block">Prompt Gemini</label>
+            <label className="text-xs text-white/40 mb-1 block">Persona do Agente <span className="text-white/20">(system instruction)</span></label>
+            <textarea name="persona" rows={4} placeholder="Ex: Você é um restaurador de fotos com 30 anos de experiência..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
+          </div>
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Prompt Gemini <span className="text-white/20">(tarefa)</span></label>
             <textarea name="prompt" rows={6} required placeholder="Escreva o prompt completo aqui..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
+          </div>
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Prompt de Retry <span className="text-white/20">(se QC score &lt; 70)</span></label>
+            <textarea name="retry_prompt" rows={3} placeholder="Prompt conservador para segunda tentativa..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

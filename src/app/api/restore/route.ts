@@ -127,22 +127,30 @@ export async function POST(req: NextRequest) {
   let modePrompt = 'Restore this old photograph. Remove scratches, dust, and damage while preserving all original details, faces, and composition.'
   let modeModel  = 'gemini-2.5-flash-image'
 
+  let modePersona: string | null = null
+  let modeRetryPrompt: string | null = null
+
   if (modeId) {
     const { createAdminClient: getAdmin } = await import('@/lib/supabase/admin')
     const { data: modeRow } = await getAdmin()
       .from('restoration_modes')
-      .select('prompt, model')
+      .select('prompt, model, persona, retry_prompt')
       .eq('id', modeId)
       .single()
-    if (modeRow) { modePrompt = modeRow.prompt; modeModel = modeRow.model }
+    if (modeRow) {
+      modePrompt      = modeRow.prompt
+      modeModel       = modeRow.model
+      modePersona     = modeRow.persona     ?? null
+      modeRetryPrompt = modeRow.retry_prompt ?? null
+    }
   }
 
-  console.log(`[restore] mode=${modeId ?? 'default'} model=${modeModel}`)
+  console.log(`[restore] mode=${modeId ?? 'default'} model=${modeModel} persona=${!!modePersona}`)
 
   // ── Restore with Gemini (synchronous) ──
   try {
     console.log(`[restore] Calling Gemini for photo ${photo.id}...`)
-    const restoredBuffer = await restoreWithGemini(cleanBuffer, modePrompt, modeModel)
+    const restoredBuffer = await restoreWithGemini(cleanBuffer, modePrompt, modeModel, false, modePersona, modeRetryPrompt)
 
     // Upload restored image
     const restoredFileName = `${user.id}/${Date.now()}_restored.jpg`
@@ -167,7 +175,7 @@ export async function POST(req: NextRequest) {
     if (qc.score < 70) {
       try {
         console.log(`[gemini] Score baixo (${qc.score}), retrying com prompt conservador...`)
-        const retryBuffer = await restoreWithGemini(cleanBuffer, modePrompt, modeModel, true)
+        const retryBuffer = await restoreWithGemini(cleanBuffer, modePrompt, modeModel, true, modePersona, modeRetryPrompt)
         const retryFileName = `${user.id}/${Date.now()}_retry.jpg`
         await supabase.storage.from('photos')
           .upload(retryFileName, retryBuffer as any, { contentType: 'image/jpeg', upsert: false })
