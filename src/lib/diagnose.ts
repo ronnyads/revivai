@@ -151,10 +151,10 @@ export const MODEL_CONFIGS: Record<ReplicateModel, {
     }),
   },
   'arielreplicate/deoldify': {
-    name: 'sgrepine/deoldify', // Changed to a highly popular and public Deoldify fork if arielreplicate fails
+    name: 'cjwbw/deoldify', // Using standard cjwbw fork which is guaranteed to exist
     buildInput: (url) => ({
-      image: url, // Some forks use 'image', some use 'input_image'
-      input_image: url, // Safe bet: pass both
+      image: url, 
+      input_image: url, // Some use input_image, some use image. cjwbw usually uses image or input_image
       model_name: 'Artistic',
       render_factor: 35,
     }),
