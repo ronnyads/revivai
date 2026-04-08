@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   let cleanBuffer = buffer
   try {
     const sharp = (await import('sharp')).default
-    cleanBuffer = await sharp(buffer)
+    cleanBuffer = await sharp(buffer as any)
       .flatten({ background: { r: 255, g: 255, b: 255 } }) // Removes transparency that breaks masks
       .jpeg({ quality: 100 })
       .toBuffer()
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   const fileName = `${user.id}/${Date.now()}.jpg`
 
   const { error: uploadError } = await supabase.storage
-    .from('photos').upload(fileName, cleanBuffer, { contentType: 'image/jpeg', upsert: false })
+    .from('photos').upload(fileName, cleanBuffer as any, { contentType: 'image/jpeg', upsert: false })
 
   if (uploadError) {
     return NextResponse.json({ error: `Upload falhou: ${uploadError.message}` }, { status: 500 })
