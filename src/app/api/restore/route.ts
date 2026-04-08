@@ -1,40 +1,67 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
-import { analyzeImage, selectModel, MODEL_CONFIGS } from '@/lib/diagnose'
 import { NextRequest, NextResponse } from 'next/server'
 import Replicate from 'replicate'
+import { createClient } from '@/lib/supabase/server'
+import { analyzeImage, selectModel, MODEL_CONFIGS, PipelineModel } from '@/lib/diagnose'
+import {
+  buildPipeline,
+  buildWebhookUrl,
+  getPhaseLabel,
+  encodePipeState,
+  decodePipeState,
+} from '@/lib/pipeline'
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getReplicate() {
   if (!process.env.REPLICATE_API_TOKEN) throw new Error('REPLICATE_API_TOKEN não configurada')
   return new Replicate({ auth: process.env.REPLICATE_API_TOKEN })
 }
 
-async function getModelVersion(replicate: Replicate, modelFullName: string): Promise<string> {
-  const [owner, name] = modelFullName.split('/')
-  const modelInfo = await replicate.models.get(owner, name)
-  const version = modelInfo.latest_version?.id
-  if (!version) throw new Error(`No latest_version for ${modelFullName}`)
+async function getModelVersion(replicate: Replicate, fullName: string): Promise<string> {
+  const [owner, name] = fullName.split('/')
+  const info    = await replicate.models.get(owner, name)
+  const version = info.latest_version?.id
+  if (!version) throw new Error(`No version for ${fullName}`)
   return version
 }
 
-/* ─────────────────────────────────────────────────────────
+async function getBaseUrlFromHeaders(): Promise<string> {
+  const headers    = await import('next/headers').then(m => m.headers())
+  const host       = headers.get('x-forwarded-host') || headers.get('host') || 'revivai.vercel.app'
+  const protocol   = headers.get('x-forwarded-proto') || 'https'
+  return `${protocol}://${host}`
+}
+
+function extractUrl(output: unknown): string | null {
+  if (typeof output === 'string' && output.startsWith('http')) return output
+  if (Array.isArray(output) && typeof output[0] === 'string')  return output[0]
+  if (output && typeof output === 'object' && 'url' in output) return (output as any).url
+  return null
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    POST /api/restore
-   Body: FormData { file: File, hint?: string }
-   Kicks off Stage 1 (DDColor) with webhook to Stage 2 (Codeformer)
-───────────────────────────────────────────────────────── */
+   Body: FormData { file: File }
+   Analyzes image, builds pipeline, kicks off Stage 1
+───────────────────────────────────────────────────────────────────────────── */
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Check credits
+  // ── Credit check ──
   const { data: profile } = await supabase
-    .from('users').select('credits, plan').eq('id', user.id).single()
+    .from('users').select('credits').eq('id', user.id).single()
   if (!profile || profile.credits < 1) {
-    return NextResponse.json({ error: 'Sem créditos. Adquira um plano para continuar.' }, { status: 402 })
+    return NextResponse.json(
+      { error: 'Sem créditos. Adquira um plano para continuar.' },
+      { status: 402 }
+    )
   }
 
+  // ── Parse file ──
   const formData = await req.formData()
   const file     = formData.get('file') as File
 
@@ -43,40 +70,48 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Arquivo muito grande. Máximo: 50MB' }, { status: 400 })
   }
 
-  // ── 1. Analyze image ──
   const arrayBuffer = await file.arrayBuffer()
   const buffer      = Buffer.from(arrayBuffer)
 
-  let imageStats, diagnosis
+  // ── Analyze image ──
+  let imageStats
   try {
     imageStats = await analyzeImage(buffer)
-    diagnosis  = selectModel(imageStats)
   } catch {
-    diagnosis = selectModel({ isGrayscale: false, isLowRes: true, isTooSmall: false, width: 0, height: 0, hasAlpha: false, avgBrightness: 128, saturation: 50 })
+    imageStats = { isGrayscale: false, isLowRes: true, isTooSmall: false, width: 0, height: 0, hasAlpha: false, avgBrightness: 128, saturation: 50 }
   }
 
-  // ── 2. Upload original to Supabase Storage ──
+  const diagnosis = selectModel(imageStats)
+  const pipeline  = buildPipeline(imageStats) // e.g. ['piddnad/ddcolor', 'sczhou/codeformer']
+
+  console.log(`[restore] Pipeline for ${file.name}:`, pipeline, '| isGray:', imageStats.isGrayscale, '| lowRes:', imageStats.isLowRes)
+
+  // ── Upload original photo ──
   const ext      = file.name.split('.').pop() ?? 'jpg'
   const fileName = `${user.id}/${Date.now()}.${ext}`
 
   const { error: uploadError } = await supabase.storage
-    .from('photos')
-    .upload(fileName, buffer, { contentType: file.type, upsert: false })
+    .from('photos').upload(fileName, buffer, { contentType: file.type, upsert: false })
 
-  if (uploadError) return NextResponse.json({ error: `Upload falhou: ${uploadError.message}` }, { status: 500 })
+  if (uploadError) {
+    return NextResponse.json({ error: `Upload falhou: ${uploadError.message}` }, { status: 500 })
+  }
 
   const { data: { publicUrl: originalUrl } } = supabase.storage
     .from('photos').getPublicUrl(fileName)
 
-  // ── 3. Create photo record ──
+  // ── Create photo record ──
+  const firstModel  = pipeline[0]
+  const firstPhase  = getPhaseLabel(0, pipeline.length, firstModel)
+
   const { data: photo, error: dbError } = await supabase
     .from('photos')
     .insert({
       user_id:      user.id,
       original_url: originalUrl,
       status:       'processing',
-      model_used:   'piddnad/ddcolor', // Always starts with DDColor (Stage 1)
-      diagnosis:    'Fase 1: Colorindo e melhorando cores...',
+      model_used:   pipeline.join(','),  // store full pipeline
+      diagnosis:    firstPhase,
     })
     .select()
     .single()
@@ -85,23 +120,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Erro ao salvar no banco' }, { status: 500 })
   }
 
-  // ── 4. Start Stage 1: DDColor ──
+  // ── Launch Stage 1 ──
   let predictionId: string | null = null
+
   try {
     const replicate = getReplicate()
-    const config    = MODEL_CONFIGS['piddnad/ddcolor']
+    const baseUrl   = await getBaseUrlFromHeaders()
+    const config    = MODEL_CONFIGS[firstModel]
     const input     = config.buildInput(originalUrl)
+    const version   = await getModelVersion(replicate, config.name)
 
-    // Build webhook URL with stage=stage1_colorize
-    const headersList = await import('next/headers').then(m => m.headers())
-    const host        = headersList.get('x-forwarded-host') || headersList.get('host') || 'revivai.vercel.app'
-    const protocol    = headersList.get('x-forwarded-proto') || 'https'
-    const baseUrl     = `${protocol}://${host}`
+    const webhookUrl = buildWebhookUrl(baseUrl, {
+      photoId:  photo.id,
+      userId:   user.id,
+      step:     0,
+      pipeline,
+      bestUrl:  '',
+      inputW:   imageStats.width,
+      inputH:   imageStats.height,
+      isGray:   imageStats.isGrayscale,
+      retry:    0,
+    })
 
-    const webhookUrl  = `${baseUrl}/api/webhooks/replicate?photoId=${photo.id}&userId=${user.id}&stage=stage1_colorize`
-    const version     = await getModelVersion(replicate, 'piddnad/ddcolor')
-
-    const prediction  = await replicate.predictions.create({
+    const prediction = await replicate.predictions.create({
       version,
       input,
       webhook: webhookUrl,
@@ -109,38 +150,46 @@ export async function POST(req: NextRequest) {
     } as any)
 
     predictionId = prediction.id
-    console.log(`[reviv.ai] Stage 1 dispatched! ID: ${prediction.id}`)
+
+    // Store PIPE state in DB
+    await supabase.from('photos').update({
+      restored_url: encodePipeState(0, predictionId),
+    }).eq('id', photo.id)
+
+    console.log(`[restore] Stage 1 (${firstModel}) dispatched: ${predictionId}`)
   } catch (err: any) {
-    console.error(`[reviv.ai] Error starting Stage 1 for ${photo.id}:`, err)
+    console.error('[restore] Failed to launch Stage 1:', err.message)
     const { createAdminClient } = await import('@/lib/supabase/admin')
     await createAdminClient().from('photos').update({
       status:       'error',
-      restored_url: `Erro ao iniciar IA: ${err.message}`,
+      restored_url: `❌ Erro ao iniciar IA: ${err.message}`,
     }).eq('id', photo.id)
   }
 
   return NextResponse.json({
-    photoId: photo.id,
+    photoId:     photo.id,
     predictionId,
     originalUrl,
     diagnosis: {
       label:       diagnosis.label,
-      description: diagnosis.description,
+      description: firstPhase,
       icon:        diagnosis.icon,
       confidence:  diagnosis.confidence,
       model:       diagnosis.model,
     },
-    imageInfo: imageStats
-      ? { width: imageStats.width, height: imageStats.height, isGrayscale: imageStats.isGrayscale }
-      : null,
+    imageInfo: {
+      width:      imageStats.width,
+      height:     imageStats.height,
+      isGrayscale: imageStats.isGrayscale,
+    },
+    pipeline, // inform frontend how many stages
   })
 }
 
-/* ─────────────────────────────────────────────────────────
+/* ─────────────────────────────────────────────────────────────────────────────
    GET /api/restore?photoId=xxx&predictionId=xxx
-   Polls for the current status.
-   Returns: { status, restored_url?, diagnosis? }
-───────────────────────────────────────────────────────── */
+   Polls for current status. Handles PIPE state + direct Replicate polling.
+───────────────────────────────────────────────────────────────────────────── */
 export async function GET(req: NextRequest) {
   const supabase        = await createClient()
   const { searchParams } = new URL(req.url)
@@ -157,7 +206,7 @@ export async function GET(req: NextRequest) {
 
   if (error || !data) return NextResponse.json({ status: 'processing' })
 
-  // ── Done or Error: return immediately ──────────────────────────────────────
+  // ── Terminal states ────────────────────────────────────────────────────────
   if (data.status === 'done' || data.status === 'error') {
     return NextResponse.json({
       status:       data.status,
@@ -166,90 +215,102 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // ── CHAIN state: Stage 2 was started by webhook, give frontend the new ID ──
-  if (data.restored_url?.startsWith('CHAIN:')) {
-    const parts       = data.restored_url.split(':')
-    const chainPredId = parts[1]
-    // parts[2] and beyond would be the intermediate colorized URL
-    return NextResponse.json({
-      status:          'processing',
-      diagnosis:       data.diagnosis,
-      newPredictionId: chainPredId,
-    })
+  // ── PIPE state: webhook updated the step, give frontend the new predId  ──
+  const pipeState = decodePipeState(data.restored_url ?? '')
+  if (pipeState) {
+    const { predictionId: dbPredId, stepIndex } = pipeState
+    // If the DB has a different (newer) predictionId than what the frontend knows
+    if (dbPredId && dbPredId !== predictionId) {
+      return NextResponse.json({
+        status:          'processing',
+        diagnosis:       data.diagnosis,
+        newPredictionId: dbPredId,
+        stepIndex,
+      })
+    }
   }
 
-  // ── Polling fallback: directly query Replicate if we have a predictionId ──
+  // ── Polling fallback: directly query Replicate ─────────────────────────────
   if (predictionId) {
     try {
-      const replicate    = getReplicate()
-      const prediction   = await replicate.predictions.get(predictionId)
-      const predStatus   = prediction.status
+      const replicate  = getReplicate()
+      const prediction = await replicate.predictions.get(predictionId)
 
-      if (predStatus === 'succeeded' && prediction.output) {
-        // Extract URL
-        let resultUrl: string | null = null
-        if (typeof prediction.output === 'string')                    resultUrl = prediction.output
-        else if (Array.isArray(prediction.output))                    resultUrl = prediction.output[0]
-        else if (prediction.output && 'url' in (prediction.output as any)) resultUrl = (prediction.output as any).url
-
+      if (prediction.status === 'succeeded' && prediction.output) {
+        const resultUrl = extractUrl(prediction.output)
         if (!resultUrl) {
           return NextResponse.json({ status: 'processing', diagnosis: data.diagnosis })
         }
 
-        // Determine which stage this was
-        const isStage1 = data.model_used === 'piddnad/ddcolor' && !data.restored_url?.startsWith('CHAIN:')
+        // Parse the pipeline from model_used column
+        const pipeline: PipelineModel[] = (data.model_used ?? '')
+          .split(',').filter(Boolean) as PipelineModel[]
 
-        if (isStage1) {
-          // Start Stage 2 via polling path
+        const currentStep = pipeState?.stepIndex ?? 0
+        const isLastStep  = currentStep === pipeline.length - 1
+
+        if (isLastStep) {
+          // Final step done via polling (webhook may have missed it)
           const { createAdminClient } = await import('@/lib/supabase/admin')
-          const adminClient           = createAdminClient()
-          const replicate2            = getReplicate()
-          const config                = MODEL_CONFIGS['sczhou/codeformer']
-          const version               = await getModelVersion(replicate2, 'sczhou/codeformer')
-          const input                 = config.buildInput(resultUrl)
+          const adminClient = createAdminClient()
+          await adminClient.from('photos').update({
+            status:       'done',
+            restored_url: resultUrl,
+            diagnosis:    'Restauração concluída ✨',
+          }).eq('id', photoId)
+          await adminClient.rpc('debit_credit', { user_id_param: data.user_id })
 
-          const headersList = await import('next/headers').then(m => m.headers())
-          const host        = headersList.get('x-forwarded-host') || headersList.get('host') || 'revivai.vercel.app'
-          const protocol    = headersList.get('x-forwarded-proto') || 'https'
-          const webhookUrl  = `${protocol}://${host}/api/webhooks/replicate?photoId=${photoId}&userId=${data.user_id}&stage=stage2_restore`
+          return NextResponse.json({ status: 'done', restored_url: resultUrl, diagnosis: 'Restauração concluída ✨' })
+        }
 
-          const chainedPrediction = await replicate2.predictions.create({
-            version,
-            input,
-            webhook: webhookUrl,
+        // Not the last step — launch next step via polling path
+        const nextStep  = currentStep + 1
+        const nextModel = pipeline[nextStep]
+
+        if (!nextModel) {
+          return NextResponse.json({ status: 'processing', diagnosis: data.diagnosis })
+        }
+
+        try {
+          const replicate2  = getReplicate()
+          const baseUrl     = await getBaseUrlFromHeaders()
+          const version     = await getModelVersion(replicate2, MODEL_CONFIGS[nextModel].name)
+          const input       = MODEL_CONFIGS[nextModel].buildInput(resultUrl)
+
+          const webhookUrl  = buildWebhookUrl(baseUrl, {
+            photoId,
+            userId:   data.user_id,
+            step:     nextStep,
+            pipeline,
+            bestUrl:  resultUrl,
+            inputW:   0, inputH: 0,
+            isGray:   false,
+            retry:    0,
+          })
+
+          const chainedPred = await replicate2.predictions.create({
+            version, input, webhook: webhookUrl,
             webhook_events_filter: ['completed'],
           } as any)
 
-          await adminClient.from('photos').update({
-            diagnosis:    'Fase 2: Restaurando rostos e detalhes...',
-            restored_url: `CHAIN:${chainedPrediction.id}:${resultUrl}`,
+          const { createAdminClient } = await import('@/lib/supabase/admin')
+          await createAdminClient().from('photos').update({
+            diagnosis:    getPhaseLabel(nextStep, pipeline.length, nextModel),
+            restored_url: encodePipeState(nextStep, chainedPred.id),
           }).eq('id', photoId)
 
           return NextResponse.json({
             status:          'processing',
-            diagnosis:       'Fase 2: Restaurando rostos e detalhes...',
-            newPredictionId: chainedPrediction.id,
+            diagnosis:       getPhaseLabel(nextStep, pipeline.length, nextModel),
+            newPredictionId: chainedPred.id,
           })
+        } catch (chainErr: any) {
+          console.error('[restore GET] Failed to chain next step:', chainErr.message)
+          return NextResponse.json({ status: 'processing', diagnosis: data.diagnosis })
         }
 
-        // Stage 2 done via polling (webhook might have failed)
-        const { createAdminClient } = await import('@/lib/supabase/admin')
-        const adminClient           = createAdminClient()
-        await adminClient.from('photos').update({
-          status:       'done',
-          restored_url: resultUrl,
-          diagnosis:    'Restauração concluída ✨',
-        }).eq('id', photoId)
-        await adminClient.rpc('debit_credit', { user_id_param: data.user_id })
-
-        return NextResponse.json({
-          status:       'done',
-          restored_url: resultUrl,
-          diagnosis:    'Restauração concluída ✨',
-        })
-
-      } else if (predStatus === 'failed' || predStatus === 'canceled') {
-        const errMsg = prediction.error ? String(prediction.error) : 'Replicate rejeitou a predição'
+      } else if (prediction.status === 'failed' || prediction.status === 'canceled') {
+        const errMsg = prediction.error ? String(prediction.error) : 'Replicate rejeitou'
         const { createAdminClient } = await import('@/lib/supabase/admin')
         await createAdminClient().from('photos').update({
           status:       'error',
@@ -261,8 +322,8 @@ export async function GET(req: NextRequest) {
       // Still running
       return NextResponse.json({ status: 'processing', diagnosis: data.diagnosis })
 
-    } catch (err: any) {
-      console.error('[restore GET] Polling error:', err)
+    } catch (pollErr: any) {
+      console.warn('[restore GET] Poll error (non-blocking):', pollErr.message)
       return NextResponse.json({ status: 'processing', diagnosis: data.diagnosis })
     }
   }
