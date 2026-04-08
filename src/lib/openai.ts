@@ -108,22 +108,20 @@ export async function analyzeEnterpriseDamage(imageUrl: string): Promise<Enterpr
   const prompt = `
 Você é um especialista técnico em restauração de fotos antigas. Analise a imagem com precisão.
 
-AVALIE CADA CAMPO COM RIGOR:
+AVALIE CADA CAMPO. Na dúvida, marque TRUE — é melhor aplicar um modelo desnecessário do que deixar um dano sem tratar:
 
-1. has_scratches: TRUE se há riscos lineares, arranhões, dobras ou amassados VISÍVEIS
-2. has_tears_or_holes: TRUE se há rasgos, buracos ou partes COMPLETAMENTE ausentes
-3. has_mold_or_stains: TRUE se há manchas de mofo (áreas brancas/acinzentadas difusas que parecem bolor), manchas d'água, manchas químicas, degradação química que cria áreas esbranquiçadas ou desbotadas, ou qualquer área onde a emulsão fotográfica foi destruída deixando manchas claras irregulares
-4. has_blur: TRUE se a imagem está tremida ou desfocada (movimento ou foco incorreto)
-5. has_grain_or_noise: TRUE se há granulação de filme antigo ou ruído digital visível
+1. has_scratches: TRUE se há qualquer linha branca, risco linear, arranhão, dobra, amassado, ou crack visível na foto — mesmo finos ou parciais
+2. has_tears_or_holes: TRUE se há rasgos, cortes, buracos, partes faltando, ou linhas brancas largas que parecem rachaduras de vidro ou papel rasgado
+3. has_mold_or_stains: TRUE se há manchas de mofo (áreas brancas/acinzentadas difusas), manchas d'água, manchas químicas, degradação da emulsão que cria áreas esbranquiçadas irregulares, ou qualquer mancha que não seja parte da imagem original
+4. has_blur: TRUE se a imagem está tremida, desfocada por movimento, ou com foco incorreto
+5. has_grain_or_noise: TRUE se há granulação de filme antigo, ruído digital, ou textura de pontinhos visíveis que reduzem a nitidez
 6. has_jpeg_artifacts: TRUE se há blocos quadrados 8x8 ou pixelização por compressão JPEG
 7. has_faces: TRUE se há rostos de pessoas identificáveis na foto
-8. is_grayscale_or_sepia: TRUE se a foto é Preto e Branco, Sépia ou Monocromática
+8. is_grayscale_or_sepia: TRUE se a foto é Preto e Branco, Sépia, ou Monocromática
 9. damage_severity:
    - "light" = dano leve, estrutura bem preservada
    - "moderate" = danos moderados, foto reconhecível mas com problemas claros
    - "severe" = danos severos, partes significativas perdidas ou extremamente degradadas
-
-IMPORTANTE: Seja conservador. Marque TRUE apenas se o problema for claramente visível.
 `
 
   try {
