@@ -22,7 +22,7 @@ export default function UploadPage() {
   const router     = useRouter()
   const [step, setStep]           = useState<Step>('upload')
   const [file, setFile]           = useState<File | null>(null)
-  const [hint, setHint]           = useState<Hint>('auto')
+  const [hint, setHint]           = useState<Hint>('inpaint')
   const [showHints, setShowHints] = useState(false)
   const [diagnosis, setDiagnosis] = useState<{ label: string; description: string; icon: string; confidence: number; model: string } | null>(null)
   const [imageInfo, setImageInfo] = useState<{ width: number; height: number; isGrayscale: boolean } | null>(null)
