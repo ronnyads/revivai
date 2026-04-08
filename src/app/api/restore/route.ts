@@ -80,12 +80,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Erro ao salvar no banco' }, { status: 500 })
   }
 
-  // ── 4. Start AI restoration (async — don't await) ──
+  // ── 4. Start AI restoration (returns instantly after dispatching to Replicate) ──
   const baseUrl = new URL(req.url).origin
-  runRestoration({ photoId: photo.id, originalUrl, diagnosis, userId: user.id, baseUrl }).catch(console.error)
+  const predictionId = await runRestoration({ photoId: photo.id, originalUrl, diagnosis, userId: user.id, baseUrl })
 
   return NextResponse.json({
     photoId: photo.id,
+    predictionId,
     originalUrl,
     diagnosis: {
       label:       diagnosis.label,
@@ -108,16 +109,64 @@ export async function GET(req: NextRequest) {
   const supabase    = await createClient()
   const { searchParams } = new URL(req.url)
   const photoId     = searchParams.get('photoId')
+  const predictionId = searchParams.get('predictionId')
 
   if (!photoId) return NextResponse.json({ error: 'Parâmetro photoId ausente' }, { status: 400 })
 
   const { data, error } = await supabase
     .from('photos')
-    .select('status, restored_url, model_used, diagnosis')
+    .select('status, restored_url, model_used, diagnosis, user_id')
     .eq('id', photoId)
     .single()
 
   if (error || !data) return NextResponse.json({ status: 'processing' })
+
+  // If Supabase already knows it's done or failed, return it immediately
+  if (data.status === 'done' || data.status === 'error') {
+    return NextResponse.json(data)
+  }
+
+  // If Supabase still says 'processing' and we have a predictionId, directly poll Replicate!
+  if (predictionId && data.status === 'processing') {
+    try {
+      const { createAdminClient } = await import('@/lib/supabase/admin')
+      const adminClient = createAdminClient()
+      const replicate = getReplicate()
+      
+      const prediction = await replicate.predictions.get(predictionId)
+      
+      if (prediction.status === 'succeeded' && prediction.output) {
+        let restoredUrl: string
+        if (typeof prediction.output === 'string') {
+          restoredUrl = prediction.output
+        } else if (Array.isArray(prediction.output)) {
+          restoredUrl = prediction.output[0]
+        } else if (prediction.output && typeof prediction.output === 'object' && 'url' in prediction.output) {
+          restoredUrl = prediction.output.url as string
+        } else {
+          return NextResponse.json({ status: 'processing' }) // Wait for next tick if weird
+        }
+
+        console.log(`[reviv.ai polling] Success! ${photoId} -> ${restoredUrl}`)
+
+        // Update DB
+        await adminClient.from('photos').update({
+          restored_url: restoredUrl,
+          status: 'done',
+        }).eq('id', photoId)
+
+        await adminClient.rpc('debit_credit', { user_id_param: data.user_id })
+
+        return NextResponse.json({ status: 'done', restored_url: restoredUrl })
+      } else if (prediction.status === 'failed' || prediction.status === 'canceled') {
+        const errorMsg = prediction.error ? String(prediction.error) : 'Replicate API rejected the picture'
+        await adminClient.from('photos').update({ status: 'error', restored_url: `Polling fallback: ${errorMsg}` }).eq('id', photoId)
+        return NextResponse.json({ status: 'error', restored_url: `Polling fallback: ${errorMsg}` })
+      }
+    } catch (pollErr) {
+      console.error(`[reviv.ai] Polling error for ${predictionId}:`, pollErr)
+    }
+  }
 
   return NextResponse.json(data)
 }
@@ -154,21 +203,22 @@ async function runRestoration({
 
     const webhookUrl = `${baseHostUrl}/api/webhooks/replicate?photoId=${photoId}&userId=${userId}`
 
-    // Start model prediction with webhook (Returns INSTANTLY, no 10s timeouts taking down the function!)
-    await replicate.predictions.create({
+    // Start model prediction with webhook
+    const prediction = await replicate.predictions.create({
       version: config.version as `${string}/${string}:${string}`,
       input,
       webhook: webhookUrl,
       webhook_events_filter: ["completed"]
     })
 
-    console.log(`[reviv.ai] Prediction dispatched! Webhook attached.`)
+    console.log(`[reviv.ai] Prediction dispatched! Webhook attached. Prediction ID: ${prediction.id}`)
+    return prediction.id
   } catch (err: any) {
     console.error(`[reviv.ai] Error restoring ${photoId}:`, err)
     await supabase.from('photos').update({ 
       status: 'error',
       restored_url: err.message || JSON.stringify(err)
     }).eq('id', photoId)
-    // Don't throw, we let it mark as error natively.
+    return null
   }
 }

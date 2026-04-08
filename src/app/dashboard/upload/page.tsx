@@ -51,7 +51,7 @@ export default function UploadPage() {
         throw new Error(err.error || 'Erro no upload')
       }
 
-      const { photoId: pid, originalUrl: oUrl, diagnosis: diag, imageInfo: info } = await uploadRes.json()
+      const { photoId: pid, predictionId: predId, originalUrl: oUrl, diagnosis: diag, imageInfo: info } = await uploadRes.json()
       setPhotoId(pid); setOriginalUrl(oUrl); setDiagnosis(diag); setImageInfo(info)
       setProgress(35); setStep('restoring')
 
@@ -61,7 +61,7 @@ export default function UploadPage() {
         attempts++
         setProgress(Math.min(35 + attempts * 5, 90))
         try {
-          const r = await fetch(`/api/restore?photoId=${pid}`)
+          const r = await fetch(`/api/restore?photoId=${pid}${predId ? `&predictionId=${predId}` : ''}`)
           const { status, restored_url } = await r.json()
           if (status === 'done' && restored_url) {
             clearInterval(pollId)
