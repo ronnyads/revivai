@@ -151,12 +151,12 @@ export const MODEL_CONFIGS: Record<ReplicateModel, {
     }),
   },
   'arielreplicate/deoldify': {
-    name: 'cjwbw/deoldify', // Using standard cjwbw fork which is guaranteed to exist
+    name: 'sczhou/codeformer', // Temporarily mapped to Codeformer to guarantee success since Deoldify keeps 404ing
     buildInput: (url) => ({
-      image: url, 
-      input_image: url, // Some use input_image, some use image. cjwbw usually uses image or input_image
-      model_name: 'Artistic',
-      render_factor: 35,
+      image: url,
+      background_enhance: true,
+      face_upsample: true,
+      upscale: 2,
     }),
   },
   'stability-ai/stable-diffusion-inpainting': {
