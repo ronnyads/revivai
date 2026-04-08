@@ -101,12 +101,13 @@ export const MODEL_CONFIGS: Record<string, {
     name: 'sczhou/codeformer',
     buildInput: (url, retry) => ({
       image:               url,
-      // fidelity 0.0 = maximum AI reconstruction (ignores original blur)
-      // fidelity 1.0 = preserves original exactly (keeps blurriness)
-      // For old/degraded photos, 0.1 gives the best face reconstruction
-      codeformer_fidelity: retry ? 0.05 : 0.1,
+      // fidelity 0.5 = balanced: reconstructs detail strongly while preserving identity
+      // fidelity 0.0 = ignores original → creates generic AI face (wrong identity!)
+      // fidelity 1.0 = keeps original exactly → no improvement on degraded photo
+      // 0.5 is the professional standard for old photo restoration
+      codeformer_fidelity: retry ? 0.3 : 0.5,
       background_enhance:  true,
-      face_upsample:       true,
+      face_upsample:       true,  // critical: detects + restores each face separately
       upscale:             2,
     }),
   },
