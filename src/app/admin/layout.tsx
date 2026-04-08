@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
+import LogoutButton from '@/components/admin/LogoutButton'
+
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? ''
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -50,7 +52,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </nav>
 
         {/* Footer */}
-        <div className="px-4 py-5 border-t border-white/[0.06]">
+        <div className="px-4 py-5 border-t border-white/[0.06] flex flex-col gap-1">
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.04] mb-2">
             <div className="w-7 h-7 rounded-full bg-[#D94F2E]/20 flex items-center justify-center text-[#D94F2E] text-xs font-bold flex-shrink-0">
               {user.email?.[0]?.toUpperCase()}
@@ -63,6 +65,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <a href="/" className="flex items-center gap-2 px-3 py-2 text-xs text-white/30 hover:text-white transition-colors rounded-lg hover:bg-white/[0.04]">
             <span>←</span> Ver site
           </a>
+          <LogoutButton />
         </div>
       </aside>
 
