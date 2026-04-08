@@ -123,7 +123,7 @@ export const MODEL_CONFIGS: Record<string, {
     name: 'megvii-research/nafnet',
     buildInput: (url) => ({
       image: url,
-      task_type: 'Image Deblurring', // handles both motion blur and noise
+      task_type: 'Image Denoising', // valid Replicate value — covers grain/noise from old photos
     }),
   },
   'jingyunliang/swinir': {
