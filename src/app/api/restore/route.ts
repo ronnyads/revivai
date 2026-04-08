@@ -126,6 +126,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(data)
   }
 
+  if (data.status === 'processing' && data.restored_url?.startsWith('CHAIN:')) {
+    const freshId = data.restored_url.split(':')[1]
+    if (freshId !== predictionId) {
+      return NextResponse.json({ status: 'processing', newPredictionId: freshId, detail: 'Iniciando refinamento...' })
+    }
+  }
+
   // If Supabase still says 'processing' and we have a predictionId, directly poll Replicate!
   if (predictionId && data.status === 'processing') {
     try {
@@ -152,16 +159,26 @@ export async function GET(req: NextRequest) {
         if (data.model_used === 'piddnad/ddcolor' && data.diagnosis !== 'Fase 2 (Upscale)') {
           console.log(`[reviv.ai chaining] Colorization done! Launching Face Restore...`)
           
-          await adminClient.from('photos').update({ diagnosis: 'Fase 2 (Upscale)' }).eq('id', photoId)
-          
           const codeformerConfig = MODEL_CONFIGS['sczhou/codeformer'];
           const codeformerInput = codeformerConfig.buildInput(restoredUrl);
           
           const modelInfo = await replicate.models.get('sczhou', 'codeformer')
+          
+          // Re-use webhook URL so phase 2 is tracked properly
+          const reqUrl = new URL(req.url)
+          const webhookUrl = `${reqUrl.protocol}//${reqUrl.host}/api/webhooks/replicate?photoId=${photoId}&userId=${data.user_id}`
+
           const chainedPrediction = await replicate.predictions.create({
             version: modelInfo.latest_version?.id,
             input: codeformerInput,
+            webhook: webhookUrl,
+            webhook_events_filter: ["completed"]
           } as any)
+
+          await adminClient.from('photos').update({ 
+            diagnosis: 'Fase 2 (Upscale)',
+            restored_url: `CHAIN:${chainedPrediction.id}` 
+          }).eq('id', photoId)
 
           return NextResponse.json({ status: 'processing', detail: 'Colorização concluída! Restaurando detalhes...', newPredictionId: chainedPrediction.id })
         }
@@ -239,11 +256,11 @@ async function runRestoration({
     if (!latestVersion) throw new Error('Could not resolve latest version for ' + config.name)
 
     const prediction = await replicate.predictions.create({
-      version: latestVersion, // using classical version hash prevents 404s!
+      version: latestVersion,
       input,
       webhook: webhookUrl,
       webhook_events_filter: ["completed"]
-    })
+    } as any)
 
     console.log(`[reviv.ai] Prediction dispatched! Webhook attached. Prediction ID: ${prediction.id}`)
     return prediction.id
