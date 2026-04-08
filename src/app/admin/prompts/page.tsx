@@ -68,6 +68,16 @@ export default async function PromptsPage() {
             <label className="text-xs text-white/40 mb-1 block">Prompt Gemini</label>
             <textarea name="prompt" rows={6} required placeholder="Escreva o prompt completo aqui..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">URL "Antes" <span className="text-white/20">(opcional)</span></label>
+              <input name="example_before_url" type="url" placeholder="https://..." className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
+            </div>
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">URL "Depois" <span className="text-white/20">(opcional)</span></label>
+              <input name="example_after_url" type="url" placeholder="https://..." className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
+            </div>
+          </div>
           <button type="submit" className="self-start bg-accent text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-accent-dark transition-colors">
             Criar modo
           </button>

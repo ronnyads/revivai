@@ -5,6 +5,7 @@ import { updateMode, deleteMode as deleteModeAction } from './actions'
 interface Mode {
   id: string; name: string; description: string; icon: string
   prompt: string; model: string; is_active: boolean; sort_order: number
+  example_before_url?: string | null; example_after_url?: string | null
 }
 
 export default function ModeEditor({ mode, models, deleteMode }: {
@@ -13,6 +14,8 @@ export default function ModeEditor({ mode, models, deleteMode }: {
   deleteMode: (id: string) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
+  const [beforeUrl, setBeforeUrl] = useState(mode.example_before_url ?? '')
+  const [afterUrl,  setAfterUrl]  = useState(mode.example_after_url  ?? '')
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
@@ -76,6 +79,47 @@ export default function ModeEditor({ mode, models, deleteMode }: {
           <div>
             <label className="text-xs text-white/40 mb-1 block">Prompt Gemini</label>
             <textarea name="prompt" defaultValue={mode.prompt} rows={8} required className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
+          </div>
+          <div className="border-t border-white/10 pt-4">
+            <p className="text-xs text-white/40 mb-3 uppercase tracking-widest">Exemplo de Restauração</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">URL "Antes"</label>
+                <input
+                  name="example_before_url"
+                  type="url"
+                  value={beforeUrl}
+                  onChange={e => setBeforeUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-white/40 mb-1 block">URL "Depois"</label>
+                <input
+                  name="example_after_url"
+                  type="url"
+                  value={afterUrl}
+                  onChange={e => setAfterUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30"
+                />
+              </div>
+            </div>
+            {beforeUrl && afterUrl && (
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="relative rounded-lg overflow-hidden aspect-[4/3] bg-white/5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={beforeUrl} alt="Antes" className="w-full h-full object-cover" />
+                  <span className="absolute bottom-1 left-1 text-[10px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">Antes</span>
+                </div>
+                <div className="relative rounded-lg overflow-hidden aspect-[4/3] bg-white/5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={afterUrl} alt="Depois" className="w-full h-full object-cover" />
+                  <span className="absolute bottom-1 right-1 text-[10px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">Depois</span>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex gap-3">
             <button type="submit" className="bg-accent text-white px-6 py-2 rounded-lg text-sm font-medium hover:bg-accent-dark transition-colors">Salvar</button>

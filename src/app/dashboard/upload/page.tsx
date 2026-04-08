@@ -9,7 +9,7 @@ import BeforeAfterSlider from '@/components/ui/BeforeAfterSlider'
 import { ArrowLeft, Sparkles, AlertCircle, ChevronDown } from 'lucide-react'
 
 type Step  = 'upload' | 'diagnosing' | 'restoring' | 'done' | 'error'
-type Mode  = { id: string; name: string; description: string; icon: string; model: string }
+type Mode  = { id: string; name: string; description: string; icon: string; model: string; example_before_url: string | null; example_after_url: string | null }
 
 export default function UploadPage() {
   const router     = useRouter()
@@ -172,13 +172,29 @@ export default function UploadPage() {
                           : 'border-[#E8E8E8] bg-white hover:border-accent/40 text-ink'
                       }`}
                     >
-                      <span className="text-2xl flex-shrink-0">{mode.icon}</span>
-                      <div>
-                        <p className="text-sm font-medium">{mode.name}</p>
-                        {mode.description && <p className="text-xs text-muted mt-0.5">{mode.description}</p>}
+                      <div className="flex items-center gap-4 w-full">
+                        <span className="text-2xl flex-shrink-0">{mode.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{mode.name}</p>
+                          {mode.description && <p className="text-xs text-muted mt-0.5">{mode.description}</p>}
+                        </div>
+                        {selectedMode === mode.id && (
+                          <span className="ml-auto text-accent text-lg flex-shrink-0">✓</span>
+                        )}
                       </div>
-                      {selectedMode === mode.id && (
-                        <span className="ml-auto text-accent text-lg">✓</span>
+                      {mode.example_before_url && mode.example_after_url && (
+                        <div className="grid grid-cols-2 gap-2 w-full mt-1">
+                          <div className="relative rounded-lg overflow-hidden aspect-[4/3] bg-gray-100">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={mode.example_before_url} alt={`Antes — ${mode.name}`} className="w-full h-full object-cover" loading="lazy" />
+                            <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">Antes</span>
+                          </div>
+                          <div className="relative rounded-lg overflow-hidden aspect-[4/3] bg-gray-100">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={mode.example_after_url} alt={`Depois — ${mode.name}`} className="w-full h-full object-cover" loading="lazy" />
+                            <span className="absolute bottom-1 right-1 text-[9px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">Depois</span>
+                          </div>
+                        </div>
                       )}
                     </button>
                   ))}

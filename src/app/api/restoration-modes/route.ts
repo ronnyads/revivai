@@ -6,7 +6,7 @@ export async function GET() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('restoration_modes')
-    .select('id, name, description, icon, model')
+    .select('id, name, description, icon, model, example_before_url, example_after_url')
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
 
