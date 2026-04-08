@@ -3,9 +3,8 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import Replicate from 'replicate'
 import { createClient } from '@/lib/supabase/server'
-import { analyzeImage, selectModel, MODEL_CONFIGS, PipelineModel } from '@/lib/diagnose'
+import { analyzeImage, MODEL_CONFIGS, PipelineModel } from '@/lib/diagnose'
 import {
-  buildEnterprisePipeline,
   buildWebhookUrl,
   getPhaseLabel,
   encodePipeState,
@@ -13,6 +12,7 @@ import {
 } from '@/lib/pipeline'
 import { getModelVersion, createPredictionWithRetry } from '@/lib/replicate'
 import { analyzeEnterpriseDamage } from '@/lib/openai'
+import { restoreWithGemini } from '@/lib/gemini'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -100,24 +100,19 @@ export async function POST(req: NextRequest) {
   const { data: { publicUrl: originalUrl } } = supabase.storage
     .from('photos').getPublicUrl(fileName)
 
-  // ── Enterprise Diagnosis (GPT-4o-mini Vision) ──
+  // ── Diagnosis (for colorization suggestion only) ──
   const aiDiagnosis = await analyzeEnterpriseDamage(originalUrl)
-  const pipeline    = buildEnterprisePipeline(aiDiagnosis)
+  console.log(`[restore] Gemini restore | file=${file.name} | analysis:`, JSON.stringify(aiDiagnosis))
 
-  console.log(`[restore] Enterprise Pipeline for ${file.name}:`, pipeline, '| Analysis:', JSON.stringify(aiDiagnosis))
-
-  // ── Create photo record ──
-  const firstModel  = pipeline[0]
-  const firstPhase  = getPhaseLabel(0, pipeline.length, firstModel)
-
+  // ── Create photo record (processing) ──
   const { data: photo, error: dbError } = await supabase
     .from('photos')
     .insert({
       user_id:         user.id,
       original_url:    originalUrl,
       status:          'processing',
-      model_used:      pipeline.join(','),
-      diagnosis:       firstPhase,
+      model_used:      'gemini-2.0-flash-exp-image-generation',
+      diagnosis:       'Restaurando com IA Gemini...',
       damage_analysis: aiDiagnosis,
     })
     .select()
@@ -127,73 +122,66 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Erro ao salvar no banco' }, { status: 500 })
   }
 
-  // ── Launch Stage 1 ──
-  let predictionId: string | null = null
-
+  // ── Restore with Gemini (synchronous) ──
   try {
-    const replicate = getReplicate()
-    const baseUrl   = await getBaseUrlFromHeaders()
-    const config    = MODEL_CONFIGS[firstModel]
-    const input     = config.buildInput(originalUrl)
-    const version   = await getModelVersion(replicate, config.name)
+    console.log(`[restore] Calling Gemini for photo ${photo.id}...`)
+    const restoredBuffer = await restoreWithGemini(cleanBuffer)
 
-    const webhookUrl = buildWebhookUrl(baseUrl, {
-      photoId:  photo.id,
-      userId:   user.id,
-      step:     0,
-      pipeline,
-      bestUrl:  '',
-      inputW:   imageStats.width,
-      inputH:   imageStats.height,
-      isGray:   imageStats.isGrayscale,
-      retry:    0,
-    })
+    // Upload restored image
+    const restoredFileName = `${user.id}/${Date.now()}_restored.jpg`
+    const { error: restoredUploadError } = await supabase.storage
+      .from('photos')
+      .upload(restoredFileName, restoredBuffer as any, { contentType: 'image/jpeg', upsert: false })
 
-    const prediction = await createPredictionWithRetry(replicate, {
-      version,
-      input,
-      webhook: webhookUrl,
-      webhook_events_filter: ['completed'],
-    })
+    if (restoredUploadError) throw new Error(`Upload resultado falhou: ${restoredUploadError.message}`)
 
-    predictionId = prediction.id as string
+    const { data: { publicUrl: restoredUrl } } = supabase.storage
+      .from('photos').getPublicUrl(restoredFileName)
 
-    // Store PIPE state in DB
-    await supabase.from('photos').update({
-      restored_url: encodePipeState(0, predictionId),
+    // Mark as done + debit credit
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const adminClient = createAdminClient()
+    await adminClient.from('photos').update({
+      status:                 'done',
+      restored_url:           restoredUrl,
+      diagnosis:              'Restauração concluída ✨',
+      colorization_suggested: aiDiagnosis.is_grayscale_or_sepia,
     }).eq('id', photo.id)
+    await adminClient.rpc('debit_credit', { user_id_param: user.id })
 
-    console.log(`[restore] Stage 1 (${firstModel}) dispatched: ${predictionId}`)
+    console.log(`[restore] Gemini done for ${photo.id}: ${restoredUrl}`)
+
+    return NextResponse.json({
+      photoId:     photo.id,
+      predictionId: null,
+      originalUrl,
+      restoredUrl,
+      diagnosis: {
+        label:       'Restauração Gemini IA',
+        description: 'Restauração concluída ✨',
+        icon:        '✨',
+        confidence:  99,
+        model:       'gemini-2.0-flash-exp-image-generation',
+      },
+      imageInfo: {
+        width:       imageStats.width,
+        height:      imageStats.height,
+        isGrayscale: imageStats.isGrayscale,
+      },
+      pipeline:                [],
+      colorization_suggested:  aiDiagnosis.is_grayscale_or_sepia,
+    })
+
   } catch (err: any) {
-    console.error('[restore] Failed to launch Stage 1:', err.message)
+    console.error('[restore] Gemini failed:', err.message)
     const { createAdminClient } = await import('@/lib/supabase/admin')
     await createAdminClient().from('photos').update({
       status:       'error',
-      restored_url: `❌ Erro ao iniciar IA: ${err.message}`,
+      restored_url: `❌ Erro Gemini: ${err.message}`,
     }).eq('id', photo.id)
-  }
 
-  return NextResponse.json({
-    photoId:     photo.id,
-    predictionId,
-    originalUrl,
-    diagnosis: {
-      label: aiDiagnosis.damage_severity === 'severe'   ? 'Restauração Extrema'  :
-             aiDiagnosis.damage_severity === 'moderate' ? 'Restauração Avançada' : 'Restauração Leve',
-      description: firstPhase,
-      icon:  aiDiagnosis.has_tears_or_holes || aiDiagnosis.has_scratches ? '✂️' :
-             aiDiagnosis.has_blur           ? '🔍' :
-             aiDiagnosis.has_grain_or_noise ? '🎞️' : '✨',
-      confidence: 99,
-      model: pipeline[0],
-    },
-    imageInfo: {
-      width:      imageStats.width,
-      height:     imageStats.height,
-      isGrayscale: imageStats.isGrayscale,
-    },
-    pipeline, // inform frontend how many stages
-  })
+    return NextResponse.json({ error: `Falha na restauração: ${err.message}` }, { status: 500 })
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

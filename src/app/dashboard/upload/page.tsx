@@ -67,9 +67,20 @@ export default function UploadPage() {
         throw new Error(err.error || 'Erro no upload')
       }
 
-      const { photoId: pid, predictionId: predId, originalUrl: oUrl, diagnosis: diag, imageInfo: info, pipeline: pl } = await uploadRes.json()
+      const responseData = await uploadRes.json()
+      const { photoId: pid, predictionId: predId, originalUrl: oUrl, diagnosis: diag, imageInfo: info, pipeline: pl, restoredUrl: directUrl, colorization_suggested: colSugg } = responseData
       setPhotoId(pid); setOriginalUrl(oUrl); setDiagnosis(diag); setImageInfo(info)
       if (pl) setPipeline(pl)
+
+      // Gemini returns the result directly — no polling needed
+      if (directUrl) {
+        setRestoredUrl(directUrl)
+        setProgress(100)
+        setStep('done')
+        if (colSugg) setColorizationSuggested(true)
+        return
+      }
+
       setProgress(35); setStep('restoring')
 
       // Poll every 3s — tracks chained predictions automatically
