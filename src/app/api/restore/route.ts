@@ -138,13 +138,38 @@ export async function POST(req: NextRequest) {
     const { data: { publicUrl: restoredUrl } } = supabase.storage
       .from('photos').getPublicUrl(restoredFileName)
 
+    // ── Quality gate ──
+    const { assessRestorationQuality } = await import('@/lib/openai')
+    const qc = await assessRestorationQuality(originalUrl, restoredUrl)
+    console.log(`[gemini] QC score=${qc.score} | ${qc.reason}`)
+
+    let finalUrl = restoredUrl
+    let finalScore = qc.score
+
+    // Retry com prompt conservador se qualidade baixa
+    if (qc.score < 70) {
+      try {
+        console.log(`[gemini] Score baixo (${qc.score}), retrying com prompt conservador...`)
+        const retryBuffer = await restoreWithGemini(cleanBuffer, true)
+        const retryFileName = `${user.id}/${Date.now()}_retry.jpg`
+        await supabase.storage.from('photos')
+          .upload(retryFileName, retryBuffer as any, { contentType: 'image/jpeg', upsert: false })
+        const { data: { publicUrl: retryUrl } } = supabase.storage.from('photos').getPublicUrl(retryFileName)
+        const qc2 = await assessRestorationQuality(originalUrl, retryUrl)
+        console.log(`[gemini] Retry QC score=${qc2.score} | using ${qc2.score > qc.score ? 'retry' : 'original'}`)
+        if (qc2.score > qc.score) { finalUrl = retryUrl; finalScore = qc2.score }
+      } catch (retryErr: any) {
+        console.warn('[gemini] Retry falhou, usando resultado original:', retryErr.message)
+      }
+    }
+
     // Mark as done + debit credit
     const { createAdminClient } = await import('@/lib/supabase/admin')
     const adminClient = createAdminClient()
     await adminClient.from('photos').update({
       status:                 'done',
-      restored_url:           restoredUrl,
-      diagnosis:              'Restauração concluída ✨',
+      restored_url:           finalUrl,
+      diagnosis:              finalScore >= 70 ? 'Restauração concluída ✨' : 'Restauração entregue ⚠️',
       colorization_suggested: aiDiagnosis.is_grayscale_or_sepia,
     }).eq('id', photo.id)
     await adminClient.rpc('debit_credit', { user_id_param: user.id })
@@ -155,7 +180,7 @@ export async function POST(req: NextRequest) {
       photoId:     photo.id,
       predictionId: null,
       originalUrl,
-      restoredUrl,
+      restoredUrl: finalUrl,
       diagnosis: {
         label:       'Restauração Gemini IA',
         description: 'Restauração concluída ✨',
