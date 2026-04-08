@@ -12,26 +12,53 @@ interface Mode {
 function ImageUploadField({ name, label, currentUrl }: {
   name: string; label: string; currentUrl?: string | null
 }) {
-  const [preview, setPreview] = useState<string | null>(null)
+  const [url, setUrl]           = useState(currentUrl ?? '')
+  const [uploading, setUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const display = preview || currentUrl || null
+
+  const handleFile = async (file: File) => {
+    setUploading(true)
+    try {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const ext  = file.name.split('.').pop() || 'jpg'
+      const path = `mode-examples/${Date.now()}_${name}.${ext}`
+      const { error } = await supabase.storage.from('photos').upload(path, file, {
+        contentType: file.type || 'image/jpeg',
+        upsert: true,
+      })
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path)
+      setUrl(publicUrl)
+    } catch (e: any) {
+      alert(`Erro ao enviar imagem: ${e.message}`)
+    } finally {
+      setUploading(false)
+    }
+  }
 
   return (
     <div>
       <label className="text-xs text-white/40 mb-1 block">{label}</label>
-      <input type="hidden" name={`${name}_url`} value={currentUrl ?? ''} />
+      {/* Hidden input carries the Supabase URL to the server action */}
+      <input type="hidden" name={`${name}_url`} value={url} readOnly />
       <div
-        onClick={() => inputRef.current?.click()}
-        className="relative rounded-lg overflow-hidden aspect-[4/3] bg-white/5 border border-white/10 border-dashed cursor-pointer hover:border-white/30 transition-colors flex items-center justify-center"
+        onClick={() => !uploading && inputRef.current?.click()}
+        className={`relative rounded-lg overflow-hidden aspect-[4/3] bg-white/5 border border-white/10 border-dashed transition-colors flex items-center justify-center ${uploading ? 'opacity-60 cursor-wait' : 'cursor-pointer hover:border-white/30'}`}
       >
-        {display ? (
+        {url && !uploading ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={display} alt={label} className="w-full h-full object-cover absolute inset-0" />
+            <img src={url} alt={label} className="w-full h-full object-cover absolute inset-0" />
             <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
               <span className="text-white text-xs font-medium">Trocar imagem</span>
             </div>
           </>
+        ) : uploading ? (
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-5 h-5 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+            <span className="text-white/40 text-xs">Enviando...</span>
+          </div>
         ) : (
           <span className="text-white/20 text-xs text-center px-3">Clique para enviar<br />{label}</span>
         )}
@@ -39,12 +66,11 @@ function ImageUploadField({ name, label, currentUrl }: {
       <input
         ref={inputRef}
         type="file"
-        name={`${name}_file`}
         accept="image/*"
         className="hidden"
         onChange={e => {
           const f = e.target.files?.[0]
-          if (f) setPreview(URL.createObjectURL(f))
+          if (f) handleFile(f)
         }}
       />
     </div>
@@ -140,6 +166,7 @@ export default function ModeEditor({ mode, models, deleteMode }: {
           </div>
           <div className="border-t border-white/10 pt-4">
             <p className="text-xs text-white/40 mb-3 uppercase tracking-widest">Exemplo de Restauração</p>
+            <p className="text-xs text-white/20 mb-3">Clique nas áreas abaixo para enviar as imagens — o upload acontece direto para o storage, sem passar pelo servidor.</p>
             <div className="grid grid-cols-2 gap-4">
               <ImageUploadField name="example_before" label="Antes" currentUrl={mode.example_before_url} />
               <ImageUploadField name="example_after"  label="Depois" currentUrl={mode.example_after_url} />

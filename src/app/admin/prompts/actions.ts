@@ -2,23 +2,6 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-async function uploadModeImage(
-  modeId: string,
-  type: 'before' | 'after',
-  file: File,
-): Promise<string> {
-  const supabase = createAdminClient()
-  const buffer   = Buffer.from(await file.arrayBuffer())
-  const ext      = file.name.split('.').pop() || 'jpg'
-  const path     = `mode-examples/${modeId}/${Date.now()}_${type}.${ext}`
-  await supabase.storage.from('photos').upload(path, buffer as any, {
-    contentType: file.type || 'image/jpeg',
-    upsert: true,
-  })
-  const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path)
-  return publicUrl
-}
-
 export async function createMode(formData: FormData) {
   const supabase = createAdminClient()
   const { data: row } = await supabase.from('restoration_modes').insert({
@@ -41,20 +24,8 @@ export async function createMode(formData: FormData) {
 export async function updateMode(id: string, formData: FormData) {
   const supabase = createAdminClient()
 
-  // Handle image uploads — if no file selected, keep existing URL from hidden input
-  const beforeFile = formData.get('example_before_file') as File
-  const afterFile  = formData.get('example_after_file')  as File
-
-  let beforeUrl = (formData.get('example_before_url') as string) || null
-  let afterUrl  = (formData.get('example_after_url')  as string) || null
-
-  if (beforeFile && beforeFile.size > 0) {
-    beforeUrl = await uploadModeImage(id, 'before', beforeFile)
-  }
-  if (afterFile && afterFile.size > 0) {
-    afterUrl = await uploadModeImage(id, 'after', afterFile)
-  }
-
+  // Images are uploaded directly from the browser to Supabase storage.
+  // The server action only receives the resulting public URLs as strings.
   await supabase.from('restoration_modes').update({
     name:               formData.get('name') as string,
     description:        formData.get('description') as string,
@@ -65,8 +36,8 @@ export async function updateMode(id: string, formData: FormData) {
     persona:            (formData.get('persona')      as string) || null,
     retry_prompt:       (formData.get('retry_prompt') as string) || null,
     qc_threshold:       parseInt(formData.get('qc_threshold') as string) || 70,
-    example_before_url: beforeUrl,
-    example_after_url:  afterUrl,
+    example_before_url: (formData.get('example_before_url') as string) || null,
+    example_after_url:  (formData.get('example_after_url')  as string) || null,
   }).eq('id', id)
 
   revalidatePath('/admin/prompts')
