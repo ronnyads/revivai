@@ -1,26 +1,24 @@
 import { ImageStats, PipelineModel } from './diagnose'
+import { SovereignAnalysis } from './openai'
 
 // ─── Pipeline Builder ─────────────────────────────────────────────────────────
 
-/**
- * Premium 3-stage pipeline:
- *  1. DDColor     — colorize + enhance colors
- *  2. Real-ESRGAN — upscale 4x BEFORE face restoration (gets much better results)
- *  3. Codeformer  — face restoration + 2x upscale with identity preservation
- */
-export function buildPipeline(_stats: ImageStats, hint?: string): PipelineModel[] {
-  const base: PipelineModel[] = [
-    'piddnad/ddcolor',          // Stage 1: colorize / enhance
-    'nightmareai/real-esrgan',  // Stage 2: upscale 
-    'sczhou/codeformer',        // Stage 3: face restoration
-  ]
+export function buildPipelineFromSovereign(analysis: SovereignAnalysis): PipelineModel[] {
+  const pipe: PipelineModel[] = []
 
-  if (hint === 'inpaint') {
-    // Stage 0: Remove physical scratches before colorizing or restoring faces
-    return ['microsoft/bringing-old-photos-back-to-life', ...base]
-  }
+  // Stage 0: Scratch cleanup
+  if (analysis.needs_scratch_removal) pipe.push('microsoft/bringing-old-photos-back-to-life')
+  
+  // Stage 1: Colorization
+  if (analysis.needs_colorization) pipe.push('piddnad/ddcolor')
+  
+  // Stage 2: Upscale (Always yes to preserve details)
+  pipe.push('nightmareai/real-esrgan')
 
-  return base
+  // Stage 3: Face restore
+  if (analysis.needs_face_restoration) pipe.push('sczhou/codeformer')
+
+  return pipe
 }
 
 // ─── Phase Labels ─────────────────────────────────────────────────────────────

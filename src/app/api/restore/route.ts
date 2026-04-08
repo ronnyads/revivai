@@ -5,13 +5,14 @@ import Replicate from 'replicate'
 import { createClient } from '@/lib/supabase/server'
 import { analyzeImage, selectModel, MODEL_CONFIGS, PipelineModel } from '@/lib/diagnose'
 import {
-  buildPipeline,
+  buildPipelineFromSovereign,
   buildWebhookUrl,
   getPhaseLabel,
   encodePipeState,
   decodePipeState,
 } from '@/lib/pipeline'
 import { getModelVersion, createPredictionWithRetry } from '@/lib/replicate'
+import { analyzeSovereignGPT } from '@/lib/openai'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -74,12 +75,6 @@ export async function POST(req: NextRequest) {
     imageStats = { isGrayscale: false, isLowRes: true, isTooSmall: false, width: 0, height: 0, hasAlpha: false, avgBrightness: 128, saturation: 50 }
   }
 
-  const diagnosis = selectModel(imageStats)
-  const hint      = formData.get('hint') as string
-  const pipeline  = buildPipeline(imageStats, hint) // e.g. ['microsoft/...', 'piddnad/ddcolor', ...]
-
-  console.log(`[restore] Pipeline for ${file.name}:`, pipeline, '| isGray:', imageStats.isGrayscale, '| lowRes:', imageStats.isLowRes, '| hint:', hint)
-
   // ── Upload original photo ──
   const ext      = file.name.split('.').pop() ?? 'jpg'
   const fileName = `${user.id}/${Date.now()}.${ext}`
@@ -93,6 +88,12 @@ export async function POST(req: NextRequest) {
 
   const { data: { publicUrl: originalUrl } } = supabase.storage
     .from('photos').getPublicUrl(fileName)
+
+  // ── Sovereign Diagnosis (GPT-4o) ──
+  const aiDiagnosis = await analyzeSovereignGPT(originalUrl)
+  const pipeline  = buildPipelineFromSovereign(aiDiagnosis)
+  
+  console.log(`[restore] Sovereign Pipeline for ${file.name}:`, pipeline, '| Analysis:', aiDiagnosis)
 
   // ── Create photo record ──
   const firstModel  = pipeline[0]
@@ -165,11 +166,11 @@ export async function POST(req: NextRequest) {
     predictionId,
     originalUrl,
     diagnosis: {
-      label:       diagnosis.label,
+      label:       aiDiagnosis.needs_scratch_removal ? 'Restauração Extrema' : 'Restauração Avançada',
       description: firstPhase,
-      icon:        diagnosis.icon,
-      confidence:  diagnosis.confidence,
-      model:       diagnosis.model,
+      icon:        aiDiagnosis.needs_scratch_removal ? '✂️' : '✨',
+      confidence:  99,
+      model:       pipeline[0],
     },
     imageInfo: {
       width:      imageStats.width,

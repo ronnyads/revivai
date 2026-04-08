@@ -9,21 +9,11 @@ import BeforeAfterSlider from '@/components/ui/BeforeAfterSlider'
 import { ArrowLeft, Sparkles, AlertCircle, ChevronDown } from 'lucide-react'
 
 type Step  = 'upload' | 'diagnosing' | 'restoring' | 'done' | 'error'
-type Hint  = 'auto' | 'colorize' | 'face' | 'inpaint'
-
-const HINTS: { id: Hint; icon: string; label: string; desc: string }[] = [
-  { id: 'auto',     icon: '✦', label: 'Automático',         desc: 'IA detecta o tipo de dano sozinha' },
-  { id: 'colorize', icon: '🎨', label: 'Colorizar',          desc: 'Foto em preto e branco' },
-  { id: 'face',     icon: '👤', label: 'Restaurar rosto',    desc: 'Rostos borrados ou danificados' },
-  { id: 'inpaint',  icon: '✂️', label: 'Remover danos',      desc: 'Rasgos, manchas ou riscos' },
-]
 
 export default function UploadPage() {
   const router     = useRouter()
   const [step, setStep]           = useState<Step>('upload')
   const [file, setFile]           = useState<File | null>(null)
-  const [hint, setHint]           = useState<Hint>('inpaint')
-  const [showHints, setShowHints] = useState(false)
   const [diagnosis, setDiagnosis] = useState<{ label: string; description: string; icon: string; confidence: number; model: string } | null>(null)
   const [imageInfo, setImageInfo] = useState<{ width: number; height: number; isGrayscale: boolean } | null>(null)
   const [originalUrl, setOriginalUrl] = useState('')
@@ -33,7 +23,6 @@ export default function UploadPage() {
   const [progress, setProgress]   = useState(0)
 
   const [pipeline, setPipeline]   = useState<string[]>([])
-  const selectedHint = HINTS.find(h => h.id === hint)!
 
   const handleRestore = async () => {
     if (!file) return
@@ -42,7 +31,6 @@ export default function UploadPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      if (hint !== 'auto') formData.append('hint', hint)
 
       const uploadRes = await fetch('/api/restore', { method: 'POST', body: formData })
 
@@ -113,34 +101,11 @@ export default function UploadPage() {
         {/* UPLOAD STEP */}
         {step === 'upload' && (
           <>
-            {/* Hint selector */}
-            <div className="mb-4 relative">
-              <button
-                onClick={() => setShowHints(!showHints)}
-                className="w-full flex items-center justify-between bg-white border border-[#E8E8E8] rounded-xl px-5 py-3.5 text-sm hover:border-accent transition-colors"
-              >
-                <span className="flex items-center gap-2">
-                  <span>{selectedHint.icon}</span>
-                  <span className="font-medium">{selectedHint.label}</span>
-                  <span className="text-muted">— {selectedHint.desc}</span>
-                </span>
-                <ChevronDown size={16} className={`text-muted transition-transform ${showHints ? 'rotate-180' : ''}`} />
-              </button>
-              {showHints && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#E8E8E8] rounded-xl shadow-xl z-20 overflow-hidden">
-                  {HINTS.map(h => (
-                    <button
-                      key={h.id}
-                      onClick={() => { setHint(h.id); setShowHints(false) }}
-                      className={`w-full flex items-center gap-3 px-5 py-3.5 text-sm hover:bg-surface transition-colors text-left ${hint === h.id ? 'bg-accent-light text-accent' : ''}`}
-                    >
-                      <span>{h.icon}</span>
-                      <span className="font-medium">{h.label}</span>
-                      <span className="text-muted ml-1">— {h.desc}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="w-full text-left mb-6 p-4 rounded-xl border border-accent bg-accent-light/30 flex items-start gap-4">
+               <div>
+                 <p className="font-semibold text-accent text-sm mb-1">🤖 Análise Soberana Ativada</p>
+                 <p className="text-muted text-xs">Simplesmente envie sua foto. Uma Inteligência Artificial analisará os pixels em tempo real e decidirá sozinha quais modelos de restauração e cura aplicar.</p>
+               </div>
             </div>
 
             <UploadZone onFile={f => setFile(f)} />
