@@ -32,6 +32,7 @@ export default function UploadPage() {
   const [error, setError]         = useState('')
   const [progress, setProgress]   = useState(0)
 
+  const [pipeline, setPipeline]   = useState<string[]>([])
   const selectedHint = HINTS.find(h => h.id === hint)!
 
   const handleRestore = async () => {
@@ -51,8 +52,9 @@ export default function UploadPage() {
         throw new Error(err.error || 'Erro no upload')
       }
 
-      const { photoId: pid, predictionId: predId, originalUrl: oUrl, diagnosis: diag, imageInfo: info } = await uploadRes.json()
+      const { photoId: pid, predictionId: predId, originalUrl: oUrl, diagnosis: diag, imageInfo: info, pipeline: pl } = await uploadRes.json()
       setPhotoId(pid); setOriginalUrl(oUrl); setDiagnosis(diag); setImageInfo(info)
+      if (pl) setPipeline(pl)
       setProgress(35); setStep('restoring')
 
       // Poll every 3s — tracks chained predictions automatically
@@ -181,7 +183,31 @@ export default function UploadPage() {
               </p>
             )}
             <h2 className="font-display text-3xl font-normal mb-2">Restaurando sua memória...</h2>
-            <p className="text-muted text-sm mb-8">{diagnosis.description || 'Processando com IA em duas etapas...'}</p>
+            <p className="text-muted text-sm mb-6">{diagnosis.description || 'Processando com IA em 3 etapas...'}</p>
+
+            {/* 3-stage visual indicator */}
+            {pipeline.length > 0 && (
+              <div className="flex items-center justify-center gap-3 mb-6">
+                {['🎨 Colorização', '📐 Upscale 4x', '👤 Restauração'].slice(0, pipeline.length).map((label, i) => {
+                  const currentStage = Math.floor(((progress - 35) / 55) * pipeline.length)
+                  const isDone = i < currentStage
+                  const isActive = i === currentStage
+                  return (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition-all ${
+                        isDone ? 'bg-green-100 text-green-700 font-medium' :
+                        isActive ? 'bg-accent-light text-accent font-medium animate-pulse' :
+                        'bg-[#F5F5F5] text-muted'
+                      }`}>
+                        {isDone ? '✓' : isActive ? '⟳' : '○'} {label}
+                      </div>
+                      {i < pipeline.length - 1 && <span className="text-[#E8E8E8]">→</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
             <div className="w-full bg-[#E8E8E8] rounded-full h-1.5 mb-3">
               <div className="bg-accent h-1.5 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
             </div>

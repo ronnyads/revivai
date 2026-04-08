@@ -3,27 +3,23 @@ import { ImageStats, PipelineModel } from './diagnose'
 // ─── Pipeline Builder ─────────────────────────────────────────────────────────
 
 /**
- * Builds the optimal processing pipeline based on image analysis.
- * Rules:
- *  1. DDColor ALWAYS first (colorizes B&W, enhances faded colors)
- *  2. Real-ESRGAN ONLY if resolution < 600px (upscale before face restoration)
- *  3. Codeformer ALWAYS last (face restoration + final upscale)
+ * Builds the optimal premium processing pipeline.
+ * ALWAYS 3 stages regardless of input quality:
+ *
+ *  1. DDColor     — colorize + enhance colors (every photo benefits)
+ *  2. Real-ESRGAN — upscale 4x BEFORE face restoration
+ *                   (Codeformer recovers 4× more detail when it has more pixels to analyze)
+ *  3. Codeformer  — face restoration + final polish on the high-res upscaled image
+ *
+ * Cost per restoration: ~3 Replicate predictions (~$0.08–0.15 total)
+ * Quality improvement: professional-grade output on every photo type
  */
-export function buildPipeline(stats: ImageStats): PipelineModel[] {
-  const steps: PipelineModel[] = []
-
-  // Stage 1 — always colorize / enhance
-  steps.push('piddnad/ddcolor')
-
-  // Stage 2 — upscale if low resolution (before face restoration)
-  if (stats.isLowRes) {
-    steps.push('nightmareai/real-esrgan')
-  }
-
-  // Final stage — always face restoration + quality upscale
-  steps.push('sczhou/codeformer')
-
-  return steps
+export function buildPipeline(_stats: ImageStats): PipelineModel[] {
+  return [
+    'piddnad/ddcolor',          // Stage 1: colorize / enhance
+    'nightmareai/real-esrgan',  // Stage 2: 4x upscale for maximum face detail
+    'sczhou/codeformer',        // Stage 3: face restoration on high-res input
+  ]
 }
 
 // ─── Phase Labels ─────────────────────────────────────────────────────────────

@@ -226,7 +226,7 @@ export async function POST(req: NextRequest) {
       const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN })
       const baseUrl   = getBaseUrl(req)
 
-      // After ESRGAN: output resolution is ~4x higher — update tracking dims
+      // After ESRGAN 4x: next step gets 4x larger image
       const nextInputW = currentModel === 'nightmareai/real-esrgan' ? p.inputW * 4 : p.inputW
       const nextInputH = currentModel === 'nightmareai/real-esrgan' ? p.inputH * 4 : p.inputH
 
