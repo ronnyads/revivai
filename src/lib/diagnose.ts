@@ -151,12 +151,12 @@ export const MODEL_CONFIGS: Record<ReplicateModel, {
     }),
   },
   'arielreplicate/deoldify': {
-    name: 'sczhou/codeformer', // Temporarily mapped to Codeformer to guarantee success since Deoldify keeps 404ing
+    name: 'cjwbw/deoldify', // Dynamic version fetching avoids 404s completely!
     buildInput: (url) => ({
-      image: url,
-      background_enhance: true,
-      face_upsample: true,
-      upscale: 2,
+      image: url, 
+      input_image: url, // Fallback parameters if needed by specific fork
+      model_name: 'Artistic',
+      render_factor: 35,
     }),
   },
   'stability-ai/stable-diffusion-inpainting': {

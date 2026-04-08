@@ -207,17 +207,19 @@ async function runRestoration({
     const owner = config.name.split('/')[0]
     const modelName = config.name.split('/')[1]
     
-    // Fallback: stable models
-    const predictionUrl = `https://api.replicate.com/v1/models/${owner}/${modelName}/predictions`
+    // Get model info to fetch the latest version hash explicitly
+    // This is required because older models return 404 on the new /models/.../predictions endpoint!
+    const modelInfo = await replicate.models.get(owner, modelName)
+    const latestVersion = modelInfo.latest_version?.id
+    
+    if (!latestVersion) throw new Error('Could not resolve latest version for ' + config.name)
 
-    // Actually replicate.models.predictions.create(...) exists in 1.x
-    // but the safest generic way using the Replicate CLI object if TS typing fails:
     const prediction = await replicate.predictions.create({
-      model: `${owner}/${modelName}`, // modern Replicate feature, auto resolves latest version!
+      version: latestVersion, // using classical version hash prevents 404s!
       input,
       webhook: webhookUrl,
       webhook_events_filter: ["completed"]
-    } as any)
+    })
 
     console.log(`[reviv.ai] Prediction dispatched! Webhook attached. Prediction ID: ${prediction.id}`)
     return prediction.id
