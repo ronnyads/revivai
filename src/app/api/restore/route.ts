@@ -75,12 +75,23 @@ export async function POST(req: NextRequest) {
     imageStats = { isGrayscale: false, isLowRes: true, isTooSmall: false, width: 0, height: 0, hasAlpha: false, avgBrightness: 128, saturation: 50 }
   }
 
+  // ── Normalize Image (Strip Alpha to fix Microsoft/Replicate bugs) ──
+  let cleanBuffer = buffer
+  try {
+    const sharp = (await import('sharp')).default
+    cleanBuffer = await sharp(buffer)
+      .flatten({ background: { r: 255, g: 255, b: 255 } }) // Removes transparency that breaks masks
+      .jpeg({ quality: 100 })
+      .toBuffer()
+  } catch (e) {
+    console.error('[restore] Falha ao limpar imagem, usando original', e)
+  }
+
   // ── Upload original photo ──
-  const ext      = file.name.split('.').pop() ?? 'jpg'
-  const fileName = `${user.id}/${Date.now()}.${ext}`
+  const fileName = `${user.id}/${Date.now()}.jpg`
 
   const { error: uploadError } = await supabase.storage
-    .from('photos').upload(fileName, buffer, { contentType: file.type, upsert: false })
+    .from('photos').upload(fileName, cleanBuffer, { contentType: 'image/jpeg', upsert: false })
 
   if (uploadError) {
     return NextResponse.json({ error: `Upload falhou: ${uploadError.message}` }, { status: 500 })

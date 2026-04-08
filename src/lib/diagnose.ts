@@ -113,7 +113,7 @@ export const MODEL_CONFIGS: Record<string, {
     name: 'microsoft/bringing-old-photos-back-to-life',
     buildInput: (url) => ({
       image: url,
-      HR: true,
+      HR: false, // Turn off HR to bypass Red Mask bug on extreme physical damage
       with_scratch: true
     }),
   },
