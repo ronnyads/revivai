@@ -76,13 +76,13 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Normalize Image (Strip Alpha to fix Microsoft/Replicate bugs) ──
-  let cleanBuffer = buffer
+  let cleanBuffer: Buffer = buffer
   try {
     const sharp = (await import('sharp')).default
-    cleanBuffer = await sharp(buffer as any)
+    cleanBuffer = (await sharp(buffer as any)
       .flatten({ background: { r: 255, g: 255, b: 255 } }) // Removes transparency that breaks masks
       .jpeg({ quality: 100 })
-      .toBuffer()
+      .toBuffer()) as Buffer
   } catch (e) {
     console.error('[restore] Falha ao limpar imagem, usando original', e)
   }
