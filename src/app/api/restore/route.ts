@@ -144,7 +144,8 @@ export async function GET(req: NextRequest) {
         } else if (prediction.output && typeof prediction.output === 'object' && 'url' in prediction.output) {
           restoredUrl = prediction.output.url as string
         } else {
-          return NextResponse.json({ status: 'processing' }) // Wait for next tick if weird
+          console.warn('[reviv.ai polling] Output shape mismatch', prediction.output);
+          return NextResponse.json({ status: 'processing', detail: 'Waiting for output shape...' }) 
         }
 
         console.log(`[reviv.ai polling] Success! ${photoId} -> ${restoredUrl}`)
@@ -162,9 +163,13 @@ export async function GET(req: NextRequest) {
         const errorMsg = prediction.error ? String(prediction.error) : 'Replicate API rejected the picture'
         await adminClient.from('photos').update({ status: 'error', restored_url: `Polling fallback: ${errorMsg}` }).eq('id', photoId)
         return NextResponse.json({ status: 'error', restored_url: `Polling fallback: ${errorMsg}` })
+      } else {
+        // Still processing or starting
+        return NextResponse.json({ status: 'processing', detail: prediction.status })
       }
-    } catch (pollErr) {
+    } catch (pollErr: any) {
       console.error(`[reviv.ai] Polling error for ${predictionId}:`, pollErr)
+      return NextResponse.json({ status: 'error', restored_url: `Erro na leitura (Polling): ${pollErr.message}` })
     }
   }
 

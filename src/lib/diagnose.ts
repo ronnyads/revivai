@@ -151,12 +151,11 @@ export const MODEL_CONFIGS: Record<ReplicateModel, {
     }),
   },
   'arielreplicate/deoldify': {
-    name: 'arielreplicate/deoldify_image', // Valid model confirmed by dynamic script!
+    name: 'piddnad/ddcolor', // Modern DDColor is more stable and active than old Deoldify wrappers
     buildInput: (url) => ({
-      image: url, // try both image and input_image just to be safe
-      input_image: url,
-      model_name: 'Artistic', // Replicate demands strictly "Artistic" or "Stable"
-      render_factor: 35,
+      image: url,
+      // fallback in case it uses input_image
+      input_image: url, 
     }),
   },
   'stability-ai/stable-diffusion-inpainting': {
