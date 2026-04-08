@@ -83,15 +83,7 @@ export default function UploadPage() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <header className="bg-white border-b border-[#E8E8E8] px-8 py-5 flex items-center justify-between sticky top-0 z-40">
-        <Link href="/dashboard" className="flex items-center gap-2 text-sm text-muted hover:text-ink transition-colors">
-          <ArrowLeft size={16} /> Voltar
-        </Link>
-        <span className="font-display text-xl font-semibold">reviv<span className="text-accent">.</span>ai</span>
-        <div />
-      </header>
-
-      <main className="max-w-2xl mx-auto px-6 py-14">
+      <main className="max-w-2xl mx-auto px-6 py-10 md:py-14">
         <h1 className="font-display text-5xl font-normal tracking-tight mb-1">Nova restauração</h1>
         <p className="text-muted text-sm mb-10">Upload sua foto e a IA cuida do resto.</p>
 
