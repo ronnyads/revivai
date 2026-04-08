@@ -207,20 +207,34 @@ export async function assessRestorationQuality(
   if (!apiKey) return { passed: true, score: 80, reason: 'API key ausente — assumindo aprovado' }
 
   const prompt = `
-Você é um especialista em restauração de fotos antigas. Compare a foto ORIGINAL (primeira) com a foto RESTAURADA (segunda).
+Você é um especialista em controle de qualidade de restauração de fotos antigas.
+A PRIMEIRA imagem é a foto ORIGINAL DANIFICADA enviada pelo cliente.
+A SEGUNDA imagem é a foto RESTAURADA pela IA.
 
-Avalie se a restauração foi fiel ao original:
-- Os rostos das pessoas foram PRESERVADOS (não recriados ou distorcidos)?
-- O cenário/fundo é reconhecível como o mesmo da foto original?
-- Há alucinações óbvias (partes do corpo extras, rostos fundidos, elementos inventados)?
-- A qualidade visual geral melhorou sem deturpar o conteúdo?
+Uma BOA restauração:
+✓ Remove os danos (riscos, manchas, blur, ruído) que existiam no original
+✓ A imagem fica mais nítida e clara que o original
+✓ Rostos parecem humanos e naturais (podem ser DIFERENTES do original danificado — isso é esperado)
+✓ Sem artefatos artificiais: pele plástica, membros extras, rostos fundidos
+✓ Fundo/cenário reconhecível como o mesmo do original
+
+Uma MÁ restauração (reprovar):
+✗ Introduziu artefatos piores que os danos originais
+✗ Rostos parecem plásticos, de boneco, ou completamente sintéticos
+✗ Adicionou ou removeu pessoas, objetos, ou partes do corpo
+✗ A qualidade visual ficou PIOR que o original enviado
+✗ A imagem parece uma obra de arte digital, não uma foto restaurada
+
+IMPORTANTE: Rostos na foto restaurada NÃO precisam ser idênticos à foto original danificada.
+Fotos danificadas têm rostos borrados, riscados ou degradados — é CORRETO que o modelo reconstrua
+o rosto de forma mais limpa. Só reprove se a reconstrução parecer totalmente artificial ou aberrante.
 
 Pontue de 0 a 100:
-- 90-100: Restauração perfeita, fiel ao original
-- 70-89: Boa restauração com pequenas alterações aceitáveis
-- 50-69: Restauração aceitável mas com alterações notáveis
-- 30-49: Muitas distorções, rostos alterados significativamente
-- 0-29: Alucinações severas, foto irreconhecível
+- 85-100: Excelente — visivelmente melhor que o original, sem artefatos
+- 70-84: Bom — melhorou claramente com pequenos problemas aceitáveis
+- 55-69: Aceitável — melhorou mas com artefatos notáveis
+- 40-54: Ruim — artefatos piores que os danos originais
+- 0-39: Falhou — imagem corrompida, alucinada ou pior que o original
 
 Responda APENAS no JSON Schema exigido.
 `
@@ -240,8 +254,8 @@ Responda APENAS no JSON Schema exigido.
             role: 'user',
             content: [
               { type: 'text', text: 'Compare as duas imagens: ORIGINAL e RESTAURADA.' },
-              { type: 'image_url', image_url: { url: originalUrl, detail: 'auto' } },
-              { type: 'image_url', image_url: { url: restoredUrl, detail: 'auto' } },
+              { type: 'image_url', image_url: { url: originalUrl, detail: 'high' } },
+              { type: 'image_url', image_url: { url: restoredUrl, detail: 'high' } },
             ],
           },
         ],
@@ -274,7 +288,7 @@ Responda APENAS no JSON Schema exigido.
     console.log(`[quality-gate] AI score=${parsed.score} reason=${parsed.reason}`)
 
     return {
-      passed: parsed.score >= 65,
+      passed: parsed.score >= 70,
       score:  parsed.score,
       reason: parsed.reason,
     }

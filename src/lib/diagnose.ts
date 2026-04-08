@@ -105,7 +105,7 @@ export const MODEL_CONFIGS: Record<string, {
     name: 'sczhou/codeformer',
     buildInput: (url, retry) => ({
       image:               url,
-      codeformer_fidelity: retry ? 0.65 : 0.85, // high fidelity = preserve original face structure, not recreate
+      codeformer_fidelity: retry ? 0.3 : 0.5, // low fidelity = let AI clean up damage; high fidelity would preserve damage artifacts
       background_enhance:  true,
       face_upsample:       true,
       upscale:             1, // ESRGAN already upscaled, no need for 2x more here
