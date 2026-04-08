@@ -1,26 +1,13 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const RESTORATION_PROMPT = `You are an expert photo restoration specialist. Restore this damaged vintage photograph.
-
-RESTORE:
-- Remove ALL physical damage: white cracks, tears, scratches, stains, dust spots, watermarks
-- Seamlessly reconstruct missing or heavily damaged areas using surrounding context and natural facial structure
-- Fill in damaged regions naturally — hair, skin, background, clothing
-
-PRESERVE (critical — never change these):
-- The exact identity, facial features, and expression of every person
-- Authentic vintage lighting, shadows, and depth
-- Original color tone exactly as-is: sepia, black and white, or faded color — do NOT add or remove color
-- Natural, realistic skin texture — NO smoothing, NO plastic or AI-generated look
-
-OUTPUT: A perfectly preserved, high-quality vintage print with all damage removed and original identity intact.`
+const RESTORATION_PROMPT = `A high-resolution, meticulously restored vintage photograph. The primary goal is the exact preservation of the original identities, expressions, and features of the individuals without loss of originality. Meticulously remove all physical damage, deep white cracks, stains, dust, and watermarks. Seamlessly rebuild the missing or heavily damaged details, such as eyes, teeth, and hair texture, strictly based on the surviving contours and natural facial structure. Avoid over-smoothing; the restored skin must have realistic, high-fidelity texture, not a fake or plastic finish. Preserve the authentic vintage lighting, shadows, and the original color tone (whether sépia or black and white). The resulting image must look like a perfectly preserved, high-quality vintage print.`
 
 export async function restoreWithGemini(imageBuffer: Buffer): Promise<Buffer> {
   const apiKey = process.env.GOOGLE_API_KEY
   if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-image-preview' })
 
   const base64 = imageBuffer.toString('base64')
 
