@@ -8,11 +8,6 @@ import { SovereignAnalysis, EnterpriseAnalysis } from './openai'
 export function buildEnterprisePipeline(analysis: EnterpriseAnalysis): PipelineModel[] {
   const pipe: PipelineModel[] = []
 
-  // Step 0: Physical damage (scratches, tears, mold, folds)
-  if (analysis.has_scratches || analysis.has_tears_or_holes || analysis.has_mold_or_stains) {
-    pipe.push('microsoft/bringing-old-photos-back-to-life')
-  }
-
   // Step 1: Optical damage (blur + grain — NAFNet handles both)
   if (analysis.has_blur || analysis.has_grain_or_noise) {
     pipe.push('megvii-research/nafnet')
