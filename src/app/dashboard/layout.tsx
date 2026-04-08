@@ -21,7 +21,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         
         {/* Logo & Credits */}
         <div className="p-8 flex flex-col items-start gap-6 border-b border-[#E8E8E8]">
-          <Link href="/" className="font-display text-2xl font-semibold hover:opacity-80 transition-opacity">
+          <Link href="/dashboard" className="font-display text-2xl font-semibold hover:opacity-80 transition-opacity">
             reviv<span className="text-accent">.</span>ai
           </Link>
           <CreditBadge credits={profile?.credits ?? 0} plan={profile?.plan ?? 'free'} />

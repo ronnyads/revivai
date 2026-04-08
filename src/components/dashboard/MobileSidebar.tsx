@@ -26,7 +26,7 @@ export default function MobileSidebar({ userEmail, children }: { userEmail: stri
     <>
       {/* ── Top Nav for Mobile ── */}
       <div className="md:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md px-6 py-4 border-b border-[#E8E8E8] flex justify-between items-center shadow-sm">
-        <Link href="/" className="font-display text-xl font-semibold">
+        <Link href="/dashboard" className="font-display text-xl font-semibold">
           reviv<span className="text-accent">.</span>ai
         </Link>
         <div className="flex items-center gap-3">
