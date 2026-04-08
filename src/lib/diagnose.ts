@@ -93,22 +93,18 @@ export const MODEL_CONFIGS: Record<string, {
     name: 'nightmareai/real-esrgan',
     buildInput: (url, retry) => ({
       image:        url,
-      scale:        retry ? 2 : 4,  // 4x upscale → 16x more pixels for Codeformer
-      face_enhance: true,            // pre-enhances faces before Codeformer pass
+      scale:        2,  // 2x upscale is enough for high quality without amplifying grain
+      face_enhance: true, 
     }),
   },
   'sczhou/codeformer': {
     name: 'sczhou/codeformer',
     buildInput: (url, retry) => ({
       image:               url,
-      // fidelity 0.5 = balanced: reconstructs detail strongly while preserving identity
-      // fidelity 0.0 = ignores original → creates generic AI face (wrong identity!)
-      // fidelity 1.0 = keeps original exactly → no improvement on degraded photo
-      // 0.5 is the professional standard for old photo restoration
-      codeformer_fidelity: retry ? 0.3 : 0.5,
+      codeformer_fidelity: retry ? 0.3 : 0.6, // slightly higher fidelity to preserve natural textures
       background_enhance:  true,
-      face_upsample:       true,  // critical: detects + restores each face separately
-      upscale:             2,
+      face_upsample:       true,
+      upscale:             1, // ESRGAN already upscaled, no need for 2x more here
     }),
   },
   // Legacy aliases
