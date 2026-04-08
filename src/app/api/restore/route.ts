@@ -163,9 +163,12 @@ async function runRestoration({
     })
 
     console.log(`[reviv.ai] Prediction dispatched! Webhook attached.`)
-  } catch (err) {
+  } catch (err: any) {
     console.error(`[reviv.ai] Error restoring ${photoId}:`, err)
-    await supabase.from('photos').update({ status: 'error' }).eq('id', photoId)
+    await supabase.from('photos').update({ 
+      status: 'error',
+      restored_url: err.message || JSON.stringify(err)
+    }).eq('id', photoId)
     // Don't throw, we let it mark as error natively.
   }
 }

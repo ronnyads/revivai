@@ -68,7 +68,7 @@ export default function UploadPage() {
             setRestoredUrl(restored_url); setProgress(100); setStep('done')
           } else if (status === 'error') {
             clearInterval(pollId)
-            setError('A IA da Replicate recusou e deu erro (provavelmente sua Key não tem Cartão cadastrado no Billing). Vá na Replicate e ative o billing.')
+            setError(`A IA encontrou um erro: ${restored_url || 'Falha ao processar.'}`)
             setStep('error')
           }
         } catch (e: any) {

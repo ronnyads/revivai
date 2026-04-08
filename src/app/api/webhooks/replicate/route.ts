@@ -60,11 +60,17 @@ export async function POST(req: NextRequest) {
 
       } else if (status === 'failed' || status === 'canceled') {
         console.error(`[reviv.ai webhook] Replicate reported failure for ${photoId}:`, body.error)
-        await supabase.from('photos').update({ status: 'error' }).eq('id', photoId)
+        await supabase.from('photos').update({ 
+          status: 'error',
+          restored_url: `Webhook report: ${body.error}`
+        }).eq('id', photoId)
       }
-    } catch (dbErr) {
+    } catch (dbErr: any) {
       console.error(`[reviv.ai webhook] Internal DB Error for ${photoId}:`, dbErr)
-      await supabase.from('photos').update({ status: 'error' }).eq('id', photoId)
+      await supabase.from('photos').update({ 
+        status: 'error',
+        restored_url: `Internal webhook error: ${dbErr.message || JSON.stringify(dbErr)}`
+      }).eq('id', photoId)
     }
 
     return NextResponse.json({ success: true })
