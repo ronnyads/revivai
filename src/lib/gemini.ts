@@ -1,24 +1,27 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const RESTORATION_PROMPT = `A high-resolution, meticulously restored vintage photograph. The primary goal is the exact preservation of the original identities, expressions, and features of the individuals without loss of originality. Meticulously remove all physical damage, deep white cracks, stains, dust, and watermarks. Seamlessly rebuild the missing or heavily damaged details, such as eyes, teeth, and hair texture, strictly based on the surviving contours and natural facial structure. Avoid over-smoothing; the restored skin must have realistic, high-fidelity texture, not a fake or plastic finish. Preserve the authentic vintage lighting, shadows, and the original color tone (whether sépia or black and white). The resulting image must look like a perfectly preserved, high-quality vintage print.`
+const RETRY_PROMPT = `Restore this photograph with minimal intervention. Focus only on removing visible damage marks, dust, and scratches. Do NOT change faces, expressions, composition, or overall appearance. Preserve everything as close to the original as possible.`
 
-const RETRY_PROMPT = `Restore this vintage photograph with minimal intervention. Focus only on removing visible damage marks, dust, and scratches. Do NOT change faces, expressions, composition, or overall appearance. Preserve everything as close to the original as possible. The result must look like the same photo, just cleaned.`
-
-export async function restoreWithGemini(imageBuffer: Buffer, retry = false): Promise<Buffer> {
+export async function restoreWithGemini(
+  imageBuffer: Buffer,
+  prompt: string,
+  model: string,
+  retry = false,
+): Promise<Buffer> {
   const apiKey = process.env.GOOGLE_API_KEY
   if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-image-preview' })
+  const genModel = genAI.getGenerativeModel({ model })
 
   const base64 = imageBuffer.toString('base64')
-  const prompt = retry ? RETRY_PROMPT : RESTORATION_PROMPT
+  const activePrompt = retry ? RETRY_PROMPT : prompt
 
-  const result = await model.generateContent({
+  const result = await genModel.generateContent({
     contents: [{
       role: 'user',
       parts: [
-        { text: prompt },
+        { text: activePrompt },
         { inlineData: { mimeType: 'image/jpeg', data: base64 } },
       ],
     }],

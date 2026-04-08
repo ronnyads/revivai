@@ -122,10 +122,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Erro ao salvar no banco' }, { status: 500 })
   }
 
+  // ── Fetch restoration mode ──
+  const modeId = formData.get('modeId') as string | null
+  let modePrompt = 'Restore this old photograph. Remove scratches, dust, and damage while preserving all original details, faces, and composition.'
+  let modeModel  = 'gemini-2.5-flash-image'
+
+  if (modeId) {
+    const { createAdminClient: getAdmin } = await import('@/lib/supabase/admin')
+    const { data: modeRow } = await getAdmin()
+      .from('restoration_modes')
+      .select('prompt, model')
+      .eq('id', modeId)
+      .single()
+    if (modeRow) { modePrompt = modeRow.prompt; modeModel = modeRow.model }
+  }
+
+  console.log(`[restore] mode=${modeId ?? 'default'} model=${modeModel}`)
+
   // ── Restore with Gemini (synchronous) ──
   try {
     console.log(`[restore] Calling Gemini for photo ${photo.id}...`)
-    const restoredBuffer = await restoreWithGemini(cleanBuffer)
+    const restoredBuffer = await restoreWithGemini(cleanBuffer, modePrompt, modeModel)
 
     // Upload restored image
     const restoredFileName = `${user.id}/${Date.now()}_restored.jpg`
@@ -150,7 +167,7 @@ export async function POST(req: NextRequest) {
     if (qc.score < 70) {
       try {
         console.log(`[gemini] Score baixo (${qc.score}), retrying com prompt conservador...`)
-        const retryBuffer = await restoreWithGemini(cleanBuffer, true)
+        const retryBuffer = await restoreWithGemini(cleanBuffer, modePrompt, modeModel, true)
         const retryFileName = `${user.id}/${Date.now()}_retry.jpg`
         await supabase.storage.from('photos')
           .upload(retryFileName, retryBuffer as any, { contentType: 'image/jpeg', upsert: false })

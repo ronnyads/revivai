@@ -1,0 +1,71 @@
+export const dynamic = 'force-dynamic'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { createMode, deleteMode } from './actions'
+import ModeEditor from './ModeEditor'
+
+const MODELS = [
+  { value: 'gemini-2.5-flash-image',          label: 'Nano Banana (rápido)' },
+  { value: 'gemini-3.1-flash-image-preview',   label: 'Nano Banana 2 (qualidade)' },
+  { value: 'gemini-3-pro-image-preview',        label: 'Nano Banana Pro (máxima qualidade)' },
+]
+
+export default async function PromptsPage() {
+  const supabase = createAdminClient()
+  const { data: modes } = await supabase
+    .from('restoration_modes')
+    .select('*')
+    .order('sort_order', { ascending: true })
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      <div className="mb-8">
+        <h1 className="font-display text-4xl font-normal tracking-tight mb-1">Modos de Restauração</h1>
+        <p className="text-white/40 text-sm">Crie e edite os modos que o cliente vê na tela de upload.</p>
+      </div>
+
+      {/* Existing modes */}
+      <div className="flex flex-col gap-4 mb-10">
+        {modes?.map(mode => (
+          <ModeEditor key={mode.id} mode={mode} models={MODELS} deleteMode={deleteMode} />
+        ))}
+        {(!modes || modes.length === 0) && (
+          <p className="text-white/30 text-sm text-center py-12">Nenhum modo cadastrado.</p>
+        )}
+      </div>
+
+      {/* Create new mode */}
+      <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+        <h2 className="text-sm font-semibold mb-5 text-white/70 uppercase tracking-widest">Novo modo</h2>
+        <form action={createMode} className="flex flex-col gap-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs text-white/40 mb-1 block">Ícone</label>
+              <input name="icon" defaultValue="✨" className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs text-white/40 mb-1 block">Nome</label>
+              <input name="name" placeholder="Ex: Foto danificada" required className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Descrição (aparece para o cliente)</label>
+            <input name="description" placeholder="Ex: Rasgos, rachaduras, manchas" className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
+          </div>
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Modelo Gemini</label>
+            <select name="model" className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30">
+              {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Prompt Gemini</label>
+            <textarea name="prompt" rows={6} required placeholder="Escreva o prompt completo aqui..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
+          </div>
+          <button type="submit" className="self-start bg-accent text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-accent-dark transition-colors">
+            Criar modo
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}

@@ -1,7 +1,7 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import UploadZone from '@/components/ui/UploadZone'
@@ -9,6 +9,7 @@ import BeforeAfterSlider from '@/components/ui/BeforeAfterSlider'
 import { ArrowLeft, Sparkles, AlertCircle, ChevronDown } from 'lucide-react'
 
 type Step  = 'upload' | 'diagnosing' | 'restoring' | 'done' | 'error'
+type Mode  = { id: string; name: string; description: string; icon: string; model: string }
 
 export default function UploadPage() {
   const router     = useRouter()
@@ -21,6 +22,18 @@ export default function UploadPage() {
   const [photoId, setPhotoId]     = useState('')
   const [error, setError]         = useState('')
   const [progress, setProgress]   = useState(0)
+
+  const [modes, setModes]           = useState<Mode[]>([])
+  const [selectedMode, setSelectedMode] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/restoration-modes')
+      .then(r => r.json())
+      .then(({ modes }) => {
+        if (modes?.length) { setModes(modes); setSelectedMode(modes[0].id) }
+      })
+      .catch(() => {})
+  }, [])
 
   const [pipeline, setPipeline]   = useState<string[]>([])
   const [colorizationSuggested, setColorizationSuggested] = useState(false)
@@ -58,6 +71,7 @@ export default function UploadPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      if (selectedMode) formData.append('modeId', selectedMode)
 
       const uploadRes = await fetch('/api/restore', { method: 'POST', body: formData })
 
@@ -143,12 +157,34 @@ export default function UploadPage() {
         {/* UPLOAD STEP */}
         {step === 'upload' && (
           <>
-            <div className="w-full text-left mb-6 p-4 rounded-xl border border-accent bg-accent-light/30 flex items-start gap-4">
-               <div>
-                 <p className="font-semibold text-accent text-sm mb-1">🤖 Análise Soberana Ativada</p>
-                 <p className="text-muted text-xs">Simplesmente envie sua foto. Uma Inteligência Artificial analisará os pixels em tempo real e decidirá sozinha quais modelos de restauração e cura aplicar.</p>
-               </div>
-            </div>
+            {/* Mode selection */}
+            {modes.length > 0 && (
+              <div className="mb-6">
+                <p className="text-sm font-medium text-ink mb-3">Qual é o tipo da sua foto?</p>
+                <div className="flex flex-col gap-2">
+                  {modes.map(mode => (
+                    <button
+                      key={mode.id}
+                      onClick={() => setSelectedMode(mode.id)}
+                      className={`w-full text-left flex items-center gap-4 px-4 py-3.5 rounded-xl border transition-all ${
+                        selectedMode === mode.id
+                          ? 'border-accent bg-accent-light/40 text-ink'
+                          : 'border-[#E8E8E8] bg-white hover:border-accent/40 text-ink'
+                      }`}
+                    >
+                      <span className="text-2xl flex-shrink-0">{mode.icon}</span>
+                      <div>
+                        <p className="text-sm font-medium">{mode.name}</p>
+                        {mode.description && <p className="text-xs text-muted mt-0.5">{mode.description}</p>}
+                      </div>
+                      {selectedMode === mode.id && (
+                        <span className="ml-auto text-accent text-lg">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <UploadZone onFile={f => setFile(f)} />
 

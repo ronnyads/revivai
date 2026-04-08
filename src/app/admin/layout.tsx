@@ -14,10 +14,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user || user.email !== ADMIN_EMAIL) redirect('/auth/login')
 
   const navItems = [
-    { href: '/admin',         icon: '◈', label: 'Dashboard' },
-    { href: '/admin/orders',  icon: '◎', label: 'Pedidos' },
-    { href: '/admin/users',   icon: '◉', label: 'Usuários' },
-    { href: '/admin/photos',  icon: '◌', label: 'Fotos' },
+    { href: '/admin',          icon: '◈', label: 'Dashboard' },
+    { href: '/admin/orders',   icon: '◎', label: 'Pedidos' },
+    { href: '/admin/users',    icon: '◉', label: 'Usuários' },
+    { href: '/admin/photos',   icon: '◌', label: 'Fotos' },
+    { href: '/admin/prompts',  icon: '✦', label: 'Modos de Restauração' },
   ]
 
   return (
