@@ -100,7 +100,7 @@ export default function UploadPage() {
             setDiagnosis((prev: any) => prev ? { ...prev, description: phaseDiag } : prev)
           }
 
-          if (status === 'done' && restored_url) {
+          if (status === 'done' && restored_url && !restored_url.startsWith('PIPE:')) {
             clearInterval(pollId)
             setRestoredUrl(restored_url)
             setProgress(100)

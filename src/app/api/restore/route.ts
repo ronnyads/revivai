@@ -218,6 +218,11 @@ export async function GET(req: NextRequest) {
 
   // ── Terminal states ────────────────────────────────────────────────────────
   if (data.status === 'done' || data.status === 'error') {
+    // Sanity check: status=done but PIPE URL = race condition / data corruption
+    // Treat as still processing rather than returning broken URL to frontend
+    if (data.status === 'done' && data.restored_url?.startsWith('PIPE:')) {
+      return NextResponse.json({ status: 'processing', diagnosis: data.diagnosis })
+    }
     return NextResponse.json({
       status:                   data.status,
       restored_url:             data.restored_url,
