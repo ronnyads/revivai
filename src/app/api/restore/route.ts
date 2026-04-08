@@ -81,7 +81,8 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 4. Start AI restoration (async — don't await) ──
-  runRestoration({ photoId: photo.id, originalUrl, diagnosis, userId: user.id }).catch(console.error)
+  const baseUrl = new URL(req.url).origin
+  runRestoration({ photoId: photo.id, originalUrl, diagnosis, userId: user.id, baseUrl }).catch(console.error)
 
   return NextResponse.json({
     photoId: photo.id,
@@ -122,18 +123,20 @@ export async function GET(req: NextRequest) {
 }
 
 /* ─────────────────────────────────────────────────────────
-   Async AI runner — called without await
+   Async AI runner — using Webhooks to bypass 10s timeout!
 ───────────────────────────────────────────────────────── */
 async function runRestoration({
   photoId,
   originalUrl,
   diagnosis,
   userId,
+  baseUrl // Passed from req.url
 }: {
   photoId: string
   originalUrl: string
   diagnosis: ReturnType<typeof selectModel>
   userId: string
+  baseUrl: string
 }) {
   const { createAdminClient } = await import('@/lib/supabase/admin')
   const supabase = createAdminClient()
@@ -146,36 +149,20 @@ async function runRestoration({
     console.log(`[reviv.ai] Starting ${diagnosis.model} for photo ${photoId}`)
     console.log(`[reviv.ai] Input:`, JSON.stringify(input))
 
-    // Run model (waits for completion — Replicate handles timeout up to 10min)
-    const output = await replicate.run(
-      config.version as `${string}/${string}:${string}`,
-      { input }
-    ) as string | string[] | { url?: string }
+    const webhookUrl = `${baseUrl}/api/webhooks/replicate?photoId=${photoId}&userId=${userId}`
 
-    // Extract URL from different output shapes
-    let restoredUrl: string
-    if (typeof output === 'string') {
-      restoredUrl = output
-    } else if (Array.isArray(output)) {
-      restoredUrl = output[0]
-    } else if (output && typeof output === 'object' && 'url' in output) {
-      restoredUrl = output.url as string
-    } else {
-      throw new Error(`Unexpected Replicate output shape: ${JSON.stringify(output)}`)
-    }
+    // Start model prediction with webhook (Returns INSTANTLY, no 10s timeouts taking down the function!)
+    await replicate.predictions.create({
+      version: config.version as `${string}/${string}:${string}`,
+      input,
+      webhook: webhookUrl,
+      webhook_events_filter: ["completed"]
+    })
 
-    console.log(`[reviv.ai] Done! ${restoredUrl}`)
-
-    await supabase.from('photos').update({
-      restored_url: restoredUrl,
-      status:       'done',
-    }).eq('id', photoId)
-
-    // Debit 1 credit only on success
-    await supabase.rpc('debit_credit', { user_id_param: userId })
+    console.log(`[reviv.ai] Prediction dispatched! Webhook attached.`)
   } catch (err) {
     console.error(`[reviv.ai] Error restoring ${photoId}:`, err)
     await supabase.from('photos').update({ status: 'error' }).eq('id', photoId)
-    throw err; // Rethrow to be caught by the main handler
+    // Don't throw, we let it mark as error natively.
   }
 }
