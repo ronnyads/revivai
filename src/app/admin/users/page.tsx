@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { formatDate } from '@/lib/utils'
+import AddCreditsButton from './AddCreditsButton'
 
 export default async function AdminUsers() {
   const supabase = createAdminClient()
@@ -44,7 +45,7 @@ export default async function AdminUsers() {
                   }`}>{u.plan}</span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`font-semibold ${u.credits > 0 ? 'text-white' : 'text-white/30'}`}>{u.credits}</span>
+                  <AddCreditsButton userId={u.id} currentCredits={u.credits} />
                 </td>
                 <td className="px-6 py-4 text-white/40 text-xs">{formatDate(u.created_at)}</td>
                 <td className="px-6 py-4 text-white/20 text-[11px] font-mono">{u.id.slice(0, 16)}...</td>
