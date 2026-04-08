@@ -135,9 +135,8 @@ async function runRestoration({
   diagnosis: ReturnType<typeof selectModel>
   userId: string
 }) {
-  // Need a fresh server-side Supabase client (service role)
-  const { createClient: createServerClient } = await import('@/lib/supabase/server')
-  const supabase = await createServerClient()
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const supabase = createAdminClient()
 
   try {
     const replicate = getReplicate()
