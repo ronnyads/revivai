@@ -20,10 +20,7 @@ export async function restoreWithGemini(imageBuffer: Buffer): Promise<Buffer> {
   if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
 
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel(
-    { model: 'gemini-2.0-flash-exp' },
-    { apiVersion: 'v1alpha' },
-  )
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' })
 
   const base64 = imageBuffer.toString('base64')
 
