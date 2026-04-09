@@ -14,7 +14,7 @@ export async function restoreWithGemini(
   const base64 = imageBuffer.toString('base64')
   const activePrompt = retry ? (retryPrompt || DEFAULT_RETRY_PROMPT) : prompt
 
-  // Use direct REST call to v1alpha — the SDK default (v1beta) does not support
+  // Direct REST call to v1alpha — the JS SDK default (v1beta) does not support
   // responseModalities: IMAGE for these models.
   const url = `https://generativelanguage.googleapis.com/v1alpha/models/${model}:generateContent?key=${apiKey}`
 
@@ -23,7 +23,7 @@ export async function restoreWithGemini(
       role: 'user',
       parts: [
         { text: activePrompt },
-        { inline_data: { mime_type: 'image/jpeg', data: base64 } },
+        { inlineData: { mimeType: 'image/jpeg', data: base64 } },
       ],
     }],
     generationConfig: {
@@ -32,7 +32,7 @@ export async function restoreWithGemini(
   }
 
   if (persona) {
-    body.system_instruction = { parts: [{ text: persona }] }
+    body.systemInstruction = { parts: [{ text: persona }] }
   }
 
   const res = await fetch(url, {
