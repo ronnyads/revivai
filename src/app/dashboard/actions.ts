@@ -10,13 +10,11 @@ export async function deleteFailedPhoto(photoId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
 
-  // Only delete if it's an error photo
   const { error } = await supabase
     .from('photos')
     .delete()
     .eq('id', photoId)
     .eq('user_id', user.id)
-    .eq('status', 'error')
 
   if (error) {
     return { error: 'Falha ao deletar a foto.' }
