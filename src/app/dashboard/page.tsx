@@ -44,7 +44,7 @@ export default async function DashboardPage() {
       {/* Photo grid */}
       {photos && photos.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-          {photos.map(photo => <PhotoCard key={photo.id} photo={photo} />)}
+          {photos.map(photo => <PhotoCard key={photo.id} photo={photo} credits={profile?.credits ?? 0} />)}
         </div>
       ) : (
         <div className="bg-white border-2 border-dashed border-[#E8E8E8] rounded-2xl p-10 md:p-20 text-center">
