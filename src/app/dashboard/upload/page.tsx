@@ -150,7 +150,7 @@ export default function UploadPage() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <main className="max-w-2xl mx-auto px-6 py-10 md:py-14">
+      <main className="max-w-3xl mx-auto px-6 py-10 md:py-14">
         <h1 className="font-display text-5xl font-normal tracking-tight mb-1">Nova restauração</h1>
         <p className="text-muted text-sm mb-10">Upload sua foto e a IA cuida do resto.</p>
 
@@ -159,45 +159,63 @@ export default function UploadPage() {
           <>
             {/* Mode selection */}
             {modes.length > 0 && (
-              <div className="mb-6">
-                <p className="text-sm font-medium text-ink mb-3">Qual é o tipo da sua foto?</p>
-                <div className="flex flex-col gap-2">
-                  {modes.map(mode => (
-                    <button
-                      key={mode.id}
-                      onClick={() => setSelectedMode(mode.id)}
-                      className={`w-full text-left flex items-center gap-4 px-4 py-3.5 rounded-xl border transition-all ${
-                        selectedMode === mode.id
-                          ? 'border-accent bg-accent-light/40 text-ink'
-                          : 'border-[#E8E8E8] bg-white hover:border-accent/40 text-ink'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4 w-full">
-                        <span className="text-2xl flex-shrink-0">{mode.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{mode.name}</p>
-                          {mode.description && <p className="text-xs text-muted mt-0.5">{mode.description}</p>}
+              <div className="mb-8">
+                <p className="text-sm font-semibold text-ink mb-4">Qual é o tipo da sua foto?</p>
+                <div className="flex flex-col gap-3">
+                  {modes.map(mode => {
+                    const isSelected = selectedMode === mode.id
+                    const hasExamples = !!(mode.example_before_url && mode.example_after_url)
+                    return (
+                      <button
+                        key={mode.id}
+                        onClick={() => setSelectedMode(mode.id)}
+                        className={`w-full text-left rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
+                          isSelected
+                            ? 'border-accent shadow-md shadow-accent/10'
+                            : 'border-[#E8E8E8] bg-white hover:border-accent/40 hover:shadow-sm'
+                        }`}
+                      >
+                        {/* Header row */}
+                        <div className={`flex items-start gap-4 px-5 py-4 ${isSelected ? 'bg-accent-light/30' : 'bg-white'}`}>
+                          <span className="text-2xl mt-0.5 flex-shrink-0">{mode.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-ink leading-tight">{mode.name}</p>
+                            {mode.description && (
+                              <p className="text-xs text-muted mt-1 leading-relaxed">{mode.description}</p>
+                            )}
+                          </div>
+                          <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center mt-0.5 transition-all ${
+                            isSelected ? 'border-accent bg-accent' : 'border-[#E8E8E8]'
+                          }`}>
+                            {isSelected && <span className="text-white text-[10px] font-bold">✓</span>}
+                          </div>
                         </div>
-                        {selectedMode === mode.id && (
-                          <span className="ml-auto text-accent text-lg flex-shrink-0">✓</span>
+
+                        {/* Before/After examples */}
+                        {hasExamples && (
+                          <div className="grid grid-cols-2 border-t border-[#E8E8E8]">
+                            <div className="relative aspect-[3/2] bg-gray-100">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={mode.example_before_url!} alt={`Antes — ${mode.name}`} className="w-full h-full object-cover" loading="lazy" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                              <span className="absolute bottom-2 left-3 text-[11px] font-semibold text-white tracking-wide uppercase">Antes</span>
+                            </div>
+                            <div className="relative aspect-[3/2] bg-gray-100 border-l border-[#E8E8E8]">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={mode.example_after_url!} alt={`Depois — ${mode.name}`} className="w-full h-full object-cover" loading="lazy" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                              <span className="absolute bottom-2 right-3 text-[11px] font-semibold text-white tracking-wide uppercase">Depois ✦</span>
+                              {isSelected && (
+                                <div className="absolute top-2 right-2 bg-accent text-white text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider uppercase">
+                                  Selecionado
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         )}
-                      </div>
-                      {mode.example_before_url && mode.example_after_url && (
-                        <div className="grid grid-cols-2 gap-2 w-full mt-1">
-                          <div className="relative rounded-lg overflow-hidden aspect-[4/3] bg-gray-100">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={mode.example_before_url} alt={`Antes — ${mode.name}`} className="w-full h-full object-cover" loading="lazy" />
-                            <span className="absolute bottom-1 left-1 text-[9px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">Antes</span>
-                          </div>
-                          <div className="relative rounded-lg overflow-hidden aspect-[4/3] bg-gray-100">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={mode.example_after_url} alt={`Depois — ${mode.name}`} className="w-full h-full object-cover" loading="lazy" />
-                            <span className="absolute bottom-1 right-1 text-[9px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">Depois</span>
-                          </div>
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )}
