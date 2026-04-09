@@ -74,7 +74,7 @@ export default function PhotoCard({ photo, credits = 0 }: { photo: Photo; credit
         {photo.model_used && (
           <p className="text-[11px] text-muted font-mono mb-2 truncate">{photo.model_used}</p>
         )}
-        <p className="text-xs text-muted mb-3">{formatDate(photo.created_at)}</p>
+        <p className="text-xs text-muted mb-3" suppressHydrationWarning>{formatDate(photo.created_at)}</p>
 
         {photo.status === 'done' && (
           <div className="flex flex-col gap-2">
