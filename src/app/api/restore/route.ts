@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
   // ── Fetch restoration mode ──
   const modeId = formData.get('modeId') as string | null
   let modePrompt = 'Restore this old photograph. Remove scratches, dust, and damage while preserving all original details, faces, and composition.'
-  let modeModel  = 'gemini-2.5-flash-image'
+  let modeModel  = 'gemini-2.0-flash-exp-image-generation'
 
   let modePersona: string | null = null
   let modeRetryPrompt: string | null = null
@@ -148,14 +148,12 @@ export async function POST(req: NextRequest) {
   }
 
   const VALID_IMAGE_MODELS = new Set([
-    'gemini-2.5-flash-image',
-    'gemini-3.1-flash-image-preview',
-    'gemini-3-pro-image-preview',
-    'nano-banana-pro-preview',
+    'gemini-2.0-flash-exp-image-generation',
+    'gemini-2.0-flash-preview-image-generation',
   ])
   if (!VALID_IMAGE_MODELS.has(modeModel)) {
-    console.warn(`[restore] Modelo inválido "${modeModel}", usando fallback gemini-2.5-flash-image`)
-    modeModel = 'gemini-2.5-flash-image'
+    console.warn(`[restore] Modelo inválido "${modeModel}", usando fallback gemini-2.0-flash-exp-image-generation`)
+    modeModel = 'gemini-2.0-flash-exp-image-generation'
   }
 
   console.log(`[restore] mode=${modeId ?? 'default'} model=${modeModel} persona=${!!modePersona} qc_threshold=${modeQcThreshold}`)

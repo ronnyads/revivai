@@ -4,9 +4,8 @@ import { createMode, deleteMode, seedDefaultModes } from './actions'
 import ModeEditor from './ModeEditor'
 
 const MODELS = [
-  { value: 'gemini-2.5-flash-image',         label: 'Gemini 2.5 Flash Image — rápido (estável)' },
-  { value: 'gemini-3-pro-image-preview',      label: 'Gemini 3 Pro Image — qualidade (preview)' },
-  { value: 'gemini-3.1-flash-image-preview',  label: 'Gemini 3.1 Flash Image — melhor disponível (preview)' },
+  { value: 'gemini-2.0-flash-exp-image-generation',     label: 'Gemini 2.0 Flash Image Generation — estável' },
+  { value: 'gemini-2.0-flash-preview-image-generation', label: 'Gemini 2.0 Flash Preview Image Generation — preview' },
 ]
 
 export default async function PromptsPage() {
