@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Check } from 'lucide-react'
 
 const plans = [
@@ -33,21 +34,12 @@ const plans = [
 ]
 
 export default function Pricing() {
+  const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
 
-  const handleCheckout = async (planId: string) => {
+  const handleCheckout = (planId: string) => {
     setLoading(planId)
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId }),
-      })
-      const { url } = await res.json()
-      if (url) window.location.href = url
-    } finally {
-      setLoading(null)
-    }
+    router.push(`/checkout?plan=${planId}`)
   }
 
   return (
@@ -114,7 +106,7 @@ export default function Pricing() {
                   : 'text-ink border-[#E8E8E8] hover:border-accent hover:text-accent'
               } disabled:opacity-60 disabled:cursor-not-allowed`}
             >
-              {loading === p.id ? 'Redirecionando...' : p.cta}
+              {loading === p.id ? 'Aguarde...' : p.cta}
             </button>
           </div>
         ))}
@@ -125,7 +117,7 @@ export default function Pricing() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
         </svg>
-        Pagamentos processados com segurança pelo Mercado Pago. Seus dados estão protegidos.
+        Pagamentos processados com segurança. Seus dados estão protegidos.
       </p>
     </section>
   )
