@@ -29,8 +29,8 @@ const FEATURES = [
     tag: 'Upscaling 4x',
     title: 'Amplie sem perder qualidade — até 4x a resolução original',
     desc: 'Fotos antigas têm resolução baixa. Nossa tecnologia Real-ESRGAN aumenta a resolução em até 4x, recuperando detalhes que pareciam perdidos para sempre.',
-    before: `${BASE}/1775696325720.jpg`,
-    after:  `${BASE}/1775696341762_restored.jpg`,
+    before: `${BASE}/1775730116128.jpg`,
+    after:  `${BASE}/1775730143782_restored.jpg`,
   },
 ]
 
