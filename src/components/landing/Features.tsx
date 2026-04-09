@@ -15,7 +15,7 @@ const FEATURES = [
     tag: 'Restauração de Rostos',
     title: 'Revele cada detalhe do rosto com clareza natural',
     desc: 'Tecnologia de ponta para reconstruir rostos desfocados, danificados ou degradados. Os modelos de IA preservam a identidade e a expressão da pessoa, tornando o resultado indistinguível de uma foto original.',
-    before: `${BASE}/1775740648406.jpg`,
+    before: `${BASE}/1775740634445.jpg`,
     after:  `${BASE}/1775740648406_restored.jpg`,
   },
   {
