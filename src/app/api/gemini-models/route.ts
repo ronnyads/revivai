@@ -8,9 +8,18 @@ export async function GET(req: NextRequest) {
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`)
   const data = await res.json()
 
-  const models = (data.models ?? [])
+  const all = (data.models ?? [])
     .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-    .map((m: any) => ({ name: m.name, displayName: m.displayName }))
+    .map((m: any) => ({
+      name: m.name,
+      displayName: m.displayName,
+      description: m.description,
+      supportsImage: !!(
+        m.name?.toLowerCase().includes('image') ||
+        m.displayName?.toLowerCase().includes('image') ||
+        m.description?.toLowerCase().includes('image generation')
+      ),
+    }))
 
-  return NextResponse.json({ models })
+  return NextResponse.json({ models: all, total: all.length })
 }

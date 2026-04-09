@@ -13,7 +13,7 @@ export async function restoreWithGemini(
   const apiKey = process.env.GOOGLE_API_KEY
   if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
 
-  const genAI = new GoogleGenerativeAI(apiKey)
+  const genAI = new GoogleGenerativeAI(apiKey, { apiVersion: 'v1alpha' } as any)
   const genModel = genAI.getGenerativeModel({
     model,
     ...(persona ? { systemInstruction: persona } : {}),

@@ -147,6 +147,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const VALID_IMAGE_MODELS = new Set([
+    'gemini-2.5-flash-image',
+    'gemini-3.1-flash-image-preview',
+    'gemini-3-pro-image-preview',
+    'nano-banana-pro-preview',
+  ])
+  if (!VALID_IMAGE_MODELS.has(modeModel)) {
+    console.warn(`[restore] Modelo inválido "${modeModel}", usando fallback gemini-2.5-flash-image`)
+    modeModel = 'gemini-2.5-flash-image'
+  }
+
   console.log(`[restore] mode=${modeId ?? 'default'} model=${modeModel} persona=${!!modePersona} qc_threshold=${modeQcThreshold}`)
 
   // ── Restore with Gemini (synchronous) ──

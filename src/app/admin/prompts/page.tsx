@@ -4,9 +4,9 @@ import { createMode, deleteMode, seedDefaultModes } from './actions'
 import ModeEditor from './ModeEditor'
 
 const MODELS = [
-  { value: 'gemini-2.5-flash-image',          label: 'Nano Banana (rápido)' },
-  { value: 'gemini-3.1-flash-image-preview',   label: 'Nano Banana 2 (qualidade)' },
-  { value: 'gemini-3-pro-image-preview',        label: 'Nano Banana Pro (máxima qualidade)' },
+  { value: 'gemini-2.5-flash-image',        label: 'Nano Banana (rápido)' },
+  { value: 'gemini-3.1-flash-image-preview', label: 'Nano Banana 2 (qualidade)' },
+  { value: 'gemini-3-pro-image-preview',     label: 'Nano Banana Pro (máxima qualidade)' },
 ]
 
 export default async function PromptsPage() {
