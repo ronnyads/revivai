@@ -139,7 +139,7 @@ export default function PhotoCard({ photo, credits = 0 }: { photo: Photo; credit
           </div>
         )}
 
-        {photo.status === 'error' && <DeletePhotoButton photoId={photo.id} />}
+        {photo.status !== 'done' && <DeletePhotoButton photoId={photo.id} />}
       </div>
     </div>
   )
