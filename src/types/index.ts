@@ -11,11 +11,14 @@ export interface Photo {
   id: string
   user_id: string
   original_url: string
-  restored_url?: string
+  restored_url?: string | null
   status: 'pending' | 'processing' | 'done' | 'error'
   model_used?: string
   diagnosis?: string
   created_at: string
+  colorization_url?: string | null
+  colorization_suggested?: boolean
+  damage_analysis?: Record<string, unknown>
 }
 
 export interface Order {
