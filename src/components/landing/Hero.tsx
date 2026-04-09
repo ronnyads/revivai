@@ -1,12 +1,46 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import BeforeAfterSlider from '@/components/ui/BeforeAfterSlider'
 
-const BEFORE = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=820&q=40&sat=-100'
-const AFTER  = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=820&q=90'
+// ─── Substitua pelas URLs reais do Supabase ───────────────────────────────────
+// SELECT original_url, restored_url FROM photos WHERE status = 'done' ORDER BY created_at DESC LIMIT 3;
+const EXAMPLES = [
+  {
+    before: 'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775696325720.jpg',
+    after:  'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775696341762_restored.jpg',
+  },
+  {
+    before: 'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775695273515.jpg',
+    after:  'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775695292203_restored.jpg',
+  },
+  {
+    before: 'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775683275662.jpg',
+    after:  'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775683301851_restored.jpg',
+  },
+]
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function Hero() {
-  const statsRef = useRef<NodeListOf<Element> | null>(null)
+  const [current, setCurrent] = useState(0)
+  const [fade, setFade] = useState(true)
+
+  // Auto-rotate every 5s
+  useEffect(() => {
+    const id = setInterval(() => {
+      setFade(false)
+      setTimeout(() => {
+        setCurrent(c => (c + 1) % EXAMPLES.length)
+        setFade(true)
+      }, 300)
+    }, 5000)
+    return () => clearInterval(id)
+  }, [])
+
+  function goTo(idx: number) {
+    if (idx === current) return
+    setFade(false)
+    setTimeout(() => { setCurrent(idx); setFade(true) }, 300)
+  }
 
   useEffect(() => {
     // Counter animation
@@ -57,7 +91,22 @@ export default function Hero() {
           </a>
         </div>
 
-        <BeforeAfterSlider before={BEFORE} after={AFTER} />
+        <div className="flex flex-col items-center gap-4">
+          <div style={{ opacity: fade ? 1 : 0, transition: 'opacity 0.3s ease' }}>
+            <BeforeAfterSlider before={EXAMPLES[current].before} after={EXAMPLES[current].after} />
+          </div>
+          {/* Dots */}
+          <div className="flex items-center gap-2">
+            {EXAMPLES.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${i === current ? 'bg-accent w-5' : 'bg-[#E8E8E8] hover:bg-muted'}`}
+                aria-label={`Exemplo ${i + 1}`}
+              />
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Stats */}

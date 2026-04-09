@@ -29,22 +29,11 @@ export default function BeforeAfterSlider({ before, after }: { before: string; a
     }
   }, [dragging])
 
-  // Auto-animate intro
-  useEffect(() => {
-    let p = 50; let dir = 1
-    const id = setInterval(() => {
-      p += dir * 0.5
-      if (p >= 75) dir = -1
-      if (p <= 25) { clearInterval(id); return }
-      setPos(p)
-    }, 16)
-    return () => clearInterval(id)
-  }, [])
 
   return (
     <div
       ref={ref}
-      className="relative w-full max-w-3xl aspect-video rounded-xl overflow-hidden shadow-2xl border border-[#E8E8E8] cursor-col-resize select-none"
+      className="relative w-full max-w-sm aspect-[3/4] rounded-xl overflow-hidden shadow-2xl border border-[#E8E8E8] cursor-col-resize select-none"
       onMouseDown={() => setDragging(true)}
       onTouchStart={() => setDragging(true)}
     >
