@@ -1,24 +1,52 @@
 'use client'
 
 import { useState } from 'react'
-import { XCircle, Loader2 } from 'lucide-react'
+import { Trash2, Loader2, AlertTriangle } from 'lucide-react'
 import { deleteFailedPhoto } from '@/app/dashboard/actions'
 
 export default function DeletePhotoButton({ photoId }: { photoId: string }) {
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [confirm, setConfirm]   = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete() {
+    setDeleting(true)
+    await deleteFailedPhoto(photoId)
+    setDeleting(false)
+  }
+
+  if (confirm) {
+    return (
+      <div className="mt-1 rounded-lg border border-red-200 bg-red-50 p-3 flex flex-col gap-2">
+        <p className="flex items-center gap-1.5 text-[11px] text-red-600 font-medium">
+          <AlertTriangle size={12} /> Esta ação é permanente e não pode ser desfeita.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md bg-red-500 text-white text-xs font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+          >
+            {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+            {deleting ? 'Excluindo...' : 'Sim, excluir'}
+          </button>
+          <button
+            onClick={() => setConfirm(false)}
+            disabled={deleting}
+            className="flex-1 py-1.5 rounded-md border border-[#E8E8E8] text-xs text-muted hover:bg-surface transition-colors disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <button
-      onClick={async () => {
-        setIsDeleting(true)
-        await deleteFailedPhoto(photoId)
-        setIsDeleting(false)
-      }}
-      disabled={isDeleting}
-      className={`mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-red-200 text-red-500 text-xs font-medium hover:bg-red-50 transition-colors duration-200 ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
+      onClick={() => setConfirm(true)}
+      className="mt-1 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border border-[#E8E8E8] text-red-400 text-xs font-medium hover:border-red-200 hover:bg-red-50 transition-colors duration-200"
     >
-      {isDeleting ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
-      {isDeleting ? 'Descartando...' : 'Descartar'}
+      <Trash2 size={13} /> Excluir foto
     </button>
   )
 }
