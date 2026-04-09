@@ -33,7 +33,7 @@ export async function restoreWithGemini(
       ],
     }],
     generationConfig: {
-      responseModalities: ['IMAGE'],
+      responseModalities: ['IMAGE', 'TEXT'],
     } as any,
   })
 
