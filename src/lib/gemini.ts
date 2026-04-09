@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
-
 const DEFAULT_RETRY_PROMPT = `Restore this photograph with minimal intervention. Focus only on removing visible damage marks, dust, and scratches. Do NOT change faces, expressions, composition, or overall appearance. Preserve everything as close to the original as possible.`
 
 export async function restoreWithGemini(
@@ -13,31 +11,43 @@ export async function restoreWithGemini(
   const apiKey = process.env.GOOGLE_API_KEY
   if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const GenAI = GoogleGenerativeAI as any
-  const genAI = new GenAI(apiKey, { apiVersion: 'v1alpha' })
-  const genModel = genAI.getGenerativeModel({
-    model,
-    ...(persona ? { systemInstruction: persona } : {}),
-  })
-
   const base64 = imageBuffer.toString('base64')
   const activePrompt = retry ? (retryPrompt || DEFAULT_RETRY_PROMPT) : prompt
 
-  const result = await genModel.generateContent({
+  // Use direct REST call to v1alpha — the SDK default (v1beta) does not support
+  // responseModalities: IMAGE for these models.
+  const url = `https://generativelanguage.googleapis.com/v1alpha/models/${model}:generateContent?key=${apiKey}`
+
+  const body: Record<string, unknown> = {
     contents: [{
       role: 'user',
       parts: [
         { text: activePrompt },
-        { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+        { inline_data: { mime_type: 'image/jpeg', data: base64 } },
       ],
     }],
     generationConfig: {
       responseModalities: ['IMAGE'],
-    } as any,
+    },
+  }
+
+  if (persona) {
+    body.system_instruction = { parts: [{ text: persona }] }
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   })
 
-  const parts = result.response.candidates?.[0]?.content?.parts ?? []
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`Gemini API ${res.status}: ${errText}`)
+  }
+
+  const data = await res.json()
+  const parts: any[] = data?.candidates?.[0]?.content?.parts ?? []
   const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
 
   if (!imagePart?.inlineData?.data) {
