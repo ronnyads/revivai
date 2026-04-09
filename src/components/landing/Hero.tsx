@@ -91,8 +91,8 @@ export default function Hero() {
           </a>
         </div>
 
-        <div className="flex flex-col items-center gap-4">
-          <div style={{ opacity: fade ? 1 : 0, transition: 'opacity 0.3s ease' }}>
+        <div className="flex flex-col items-center gap-4 w-full">
+          <div className="w-full max-w-sm" style={{ opacity: fade ? 1 : 0, transition: 'opacity 0.3s ease' }}>
             <BeforeAfterSlider before={EXAMPLES[current].before} after={EXAMPLES[current].after} />
           </div>
           {/* Dots */}
