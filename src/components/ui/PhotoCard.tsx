@@ -17,7 +17,7 @@ export default function PhotoCard({ photo }: { photo: Photo }) {
     <div className="bg-white border border-[#E8E8E8] rounded-xl overflow-hidden hover:-translate-y-0.5 transition-transform duration-300 group">
       <div className="relative aspect-square bg-surface overflow-hidden">
         <img
-          src={photo.restored_url || photo.original_url}
+          src={(photo.status === 'done' && photo.restored_url) ? photo.restored_url : photo.original_url}
           alt="Foto"
           className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
         />
