@@ -1,9 +1,11 @@
 import Navbar from '@/components/layout/Navbar'
 import Hero from '@/components/landing/Hero'
+import Features from '@/components/landing/Features'
 import HowItWorks from '@/components/landing/HowItWorks'
 import AiModels from '@/components/landing/AiModels'
 import Pricing from '@/components/landing/Pricing'
 import Testimonials from '@/components/landing/Testimonials'
+import FAQ from '@/components/landing/FAQ'
 import Footer from '@/components/layout/Footer'
 
 export default function HomePage() {
@@ -12,10 +14,12 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
+        <Features />
         <HowItWorks />
         <AiModels />
         <Pricing />
         <Testimonials />
+        <FAQ />
         {/* CTA Banner */}
         <div className="mx-8 mb-20 bg-ink text-white rounded-3xl px-12 py-24 text-center relative overflow-hidden">
           <div className="absolute w-[600px] h-[600px] rounded-full bg-accent opacity-[0.06] -top-48 -right-24 pointer-events-none" />
