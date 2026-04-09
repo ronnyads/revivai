@@ -19,6 +19,7 @@ export interface Photo {
   colorization_url?: string | null
   colorization_suggested?: boolean
   damage_analysis?: Record<string, unknown>
+  upscale_url?: string | null
 }
 
 export interface Order {
