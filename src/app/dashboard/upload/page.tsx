@@ -150,69 +150,82 @@ export default function UploadPage() {
 
   return (
     <div className="min-h-screen bg-surface">
-      <main className="max-w-3xl mx-auto px-6 py-10 md:py-14">
+      <main className="max-w-4xl mx-auto px-6 py-10 md:py-14">
         <h1 className="font-display text-5xl font-normal tracking-tight mb-1">Nova restauração</h1>
-        <p className="text-muted text-sm mb-10">Upload sua foto e a IA cuida do resto.</p>
+        <p className="text-muted text-sm mb-10">Escolha o modo certo para sua foto e a IA faz o resto.</p>
 
         {/* UPLOAD STEP */}
         {step === 'upload' && (
           <>
             {/* Mode selection */}
             {modes.length > 0 && (
-              <div className="mb-8">
-                <p className="text-sm font-semibold text-ink mb-4">Qual é o tipo da sua foto?</p>
-                <div className="flex flex-col gap-3">
+              <div className="mb-10">
+                <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-5">1. Selecione o modo de restauração</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {modes.map(mode => {
                     const isSelected = selectedMode === mode.id
                     const hasExamples = !!(mode.example_before_url && mode.example_after_url)
+                    // Detect if icon is emoji (single char or surrogate pair) vs text
+                    const isEmoji = mode.icon && mode.icon.length <= 4
                     return (
                       <button
                         key={mode.id}
                         onClick={() => setSelectedMode(mode.id)}
-                        className={`w-full text-left rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
+                        className={`w-full text-left rounded-2xl border-2 transition-all duration-200 overflow-hidden group ${
                           isSelected
-                            ? 'border-accent shadow-md shadow-accent/10'
-                            : 'border-[#E8E8E8] bg-white hover:border-accent/40 hover:shadow-sm'
+                            ? 'border-accent shadow-lg shadow-accent/15 scale-[1.01]'
+                            : 'border-[#E8E8E8] bg-white hover:border-accent/50 hover:shadow-md hover:scale-[1.005]'
                         }`}
                       >
-                        {/* Header row */}
-                        <div className={`flex items-start gap-4 px-5 py-4 ${isSelected ? 'bg-accent-light/30' : 'bg-white'}`}>
-                          <span className="text-2xl mt-0.5 flex-shrink-0">{mode.icon}</span>
+                        {/* Before/After — full width, tall */}
+                        {hasExamples ? (
+                          <div className="relative grid grid-cols-2 h-44">
+                            <div className="relative bg-gray-100 overflow-hidden">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={mode.example_before_url!} alt="Antes" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                              <span className="absolute bottom-3 left-3 text-[10px] font-bold text-white/90 tracking-[2px] uppercase">Antes</span>
+                            </div>
+                            <div className="relative bg-gray-100 overflow-hidden border-l-2 border-white">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={mode.example_after_url!} alt="Depois" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                              <span className="absolute bottom-3 right-3 text-[10px] font-bold text-white/90 tracking-[2px] uppercase">Depois ✦</span>
+                            </div>
+                            {/* Selected overlay */}
+                            {isSelected && (
+                              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-accent text-white text-[10px] font-bold px-3 py-1 rounded-full tracking-widest uppercase shadow-md">
+                                ✓ Selecionado
+                              </div>
+                            )}
+                            {/* Divider line */}
+                            <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white z-10 pointer-events-none" />
+                          </div>
+                        ) : (
+                          <div className={`h-20 flex items-center justify-center text-4xl ${isSelected ? 'bg-accent-light/40' : 'bg-surface'}`}>
+                            {isEmoji ? mode.icon : '✨'}
+                          </div>
+                        )}
+
+                        {/* Info */}
+                        <div className={`flex items-start gap-3 px-4 py-4 ${isSelected ? 'bg-accent-light/20' : 'bg-white'}`}>
+                          {isEmoji && (
+                            <span className="text-xl flex-shrink-0 mt-0.5">{mode.icon}</span>
+                          )}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-ink leading-tight">{mode.name}</p>
+                            <p className={`text-sm font-semibold leading-tight ${isSelected ? 'text-accent' : 'text-ink'}`}>
+                              {mode.name}
+                            </p>
                             {mode.description && (
-                              <p className="text-xs text-muted mt-1 leading-relaxed">{mode.description}</p>
+                              <p className="text-xs text-muted mt-1 leading-relaxed line-clamp-2">{mode.description}</p>
                             )}
                           </div>
                           <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center mt-0.5 transition-all ${
                             isSelected ? 'border-accent bg-accent' : 'border-[#E8E8E8]'
                           }`}>
-                            {isSelected && <span className="text-white text-[10px] font-bold">✓</span>}
+                            {isSelected && <span className="text-white text-[10px] font-bold leading-none">✓</span>}
                           </div>
                         </div>
-
-                        {/* Before/After examples */}
-                        {hasExamples && (
-                          <div className="grid grid-cols-2 border-t border-[#E8E8E8]">
-                            <div className="relative aspect-[3/2] bg-gray-100">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={mode.example_before_url!} alt={`Antes — ${mode.name}`} className="w-full h-full object-cover" loading="lazy" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                              <span className="absolute bottom-2 left-3 text-[11px] font-semibold text-white tracking-wide uppercase">Antes</span>
-                            </div>
-                            <div className="relative aspect-[3/2] bg-gray-100 border-l border-[#E8E8E8]">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={mode.example_after_url!} alt={`Depois — ${mode.name}`} className="w-full h-full object-cover" loading="lazy" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                              <span className="absolute bottom-2 right-3 text-[11px] font-semibold text-white tracking-wide uppercase">Depois ✦</span>
-                              {isSelected && (
-                                <div className="absolute top-2 right-2 bg-accent text-white text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider uppercase">
-                                  Selecionado
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
                       </button>
                     )
                   })}
@@ -220,6 +233,7 @@ export default function UploadPage() {
               </div>
             )}
 
+            <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-4">2. Envie sua foto</p>
             <UploadZone onFile={f => setFile(f)} />
 
             {file && (
