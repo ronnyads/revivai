@@ -43,7 +43,7 @@ export async function restoreWithGemini(
 
   if (!res.ok) {
     const errText = await res.text()
-    throw new Error(`Gemini API ${res.status}: ${errText}`)
+    throw new Error(`Gemini API ${res.status}: ${errText.slice(0, 300)}`)
   }
 
   const data = await res.json()
@@ -51,7 +51,14 @@ export async function restoreWithGemini(
   const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
 
   if (!imagePart?.inlineData?.data) {
-    throw new Error('Gemini não retornou imagem — verifique GOOGLE_API_KEY e modelo')
+    // Log the actual response to understand what Gemini returned
+    const debug = JSON.stringify({
+      candidatesCount: data?.candidates?.length ?? 0,
+      finishReason: data?.candidates?.[0]?.finishReason,
+      partsTypes: parts.map((p: any) => Object.keys(p)),
+      promptFeedback: data?.promptFeedback,
+    })
+    throw new Error(`Gemini sem imagem | ${debug}`)
   }
 
   return Buffer.from(imagePart.inlineData.data, 'base64')
