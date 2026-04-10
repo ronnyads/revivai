@@ -40,7 +40,7 @@ export default function BeforeAfterSlider({ before, after }: { before: string; a
       {/* Before */}
       <img src={before} alt="Foto original" className="absolute inset-0 w-full h-full object-cover" />
       {/* After */}
-      <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
+      <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 0 0 ${pos}%)` }}>
         <img src={after} alt="Foto restaurada" className="absolute inset-0 w-full h-full object-cover" />
       </div>
       {/* Divider */}
