@@ -1,5 +1,6 @@
 'use client'
 import { useEffect } from 'react'
+import BeforeAfterSlider from '@/components/ui/BeforeAfterSlider'
 
 export default function Hero() {
   useEffect(() => {
@@ -60,31 +61,29 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Visual Composition — hidden on mobile */}
-        <div className="hidden md:flex w-full md:w-1/2 relative justify-end">
-          <div className="relative group">
-            {/* Glow effect */}
-            <div className="absolute -inset-10 rounded-full pointer-events-none" style={{ backgroundColor: '#D94F2E', opacity: 0.08, filter: 'blur(80px)' }} />
-            <div className="relative z-10 p-4 shadow-2xl" style={{ backgroundColor: '#1c1b1b', border: '1px solid rgba(89,65,59,0.6)' }}>
-              <img
-                src="https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775740648406_restored.jpg"
-                alt="Foto restaurada pela IA"
-                className="w-full max-w-lg object-cover"
-                style={{ filter: 'brightness(1.05) contrast(1.1)' }}
-              />
-              <div className="mt-4 flex justify-between items-center" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#a88a83' }}>
-                <span>Antes / Depois</span>
-                <span>revivai Neural Engine</span>
-              </div>
+        {/* Visual Composition — visible on all screens */}
+        <div className="w-full md:w-1/2 relative">
+          {/* Glow effect */}
+          <div className="absolute -inset-10 rounded-full pointer-events-none" style={{ backgroundColor: '#D94F2E', opacity: 0.08, filter: 'blur(80px)' }} />
+          <div className="relative z-10 p-4 shadow-2xl" style={{ backgroundColor: '#1c1b1b', border: '1px solid rgba(89,65,59,0.6)' }}>
+            <BeforeAfterSlider
+              before="https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775695273515.jpg"
+              after="https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775695292203_restored.jpg"
+            />
+            <div className="mt-4 flex justify-between items-center" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#a88a83' }}>
+              <span>Antes / Depois</span>
+              <span>Arraste para comparar</span>
             </div>
-            {/* Floating badge */}
-            <div className="absolute -bottom-8 -left-8 p-6 hidden lg:block z-20" style={{ backgroundColor: '#2a2a2a', border: '1px solid rgba(89,65,59,0.6)' }}>
-              <div className="flex items-center gap-4">
-                <span className="material-symbols-outlined" style={{ color: '#D94F2E', fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}>auto_awesome</span>
-                <div>
-                  <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#a88a83' }}>Satisfação</p>
-                  <p className="text-xl font-bold" style={{ color: '#e5e2e1' }}>98%</p>
-                </div>
+          </div>
+          {/* Floating badge — desktop only */}
+          <div className="absolute -bottom-8 -left-8 p-6 hidden lg:block z-20" style={{ backgroundColor: '#2a2a2a', border: '1px solid rgba(89,65,59,0.6)' }}>
+            <div className="flex items-center gap-4">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ color: '#D94F2E', flexShrink: 0 }}>
+                <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z" fill="#D94F2E" />
+              </svg>
+              <div>
+                <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#a88a83' }}>Satisfação</p>
+                <p className="text-xl font-bold" style={{ color: '#e5e2e1' }}>98%</p>
               </div>
             </div>
           </div>
