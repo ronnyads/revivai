@@ -1,83 +1,175 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { Suspense } from 'react'
-import { Check, ShieldCheck, Loader2 } from 'lucide-react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { Check, ShieldCheck, Loader2, Copy, CheckCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const PLANS = {
-  perPhoto: {
-    name: 'Restauração Avulsa',
-    description: '1 foto restaurada com IA em alta resolução',
-    price: 19.00,
-    period: 'por foto',
-    features: ['1 foto restaurada', 'Download em alta resolução', '4 modelos de IA', 'Resultado em segundos'],
-  },
-  subscription: {
-    name: 'Assinatura Mensal',
-    description: '10 fotos por mês + histórico + download 4K',
-    price: 59.00,
-    period: 'por mês',
-    features: ['10 fotos por mês', 'Histórico completo', 'Download em 4K', 'Prioridade no processamento', 'Suporte prioritário'],
-  },
-  package: {
-    name: 'Pacote 10 Créditos',
-    description: '10 créditos sem expiração, use quando quiser',
-    price: 129.00,
-    period: '10 créditos',
-    features: ['10 créditos permanentes', 'Use quando quiser', 'Download em alta resolução', 'Histórico salvo'],
-  },
+  perPhoto:     { name: 'Restauração Avulsa', price: 19.00,  period: 'por foto',     features: ['1 foto restaurada', 'Download em alta resolução', 'Resultado em segundos', 'PIX, cartão ou boleto'] },
+  subscription: { name: 'Assinatura Mensal',  price: 59.00,  period: 'por mês',      features: ['10 fotos por mês', 'Histórico completo', 'Download em 4K', 'Suporte prioritário'] },
+  package:      { name: 'Pacote 10 Créditos', price: 129.00, period: '10 créditos',  features: ['10 créditos permanentes', 'Sem expiração', 'Download em alta resolução', 'Histórico salvo'] },
 } as const
+type PlanId = keyof typeof PLANS
 
-type PlanType = keyof typeof PLANS
+function formatCPF(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 11)
+  return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+         .replace(/(\d{3})(\d{3})(\d{3})/, '$1.$2.$3')
+         .replace(/(\d{3})(\d{3})/, '$1.$2')
+}
+function formatCard(v: string) {
+  return v.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})/g, '$1 ').trim()
+}
+function formatExpiry(v: string) {
+  const d = v.replace(/\D/g, '').slice(0, 4)
+  return d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d
+}
 
 function CheckoutForm() {
   const searchParams = useSearchParams()
-  const planId = (searchParams.get('plan') as PlanType) || 'perPhoto'
+  const router = useRouter()
+  const planId = (searchParams.get('plan') as PlanId) || 'perPhoto'
   const plan = PLANS[planId]
 
   const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [guestEmail, setGuestEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [tab, setTab]             = useState<'pix' | 'card'>('pix')
+  const [email, setEmail]         = useState('')
+  const [cpf, setCpf]             = useState('')
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardName, setCardName]   = useState('')
+  const [expiry, setExpiry]       = useState('')
+  const [cvv, setCvv]             = useState('')
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState('')
+
+  // PIX state
+  const [pix, setPix] = useState<{ qrCode: string; qrCodeBase64: string; paymentId: number } | null>(null)
+  const [copied, setCopied]       = useState(false)
+  const [polling, setPolling]     = useState(false)
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data }) => {
-      if (data.user?.email) setUserEmail(data.user.email)
+      if (data.user?.email) {
+        setUserEmail(data.user.email)
+        setEmail(data.user.email)
+      }
     })
   }, [])
 
-  const handlePay = async (e: React.FormEvent) => {
+  // Poll PIX status
+  useEffect(() => {
+    if (!pix || !polling) return
+    const interval = setInterval(async () => {
+      const res = await fetch(`/api/checkout/status?id=${pix.paymentId}`)
+      const data = await res.json()
+      if (data.status === 'approved') {
+        clearInterval(interval)
+        setPolling(false)
+        if (data.dashboardLink) window.location.href = data.dashboardLink
+        else router.push(`/dashboard?success=1&plan=${planId}`)
+      }
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [pix, polling])
+
+  const copyPix = () => {
+    navigator.clipboard.writeText(pix!.qrCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
-    const email = userEmail || guestEmail
-    if (!userEmail && !guestEmail) {
-      setError('Digite seu e-mail para continuar.')
-      return
-    }
-
     setLoading(true)
+
     try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId, email: userEmail ? undefined : guestEmail }),
-      })
-      const data = await res.json()
-      if (!res.ok || !data.url) throw new Error(data.error || 'Erro ao iniciar pagamento')
-      window.location.href = data.url
+      if (tab === 'pix') {
+        const res = await fetch('/api/checkout/pix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planId, email, cpf: cpf.replace(/\D/g, '') }),
+        })
+        const data = await res.json()
+        if (!res.ok || !data.success) throw new Error(data.error || 'Erro ao gerar PIX')
+        setPix({ qrCode: data.qrCode, qrCodeBase64: data.qrCodeBase64, paymentId: data.paymentId })
+        setPolling(true)
+      } else {
+        // Tokenizar cartão diretamente via API do MP (sem SDK)
+        const [month, year] = expiry.split('/')
+        if (!month || !year || year.length !== 2) throw new Error('Validade inválida. Use MM/AA.')
+        const cleanCard = cardNumber.replace(/\D/g, '')
+        if (cleanCard.length < 13) throw new Error('Número do cartão inválido.')
+
+        const tokenRes = await fetch(
+          `https://api.mercadopago.com/v1/card_tokens?public_key=${process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              card_number: cleanCard,
+              security_code: cvv,
+              expiration_month: parseInt(month, 10),
+              expiration_year: parseInt(`20${year}`, 10),
+              cardholder: {
+                name: cardName,
+                identification: { type: 'CPF', number: cpf.replace(/\D/g, '') },
+              },
+            }),
+          }
+        )
+        const tokenData = await tokenRes.json()
+        if (!tokenData.id) throw new Error('Dados do cartão recusados pela operadora.')
+
+        // Detectar bandeira
+        const first = cleanCard[0]
+        const brand = first === '5' || first === '2' ? 'master' : first === '3' ? 'amex' : first === '6' ? 'elo' : 'visa'
+
+        const res = await fetch('/api/checkout/card', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planId, email, cpf: cpf.replace(/\D/g, ''), token: tokenData.id, brand, name: cardName }),
+        })
+        const data = await res.json()
+        if (!res.ok || !data.success) throw new Error(data.error || 'Pagamento recusado')
+
+        if (data.dashboardLink) window.location.href = data.dashboardLink
+        else router.push(`/dashboard?success=1&plan=${planId}`)
+      }
     } catch (err: any) {
       setError(err.message)
+    } finally {
       setLoading(false)
     }
   }
 
-  if (!plan) {
+  if (!plan) return null
+
+  // Tela do PIX gerado
+  if (pix) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted">Plano inválido. <a href="/#pricing" className="text-accent">Ver planos</a></p>
+      <div className="min-h-screen bg-surface flex items-center justify-center px-6 py-12">
+        <div className="bg-white rounded-2xl border border-[#E8E8E8] p-8 max-w-sm w-full text-center">
+          <div className="w-12 h-12 rounded-full bg-accent-light flex items-center justify-center mx-auto mb-4">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D94F2E" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h2 className="font-display text-2xl mb-2">PIX gerado!</h2>
+          <p className="text-sm text-muted mb-6">Escaneie o QR code ou copie o código. Após o pagamento você será redirecionado automaticamente.</p>
+
+          {pix.qrCodeBase64 && (
+            <img src={`data:image/png;base64,${pix.qrCodeBase64}`} alt="QR Code PIX" className="w-48 h-48 mx-auto mb-4 rounded-lg" />
+          )}
+
+          <button onClick={copyPix} className="w-full flex items-center justify-center gap-2 border border-[#E8E8E8] rounded-xl py-3 text-sm font-medium mb-4 hover:border-accent transition-colors">
+            {copied ? <><CheckCheck size={16} className="text-green-500" /> Copiado!</> : <><Copy size={16} /> Copiar código PIX</>}
+          </button>
+
+          <div className="flex items-center justify-center gap-2 text-xs text-muted">
+            <Loader2 size={12} className="animate-spin" />
+            Aguardando pagamento...
+          </div>
+        </div>
       </div>
     )
   }
@@ -85,115 +177,113 @@ function CheckoutForm() {
   return (
     <div className="min-h-screen bg-surface">
       <header className="bg-white border-b border-[#E8E8E8] px-6 py-4">
-        <a href="/" className="font-display text-xl font-normal tracking-tight">
-          reviv<span className="text-accent">.</span>ai
-        </a>
+        <a href="/" className="font-display text-xl font-normal tracking-tight">reviv<span className="text-accent">.</span>ai</a>
       </header>
 
       <main className="max-w-4xl mx-auto px-6 py-12">
-        <div className="grid md:grid-cols-[1fr_1.2fr] gap-10 items-start">
+        <div className="grid md:grid-cols-[1fr_1.3fr] gap-8 items-start">
 
-          {/* Resumo do pedido */}
+          {/* Resumo */}
           <div className="bg-white rounded-2xl border border-[#E8E8E8] p-8">
             <p className="text-xs font-medium tracking-widest uppercase text-muted mb-6">Resumo do pedido</p>
-
-            <div className="mb-6">
-              <h2 className="font-display text-3xl font-normal tracking-tight mb-1">{plan.name}</h2>
-              <p className="text-sm text-muted">{plan.description}</p>
+            <h2 className="font-display text-3xl font-normal tracking-tight mb-1">{plan.name}</h2>
+            <p className="text-xs text-muted mb-6">{plan.period}</p>
+            <ul className="flex flex-col gap-3 mb-6">
+              {plan.features.map(f => (
+                <li key={f} className="flex items-center gap-3 text-sm">
+                  <span className="w-4 h-4 rounded-full bg-accent-light flex items-center justify-center flex-shrink-0"><Check size={10} className="text-accent" /></span>
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <div className="border-t border-[#E8E8E8] pt-6 flex justify-between items-end">
+              <span className="text-sm text-muted">Total</span>
+              <span className="font-display text-4xl">R${plan.price.toFixed(2).replace('.', ',')}</span>
             </div>
-
-            <div className="border-t border-[#E8E8E8] pt-6 mb-6">
-              <ul className="flex flex-col gap-3">
-                {plan.features.map(f => (
-                  <li key={f} className="flex items-center gap-3 text-sm">
-                    <span className="w-4 h-4 rounded-full bg-accent-light flex items-center justify-center flex-shrink-0">
-                      <Check size={10} className="text-accent" />
-                    </span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="border-t border-[#E8E8E8] pt-6">
-              <div className="flex items-end justify-between">
-                <span className="text-sm text-muted">Total</span>
-                <div className="text-right">
-                  <span className="font-display text-4xl font-normal tracking-tight">
-                    R${plan.price.toFixed(2).replace('.', ',')}
-                  </span>
-                  <p className="text-xs text-muted">{plan.period}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-[#E8E8E8] flex items-center gap-2 text-xs text-muted">
+            <div className="mt-4 flex items-center gap-2 text-xs text-muted">
               <ShieldCheck size={14} className="text-accent flex-shrink-0" />
-              Pagamento seguro processado pelo Mercado Pago
+              Pagamento seguro via Mercado Pago
             </div>
           </div>
 
           {/* Formulário */}
-          <div className="bg-white rounded-2xl border border-[#E8E8E8] p-8">
-            <p className="text-xs font-medium tracking-widest uppercase text-muted mb-6">Dados para acesso</p>
+          <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-[#E8E8E8] p-8 flex flex-col gap-5">
+            <p className="text-xs font-medium tracking-widest uppercase text-muted">Dados do pagamento</p>
 
-            <form onSubmit={handlePay} className="flex flex-col gap-5">
-              {userEmail ? (
-                <div className="bg-surface rounded-xl px-4 py-3 text-sm text-muted flex items-center gap-2">
-                  <Check size={14} className="text-accent flex-shrink-0" />
-                  Logado como <strong className="text-ink">{userEmail}</strong>
-                </div>
-              ) : (
+            {/* Email */}
+            {userEmail ? (
+              <div className="bg-surface rounded-xl px-4 py-3 text-sm text-muted flex items-center gap-2">
+                <Check size={14} className="text-accent flex-shrink-0" />
+                Logado como <strong className="text-ink">{userEmail}</strong>
+              </div>
+            ) : (
+              <div>
+                <label className="text-xs font-medium text-muted mb-1.5 block uppercase tracking-wide">E-mail</label>
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com"
+                  className="w-full px-4 py-3 rounded-lg border border-[#E8E8E8] text-sm focus:outline-none focus:border-accent transition-colors" />
+                <p className="text-xs text-muted mt-1">Usaremos para criar seu acesso após o pagamento.</p>
+              </div>
+            )}
+
+            {/* CPF */}
+            <div>
+              <label className="text-xs font-medium text-muted mb-1.5 block uppercase tracking-wide">CPF</label>
+              <input type="text" required value={cpf} onChange={e => setCpf(formatCPF(e.target.value))} placeholder="000.000.000-00"
+                className="w-full px-4 py-3 rounded-lg border border-[#E8E8E8] text-sm focus:outline-none focus:border-accent transition-colors" />
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-1 bg-surface rounded-lg p-1">
+              {(['pix', 'card'] as const).map(t => (
+                <button key={t} type="button" onClick={() => setTab(t)}
+                  className={`flex-1 py-2 rounded-md text-xs font-medium transition-all ${tab === t ? 'bg-white shadow-sm text-ink' : 'text-muted'}`}>
+                  {t === 'pix' ? '🔑 PIX (5% off)' : '💳 Cartão'}
+                </button>
+              ))}
+            </div>
+
+            {/* PIX info */}
+            {tab === 'pix' && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800">
+                Pague via PIX e ganhe <strong>5% de desconto</strong>. O QR code será gerado após confirmar.
+              </div>
+            )}
+
+            {/* Card fields */}
+            {tab === 'card' && (
+              <div className="flex flex-col gap-4">
                 <div>
-                  <label className="text-xs font-medium text-muted mb-1.5 block uppercase tracking-wide">
-                    Seu e-mail
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={guestEmail}
-                    onChange={e => setGuestEmail(e.target.value)}
-                    placeholder="seu@email.com"
-                    className="w-full px-4 py-3 rounded-lg border border-[#E8E8E8] text-sm focus:outline-none focus:border-accent transition-colors"
-                  />
-                  <p className="text-xs text-muted mt-1.5">
-                    Usaremos este e-mail para criar seu acesso após o pagamento.
-                  </p>
+                  <label className="text-xs font-medium text-muted mb-1.5 block uppercase tracking-wide">Nome no cartão</label>
+                  <input type="text" required value={cardName} onChange={e => setCardName(e.target.value.toUpperCase())} placeholder="NOME COMO NO CARTÃO"
+                    className="w-full px-4 py-3 rounded-lg border border-[#E8E8E8] text-sm focus:outline-none focus:border-accent transition-colors" />
                 </div>
-              )}
+                <div>
+                  <label className="text-xs font-medium text-muted mb-1.5 block uppercase tracking-wide">Número do cartão</label>
+                  <input type="text" required value={cardNumber} onChange={e => setCardNumber(formatCard(e.target.value))} placeholder="0000 0000 0000 0000"
+                    className="w-full px-4 py-3 rounded-lg border border-[#E8E8E8] text-sm focus:outline-none focus:border-accent transition-colors font-mono" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted mb-1.5 block uppercase tracking-wide">Validade</label>
+                    <input type="text" required value={expiry} onChange={e => setExpiry(formatExpiry(e.target.value))} placeholder="MM/AA"
+                      className="w-full px-4 py-3 rounded-lg border border-[#E8E8E8] text-sm focus:outline-none focus:border-accent transition-colors" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted mb-1.5 block uppercase tracking-wide">CVV</label>
+                    <input type="text" required value={cvv} onChange={e => setCvv(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="123"
+                      className="w-full px-4 py-3 rounded-lg border border-[#E8E8E8] text-sm focus:outline-none focus:border-accent transition-colors" />
+                  </div>
+                </div>
+              </div>
+            )}
 
-              {error && (
-                <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</p>
-              )}
+            {error && <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</p>}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-4 rounded-xl text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-60"
-                style={{ backgroundColor: '#009ee3' }}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    Aguarde...
-                  </>
-                ) : (
-                  <>
-                    <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
-                      <path d="M27.5 8.5H4.5C3.4 8.5 2.5 9.4 2.5 10.5v11c0 1.1.9 2 2 2h23c1.1 0 2-.9 2-2v-11c0-1.1-.9-2-2-2z" fill="white" fillOpacity=".2"/>
-                      <path d="M12 19.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5c.9 0 1.72.34 2.33.9L16 12H12c-2.21 0-4 1.79-4 4s1.79 4 4 4h4l-1.67-1.4c-.61.56-1.43.9-2.33.9z" fill="white"/>
-                    </svg>
-                    Pagar com Mercado Pago
-                  </>
-                )}
-              </button>
-
-              <p className="text-xs text-center text-muted">
-                Você será redirecionado para o ambiente seguro do Mercado Pago.
-                <br />PIX, cartão de crédito ou boleto.
-              </p>
-            </form>
-          </div>
+            <button type="submit" disabled={loading}
+              className="w-full py-4 rounded-xl bg-accent text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-60">
+              {loading ? <><Loader2 size={16} className="animate-spin" /> Aguarde...</> : tab === 'pix' ? 'Gerar código PIX →' : 'Pagar com cartão →'}
+            </button>
+          </form>
         </div>
       </main>
     </div>
@@ -201,9 +291,5 @@ function CheckoutForm() {
 }
 
 export default function CheckoutPage() {
-  return (
-    <Suspense>
-      <CheckoutForm />
-    </Suspense>
-  )
+  return <Suspense><CheckoutForm /></Suspense>
 }
