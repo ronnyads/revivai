@@ -29,10 +29,9 @@ export async function GET(req: NextRequest) {
         if (planId === 'package') await admin.from('users').update({ plan: 'package' }).eq('id', userId)
       }
 
-      await admin.from('orders')
-        .update({ status: 'paid' })
-        .eq('stripe_id', String(paymentId))
-        .then(() => {}).catch(console.error)
+      try {
+        await admin.from('orders').update({ status: 'paid' }).eq('stripe_id', String(paymentId))
+      } catch (e) { console.error('[status] update order:', e) }
 
       // Gera link de acesso para convidados
       let dashboardLink: string | null = null
