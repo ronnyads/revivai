@@ -77,7 +77,11 @@ export default function CheckoutBrick({ planId, publicKey, amount, userEmail }: 
               if (!res.ok) throw new Error(data.error ?? 'Erro no pagamento')
 
               if (data.status === 'approved') {
-                router.push(`/dashboard?success=1&plan=${planId}`)
+                if (data.dashboardLink) {
+                  window.location.href = data.dashboardLink
+                } else {
+                  router.push(`/dashboard?success=1&plan=${planId}`)
+                }
               } else if (data.status === 'pending' || data.status === 'in_process') {
                 router.push(`/dashboard?pending=1`)
               } else {

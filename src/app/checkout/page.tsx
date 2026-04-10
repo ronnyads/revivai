@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+
 import { PLANS, type PlanType } from '@/lib/mercadopago'
 import { Check, ShieldCheck } from 'lucide-react'
 import CheckoutBrick from './CheckoutBrick'
@@ -24,7 +25,6 @@ export default async function CheckoutPage({
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect(`/auth/login?mode=register&next=${encodeURIComponent('/checkout?plan=' + planId)}`)
 
   const publicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY!
 
@@ -89,7 +89,7 @@ export default async function CheckoutPage({
               planId={planId}
               publicKey={publicKey}
               amount={plan.price}
-              userEmail={user.email}
+              userEmail={user?.email}
             />
           </div>
         </div>
