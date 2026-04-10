@@ -11,7 +11,7 @@ type Mode = 'password' | 'magic' | 'register'
 function LoginForm() {
   const searchParams = useSearchParams()
   const next = searchParams.get('next') || '/dashboard'
-  const [mode, setMode]       = useState<Mode>('password')
+  const [mode, setMode]       = useState<Mode>((searchParams.get('mode') as Mode) || 'password')
   const [email, setEmail]     = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw]   = useState(false)
