@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Check, ShieldCheck, Loader2, Copy, CheckCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { fbq } from '@/components/MetaPixel'
 
 const PLANS = {
   perPhoto:     { name: 'Restauração Avulsa', price: 19.00,  period: 'por foto',     features: ['1 foto restaurada', 'Download em alta resolução', 'Resultado em segundos', 'PIX, cartão ou boleto'] },
@@ -55,6 +56,8 @@ function CheckoutForm() {
         setEmail(data.user.email)
       }
     })
+    // InitiateCheckout ao abrir a página
+    fbq('track', 'InitiateCheckout', { value: plan?.price, currency: 'BRL' })
   }, [])
 
   // Poll PIX status
@@ -66,6 +69,7 @@ function CheckoutForm() {
       if (data.status === 'approved') {
         clearInterval(interval)
         setPolling(false)
+        fbq('track', 'Purchase', { value: plan?.price, currency: 'BRL', content_ids: [planId], content_type: 'product' })
         if (data.dashboardLink) window.location.href = data.dashboardLink
         else router.push(`/dashboard?success=1&plan=${planId}`)
       }
@@ -83,6 +87,7 @@ function CheckoutForm() {
     e.preventDefault()
     setError('')
     setLoading(true)
+    fbq('track', 'AddPaymentInfo', { value: plan?.price, currency: 'BRL', payment_type: tab })
 
     try {
       if (tab === 'pix') {
@@ -134,6 +139,7 @@ function CheckoutForm() {
         const data = await res.json()
         if (!res.ok || !data.success) throw new Error(data.error || 'Pagamento recusado')
 
+        fbq('track', 'Purchase', { value: plan?.price, currency: 'BRL', content_ids: [planId], content_type: 'product' })
         if (data.dashboardLink) window.location.href = data.dashboardLink
         else router.push(`/dashboard?success=1&plan=${planId}`)
       }
