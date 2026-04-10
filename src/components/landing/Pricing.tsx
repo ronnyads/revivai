@@ -23,7 +23,7 @@ const plans = [
       'Resultado em segundos',
       'PIX, cartão ou boleto',
     ],
-    cta: 'Restaurar uma foto',
+    cta: 'Restaurar agora',
     featured: false,
   },
   {
@@ -56,7 +56,7 @@ const plans = [
       'Download em alta resolução',
       'Histórico salvo para sempre',
     ],
-    cta: 'Comprar créditos',
+    cta: 'Restaurar agora',
     featured: false,
   },
 ]
