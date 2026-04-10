@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Newsreader:ital,opsz,wght@1,6..72,200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "error": "#ffb4ab",
+                        "tertiary-container": "#309ace",
+                        "on-surface-variant": "#e1bfb7",
+                        "inverse-primary": "#ae3112",
+                        "primary-fixed-dim": "#ffb4a3",
+                        "surface-tint": "#ffb4a3",
+                        "surface-bright": "#3a3939",
+                        "surface-container-highest": "#353534",
+                        "background": "#131313",
+                        "surface-container-lowest": "#0e0e0e",
+                        "primary-fixed": "#ffdad2",
+                        "on-primary-container": "#560d00",
+                        "on-tertiary-container": "#002d41",
+                        "on-secondary-container": "#f99d87",
+                        "on-secondary-fixed": "#3b0801",
+                        "on-primary-fixed": "#3d0700",
+                        "on-primary": "#621100",
+                        "secondary-container": "#753323",
+                        "surface-dim": "#131313",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#753323",
+                        "surface-container-low": "#1c1b1b",
+                        "surface-variant": "#353534",
+                        "on-surface": "#e5e2e1",
+                        "on-background": "#e5e2e1",
+                        "on-error": "#690005",
+                        "inverse-surface": "#e5e2e1",
+                        "tertiary": "#82cfff",
+                        "secondary": "#ffb4a3",
+                        "primary-container": "#f3623f",
+                        "primary": "#ffb4a3",
+                        "outline-variant": "#59413b",
+                        "secondary-fixed": "#ffdad2",
+                        "error-container": "#93000a",
+                        "on-tertiary-fixed": "#001e2d",
+                        "inverse-on-surface": "#313030",
+                        "surface-container-high": "#2a2a2a",
+                        "tertiary-fixed": "#c6e7ff",
+                        "on-primary-fixed-variant": "#8a1b00",
+                        "surface": "#131313",
+                        "on-tertiary": "#00344b",
+                        "outline": "#a88a83",
+                        "on-tertiary-fixed-variant": "#004c6b",
+                        "surface-container": "#201f1f",
+                        "on-secondary": "#581d0f",
+                        "tertiary-fixed-dim": "#82cfff",
+                        "secondary-fixed-dim": "#ffb4a3"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Newsreader"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #131313;
+            color: #e5e2e1;
+            font-family: 'Inter', sans-serif;
+        }
+        .editorial-shadow {
+            box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.7);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased selection:bg-[#D94F2E]/30">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-[#131313]/80 backdrop-blur-xl no-border bg-gradient-to-b from-[#131313] to-transparent">
+<nav class="flex justify-between items-center px-8 py-6 w-full max-w-7xl mx-auto">
+<div class="text-2xl font-['Newsreader'] italic text-[#D94F2E]">RevivAI</div>
+<div class="hidden md:flex items-center gap-10">
+<a class="text-[#e5e2e1]/60 font-['Inter'] text-sm tracking-widest uppercase hover:text-[#D94F2E] transition-colors duration-300" href="#">Gallery</a>
+<a class="text-[#e5e2e1]/60 font-['Inter'] text-sm tracking-widest uppercase hover:text-[#D94F2E] transition-colors duration-300" href="#">Restoration</a>
+<a class="text-[#D94F2E] font-medium font-['Inter'] text-sm tracking-widest uppercase" href="#">Pricing</a>
+<a class="text-[#e5e2e1]/60 font-['Inter'] text-sm tracking-widest uppercase hover:text-[#D94F2E] transition-colors duration-300" href="#">Archive</a>
+</div>
+<button class="bg-transparent border border-[#D94F2E]/40 px-6 py-2 text-xs tracking-widest uppercase text-[#e5e2e1] hover:bg-[#D94F2E] hover:text-[#0e0e0e] transition-all duration-300 active:opacity-80 active:scale-[0.99] rounded-none">
+                Sign In
+            </button>
+</nav>
+</header>
+<main class="pt-40 pb-20 px-6 max-w-7xl mx-auto">
+<!-- Hero Section -->
+<div class="text-center mb-24">
+<h1 class="font-['Newsreader'] italic text-5xl md:text-7xl lg:text-8xl tracking-tight mb-6">
+                Choose your archival journey
+            </h1>
+<p class="font-['Inter'] text-[#e5e2e1]/40 uppercase tracking-[0.2em] text-xs max-w-lg mx-auto">
+                Select a pathway to restore history with cinematic precision and neural depth.
+            </p>
+</div>
+<!-- Pricing Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-0 border-collapse">
+<!-- Tier 1: The Occasional -->
+<div class="p-12 bg-surface-container-lowest flex flex-col border border-outline-variant/10 relative h-full">
+<div class="mb-12">
+<h3 class="font-['Newsreader'] italic text-3xl mb-1 text-on-surface">The Occasional</h3>
+<p class="text-xs uppercase tracking-widest text-[#e5e2e1]/30 font-['Inter']">Single Asset</p>
+</div>
+<div class="mb-16">
+<div class="flex items-baseline gap-1">
+<span class="font-['Newsreader'] text-4xl italic text-on-surface">R$19</span>
+<span class="text-[#e5e2e1]/40 font-['Inter'] text-sm">/photo</span>
+</div>
+</div>
+<div class="flex-grow space-y-6 mb-16">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[18px] text-[#D94F2E]">auto_fix_high</span>
+<span class="font-['Inter'] text-sm text-[#e5e2e1]/60">AI Neural Restoration</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[18px] text-[#D94F2E]">photo_size_select_actual</span>
+<span class="font-['Inter'] text-sm text-[#e5e2e1]/60">High-res Export</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[18px] text-[#D94F2E]">schedule</span>
+<span class="font-['Inter'] text-sm text-[#e5e2e1]/60">24h Delivery</span>
+</div>
+</div>
+<button class="w-full py-5 border border-outline-variant/30 font-['Inter'] text-xs uppercase tracking-[0.2em] hover:bg-on-surface hover:text-surface transition-colors duration-300 rounded-none">
+                    Start Now
+                </button>
+</div>
+<!-- Tier 2: The Archivist (Featured) -->
+<div class="p-12 bg-surface-container-low backdrop-blur-xl flex flex-col border-[2px] border-[#D94F2E] relative h-full lg:-my-6 lg:z-10 editorial-shadow">
+<div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-[#D94F2E] text-[#131313] px-6 py-1 text-[10px] uppercase font-bold tracking-[0.25em]">
+                    Most Popular
+                </div>
+<div class="mb-12">
+<h3 class="font-['Newsreader'] italic text-4xl mb-1 text-on-surface">The Archivist</h3>
+<p class="text-xs uppercase tracking-widest text-[#D94F2E] font-['Inter'] font-semibold">Monthly Membership</p>
+</div>
+<div class="mb-16">
+<div class="flex items-baseline gap-1">
+<span class="font-['Newsreader'] text-5xl italic text-on-surface">R$59</span>
+<span class="text-[#e5e2e1]/40 font-['Inter'] text-sm">/month</span>
+</div>
+</div>
+<div class="flex-grow space-y-6 mb-16">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[18px] text-[#D94F2E]">filter_frames</span>
+<span class="font-['Inter'] text-sm text-on-surface">50 Photos/mo</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[18px] text-[#D94F2E]">bolt</span>
+<span class="font-['Inter'] text-sm text-on-surface">Priority AI Queue</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[18px] text-[#D94F2E]">raw_on</span>
+<span class="font-['Inter'] text-sm text-on-surface">RAW Support</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[18px] text-[#D94F2E]">cloud_done</span>
+<span class="font-['Inter'] text-sm text-on-surface">Cloud Vault</span>
+</div>
+</div>
+<button class="w-full py-5 bg-[#D94F2E] text-[#131313] font-['Inter'] font-bold text-xs uppercase tracking-[0.2em] hover:opacity-90 transition-opacity duration-300 rounded-none">
+                    Become a Member
+                </button>
+</div>
+<!-- Tier 3: The Collector -->
+<div class="p-12 bg-surface-container-lowest flex flex-col border border-outline-variant/10 relative h-full">
+<div class="mb-12">
+<h3 class="font-['Newsreader'] italic text-3xl mb-1 text-on-surface">The Collector</h3>
+<p class="text-xs uppercase tracking-widest text-[#e5e2e1]/30 font-['Inter']">Bulk Package</p>
+</div>
+<div class="mb-16">
+<div class="flex items-baseline gap-1">
+<span class="font-['Newsreader'] text-4xl italic text-on-surface">R$129</span>
+<span class="text-[#e5e2e1]/40 font-['Inter'] text-sm">/bundle</span>
+</div>
+<div class="mt-2 inline-block px-3 py-1 bg-on-surface/5 border border-on-surface/10">
+<span class="text-[10px] uppercase tracking-widest text-[#D94F2E]">Best Value</span>
+</div>
+</div>
+<div class="flex-grow space-y-6 mb-16">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[18px] text-[#D94F2E]">auto_awesome_motion</span>
+<span class="font-['Inter'] text-sm text-[#e5e2e1]/60">100 Photo Credits</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[18px] text-[#D94F2E]">verified_user</span>
+<span class="font-['Inter'] text-sm text-[#e5e2e1]/60">Lifetime Access</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[18px] text-[#D94F2E]">layers</span>
+<span class="font-['Inter'] text-sm text-[#e5e2e1]/60">Batch Processing</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[18px] text-[#D94F2E]">history_edu</span>
+<span class="font-['Inter'] text-sm text-[#e5e2e1]/60">Historical Consulting</span>
+</div>
+</div>
+<button class="w-full py-5 border border-outline-variant/30 font-['Inter'] text-xs uppercase tracking-[0.2em] hover:bg-on-surface hover:text-surface transition-colors duration-300 rounded-none">
+                    Purchase Bundle
+                </button>
+</div>
+</div>
+<!-- Secondary Visual Anchor -->
+<section class="mt-40 grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
+<div class="relative">
+<div class="aspect-[4/5] bg-[#0e0e0e] overflow-hidden grayscale contrast-125">
+<img alt="Vintage black and white photo of an old camera" class="w-full h-full object-cover opacity-60" data-alt="dramatic close-up of a vintage 1940s analog camera on a dark mahogany table with soft dust particles in a single ray of light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4kyb1mTV2knbU7bM8xNMB27GUWh-aVhkOOrMC5ux8Rm7DfkD0V3rPFg6OnwwR6yRIGjlvqRdLcvhx96VWGKFfRZRULzQCrZ9Ym06r4MjTDjoO5Aju3lH9hc-ymoLFgh9JGuNsSWhFgH1n2lOWCeC3DhZJminvlfIXAv0hHdVMry7UedTw85fu21yc4HIJ6fp8KsfM976rEGL5Xafho0Urzev6DIkMFU2uBmZpIMc9VfaWaFowdX8RKk0y4NaPRo9AjE1_8Elmbig"/>
+</div>
+<div class="absolute -bottom-8 -right-8 p-10 bg-[#D94F2E] text-[#131313] max-w-[280px]">
+<h4 class="font-['Newsreader'] italic text-2xl leading-tight mb-4">Every detail, every memory, preserved.</h4>
+<p class="font-['Inter'] text-[10px] uppercase tracking-widest leading-relaxed">Our AI doesn't just upscale; it understands the soul of the grain.</p>
+</div>
+</div>
+<div class="flex flex-col justify-center">
+<span class="text-[#D94F2E] font-['Inter'] text-xs uppercase tracking-[0.4em] mb-8">Archival Process</span>
+<h2 class="font-['Newsreader'] italic text-4xl md:text-5xl mb-12 leading-tight">Neural restoration meets human curation.</h2>
+<div class="space-y-12">
+<div class="group">
+<p class="font-['Inter'] text-xs uppercase tracking-widest text-[#e5e2e1]/40 mb-2">Step 01</p>
+<h4 class="font-['Inter'] text-lg font-medium mb-3">Deep Grain Analysis</h4>
+<p class="font-['Inter'] text-sm text-[#e5e2e1]/40 leading-relaxed max-w-md">Our neural networks isolate the original light data from the aged artifacts and grain.</p>
+</div>
+<div class="group">
+<p class="font-['Inter'] text-xs uppercase tracking-widest text-[#e5e2e1]/40 mb-2">Step 02</p>
+<h4 class="font-['Inter'] text-lg font-medium mb-3">Chromatic Restoration</h4>
+<p class="font-['Inter'] text-sm text-[#e5e2e1]/40 leading-relaxed max-w-md">Revive original color profiles using historical chemical reference models from the era.</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full border-t border-[#D94F2E]/10 bg-[#0e0e0e] mt-24">
+<div class="flex flex-col md:flex-row justify-between items-center px-12 py-12 w-full max-w-7xl mx-auto">
+<div class="text-lg font-['Newsreader'] italic text-[#e5e2e1] mb-8 md:mb-0">RevivAI</div>
+<div class="flex flex-wrap justify-center gap-8 mb-8 md:mb-0">
+<a class="font-['Inter'] text-[12px] uppercase tracking-widest text-[#e5e2e1]/40 hover:text-[#e5e2e1] transition-all" href="#">Privacy</a>
+<a class="font-['Inter'] text-[12px] uppercase tracking-widest text-[#e5e2e1]/40 hover:text-[#e5e2e1] transition-all" href="#">Terms</a>
+<a class="font-['Inter'] text-[12px] uppercase tracking-widest text-[#e5e2e1]/40 hover:text-[#e5e2e1] transition-all" href="#">Editorial Guidelines</a>
+<a class="font-['Inter'] text-[12px] uppercase tracking-widest text-[#e5e2e1]/40 hover:text-[#e5e2e1] transition-all" href="#">Contact</a>
+</div>
+<div class="font-['Inter'] text-[10px] uppercase tracking-[0.2em] text-[#e5e2e1]/20">
+                © 2024 RevivAI. The Cinematic Archive.
+            </div>
+</div>
+</footer>
+</body></html>

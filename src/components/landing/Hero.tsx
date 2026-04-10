@@ -1,47 +1,7 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
-import BeforeAfterSlider from '@/components/ui/BeforeAfterSlider'
-
-// ─── Substitua pelas URLs reais do Supabase ───────────────────────────────────
-// SELECT original_url, restored_url FROM photos WHERE status = 'done' ORDER BY created_at DESC LIMIT 3;
-const EXAMPLES = [
-  {
-    before: 'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775696325720.jpg',
-    after:  'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775696341762_restored.jpg',
-  },
-  {
-    before: 'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775695273515.jpg',
-    after:  'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775695292203_restored.jpg',
-  },
-  {
-    before: 'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775683275662.jpg',
-    after:  'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775683301851_restored.jpg',
-  },
-]
-// ─────────────────────────────────────────────────────────────────────────────
+import { useEffect } from 'react'
 
 export default function Hero() {
-  const [current, setCurrent] = useState(0)
-  const [fade, setFade] = useState(true)
-
-  // Auto-rotate every 5s
-  useEffect(() => {
-    const id = setInterval(() => {
-      setFade(false)
-      setTimeout(() => {
-        setCurrent(c => (c + 1) % EXAMPLES.length)
-        setFade(true)
-      }, 300)
-    }, 5000)
-    return () => clearInterval(id)
-  }, [])
-
-  function goTo(idx: number) {
-    if (idx === current) return
-    setFade(false)
-    setTimeout(() => { setCurrent(idx); setFade(true) }, 300)
-  }
-
   useEffect(() => {
     // Counter animation
     const counters = document.querySelectorAll<HTMLElement>('[data-count]')
@@ -67,62 +27,90 @@ export default function Hero() {
 
   return (
     <>
-      {/* Hero */}
-      <section className="min-h-screen flex flex-col items-center justify-center text-center pt-36 pb-20 px-6">
-        <div className="inline-flex items-center gap-2 bg-accent-light border border-accent/30 text-accent rounded-full px-4 py-1.5 text-xs font-medium tracking-widest uppercase mb-8">
-          <span className="w-1.5 h-1.5 rounded-full bg-accent animate-[pulseDot_2s_infinite]" />
-          IA de restauração — Powered by Replicate
-        </div>
-
-        <h1 className="font-display text-[clamp(52px,7vw,100px)] font-normal leading-[1.0] tracking-[-3px] max-w-4xl mb-6">
-          Traga o <em className="italic text-accent">passado</em><br />de volta à vida
-        </h1>
-        <p className="text-lg font-light text-muted max-w-md leading-relaxed mb-12">
-          Restaure fotos antigas, danificadas ou desbotadas com inteligência artificial. Resultados profissionais em segundos.
-        </p>
-
-        <div className="flex items-center gap-4 mb-16">
-          <a href="/dashboard/upload" className="bg-accent text-white text-sm font-medium px-8 py-3.5 rounded border-[1.5px] border-accent hover:bg-accent-dark hover:border-accent-dark transition-all duration-200 shadow-lg shadow-accent/20 hover:-translate-y-0.5">
-            Restaurar minha foto →
-          </a>
-          <a href="#como-funciona" className="text-ink text-sm flex items-center gap-2 hover:gap-3 transition-all duration-200">
-            Ver como funciona
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
-          </a>
-        </div>
-
-        <div className="flex flex-col items-center gap-4 w-full">
-          <div className="w-full max-w-sm" style={{ opacity: fade ? 1 : 0, transition: 'opacity 0.3s ease' }}>
-            <BeforeAfterSlider before={EXAMPLES[current].before} after={EXAMPLES[current].after} />
+      {/* Hero Section */}
+      <section className="min-h-screen flex flex-col md:flex-row items-center px-8 md:px-20 py-12 gap-12 pt-32" style={{ backgroundColor: '#0e0e0e' }}>
+        {/* Text Content */}
+        <div className="w-full md:w-1/2 flex flex-col items-start space-y-8">
+          <div className="inline-flex items-center gap-2 border px-4 py-1.5 text-xs font-medium tracking-widest uppercase mb-2" style={{ borderColor: 'rgba(217,79,46,0.3)', color: '#D94F2E', backgroundColor: 'rgba(217,79,46,0.05)' }}>
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: '#D94F2E' }} />
+            IA de restauração — Powered by Gemini
           </div>
-          {/* Dots */}
-          <div className="flex items-center gap-2">
-            {EXAMPLES.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => goTo(i)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${i === current ? 'bg-accent w-5' : 'bg-[#E8E8E8] hover:bg-muted'}`}
-                aria-label={`Exemplo ${i + 1}`}
+          <h1 className="text-6xl md:text-8xl leading-[1.05] tracking-tight" style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', color: '#e5e2e1' }}>
+            Traga o passado<br />de volta à{' '}
+            <span style={{ color: '#D94F2E' }}>vida</span>
+          </h1>
+          <p className="max-w-lg text-lg leading-relaxed font-light" style={{ color: 'rgba(229,226,225,0.6)' }}>
+            Restaure fotos antigas, danificadas ou desbotadas com inteligência artificial. Resultados profissionais em segundos.
+          </p>
+          <div className="flex flex-wrap gap-5 pt-2">
+            <a
+              href="/dashboard/upload"
+              className="px-10 py-4 font-bold tracking-tight transition-all active:scale-95"
+              style={{ backgroundColor: '#D94F2E', color: '#fff' }}
+            >
+              Restaurar minha foto →
+            </a>
+            <a
+              href="#como-funciona"
+              className="px-10 py-4 font-bold tracking-tight transition-all hover:opacity-80"
+              style={{ border: '1px solid rgba(168,138,131,0.4)', color: '#e5e2e1', backgroundColor: 'transparent' }}
+            >
+              Ver como funciona
+            </a>
+          </div>
+        </div>
+
+        {/* Visual Composition */}
+        <div className="w-full md:w-1/2 relative flex justify-end">
+          <div className="relative group">
+            {/* Glow effect */}
+            <div className="absolute -inset-10 rounded-full pointer-events-none" style={{ backgroundColor: '#D94F2E', opacity: 0.08, filter: 'blur(80px)' }} />
+            <div className="relative z-10 p-4 shadow-2xl" style={{ backgroundColor: '#1c1b1b', border: '1px solid rgba(89,65,59,0.6)' }}>
+              <img
+                src="https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775740648406_restored.jpg"
+                alt="Foto restaurada pela IA"
+                className="w-full max-w-lg object-cover"
+                style={{ filter: 'brightness(1.05) contrast(1.1)' }}
               />
-            ))}
+              <div className="mt-4 flex justify-between items-center" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#a88a83' }}>
+                <span>Antes / Depois</span>
+                <span>revivai Neural Engine</span>
+              </div>
+            </div>
+            {/* Floating badge */}
+            <div className="absolute -bottom-8 -left-8 p-6 hidden lg:block z-20" style={{ backgroundColor: '#2a2a2a', border: '1px solid rgba(89,65,59,0.6)' }}>
+              <div className="flex items-center gap-4">
+                <span className="material-symbols-outlined" style={{ color: '#D94F2E', fontVariationSettings: "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}>auto_awesome</span>
+                <div>
+                  <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#a88a83' }}>Satisfação</p>
+                  <p className="text-xl font-bold" style={{ color: '#e5e2e1' }}>98%</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Stats */}
-      <div className="flex border-t border-b border-[#E8E8E8]">
-        {[
-          { count: 48000, suffix: '+', label: 'Fotos restauradas' },
-          { count: 4,     suffix: '',  label: 'Modelos de IA' },
-          { count: 98,    suffix: '%', label: 'Satisfação' },
-          { count: 30,    suffix: 's', label: 'Tempo médio' },
-        ].map(({ count, suffix, label }) => (
-          <div key={label} className="flex-1 text-center py-12 border-r border-[#E8E8E8] last:border-r-0">
-            <div className="font-display text-[56px] font-normal tracking-[-2px] leading-none mb-2"
-              data-count={count} data-suffix={suffix}>0</div>
-            <div className="text-sm text-muted">{label}</div>
-          </div>
-        ))}
+      {/* Stats Bar */}
+      <div className="w-full bg-white text-black py-12 px-8 md:px-20">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-0">
+          {[
+            { count: 48000, suffix: '+', label: 'Fotos restauradas' },
+            { count: 4,     suffix: '',  label: 'Modelos de IA' },
+            { count: 98,    suffix: '%', label: 'Satisfação' },
+            { count: 30,    suffix: 's', label: 'Tempo médio' },
+          ].map(({ count, suffix, label }, i) => (
+            <div key={label} className="flex flex-col items-center md:items-start px-8" style={{ borderRight: i < 3 ? '1px solid rgba(0,0,0,0.1)' : 'none' }}>
+              <span
+                className="mb-1"
+                style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', fontSize: '2.25rem', lineHeight: 1 }}
+                data-count={count}
+                data-suffix={suffix}
+              >0</span>
+              <span style={{ fontSize: '10px', fontFamily: 'sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', opacity: 0.6 }}>{label}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </>
   )

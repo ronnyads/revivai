@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@1,6..72,200..800&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-fixed": "#3d0700",
+                    "surface": "#131313",
+                    "on-secondary-container": "#f99d87",
+                    "tertiary-fixed": "#c6e7ff",
+                    "secondary-fixed-dim": "#ffb4a3",
+                    "on-tertiary": "#00344b",
+                    "tertiary-container": "#309ace",
+                    "on-primary": "#621100",
+                    "on-error-container": "#ffdad6",
+                    "primary": "#ffb4a3",
+                    "tertiary-fixed-dim": "#82cfff",
+                    "surface-container-low": "#1c1b1b",
+                    "surface-container": "#201f1f",
+                    "outline-variant": "#59413b",
+                    "on-secondary-fixed-variant": "#753323",
+                    "on-secondary": "#581d0f",
+                    "on-tertiary-fixed": "#001e2d",
+                    "tertiary": "#82cfff",
+                    "inverse-primary": "#ae3112",
+                    "error": "#ffb4ab",
+                    "surface-bright": "#3a3939",
+                    "on-error": "#690005",
+                    "inverse-surface": "#e5e2e1",
+                    "on-primary-container": "#560d00",
+                    "surface-tint": "#ffb4a3",
+                    "primary-fixed-dim": "#ffb4a3",
+                    "primary-container": "#f3623f",
+                    "inverse-on-surface": "#313030",
+                    "secondary-fixed": "#ffdad2",
+                    "on-surface": "#e5e2e1",
+                    "surface-container-lowest": "#0e0e0e",
+                    "surface-dim": "#131313",
+                    "secondary": "#ffb4a3",
+                    "secondary-container": "#753323",
+                    "outline": "#a88a83",
+                    "on-tertiary-fixed-variant": "#004c6b",
+                    "on-primary-fixed-variant": "#8a1b00",
+                    "on-surface-variant": "#e1bfb7",
+                    "on-background": "#e5e2e1",
+                    "background": "#131313",
+                    "on-secondary-fixed": "#3b0801",
+                    "surface-container-highest": "#353534",
+                    "surface-container-high": "#2a2a2a",
+                    "primary-fixed": "#ffdad2",
+                    "surface-variant": "#353534",
+                    "error-container": "#93000a",
+                    "on-tertiary-container": "#002d41"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0px",
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Newsreader"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24;
+        }
+        .serif-italic { font-family: 'Newsreader', serif; font-style: italic; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-container selection:text-white">
+<!-- TopNavBar -->
+<nav class="bg-[#131313] flex justify-between items-center w-full px-8 py-6 max-w-screen-2xl mx-auto top-0 sticky z-50">
+<div class="text-2xl font-bold italic tracking-tighter text-[#D94F2E] font-serif">Revivai</div>
+<div class="hidden md:flex gap-12 items-center">
+<a class="text-[#e5e2e1]/60 font-medium hover:text-[#D94F2E] transition-colors duration-300" href="#">Gallery</a>
+<a class="text-[#D94F2E] font-bold border-b border-[#D94F2E]/30 transition-colors duration-300" href="#">Restoration</a>
+<a class="text-[#e5e2e1]/60 font-medium hover:text-[#D94F2E] transition-colors duration-300" href="#">Archive</a>
+<a class="text-[#e5e2e1]/60 font-medium hover:text-[#D94F2E] transition-colors duration-300" href="#">Pricing</a>
+</div>
+<button class="bg-[#D94F2E] text-white px-8 py-2.5 font-medium hover:opacity-90 active:scale-95 transition-all">Get Started</button>
+</nav>
+<main class="min-h-screen bg-[#0C0C0C]">
+<!-- Hero Section for Context -->
+<section class="relative h-[614px] flex items-center justify-center overflow-hidden">
+<div class="absolute inset-0 z-0">
+<img class="w-full h-full object-cover opacity-30 grayscale" data-alt="dramatic cinematic black and white portrait of an elderly man with deep wrinkles and sharp contrast in a dark room" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIZVhZ1DuBHwa29bFbZgxikVJhZu_doc5xMxlC0knw_MJmcnUXzwx1IHVfXKo8pdbkyXrbUyL8NtxSk-y_P8-nx2Fpn6rHcBnocuuQ1fjMw0jZAO5A1MYpqAO_dwc8MkuhG5JLXHVNEmGOk1EjAk86yW4V2MIm9KCUSiZkbgrIr2bbYdoJjRNSKjND7s5HOdrpAY7gc35orfysMZJ-TNQ101KnbEvY92iR8P0ZrUFWMZ3xkF2iVMx05XMgnDW3oBAuVJJxZRe3Tgk"/>
+<div class="absolute inset-0 bg-gradient-to-t from-[#0C0C0C] via-transparent to-transparent"></div>
+</div>
+<div class="relative z-10 text-center max-w-4xl px-6">
+<h2 class="serif-italic text-6xl md:text-8xl tracking-tight text-[#D94F2E] mb-6">Como funciona</h2>
+<p class="text-on-surface/60 text-lg md:text-xl font-light tracking-wide max-w-2xl mx-auto uppercase">A arte da preservação através da inteligência profunda.</p>
+</div>
+</section>
+<!-- How It Works Timeline Section -->
+<section class="py-32 px-8 max-w-screen-2xl mx-auto relative">
+<!-- Background Glow -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-[#D94F2E]/5 blur-[120px] rounded-full pointer-events-none"></div>
+<div class="relative grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-4 items-start">
+<!-- Connecting Line (Desktop) -->
+<div class="hidden md:block absolute top-[52px] left-[10%] right-[10%] h-[1px] bg-gradient-to-r from-transparent via-[#D94F2E]/30 to-transparent z-0"></div>
+<!-- Step 1 -->
+<div class="relative z-10 group flex flex-col items-center md:items-start text-center md:text-left space-y-8">
+<div class="flex flex-col items-center md:items-start">
+<div class="w-[104px] h-[104px] border border-[#D94F2E]/20 bg-[#0e0e0e] flex items-center justify-center relative mb-4 transition-all duration-500 group-hover:border-[#D94F2E]">
+<span class="material-symbols-outlined text-[#D94F2E] text-4xl" data-icon="upload_file">upload_file</span>
+<div class="absolute -bottom-4 -right-4 w-12 h-12 bg-[#D94F2E] flex items-center justify-center text-on-primary-fixed font-bold text-xl">1</div>
+</div>
+</div>
+<div class="space-y-4 pt-4">
+<h3 class="serif-italic text-3xl text-on-surface">Upload your photo</h3>
+<p class="text-on-surface/50 font-light leading-relaxed text-sm tracking-wide">
+                            Drag and drop your faded memories into our secure interface. We support all high-resolution formats to ensure the finest preservation of detail.
+                        </p>
+</div>
+<div class="w-full h-px bg-[#e5e2e1]/5 md:hidden"></div>
+</div>
+<!-- Step 2 -->
+<div class="relative z-10 group flex flex-col items-center md:items-start text-center md:text-left space-y-8">
+<div class="flex flex-col items-center md:items-start">
+<div class="w-[104px] h-[104px] border border-[#D94F2E]/20 bg-[#0e0e0e] flex items-center justify-center relative mb-4 transition-all duration-500 group-hover:border-[#D94F2E]">
+<span class="material-symbols-outlined text-[#D94F2E] text-4xl" data-icon="troubleshoot">troubleshoot</span>
+<div class="absolute -bottom-4 -right-4 w-12 h-12 bg-[#D94F2E] flex items-center justify-center text-on-primary-fixed font-bold text-xl">2</div>
+</div>
+</div>
+<div class="space-y-4 pt-4">
+<h3 class="serif-italic text-3xl text-on-surface">AI Diagnosis</h3>
+<p class="text-on-surface/50 font-light leading-relaxed text-sm tracking-wide">
+                            Our neural network scans for grain loss, chemical fading, and physical abrasions. We map every pixel to determine the optimal restoration path.
+                        </p>
+</div>
+<div class="w-full h-px bg-[#e5e2e1]/5 md:hidden"></div>
+</div>
+<!-- Step 3 -->
+<div class="relative z-10 group flex flex-col items-center md:items-start text-center md:text-left space-y-8">
+<div class="flex flex-col items-center md:items-start">
+<div class="w-[104px] h-[104px] border border-[#D94F2E]/20 bg-[#0e0e0e] flex items-center justify-center relative mb-4 transition-all duration-500 group-hover:border-[#D94F2E]">
+<span class="material-symbols-outlined text-[#D94F2E] text-4xl" data-icon="auto_awesome">auto_awesome</span>
+<div class="absolute -bottom-4 -right-4 w-12 h-12 bg-[#D94F2E] flex items-center justify-center text-on-primary-fixed font-bold text-xl">3</div>
+</div>
+</div>
+<div class="space-y-4 pt-4">
+<h3 class="serif-italic text-3xl text-on-surface">AI Restoration</h3>
+<p class="text-on-surface/50 font-light leading-relaxed text-sm tracking-wide">
+                            The revival begins. We reconstruct textures and rebalance tones, staying faithful to the original era’s cinematic aesthetic and lighting.
+                        </p>
+</div>
+<div class="w-full h-px bg-[#e5e2e1]/5 md:hidden"></div>
+</div>
+<!-- Step 4 -->
+<div class="relative z-10 group flex flex-col items-center md:items-start text-center md:text-left space-y-8">
+<div class="flex flex-col items-center md:items-start">
+<div class="w-[104px] h-[104px] border border-[#D94F2E]/20 bg-[#0e0e0e] flex items-center justify-center relative mb-4 transition-all duration-500 group-hover:border-[#D94F2E]">
+<span class="material-symbols-outlined text-[#D94F2E] text-4xl" data-icon="download">download</span>
+<div class="absolute -bottom-4 -right-4 w-12 h-12 bg-[#D94F2E] flex items-center justify-center text-on-primary-fixed font-bold text-xl">4</div>
+</div>
+</div>
+<div class="space-y-4 pt-4">
+<h3 class="serif-italic text-3xl text-on-surface">Download result</h3>
+<p class="text-on-surface/50 font-light leading-relaxed text-sm tracking-wide">
+                            Your memory is now future-proof. Export in stunning high-fidelity, ready for printing, framing, or secure digital archiving.
+                        </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Asymmetric CTA Section -->
+<section class="py-24 border-t border-[#e5e2e1]/5">
+<div class="max-w-screen-2xl mx-auto px-8 flex flex-col md:flex-row justify-between items-end gap-12">
+<div class="max-w-xl">
+<span class="text-[#D94F2E] label-sm uppercase tracking-[0.3em] font-medium block mb-4">Start your journey</span>
+<h2 class="serif-italic text-5xl md:text-7xl leading-tight text-on-surface">The past, reimagined in <span class="text-[#D94F2E]">high-definition.</span></h2>
+</div>
+<div class="pb-4">
+<button class="group flex items-center gap-6 text-on-surface hover:text-[#D94F2E] transition-colors">
+<span class="text-2xl font-light uppercase tracking-widest">Explore Archive</span>
+<div class="w-16 h-16 border border-[#D94F2E] flex items-center justify-center group-hover:bg-[#D94F2E] transition-all">
+<span class="material-symbols-outlined group-hover:text-black">arrow_forward</span>
+</div>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#0e0e0e] flex flex-col md:flex-row justify-between items-center px-12 py-16 w-full border-t border-[#e5e2e1]/5">
+<div class="mb-8 md:mb-0">
+<div class="text-lg font-bold italic text-[#e5e2e1] mb-2">Revivai</div>
+<div class="text-[10px] uppercase tracking-widest text-[#e5e2e1]/40">© 2024 REVIVAI. THE ART OF PRESERVATION.</div>
+</div>
+<div class="flex gap-8">
+<a class="text-[10px] uppercase tracking-widest text-[#e5e2e1]/40 hover:text-[#e5e2e1] transition-opacity" href="#">Privacy</a>
+<a class="text-[10px] uppercase tracking-widest text-[#e5e2e1]/40 hover:text-[#e5e2e1] transition-opacity" href="#">Terms</a>
+<a class="text-[10px] uppercase tracking-widest text-[#e5e2e1]/40 hover:text-[#e5e2e1] transition-opacity" href="#">Editorial</a>
+<a class="text-[10px] uppercase tracking-widest text-[#e5e2e1]/40 hover:text-[#e5e2e1] transition-opacity" href="#">Contact</a>
+</div>
+</footer>
+</body></html>

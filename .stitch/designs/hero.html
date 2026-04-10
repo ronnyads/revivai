@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RevivAI | The Cinematic Archive</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Newsreader:ital,opsz,wght@1,6..72,400;1,6..72,700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container": "#201f1f",
+                    "primary-container": "#f3623f",
+                    "primary": "#ffb4a3",
+                    "surface-container-highest": "#353534",
+                    "background": "#131313",
+                    "on-primary": "#621100",
+                    "on-surface": "#e5e2e1",
+                    "on-secondary-container": "#f99d87",
+                    "on-surface-variant": "#e1bfb7",
+                    "on-tertiary-container": "#002d41",
+                    "tertiary-fixed": "#c6e7ff",
+                    "outline-variant": "#59413b",
+                    "inverse-surface": "#e5e2e1",
+                    "surface-container-lowest": "#0e0e0e",
+                    "surface-tint": "#ffb4a3",
+                    "secondary": "#ffb4a3",
+                    "outline": "#a88a83",
+                    "on-tertiary-fixed-variant": "#004c6b",
+                    "on-tertiary-fixed": "#001e2d",
+                    "on-secondary-fixed-variant": "#753323",
+                    "primary-fixed": "#ffdad2",
+                    "on-error": "#690005",
+                    "on-error-container": "#ffdad6",
+                    "tertiary-container": "#309ace",
+                    "tertiary-fixed-dim": "#82cfff",
+                    "secondary-fixed": "#ffdad2",
+                    "primary-fixed-dim": "#ffb4a3",
+                    "on-background": "#e5e2e1",
+                    "tertiary": "#82cfff",
+                    "surface-container-low": "#1c1b1b",
+                    "surface-variant": "#353534",
+                    "surface": "#131313",
+                    "error-container": "#93000a",
+                    "inverse-primary": "#ae3112",
+                    "secondary-container": "#753323",
+                    "surface-dim": "#131313",
+                    "surface-bright": "#3a3939",
+                    "on-secondary-fixed": "#3b0801",
+                    "on-primary-fixed": "#3d0700",
+                    "on-secondary": "#581d0f",
+                    "on-primary-container": "#560d00",
+                    "error": "#ffb4ab",
+                    "on-primary-fixed-variant": "#8a1b00",
+                    "on-tertiary": "#00344b",
+                    "secondary-fixed-dim": "#ffb4a3",
+                    "surface-container-high": "#2a2a2a",
+                    "inverse-on-surface": "#313030"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0px",
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Newsreader", "serif"],
+                    "body": ["Inter", "sans-serif"],
+                    "label": ["Inter", "sans-serif"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #131313; color: #e5e2e1; margin: 0; }
+        .font-serif { font-family: 'Newsreader', serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+    </style>
+</head>
+<body class="bg-background text-on-surface antialiased">
+<!-- TopNavBar -->
+<nav class="bg-[#131313] flex justify-between items-center w-full px-8 py-6 max-w-full fixed top-0 z-50">
+<div class="text-2xl font-serif italic text-[#D94F2E] tracking-tighter">RevivAI</div>
+<div class="hidden md:flex space-x-10 items-center">
+<a class="text-[#e5e2e1] opacity-70 hover:opacity-100 hover:text-[#D94F2E] transition-all duration-300 text-sm tracking-wide" href="#">Gallery</a>
+<a class="text-[#e5e2e1] opacity-70 hover:opacity-100 hover:text-[#D94F2E] transition-all duration-300 text-sm tracking-wide" href="#">Process</a>
+<a class="text-[#e5e2e1] opacity-70 hover:opacity-100 hover:text-[#D94F2E] transition-all duration-300 text-sm tracking-wide" href="#">Pricing</a>
+<a class="text-[#e5e2e1] opacity-70 hover:opacity-100 hover:text-[#D94F2E] transition-all duration-300 text-sm tracking-wide" href="#">Archive</a>
+</div>
+<button class="bg-[#D94F2E] text-white px-6 py-2 text-xs font-semibold uppercase tracking-widest active:scale-95 transition-transform">
+            Start Restoring
+        </button>
+</nav>
+<main class="pt-24">
+<!-- Hero Section -->
+<section class="min-h-[870px] flex flex-col md:flex-row items-center px-8 md:px-20 py-12 gap-12 bg-surface-container-lowest">
+<!-- Text Content -->
+<div class="w-full md:w-1/2 flex flex-col items-start space-y-8">
+<h1 class="text-6xl md:text-8xl font-serif italic leading-[1.1] tracking-tight">
+                    Traga o passado de volta <span class="text-[#D94F2E]">a vida</span>
+</h1>
+<p class="text-on-surface-variant max-w-lg text-lg leading-relaxed font-light">
+                    Our neural networks weave together the fragmented pixels of history. RevivAI isn't just restoration—it's an emotional resurrection of your most cherished memories, rendered with cinematic clarity.
+                </p>
+<div class="flex flex-wrap gap-6 pt-4">
+<button class="bg-[#D94F2E] text-white px-10 py-4 font-bold tracking-tight active:scale-95 transition-transform">
+                        Get Started
+                    </button>
+<button class="border border-outline-variant text-on-surface px-10 py-4 font-bold tracking-tight hover:bg-surface-container-high active:scale-95 transition-transform">
+                        View Archive
+                    </button>
+</div>
+</div>
+<!-- Image Composition -->
+<div class="w-full md:w-1/2 relative flex justify-end">
+<div class="relative group">
+<!-- Subtle Glow -->
+<div class="absolute -inset-10 bg-[#D94F2E] opacity-10 blur-[80px] rounded-full pointer-events-none"></div>
+<div class="relative z-10 p-4 bg-[#1c1b1b] border border-outline-variant shadow-2xl">
+<img alt="Restored Photo" class="w-full max-w-lg object-cover grayscale-0 brightness-105 contrast-110" data-alt="Cinematic high-contrast studio portrait of a woman from the 1920s, sharp focus, restored grain, set in an elegant black wooden gallery frame" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAnm8GBFZZ4hQFax0gjL76s_kZwScP7wgEXQ80BMhr7X9dl47PMcOWbnM47RJwTIwCMZZO4wB_PLw9FH6BEQrHTLLvm-GI9cBcDnbTtQ87F29Cj_0oYwjtf9Hl8Mnte7XZgG4mJiJUTfeCoTY5ApsZAYfh9wOF17huKk4oxrGhZlb_DH-UueuAfQicWHC9QKzSU9gfIpDiRjBHZOH5YFwDpZ0zf94bqYAVDzB0CaNsf7iXC2GyVozNulzjj2RH4vZTWkdHhLFcKz0"/>
+<div class="mt-4 flex justify-between items-center text-[10px] uppercase tracking-widest text-outline">
+<span>Negative ID: 482-B</span>
+<span>RevivAI Neural Engine V4</span>
+</div>
+</div>
+<!-- Floater: Technical Meta -->
+<div class="absolute -bottom-8 -left-8 bg-surface-container-high p-6 border border-outline-variant hidden lg:block z-20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#D94F2E]">query_stats</span>
+<div>
+<p class="text-[10px] uppercase tracking-tighter text-outline">Accuracy</p>
+<p class="text-xl font-bold">99.8%</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Stats Bar -->
+<section class="w-full bg-white text-black py-12 px-8 md:px-20">
+<div class="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-0">
+<div class="flex flex-col items-center md:items-start md:border-r border-black/10 px-8">
+<span class="text-4xl font-serif italic mb-1">48,000+</span>
+<span class="text-[10px] font-sans font-bold uppercase tracking-widest opacity-60">Photos Restored</span>
+</div>
+<div class="flex flex-col items-center md:items-start md:border-r border-black/10 px-8">
+<span class="text-4xl font-serif italic mb-1">4</span>
+<span class="text-[10px] font-sans font-bold uppercase tracking-widest opacity-60">Advanced AI Models</span>
+</div>
+<div class="flex flex-col items-center md:items-start md:border-r border-black/10 px-8">
+<span class="text-4xl font-serif italic mb-1">98%</span>
+<span class="text-[10px] font-sans font-bold uppercase tracking-widest opacity-60">Satisfaction Rate</span>
+</div>
+<div class="flex flex-col items-center md:items-start px-8">
+<span class="text-4xl font-serif italic mb-1">30s</span>
+<span class="text-[10px] font-sans font-bold uppercase tracking-widest opacity-60">Avg. Restoration Time</span>
+</div>
+</div>
+</section>
+<!-- Gallery Teaser / Bento Section -->
+<section class="py-32 px-8 md:px-20 bg-background">
+<div class="flex justify-between items-end mb-20">
+<h2 class="text-5xl font-serif italic max-w-md leading-tight">Preserving fragments of the human narrative.</h2>
+<span class="material-symbols-outlined text-4xl opacity-20">history_edu</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<div class="col-span-1 md:col-span-2 aspect-[16/9] bg-surface-container-low relative group overflow-hidden">
+<img class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" data-alt="Restored sepia photograph of a crowded European street market in 1910, high detail, vibrant tonal range, cinematic atmosphere" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDeGnTxpd_xv9w-JK1cQxDyk8MfXSEvNC_qVOf2J2ujBf2ofKiVLlOKeM10UJAuLe92kFWJ7j7YWqnskEPv3qGiG7_R1cfalJ0V1uQATwWqkmMGdNoImdEWGt_0KO5OCDi_BJYnp8TILIUlhcjyg2W3t2f2kSiOoxNHLFjIjjYbcrCPzG-luQrdCI04s-C8BSdNncgagiljguNmePMH3HD8G4mF2-XnY9jmcpxxQEb6ZFRwwozrxZHYw2ZEUPP4r-85Z-S2ivw-uw"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-60"></div>
+<div class="absolute bottom-8 left-8">
+<p class="text-xs uppercase tracking-[0.3em] mb-2">Street Life Series</p>
+<h3 class="text-3xl font-serif italic">Paris, 1910</h3>
+</div>
+</div>
+<div class="aspect-[1/1] bg-surface-container-low relative group overflow-hidden">
+<img class="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" data-alt="Artistic close-up of a vintage lens reflecting a dimly lit room, moody cinematic lighting, sharp edges" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnKByC4uEHMVAb7VjbK_SrbqriOoWm8-bX5o5Q3bzmBUlDHCiPa4Zjz78k8lsxUp_uLkk562QlXeYAosIcILfvQJ83LKrWncSno1xofPy9Xbr126bCxiw4cThfSoyQNBn3o3zwbWMie7ndQcg5_B_BH3b30GY46SCFfsbtxRVtXbsKuRQWPDXgmX_qnQHk9HLnZ_MphDQO11ZzWpN3utSpsylEhO8SRxLan6VpzZLYs8IZf9lhxfQTUx-NoWeqBhesClOnvNOooUQ"/>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="text-xs uppercase tracking-[0.4em] font-bold border-b border-primary pb-2">The Archive</span>
+</div>
+</div>
+<div class="aspect-[1/1] bg-surface-container-low relative group overflow-hidden">
+<img class="w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-700" data-alt="Close up of a weathered family heirloom photo album with leather texture and tactile details" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBiyGK7CMum6RUmMgeXJuIA92N0QMX00qiMK6TTCEKNTQGVVqfZX25iaZB0skoXmuU7zrl5HZ8NmOfg0-6aK4e23g3WdTJ0yCyDk3lsY_SA_CfpVMCuCFMq2lzkBKIlRkyk-2RXbIG0BJMLQktqpIEJSc_u3aSXiyWbDTq1g4EKL2skaHB0g65j3HXL6EFjEE7G6qX0C5GGAfJ6Qi9pt5bs-KiApJYaNNDkAPpWytV02fiafyFXqtk_924zQScvrjkojb8DzmbiZNQ"/>
+<div class="absolute inset-0 bg-black/20"></div>
+<div class="absolute top-8 right-8">
+<span class="material-symbols-outlined text-3xl">auto_fix_high</span>
+</div>
+</div>
+<div class="col-span-1 md:col-span-2 aspect-[16/9] bg-surface-container-low relative group overflow-hidden">
+<img class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700" data-alt="Dramatic mountain landscape in a vintage noir style, restored with immense depth and clarity" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCycRpVV8wtKtOPMhULHyWE6MPnnUefzgOwDMncyRN-tWHl5841oj5GJOcPfF9jQCGHuShRF3cRNXo5dWyx6mjt10EIyvQKE0hUumiPyYDwlQotnfbpdToQq6comVqINNMYuAPJObDTLhoJdxpJH_hcgqFZCljXL6EaiHzt5inZtj7d_paNAAehuow06JaFgBovMEV64_cUyVfbSW9q0NE-hZAJ0y6huN5tXL2lPi7RyTwlotoldy6oS76QWDyMYn59vnurgTxFS3U"/>
+<div class="absolute inset-0 bg-gradient-to-tr from-background/80 via-transparent to-transparent"></div>
+<div class="absolute bottom-8 left-8">
+<p class="text-xs uppercase tracking-[0.3em] mb-2">Natural Vistas</p>
+<h3 class="text-3xl font-serif italic">Alpine Silence, 1944</h3>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#0e0e0e] flex flex-col md:flex-row justify-between items-center px-12 py-12 w-full border-t border-white/5">
+<div class="text-lg font-serif italic text-[#e5e2e1] mb-8 md:mb-0">RevivAI</div>
+<div class="flex flex-col items-center gap-6">
+<div class="flex gap-8">
+<a class="text-[#e5e2e1] opacity-50 hover:text-[#D94F2E] transition-colors font-sans text-[10px] uppercase tracking-widest" href="#">Legal</a>
+<a class="text-[#e5e2e1] opacity-50 hover:text-[#D94F2E] transition-colors font-sans text-[10px] uppercase tracking-widest" href="#">Privacy Policy</a>
+<a class="text-[#e5e2e1] opacity-50 hover:text-[#D94F2E] transition-colors font-sans text-[10px] uppercase tracking-widest" href="#">Contact</a>
+<a class="text-[#e5e2e1] opacity-50 hover:text-[#D94F2E] transition-colors font-sans text-[10px] uppercase tracking-widest" href="#">Terms of Service</a>
+</div>
+<p class="text-[#e5e2e1] opacity-30 font-sans text-[10px] uppercase tracking-[0.2em]">© 2024 RevivAI. The Cinematic Archive. All Rights Reserved.</p>
+</div>
+<div class="flex gap-4 mt-8 md:mt-0">
+<span class="material-symbols-outlined text-on-surface opacity-40 hover:opacity-100 cursor-pointer transition-opacity">photo_camera</span>
+<span class="material-symbols-outlined text-on-surface opacity-40 hover:opacity-100 cursor-pointer transition-opacity">auto_stories</span>
+</div>
+</footer>
+</body></html>

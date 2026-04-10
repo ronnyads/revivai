@@ -1,34 +1,52 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check } from 'lucide-react'
 
 const plans = [
   {
     id: 'perPhoto',
-    name: 'Pay-per-foto',
+    label: 'Single Asset',
+    name: 'The Occasional',
     price: 'R$19',
-    period: 'por foto, sem cadastro',
-    features: ['1 foto restaurada', 'Download em alta resolução', '4 modelos de IA disponíveis', 'Resultado em segundos', 'PIX, cartão ou boleto'],
-    cta: 'Pagar com PIX →',
+    period: '/foto',
+    features: [
+      { icon: 'auto_fix_high',            text: '1 foto restaurada' },
+      { icon: 'photo_size_select_actual', text: 'Download em alta resolução' },
+      { icon: 'schedule',                  text: 'Resultado em segundos' },
+      { icon: 'payments',                  text: 'PIX, cartão ou boleto' },
+    ],
+    cta: 'Começar agora',
     featured: false,
   },
   {
     id: 'subscription',
-    name: 'Assinatura',
+    label: 'Monthly Membership',
+    name: 'The Archivist',
     price: 'R$59',
-    period: 'por mês · 10 fotos incluídas',
-    features: ['10 fotos por mês', 'Histórico completo', 'Download em 4K', 'Prioridade no processamento', 'Suporte prioritário', 'PIX, cartão ou boleto'],
-    cta: 'Assinar agora →',
+    period: '/mês',
+    features: [
+      { icon: 'filter_frames', text: '10 fotos por mês' },
+      { icon: 'bolt',          text: 'Processamento prioritário' },
+      { icon: 'cloud_done',    text: 'Histórico completo' },
+      { icon: 'hd',            text: 'Download em 4K' },
+      { icon: 'support_agent', text: 'Suporte prioritário' },
+    ],
+    cta: 'Assinar agora',
     featured: true,
   },
   {
     id: 'package',
-    name: 'Pacote de créditos',
+    label: 'Bulk Package',
+    name: 'The Collector',
     price: 'R$129',
-    period: '10 créditos · sem expiração',
-    features: ['10 créditos permanentes', 'Use quando quiser', 'Download em alta resolução', 'Histórico salvo', 'PIX, cartão ou boleto'],
-    cta: 'Comprar créditos →',
+    period: '/pacote',
+    features: [
+      { icon: 'auto_awesome_motion', text: '10 créditos permanentes' },
+      { icon: 'verified_user',       text: 'Sem expiração' },
+      { icon: 'layers',              text: 'Use quando quiser' },
+      { icon: 'history_edu',         text: 'Histórico salvo' },
+    ],
+    cta: 'Comprar créditos',
     featured: false,
   },
 ]
@@ -43,81 +61,142 @@ export default function Pricing() {
   }
 
   return (
-    <section id="pricing" className="max-w-7xl mx-auto px-8 md:px-12 py-28">
-      <div className="text-center mb-16">
-        <p className="flex items-center justify-center gap-3 text-xs tracking-[2px] uppercase text-accent font-medium mb-4">
-          <span className="w-6 h-px bg-accent" />Preços<span className="w-6 h-px bg-accent" />
+    <section id="pricing" className="py-28 px-6" style={{ backgroundColor: '#131313' }}>
+      {/* Header */}
+      <div className="text-center mb-24 max-w-2xl mx-auto">
+        <p className="text-xs uppercase tracking-[0.4em] font-medium mb-6" style={{ color: '#D94F2E' }}>
+          Preços
         </p>
-        <h2 className="font-display text-5xl md:text-6xl font-normal tracking-tight mb-4">
-          Pague pelo que <em className="italic text-accent">usar</em>
+        <h2
+          className="text-5xl md:text-7xl tracking-tight mb-6"
+          style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', color: '#e5e2e1' }}
+        >
+          Escolha sua jornada
         </h2>
-        <p className="text-base text-muted max-w-md mx-auto leading-relaxed">
-          Sem mensalidade obrigatória. Pague via <strong>PIX</strong>, cartão ou boleto.
+        <p className="text-sm uppercase tracking-[0.2em] max-w-md mx-auto" style={{ color: 'rgba(229,226,225,0.4)' }}>
+          Selecione o plano ideal e restaure suas memórias com precisão cinematográfica.
         </p>
-        {/* Payment badges */}
-        <div className="flex items-center justify-center gap-3 mt-4">
-          {['PIX', 'Cartão', 'Boleto'].map(m => (
-            <span key={m} className="text-xs px-3 py-1.5 rounded-full bg-surface border border-[#E8E8E8] text-muted font-medium">
-              {m}
-            </span>
-          ))}
-          <span className="text-xs text-muted">via Mercado Pago</span>
-        </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        {plans.map(p => (
+      {/* Cards grid */}
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-0">
+        {plans.map((plan, i) => (
           <div
-            key={p.id}
-            className={`relative rounded-xl p-10 border-[1.5px] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
-              p.featured
-                ? 'bg-ink text-white border-ink shadow-2xl'
-                : 'bg-white border-[#E8E8E8] hover:shadow-ink/5'
-            }`}
+            key={plan.id}
+            className="flex flex-col relative"
+            style={{
+              padding: '3rem',
+              backgroundColor: plan.featured ? '#1c1b1b' : '#0e0e0e',
+              border: plan.featured ? '2px solid #D94F2E' : '1px solid rgba(89,65,59,0.2)',
+              marginTop: plan.featured ? '-1.5rem' : undefined,
+              marginBottom: plan.featured ? '-1.5rem' : undefined,
+              zIndex: plan.featured ? 10 : undefined,
+              boxShadow: plan.featured ? '0 40px 100px -20px rgba(0,0,0,0.7)' : undefined,
+            }}
           >
-            {p.featured && (
-              <span className="absolute top-5 right-5 bg-accent text-white text-[10px] font-semibold tracking-widest uppercase px-3 py-1 rounded-full">
-                Popular
-              </span>
+            {plan.featured && (
+              <div
+                className="absolute font-bold uppercase tracking-[0.25em]"
+                style={{
+                  top: '-14px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: '#D94F2E',
+                  color: '#131313',
+                  padding: '4px 24px',
+                  fontSize: '10px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Mais Popular
+              </div>
             )}
-            <p className={`text-xs font-medium tracking-widest uppercase mb-6 ${p.featured ? 'text-white/50' : 'text-muted'}`}>
-              {p.name}
-            </p>
-            <div className="font-display text-[56px] font-normal tracking-[-2px] leading-none mb-1">
-              {p.price}
+
+            {/* Title */}
+            <div className="mb-10">
+              <h3
+                className="mb-1"
+                style={{
+                  fontFamily: "'Newsreader', serif",
+                  fontStyle: 'italic',
+                  fontSize: plan.featured ? '2rem' : '1.75rem',
+                  color: '#e5e2e1',
+                }}
+              >
+                {plan.name}
+              </h3>
+              <p
+                className="text-xs uppercase tracking-widest font-semibold"
+                style={{ color: plan.featured ? '#D94F2E' : 'rgba(229,226,225,0.3)' }}
+              >
+                {plan.label}
+              </p>
             </div>
-            <p className={`text-sm mb-8 ${p.featured ? 'text-white/50' : 'text-muted'}`}>{p.period}</p>
-            <ul className="flex flex-col gap-3.5 mb-9">
-              {p.features.map(f => (
-                <li key={f} className="flex items-center gap-3 text-sm">
-                  <span className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${p.featured ? 'bg-accent/25' : 'bg-accent-light'}`}>
-                    <Check size={10} className="text-accent" />
+
+            {/* Price */}
+            <div className="mb-14">
+              <div className="flex items-baseline gap-1">
+                <span
+                  style={{
+                    fontFamily: "'Newsreader', serif",
+                    fontStyle: 'italic',
+                    fontSize: plan.featured ? '3rem' : '2.5rem',
+                    color: '#e5e2e1',
+                  }}
+                >
+                  {plan.price}
+                </span>
+                <span className="text-sm" style={{ color: 'rgba(229,226,225,0.4)' }}>{plan.period}</span>
+              </div>
+            </div>
+
+            {/* Features */}
+            <ul className="flex-grow space-y-5 mb-14">
+              {plan.features.map((f) => (
+                <li key={f.text} className="flex items-center gap-4">
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      color: '#D94F2E',
+                      fontSize: '18px',
+                      fontVariationSettings: "'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24",
+                    }}
+                  >
+                    {f.icon}
                   </span>
-                  {f}
+                  <span
+                    className="text-sm"
+                    style={{ color: plan.featured ? '#e5e2e1' : 'rgba(229,226,225,0.6)' }}
+                  >
+                    {f.text}
+                  </span>
                 </li>
               ))}
             </ul>
+
+            {/* CTA */}
             <button
-              onClick={() => handleCheckout(p.id)}
-              disabled={loading === p.id}
-              className={`block w-full text-center py-3.5 rounded-lg text-sm font-medium border-[1.5px] transition-all duration-200 ${
-                p.featured
-                  ? 'bg-accent text-white border-accent hover:bg-accent-dark hover:border-accent-dark'
-                  : 'text-ink border-[#E8E8E8] hover:border-accent hover:text-accent'
-              } disabled:opacity-60 disabled:cursor-not-allowed`}
+              onClick={() => handleCheckout(plan.id)}
+              disabled={loading === plan.id}
+              className="w-full py-5 text-xs uppercase tracking-[0.2em] font-bold transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={
+                plan.featured
+                  ? { backgroundColor: '#D94F2E', color: '#131313' }
+                  : { border: '1px solid rgba(89,65,59,0.4)', color: '#e5e2e1', backgroundColor: 'transparent' }
+              }
             >
-              {loading === p.id ? 'Aguarde...' : p.cta}
+              {loading === plan.id ? 'Aguarde...' : plan.cta}
             </button>
           </div>
         ))}
       </div>
 
-      {/* Security badge */}
-      <p className="text-center text-xs text-muted mt-8 flex items-center justify-center gap-2">
+      {/* Security note */}
+      <p className="text-center text-xs mt-12 flex items-center justify-center gap-2" style={{ color: 'rgba(229,226,225,0.3)' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
         </svg>
-        Pagamentos processados com segurança. Seus dados estão protegidos.
+        Pagamentos processados com segurança. PIX, cartão ou boleto via Mercado Pago.
       </p>
     </section>
   )
