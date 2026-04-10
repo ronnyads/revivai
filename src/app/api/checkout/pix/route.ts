@@ -65,13 +65,15 @@ export async function POST(req: NextRequest) {
 
     // Salva pedido pendente
     if (userId) {
-      await admin.from('orders').insert({
-        user_id: userId,
-        type: planId === 'perPhoto' ? 'per_photo' : planId === 'subscription' ? 'subscription' : 'package',
-        stripe_id: String(result.id),
-        amount: Math.round(amount * 100),
-        status: 'pending',
-      }).then(() => {}).catch(console.error)
+      try {
+        await admin.from('orders').insert({
+          user_id: userId,
+          type: planId === 'perPhoto' ? 'per_photo' : planId === 'subscription' ? 'subscription' : 'package',
+          stripe_id: String(result.id),
+          amount: Math.round(amount * 100),
+          status: 'pending',
+        })
+      } catch (saveErr) { console.error('[checkout/pix] save order:', saveErr) }
     }
 
     return NextResponse.json({
