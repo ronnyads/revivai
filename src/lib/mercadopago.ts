@@ -18,7 +18,7 @@ export function getMPClient(): MercadoPagoConfig {
 
 export const PLANS = {
   perPhoto: {
-    name: 'Pay-per-foto',
+    name: 'Restauração Avulsa',
     price: 19.00,        // R$19
     credits: 1,
     description: '1 foto restaurada com IA em alta resolução',
