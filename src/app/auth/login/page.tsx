@@ -1,13 +1,16 @@
 'use client'
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
 
 type Mode = 'password' | 'magic' | 'register'
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams()
+  const next = searchParams.get('next') || '/dashboard'
   const [mode, setMode]       = useState<Mode>('password')
   const [email, setEmail]     = useState('')
   const [password, setPassword] = useState('')
@@ -38,7 +41,7 @@ export default function LoginPage() {
     } else {
       const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL
       const isAdmin = adminEmail && data?.user?.email === adminEmail
-      window.location.href = isAdmin ? '/admin' : '/dashboard'
+      window.location.href = isAdmin ? '/admin' : next
     }
     setLoading(false)
   }
@@ -197,5 +200,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }

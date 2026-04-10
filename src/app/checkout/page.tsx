@@ -24,7 +24,7 @@ export default async function CheckoutPage({
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/auth/login?next=/checkout?plan=' + planId)
+  if (!user) redirect(`/auth/login?next=${encodeURIComponent('/checkout?plan=' + planId)}`)
 
   const publicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY!
 
