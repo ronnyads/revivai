@@ -28,12 +28,12 @@ export default function Hero() {
   return (
     <>
       {/* Hero Section */}
-      <section className="min-h-screen flex flex-col md:flex-row items-center px-8 md:px-20 py-12 gap-12 pt-32" style={{ backgroundColor: '#0e0e0e' }}>
+      <section className="flex flex-col md:flex-row items-center px-6 md:px-20 py-20 md:py-12 gap-10 md:gap-12 pt-28 md:pt-32 min-h-[90vh]" style={{ backgroundColor: '#0e0e0e' }}>
         {/* Text Content */}
-        <div className="w-full md:w-1/2 flex flex-col items-start space-y-8">
+        <div className="w-full md:w-1/2 flex flex-col items-start space-y-6 md:space-y-8">
           <div className="inline-flex items-center gap-2 border px-4 py-1.5 text-xs font-medium tracking-widest uppercase mb-2" style={{ borderColor: 'rgba(217,79,46,0.3)', color: '#D94F2E', backgroundColor: 'rgba(217,79,46,0.05)' }}>
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: '#D94F2E' }} />
-            IA de restauração — Powered by Gemini
+            IA de nova geração
           </div>
           <h1 className="text-6xl md:text-8xl leading-[1.05] tracking-tight" style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', color: '#e5e2e1' }}>
             Traga o passado<br />de volta à{' '}
@@ -60,8 +60,8 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Visual Composition */}
-        <div className="w-full md:w-1/2 relative flex justify-end">
+        {/* Visual Composition — hidden on mobile */}
+        <div className="hidden md:flex w-full md:w-1/2 relative justify-end">
           <div className="relative group">
             {/* Glow effect */}
             <div className="absolute -inset-10 rounded-full pointer-events-none" style={{ backgroundColor: '#D94F2E', opacity: 0.08, filter: 'blur(80px)' }} />
@@ -92,22 +92,22 @@ export default function Hero() {
       </section>
 
       {/* Stats Bar */}
-      <div className="w-full bg-white text-black py-12 px-8 md:px-20">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-0">
+      <div className="w-full bg-white text-black py-10 px-6 md:px-20">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 divide-x divide-black/10">
           {[
             { count: 48000, suffix: '+', label: 'Fotos restauradas' },
             { count: 4,     suffix: '',  label: 'Modelos de IA' },
             { count: 98,    suffix: '%', label: 'Satisfação' },
             { count: 30,    suffix: 's', label: 'Tempo médio' },
-          ].map(({ count, suffix, label }, i) => (
-            <div key={label} className="flex flex-col items-center md:items-start px-8" style={{ borderRight: i < 3 ? '1px solid rgba(0,0,0,0.1)' : 'none' }}>
+          ].map(({ count, suffix, label }) => (
+            <div key={label} className="flex flex-col items-center py-4 px-4 md:px-8">
               <span
                 className="mb-1"
-                style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', fontSize: '2.25rem', lineHeight: 1 }}
+                style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', fontSize: '2rem', lineHeight: 1 }}
                 data-count={count}
                 data-suffix={suffix}
               >0</span>
-              <span style={{ fontSize: '10px', fontFamily: 'sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', opacity: 0.6 }}>{label}</span>
+              <span className="text-center" style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 0.5 }}>{label}</span>
             </div>
           ))}
         </div>
