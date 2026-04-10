@@ -164,7 +164,7 @@ export default function Pricing() {
               style={
                 plan.featured
                   ? { backgroundColor: '#D94F2E', color: '#fff' }
-                  : { border: '1px solid rgba(229,226,225,0.2)', color: '#e5e2e1', backgroundColor: 'transparent' }
+                  : { border: '1px solid #D94F2E', color: '#D94F2E', backgroundColor: 'transparent' }
               }
             >
               {loading === plan.id ? 'Aguarde...' : plan.cta}
