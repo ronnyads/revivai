@@ -67,8 +67,8 @@ export default function Hero() {
           <div className="absolute -inset-10 rounded-full pointer-events-none" style={{ backgroundColor: '#D94F2E', opacity: 0.08, filter: 'blur(80px)' }} />
           <div className="relative z-10 p-4 shadow-2xl" style={{ backgroundColor: '#1c1b1b', border: '1px solid rgba(89,65,59,0.6)' }}>
             <BeforeAfterSlider
-              before="https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775695273515.jpg"
-              after="https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775695292203_restored.jpg"
+              before="https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775730116128.jpg"
+              after="https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3/1775730143782_restored.jpg"
             />
             <div className="mt-4 flex justify-between items-center" style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#a88a83' }}>
               <span>Antes / Depois</span>
