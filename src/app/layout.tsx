@@ -1,7 +1,31 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
+import { Cormorant_Garamond, DM_Sans, Newsreader } from 'next/font/google'
 import './globals.css'
 import MetaPixelLoader from '@/components/MetaPixelLoader'
+
+const cormorant = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  style: ['normal', 'italic'],
+  display: 'swap',
+  variable: '--font-display-gf',
+})
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
+  display: 'swap',
+  variable: '--font-sans-gf',
+})
+
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  weight: ['400'],
+  style: ['italic'],
+  display: 'optional',
+  variable: '--font-hero-gf',
+})
 
 export const metadata: Metadata = {
   title: 'reviv.ai — Restaure Memórias com Inteligência Artificial',
@@ -16,15 +40,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={`${cormorant.variable} ${dmSans.variable} ${newsreader.variable}`}>
       <head>
-        {/* Preconnect to speed up font negotiation */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        {/* Material Symbols — icon font, non-critical */}
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        {/* UI fonts — swap: minimal files, text visible immediately */}
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" />
-        {/* Newsreader — loaded after paint via JS to never block FCP */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@1,48,400&display=swap';document.head.appendChild(l)})()` }} />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
       </head>
       <body>

@@ -11,9 +11,9 @@
   --color-muted:        #6B6B6B;
   --color-ink:          #0C0C0C;
 
-  /* Fonts */
-  --font-display: 'Cormorant Garamond', Georgia, serif;
-  --font-sans:    'DM Sans', system-ui, sans-serif;
+  /* Fonts — variables injected by next/font/google in layout.tsx */
+  --font-display: var(--font-display-gf), Georgia, serif;
+  --font-sans:    var(--font-sans-gf), system-ui, sans-serif;
 
   /* Animations */
   --animate-fade-up:   fadeUp 0.6s ease forwards;
