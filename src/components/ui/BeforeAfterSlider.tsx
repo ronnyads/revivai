@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 
 export default function BeforeAfterSlider({ before, after, lazy = false }: { before: string; after: string; lazy?: boolean }) {
   const [pos, setPos] = useState(50)
@@ -38,12 +39,10 @@ export default function BeforeAfterSlider({ before, after, lazy = false }: { bef
       onTouchStart={() => setDragging(true)}
     >
       {/* Before */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={before} alt="Foto original" loading={lazy ? 'lazy' : 'eager'} decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+      <Image src={before} alt="Foto original" fill sizes="(max-width: 768px) 100vw, 50vw" priority={!lazy} className="object-cover" />
       {/* After */}
       <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 0 0 ${pos}%)` }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={after} alt="Foto restaurada" loading={lazy ? 'lazy' : 'eager'} decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+        <Image src={after} alt="Foto restaurada" fill sizes="(max-width: 768px) 100vw, 50vw" priority={!lazy} className="object-cover" />
       </div>
       {/* Divider */}
       <div className="absolute top-0 bottom-0 w-0.5 bg-white z-10 pointer-events-none" style={{ left: `${pos}%` }}>
