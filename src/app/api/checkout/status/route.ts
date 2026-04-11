@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { PLANS, type PlanType } from '@/lib/mercadopago'
+import { getPlans, type PlanType } from '@/lib/mercadopago'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
     const { planId, userId, credits, email, isGuest } = payment.metadata ?? {}
 
     if (userId && planId) {
-      const plan = PLANS[planId as PlanType]
+      const plans = await getPlans()
+      const plan = plans[planId as PlanType]
       const admin = createAdminClient()
 
       if (planId === 'subscription') {

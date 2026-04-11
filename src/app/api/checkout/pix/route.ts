@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { Payment } from 'mercadopago'
-import { getMPClient, PLANS, type PlanType } from '@/lib/mercadopago'
+import { getMPClient, getPlans, type PlanType } from '@/lib/mercadopago'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { planId, email: bodyEmail, cpf } = body as { planId: PlanType; email: string; cpf: string }
 
-    const plan = PLANS[planId]
+    const plans = await getPlans()
+    const plan = plans[planId]
     if (!plan) return NextResponse.json({ success: false, error: 'Plano inválido' }, { status: 400 })
 
     const payerEmail = user?.email || bodyEmail

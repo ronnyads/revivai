@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
-import { PLANS } from '@/lib/mercadopago'
+import { getPlans } from '@/lib/mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
@@ -42,7 +42,8 @@ export async function POST(req: NextRequest) {
     const { planId, userId, credits } = payment.metadata ?? {}
     if (!userId || !planId) return NextResponse.json({ ok: true })
 
-    const plan = PLANS[planId as keyof typeof PLANS]
+    const plans = await getPlans()
+    const plan = plans[planId as keyof typeof plans]
 
     // Adicionar créditos / atualizar plano
     if (planId === 'subscription') {

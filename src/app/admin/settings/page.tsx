@@ -11,6 +11,11 @@ export default async function SettingsPage() {
 
   const pixelId = settings['meta_pixel_id'] || ''
 
+  async function savePixel(fd: FormData) {
+    'use server'
+    await saveSetting('meta_pixel_id', (fd.get('meta_pixel_id') as string) || '')
+  }
+
   return (
     <div>
       <div className="mb-8">
@@ -32,14 +37,7 @@ export default async function SettingsPage() {
           </div>
         </div>
 
-        <form
-          action={async (fd: FormData) => {
-            'use server'
-            const { saveSetting } = await import('./actions')
-            await saveSetting('meta_pixel_id', fd.get('meta_pixel_id') as string)
-          }}
-          className="flex flex-col gap-4"
-        >
+        <form action={savePixel} className="flex flex-col gap-4">
           <div>
             <label className="text-xs text-white/40 mb-1.5 block uppercase tracking-wide">Pixel ID</label>
             <input
@@ -62,33 +60,22 @@ export default async function SettingsPage() {
           </button>
         </form>
 
-        {pixelId && (
-          <div className="mt-4 pt-4 border-t border-white/[0.06]">
-            <p className="text-xs text-white/30 mb-3">Eventos configurados:</p>
-            <div className="flex flex-wrap gap-2">
-              {['PageView', 'InitiateCheckout', 'AddPaymentInfo', 'Purchase'].map(ev => (
-                <span key={ev} className="text-[10px] px-2 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20 font-mono">
-                  ✓ {ev}
-                </span>
-              ))}
-            </div>
+        <div className="mt-4 pt-4 border-t border-white/[0.06]">
+          <p className="text-xs text-white/30 mb-3">
+            {pixelId ? 'Eventos ativos:' : 'Eventos que serão ativados:'}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {['PageView', 'InitiateCheckout', 'AddPaymentInfo', 'Purchase'].map(ev => (
+              <span key={ev} className={`text-[10px] px-2 py-1 rounded-full border font-mono ${
+                pixelId
+                  ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                  : 'bg-white/5 text-white/20 border-white/10'
+              }`}>
+                {pixelId ? '✓ ' : ''}{ev}
+              </span>
+            ))}
           </div>
-        )}
-
-        {!pixelId && (
-          <div className="mt-4 pt-4 border-t border-white/[0.06]">
-            <p className="text-xs text-white/25">
-              Nenhum pixel configurado. Os eventos abaixo serão ativados automaticamente após salvar o ID:
-            </p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {['PageView', 'InitiateCheckout', 'AddPaymentInfo', 'Purchase'].map(ev => (
-                <span key={ev} className="text-[10px] px-2 py-1 rounded-full bg-white/5 text-white/20 border border-white/10 font-mono">
-                  {ev}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )
