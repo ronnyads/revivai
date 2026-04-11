@@ -7,6 +7,7 @@ interface Mode {
   prompt: string; model: string; is_active: boolean; sort_order: number
   example_before_url?: string | null; example_after_url?: string | null
   persona?: string | null; retry_prompt?: string | null; qc_threshold?: number
+  badge?: string | null
 }
 
 function ImageUploadField({ name, label, currentUrl }: {
@@ -126,6 +127,10 @@ export default function ModeEditor({ mode, models, deleteMode }: {
               <label className="text-xs text-white/40 mb-1 block">Nome</label>
               <input name="name" defaultValue={mode.name} required className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
             </div>
+          </div>
+          <div>
+            <label className="text-xs text-white/40 mb-1 block">Badge <span className="text-white/20">(ex: Recomendado, Premium, Mais rápido — deixe vazio para nenhum)</span></label>
+            <input name="badge" defaultValue={mode.badge ?? ''} placeholder="Ex: Recomendado" className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">

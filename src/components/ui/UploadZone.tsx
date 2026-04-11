@@ -61,8 +61,8 @@ export default function UploadZone({ onFile, disabled }: UploadZoneProps) {
         <Upload size={24} />
       </div>
       <div className="text-center">
-        <p className="text-base font-medium text-ink">Solte sua foto aqui</p>
-        <p className="text-sm text-muted mt-1">ou clique para selecionar</p>
+        <p className="text-base font-medium text-ink">Arraste sua foto aqui</p>
+        <p className="text-sm text-muted mt-1">ou toque para escolher do celular / computador</p>
       </div>
       <div className="flex gap-2 flex-wrap justify-center">
         {['JPG','PNG','TIFF','BMP'].map(f => (
@@ -70,6 +70,7 @@ export default function UploadZone({ onFile, disabled }: UploadZoneProps) {
         ))}
         <span className="text-xs px-2.5 py-1 rounded bg-white border border-[#E8E8E8] text-muted font-medium">até 50MB</span>
       </div>
+      <p className="text-[11px] text-muted mt-1">Sua foto não é compartilhada com ninguém</p>
     </label>
   )
 }

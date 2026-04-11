@@ -15,6 +15,7 @@ export async function createMode(formData: FormData) {
     persona:      (formData.get('persona')      as string) || null,
     retry_prompt: (formData.get('retry_prompt') as string) || null,
     qc_threshold: parseInt(formData.get('qc_threshold') as string) || 70,
+    badge:        (formData.get('badge') as string) || null,
   }).select('id').single()
 
   revalidatePath('/admin/prompts')
@@ -38,6 +39,7 @@ export async function updateMode(id: string, formData: FormData) {
     qc_threshold:       parseInt(formData.get('qc_threshold') as string) || 70,
     example_before_url: (formData.get('example_before_url') as string) || null,
     example_after_url:  (formData.get('example_after_url')  as string) || null,
+    badge:              (formData.get('badge') as string) || null,
   }).eq('id', id)
 
   revalidatePath('/admin/prompts')

@@ -9,7 +9,7 @@ import BeforeAfterSlider from '@/components/ui/BeforeAfterSlider'
 import { ArrowLeft, Sparkles, AlertCircle, ChevronDown } from 'lucide-react'
 
 type Step  = 'upload' | 'diagnosing' | 'restoring' | 'done' | 'error'
-type Mode  = { id: string; name: string; description: string; icon: string; model: string; example_before_url: string | null; example_after_url: string | null }
+type Mode  = { id: string; name: string; description: string; icon: string; model: string; example_before_url: string | null; example_after_url: string | null; badge: string | null }
 
 export default function UploadPage() {
   const router     = useRouter()
@@ -151,8 +151,8 @@ export default function UploadPage() {
   return (
     <div className="min-h-screen bg-surface">
       <main className="max-w-4xl mx-auto px-6 py-10 md:py-14">
-        <h1 className="font-display text-5xl font-normal tracking-tight mb-1">Nova restauração</h1>
-        <p className="text-muted text-sm mb-10">Escolha o modo certo para sua foto e a IA faz o resto.</p>
+        <h1 className="font-display text-5xl font-normal tracking-tight mb-1">Restaure sua foto antiga</h1>
+        <p className="text-muted text-sm mb-10">Escolha como quer restaurar — a IA cuida do resto em segundos.</p>
 
         {/* UPLOAD STEP */}
         {step === 'upload' && (
@@ -160,7 +160,7 @@ export default function UploadPage() {
             {/* Mode selection */}
             {modes.length > 0 && (
               <div className="mb-10">
-                <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-5">1. Selecione o modo de restauração</p>
+                <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-5">Qual é o tipo da sua foto?</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {modes.map(mode => {
                     const isSelected = selectedMode === mode.id
@@ -192,6 +192,12 @@ export default function UploadPage() {
                               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                               <span className="absolute bottom-3 right-3 text-[10px] font-bold text-white/90 tracking-[2px] uppercase">Depois ✦</span>
                             </div>
+                            {/* Badge pill */}
+                            {mode.badge && (
+                              <span className={`absolute top-2.5 left-2.5 z-20 text-[10px] font-bold px-2.5 py-0.5 rounded-full text-white shadow ${
+                                mode.badge === 'Premium' ? 'bg-purple-600' : mode.badge === 'Recomendado' ? 'bg-emerald-500' : 'bg-accent'
+                              }`}>{mode.badge}</span>
+                            )}
                             {/* Selected overlay */}
                             {isSelected && (
                               <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-accent text-white text-[10px] font-bold px-3 py-1 rounded-full tracking-widest uppercase shadow-md">
@@ -202,8 +208,13 @@ export default function UploadPage() {
                             <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white z-10 pointer-events-none" />
                           </div>
                         ) : (
-                          <div className={`h-20 flex items-center justify-center text-4xl ${isSelected ? 'bg-accent-light/40' : 'bg-surface'}`}>
+                          <div className={`h-28 flex items-center justify-center text-4xl relative ${isSelected ? 'bg-accent-light/40' : 'bg-surface'}`}>
                             {isEmoji ? mode.icon : '✨'}
+                            {mode.badge && (
+                              <span className={`absolute top-2.5 left-2.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full text-white shadow ${
+                                mode.badge === 'Premium' ? 'bg-purple-600' : mode.badge === 'Recomendado' ? 'bg-emerald-500' : 'bg-accent'
+                              }`}>{mode.badge}</span>
+                            )}
                           </div>
                         )}
 
@@ -233,7 +244,7 @@ export default function UploadPage() {
               </div>
             )}
 
-            <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-4">2. Envie sua foto</p>
+            <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-4">Agora envie a foto</p>
             <UploadZone onFile={f => setFile(f)} />
 
             {file && (
@@ -241,7 +252,7 @@ export default function UploadPage() {
                 onClick={handleRestore}
                 className="mt-5 w-full flex items-center justify-center gap-2 bg-accent text-white py-4 rounded-xl text-base font-medium hover:bg-accent-dark transition-all hover:-translate-y-0.5 shadow-lg shadow-accent/20"
               >
-                <Sparkles size={18} /> Restaurar com IA →
+                <Sparkles size={18} /> Restaurar foto →
               </button>
             )}
           </>
