@@ -8,14 +8,14 @@ const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
   weight: ['400', '500', '600'],
   style: ['normal', 'italic'],
-  display: 'swap',
+  display: 'optional',
   variable: '--font-display-gf',
 })
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600'],
-  display: 'swap',
+  display: 'optional',
   variable: '--font-sans-gf',
 })
 
