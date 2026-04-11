@@ -42,9 +42,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className={`${cormorant.variable} ${dmSans.variable} ${newsreader.variable}`}>
       <head>
-        {/* Material Symbols — icon font, non-critical */}
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
+        {/* Material Symbols loaded async after paint — 3.8MB icon font must not block FCP */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block';document.head.appendChild(l)})()` }} />
       </head>
       <body>
         <Suspense>
