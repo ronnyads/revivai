@@ -61,11 +61,11 @@ export default function PhotoCard({ photo, credits = 0 }: { photo: Photo; credit
 
   return (
     <div className="bg-white border border-[#E8E8E8] rounded-xl overflow-hidden hover:-translate-y-0.5 transition-transform duration-300 group">
-      <div className="relative aspect-square bg-surface overflow-hidden">
+      <div className="relative aspect-[4/3] bg-[#f0eeec] overflow-hidden flex items-center justify-center">
         <img
           src={displayUrl!}
           alt="Foto"
-          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
+          className="max-w-full max-h-full w-full h-full object-contain group-hover:scale-[1.02] transition-transform duration-500"
         />
         {photo.status === 'processing' && (
           <div className="absolute inset-0 bg-white/70 backdrop-blur-sm flex items-center justify-center">
