@@ -190,10 +190,12 @@ export async function POST(req: NextRequest) {
       qc: Awaited<ReturnType<typeof assessRestorationQualityV2>>
     }
 
+    const userId = user.id
+
     async function runAttempt(prompt: string, isRetry: boolean, tag: string): Promise<AttemptResult> {
       console.log(`[restore] Attempt ${tag} for ${photo.id} (photo_type=${aiDiagnosis.photo_type} risk=${aiDiagnosis.restoration_risk})`)
       const buf = await restoreWithGemini(cleanBuffer, prompt, modeModel, isRetry, modePersona, modeRetryPrompt)
-      const fileName = `${user.id}/${Date.now()}_${tag}.jpg`
+      const fileName = `${userId}/${Date.now()}_${tag}.jpg`
       const { error: upErr } = await supabase.storage.from('photos').upload(fileName, buf as any, { contentType: 'image/jpeg', upsert: false })
       if (upErr) throw new Error(`Upload ${tag} falhou: ${upErr.message}`)
       const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(fileName)
