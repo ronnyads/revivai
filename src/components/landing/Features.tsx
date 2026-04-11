@@ -71,7 +71,7 @@ export default function Features() {
             {/* Before/After */}
             <div className="flex justify-center">
               <div className="w-full max-w-sm">
-                <BeforeAfterSlider before={f.before} after={f.after} />
+                <BeforeAfterSlider before={f.before} after={f.after} lazy />
               </div>
             </div>
           </div>
