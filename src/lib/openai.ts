@@ -75,7 +75,6 @@ Regras de Análise:
 
   } catch (error: any) {
     console.error('[sovereign] Falha ao analisar com GPT-4o:', error.message)
-    // Em caso de falha do roteador, ativamos o robusto com segurança default (sem inpaint pois é raro e lento)
     return { needs_scratch_removal: false, needs_colorization: true, needs_face_restoration: true }
   }
 }
@@ -83,15 +82,20 @@ Regras de Análise:
 // ─── Enterprise Damage Analysis ──────────────────────────────────────────────
 
 export interface EnterpriseAnalysis {
-  has_scratches: boolean        // riscos, arranhões, dobras
-  has_tears_or_holes: boolean   // rasgos, buracos, partes faltando
-  has_mold_or_stains: boolean   // mofo, manchas d'água, manchas químicas
-  has_blur: boolean             // desfoque de movimento ou foco
-  has_grain_or_noise: boolean   // granulação de filme, ruído digital
-  has_jpeg_artifacts: boolean   // blocos JPEG, pixelização por compressão
-  has_faces: boolean            // rostos de pessoas identificáveis
-  is_grayscale_or_sepia: boolean // P&B, sépia ou monocromático
+  has_scratches: boolean
+  has_tears_or_holes: boolean
+  has_mold_or_stains: boolean
+  has_blur: boolean
+  has_grain_or_noise: boolean
+  has_jpeg_artifacts: boolean
+  has_faces: boolean
+  is_grayscale_or_sepia: boolean
   damage_severity: 'light' | 'moderate' | 'severe'
+  // v2 — tipo e risco
+  photo_type: 'document' | 'single_portrait' | 'group' | 'landscape' | 'unknown'
+  face_count_estimate: 'none' | 'one' | 'few' | 'many'
+  face_size_estimate: 'large' | 'medium' | 'small' | 'unknown'
+  restoration_risk: 'low' | 'medium' | 'high'
 }
 
 export async function analyzeEnterpriseDamage(imageUrl: string): Promise<EnterpriseAnalysis> {
@@ -102,26 +106,51 @@ export async function analyzeEnterpriseDamage(imageUrl: string): Promise<Enterpr
       has_scratches: false, has_tears_or_holes: false, has_mold_or_stains: false,
       has_blur: false, has_grain_or_noise: true, has_jpeg_artifacts: false,
       has_faces: true, is_grayscale_or_sepia: true, damage_severity: 'moderate',
+      photo_type: 'unknown', face_count_estimate: 'one', face_size_estimate: 'unknown',
+      restoration_risk: 'medium',
     }
   }
 
   const prompt = `
 Você é um especialista técnico em restauração de fotos antigas. Analise a imagem com precisão.
 
-AVALIE CADA CAMPO. Na dúvida, marque TRUE — é melhor aplicar um modelo desnecessário do que deixar um dano sem tratar:
+AVALIE CADA CAMPO:
 
-1. has_scratches: TRUE se há qualquer linha branca, risco linear, arranhão, dobra, amassado, ou crack visível na foto — mesmo finos ou parciais
-2. has_tears_or_holes: TRUE se há rasgos, cortes, buracos, partes faltando, ou linhas brancas largas que parecem rachaduras de vidro ou papel rasgado
-3. has_mold_or_stains: TRUE se há manchas de mofo (áreas brancas/acinzentadas difusas), manchas d'água, manchas químicas, degradação da emulsão que cria áreas esbranquiçadas irregulares, ou qualquer mancha que não seja parte da imagem original
+DANOS (na dúvida, marque TRUE):
+1. has_scratches: TRUE se há riscos lineares, arranhões, dobras, amassados, cracks visíveis
+2. has_tears_or_holes: TRUE se há rasgos, cortes, buracos, partes faltando, linhas largas de papel rasgado
+3. has_mold_or_stains: TRUE se há manchas de mofo, manchas d'água, degradação da emulsão, manchas irregulares
 4. has_blur: TRUE se a imagem está tremida, desfocada por movimento, ou com foco incorreto
-5. has_grain_or_noise: TRUE se há granulação de filme antigo, ruído digital, ou textura de pontinhos visíveis que reduzem a nitidez
-6. has_jpeg_artifacts: TRUE se há blocos quadrados 8x8 ou pixelização por compressão JPEG
-7. has_faces: TRUE se há rostos de pessoas identificáveis na foto
-8. is_grayscale_or_sepia: TRUE se a foto é Preto e Branco, Sépia, ou Monocromática
-9. damage_severity:
-   - "light" = dano leve, estrutura bem preservada
-   - "moderate" = danos moderados, foto reconhecível mas com problemas claros
-   - "severe" = danos severos, partes significativas perdidas ou extremamente degradadas
+5. has_grain_or_noise: TRUE se há granulação de filme antigo ou ruído digital visível
+6. has_jpeg_artifacts: TRUE se há blocos 8x8 ou pixelização por compressão JPEG
+7. has_faces: TRUE se há rostos de pessoas identificáveis
+8. is_grayscale_or_sepia: TRUE se a foto é P&B, sépia ou monocromática
+9. damage_severity: "light" / "moderate" / "severe"
+
+CLASSIFICAÇÃO DO TIPO DE FOTO:
+10. photo_type:
+    - "document": 3x4, carteira de identidade, passaporte, foto de documento, fundo neutro com 1 rosto centralizado
+    - "single_portrait": retrato de 1 pessoa com enquadramento de busto/rosto, não é documento
+    - "group": 2 ou mais pessoas visíveis na foto
+    - "landscape": paisagem, arquitetura, objetos sem pessoas
+    - "unknown": impossível determinar
+
+11. face_count_estimate:
+    - "none": nenhum rosto
+    - "one": 1 rosto
+    - "few": 2-4 rostos
+    - "many": 5 ou mais rostos
+
+12. face_size_estimate: tamanho médio dos rostos em relação à imagem total
+    - "large": rostos ocupam mais de 30% da imagem
+    - "medium": rostos entre 10-30% da imagem
+    - "small": rostos menores que 10% (difíceis de restaurar com precisão)
+    - "unknown": sem rostos ou impossível avaliar
+
+13. restoration_risk: risco de degradação de identidade facial durante a restauração
+    - "high": grupo com rostos pequenos OU dano severo + has_faces OU photo_type=document (identidade crítica)
+    - "medium": retrato único com dano moderado OU grupo com rostos médios
+    - "low": paisagem, retrato com dano leve, ou sem faces
 `
 
   try {
@@ -148,20 +177,25 @@ AVALIE CADA CAMPO. Na dúvida, marque TRUE — é melhor aplicar um modelo desne
             schema: {
               type: 'object',
               properties: {
-                has_scratches:        { type: 'boolean' },
-                has_tears_or_holes:   { type: 'boolean' },
-                has_mold_or_stains:   { type: 'boolean' },
-                has_blur:             { type: 'boolean' },
-                has_grain_or_noise:   { type: 'boolean' },
-                has_jpeg_artifacts:   { type: 'boolean' },
-                has_faces:            { type: 'boolean' },
-                is_grayscale_or_sepia:{ type: 'boolean' },
-                damage_severity:      { type: 'string', enum: ['light', 'moderate', 'severe'] },
+                has_scratches:         { type: 'boolean' },
+                has_tears_or_holes:    { type: 'boolean' },
+                has_mold_or_stains:    { type: 'boolean' },
+                has_blur:              { type: 'boolean' },
+                has_grain_or_noise:    { type: 'boolean' },
+                has_jpeg_artifacts:    { type: 'boolean' },
+                has_faces:             { type: 'boolean' },
+                is_grayscale_or_sepia: { type: 'boolean' },
+                damage_severity:       { type: 'string', enum: ['light', 'moderate', 'severe'] },
+                photo_type:            { type: 'string', enum: ['document', 'single_portrait', 'group', 'landscape', 'unknown'] },
+                face_count_estimate:   { type: 'string', enum: ['none', 'one', 'few', 'many'] },
+                face_size_estimate:    { type: 'string', enum: ['large', 'medium', 'small', 'unknown'] },
+                restoration_risk:      { type: 'string', enum: ['low', 'medium', 'high'] },
               },
               required: [
                 'has_scratches', 'has_tears_or_holes', 'has_mold_or_stains',
                 'has_blur', 'has_grain_or_noise', 'has_jpeg_artifacts',
                 'has_faces', 'is_grayscale_or_sepia', 'damage_severity',
+                'photo_type', 'face_count_estimate', 'face_size_estimate', 'restoration_risk',
               ],
               additionalProperties: false,
             },
@@ -185,15 +219,17 @@ AVALIE CADA CAMPO. Na dúvida, marque TRUE — é melhor aplicar um modelo desne
       has_scratches: false, has_tears_or_holes: false, has_mold_or_stains: false,
       has_blur: false, has_grain_or_noise: true, has_jpeg_artifacts: false,
       has_faces: true, is_grayscale_or_sepia: true, damage_severity: 'moderate',
+      photo_type: 'unknown', face_count_estimate: 'one', face_size_estimate: 'unknown',
+      restoration_risk: 'medium',
     }
   }
 }
 
-// ─── AI Quality Gate ──────────────────────────────────────────────────────────
+// ─── AI Quality Gate v1 (mantido para compatibilidade com webhook Replicate) ──
 
 export interface QualityAssessment {
   passed: boolean
-  score: number   // 0-100
+  score: number
   reason: string
 }
 
@@ -240,10 +276,7 @@ Responda APENAS no JSON Schema exigido.
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
@@ -277,7 +310,6 @@ Responda APENAS no JSON Schema exigido.
     })
 
     if (!response.ok) throw new Error(`OpenAI error: ${await response.text()}`)
-
     const data    = await response.json()
     const content = data.choices[0]?.message?.content
     if (!content) throw new Error('OpenAI retornou vazio')
@@ -285,13 +317,160 @@ Responda APENAS no JSON Schema exigido.
     const parsed = JSON.parse(content) as { score: number; reason: string }
     console.log(`[quality-gate] AI score=${parsed.score} reason=${parsed.reason}`)
 
-    return {
-      passed: parsed.score >= 70,
-      score:  parsed.score,
-      reason: parsed.reason,
-    }
+    return { passed: parsed.score >= 70, score: parsed.score, reason: parsed.reason }
   } catch (err: any) {
     console.warn('[quality-gate] AI QC falhou (non-blocking):', err.message)
     return { passed: true, score: 75, reason: 'Erro na avaliação — aprovado por padrão' }
+  }
+}
+
+// ─── AI Quality Gate v2 — multi-score com pesos por tipo de foto ──────────────
+
+export interface QualityAssessmentV2 {
+  overall_score: number          // 0-100 (média ponderada)
+  visual_quality: number         // nitidez, ruído, artefatos
+  identity_preservation: number  // rostos preservados (mesmo que diferentes do danificado)
+  composition_fidelity: number   // fundo, geometria, proporções
+  hallucination_risk: number     // 100 = zero alucinação, 0 = muito alucinado
+  passed: boolean
+  confidence: 'high' | 'medium' | 'low'
+  reason: string
+}
+
+const WEIGHTS: Record<string, { identity: number; composition: number; visual: number; hallucination: number }> = {
+  document:        { identity: 0.45, composition: 0.25, visual: 0.20, hallucination: 0.10 },
+  single_portrait: { identity: 0.35, composition: 0.25, visual: 0.25, hallucination: 0.15 },
+  group:           { identity: 0.40, composition: 0.30, visual: 0.20, hallucination: 0.10 },
+  landscape:       { identity: 0.10, composition: 0.35, visual: 0.35, hallucination: 0.20 },
+  unknown:         { identity: 0.30, composition: 0.30, visual: 0.25, hallucination: 0.15 },
+}
+
+export async function assessRestorationQualityV2(
+  originalUrl: string,
+  restoredUrl: string,
+  photoType: EnterpriseAnalysis['photo_type'] = 'unknown',
+  threshold = 70,
+): Promise<QualityAssessmentV2> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    return {
+      overall_score: 80, visual_quality: 80, identity_preservation: 80,
+      composition_fidelity: 80, hallucination_risk: 80,
+      passed: true, confidence: 'medium', reason: 'API key ausente — aprovado por padrão',
+    }
+  }
+
+  const typeContext: Record<string, string> = {
+    document: 'Esta é uma foto de DOCUMENTO (3x4, identidade). A identidade facial é CRÍTICA.',
+    single_portrait: 'Esta é um RETRATO individual. Preservação de identidade é muito importante.',
+    group: 'Esta é uma foto de GRUPO com múltiplas pessoas. Cada rosto deve ser preservado.',
+    landscape: 'Esta é uma PAISAGEM sem pessoas. Priorize qualidade visual e composição.',
+    unknown: 'Tipo de foto não identificado. Avalie todos os critérios com peso igual.',
+  }
+
+  const prompt = `
+Você é um especialista em controle de qualidade de restauração de fotos antigas.
+A PRIMEIRA imagem é a ORIGINAL DANIFICADA. A SEGUNDA é a RESTAURADA pela IA.
+
+CONTEXTO: ${typeContext[photoType] || typeContext.unknown}
+
+Avalie INDEPENDENTEMENTE cada dimensão de 0 a 100:
+
+1. visual_quality (0-100): Nitidez, ausência de ruído, artefatos de compressão, qualidade geral da imagem restaurada vs. original
+   100 = perfeitamente nítida, sem artefatos | 0 = pior que o original
+
+2. identity_preservation (0-100): Os rostos na restaurada PARECEM humanos e preservam a essência das pessoas?
+   100 = rostos naturais e credíveis | 50 = rostos melhorados mas com pequenas alterações | 0 = rostos plásticos/inventados
+   NOTA: rostos podem ser DIFERENTES do original danificado — isso é normal. Penalize se parecerem boneco/plástico/aberrante.
+
+3. composition_fidelity (0-100): A composição, geometria e fundo batem com o original?
+   100 = idêntico ao original em composição | 0 = pessoas adicionadas/removidas, fundo completamente diferente
+
+4. hallucination_risk (0-100): INVERTED — 100 = zero alucinação, 0 = muito alucinado
+   100 = conteúdo consistente com o original | 0 = inventou partes, membros extras, objetos que não existiam
+
+Reponda APENAS no JSON Schema exigido.
+`
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: prompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Avalie a restauração nas 4 dimensões.' },
+              { type: 'image_url', image_url: { url: originalUrl, detail: 'high' } },
+              { type: 'image_url', image_url: { url: restoredUrl, detail: 'high' } },
+            ],
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'quality_v2',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                visual_quality:        { type: 'number' },
+                identity_preservation: { type: 'number' },
+                composition_fidelity:  { type: 'number' },
+                hallucination_risk:    { type: 'number' },
+                reason:                { type: 'string' },
+              },
+              required: ['visual_quality', 'identity_preservation', 'composition_fidelity', 'hallucination_risk', 'reason'],
+              additionalProperties: false,
+            },
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) throw new Error(`OpenAI error: ${await response.text()}`)
+    const data    = await response.json()
+    const content = data.choices[0]?.message?.content
+    if (!content) throw new Error('OpenAI retornou vazio')
+
+    const parsed = JSON.parse(content) as {
+      visual_quality: number; identity_preservation: number;
+      composition_fidelity: number; hallucination_risk: number; reason: string
+    }
+
+    const w = WEIGHTS[photoType] || WEIGHTS.unknown
+    const overall_score = Math.round(
+      parsed.visual_quality        * w.visual +
+      parsed.identity_preservation * w.identity +
+      parsed.composition_fidelity  * w.composition +
+      parsed.hallucination_risk    * w.hallucination
+    )
+
+    const confidence: QualityAssessmentV2['confidence'] =
+      parsed.identity_preservation >= 80 ? 'high' :
+      parsed.identity_preservation >= 60 ? 'medium' : 'low'
+
+    console.log(`[quality-gate-v2] type=${photoType} overall=${overall_score} identity=${parsed.identity_preservation} visual=${parsed.visual_quality} composition=${parsed.composition_fidelity} hallucination=${parsed.hallucination_risk} confidence=${confidence}`)
+
+    return {
+      overall_score,
+      visual_quality:        parsed.visual_quality,
+      identity_preservation: parsed.identity_preservation,
+      composition_fidelity:  parsed.composition_fidelity,
+      hallucination_risk:    parsed.hallucination_risk,
+      passed:    overall_score >= threshold,
+      confidence,
+      reason:    parsed.reason,
+    }
+  } catch (err: any) {
+    console.warn('[quality-gate-v2] QC falhou (non-blocking):', err.message)
+    return {
+      overall_score: 75, visual_quality: 75, identity_preservation: 75,
+      composition_fidelity: 75, hallucination_risk: 75,
+      passed: true, confidence: 'medium', reason: 'Erro na avaliação — aprovado por padrão',
+    }
   }
 }

@@ -158,59 +158,124 @@ export async function POST(req: NextRequest) {
 
   console.log(`[restore] mode=${modeId ?? 'default'} model=${modeModel} persona=${!!modePersona} qc_threshold=${modeQcThreshold}`)
 
-  // ── Restore with Gemini (synchronous) ──
+  // ── Prompts por tipo de foto ──
+  const DOCUMENT_PROMPT = 'Restore this identity document photograph. Preserve the exact facial features and identity of the person. Use a clean white or neutral background. Apply ZERO beautification or artistic enhancement. Conservative, minimal-intervention approach only — remove only visible damage marks.'
+  const GROUP_PROMPT = 'Restore this group photograph. Preserve every person\'s unique facial identity precisely — do not alter faces, expressions, age, or relative proportions between people. Remove only physical damage (scratches, stains, blur) while keeping all human features exactly as they are.'
+  const CONSERVATIVE_PROMPT = 'Restore this photograph with minimal intervention. Remove only clearly visible damage marks (dust, scratches, stains). Do NOT change faces, expressions, composition, or overall appearance. Preserve everything as close to the original as possible.'
+  const ULTRA_CONSERVATIVE_PROMPT = 'Remove only dust and scratches from this photograph. Preserve ALL other details exactly as they are — faces, expressions, clothing, background. Make no improvements to image quality beyond basic damage removal.'
+
+  // Escolher prompt base pelo tipo detectado (se não tem modo customizado)
+  const isDefaultMode = !modeId
+  let effectivePrompt = modePrompt
+  if (isDefaultMode) {
+    if (aiDiagnosis.photo_type === 'document') effectivePrompt = DOCUMENT_PROMPT
+    else if (aiDiagnosis.photo_type === 'group') effectivePrompt = GROUP_PROMPT
+  }
+
+  // Se risco alto, adicionar instrução de preservação mesmo em modo customizado
+  if (aiDiagnosis.restoration_risk === 'high' && !effectivePrompt.includes('preserve')) {
+    effectivePrompt = effectivePrompt + ' Preserve all facial features and identities exactly.'
+  }
+
+  const startTime = Date.now()
+
+  // ── Restore with Gemini — 3-attempt strategy ──
   try {
-    console.log(`[restore] Calling Gemini for photo ${photo.id}...`)
-    const restoredBuffer = await restoreWithGemini(cleanBuffer, modePrompt, modeModel, false, modePersona, modeRetryPrompt)
+    const { assessRestorationQualityV2 } = await import('@/lib/openai')
+    const { createAdminClient } = await import('@/lib/supabase/admin')
+    const adminClient = createAdminClient()
 
-    // Upload restored image
-    const restoredFileName = `${user.id}/${Date.now()}_restored.jpg`
-    const { error: restoredUploadError } = await supabase.storage
-      .from('photos')
-      .upload(restoredFileName, restoredBuffer as any, { contentType: 'image/jpeg', upsert: false })
+    interface AttemptResult {
+      url: string
+      qc: Awaited<ReturnType<typeof assessRestorationQualityV2>>
+    }
 
-    if (restoredUploadError) throw new Error(`Upload resultado falhou: ${restoredUploadError.message}`)
+    async function runAttempt(prompt: string, isRetry: boolean, tag: string): Promise<AttemptResult> {
+      console.log(`[restore] Attempt ${tag} for ${photo.id} (photo_type=${aiDiagnosis.photo_type} risk=${aiDiagnosis.restoration_risk})`)
+      const buf = await restoreWithGemini(cleanBuffer, prompt, modeModel, isRetry, modePersona, modeRetryPrompt)
+      const fileName = `${user.id}/${Date.now()}_${tag}.jpg`
+      const { error: upErr } = await supabase.storage.from('photos').upload(fileName, buf as any, { contentType: 'image/jpeg', upsert: false })
+      if (upErr) throw new Error(`Upload ${tag} falhou: ${upErr.message}`)
+      const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(fileName)
+      const qc = await assessRestorationQualityV2(originalUrl, publicUrl, aiDiagnosis.photo_type, modeQcThreshold)
+      console.log(`[restore] Attempt ${tag}: overall=${qc.overall_score} identity=${qc.identity_preservation} confidence=${qc.confidence}`)
+      return { url: publicUrl, qc }
+    }
 
-    const { data: { publicUrl: restoredUrl } } = supabase.storage
-      .from('photos').getPublicUrl(restoredFileName)
+    // Tentativa A — prompt principal
+    const attemptA = await runAttempt(effectivePrompt, false, 'A')
+    const attemptScores: number[] = [attemptA.qc.overall_score]
 
-    // ── Quality gate ──
-    const { assessRestorationQuality } = await import('@/lib/openai')
-    const qc = await assessRestorationQuality(originalUrl, restoredUrl)
-    console.log(`[gemini] QC score=${qc.score} | ${qc.reason}`)
+    let finalResult = attemptA
+    let finalAttempt = 'A'
 
-    let finalUrl = restoredUrl
-    let finalScore = qc.score
-
-    // Retry com prompt conservador se qualidade baixa
-    if (qc.score < modeQcThreshold) {
+    // Tentativa B — se A falhou QC ou confiança baixa
+    if (!attemptA.qc.passed || attemptA.qc.confidence === 'low') {
       try {
-        console.log(`[gemini] Score baixo (${qc.score}), retrying com prompt conservador...`)
-        const retryBuffer = await restoreWithGemini(cleanBuffer, modePrompt, modeModel, true, modePersona, modeRetryPrompt)
-        const retryFileName = `${user.id}/${Date.now()}_retry.jpg`
-        await supabase.storage.from('photos')
-          .upload(retryFileName, retryBuffer as any, { contentType: 'image/jpeg', upsert: false })
-        const { data: { publicUrl: retryUrl } } = supabase.storage.from('photos').getPublicUrl(retryFileName)
-        const qc2 = await assessRestorationQuality(originalUrl, retryUrl)
-        console.log(`[gemini] Retry QC score=${qc2.score} | using ${qc2.score > qc.score ? 'retry' : 'original'}`)
-        if (qc2.score > qc.score) { finalUrl = retryUrl; finalScore = qc2.score }
-      } catch (retryErr: any) {
-        console.warn('[gemini] Retry falhou, usando resultado original:', retryErr.message)
+        const attemptB = await runAttempt(CONSERVATIVE_PROMPT, true, 'B')
+        attemptScores.push(attemptB.qc.overall_score)
+        if (attemptB.qc.overall_score > finalResult.qc.overall_score) {
+          finalResult = attemptB; finalAttempt = 'B'
+        }
+
+        // Tentativa C — apenas para grupo/documento se B ainda baixo
+        if (
+          attemptB.qc.confidence === 'low' &&
+          (aiDiagnosis.photo_type === 'group' || aiDiagnosis.photo_type === 'document')
+        ) {
+          try {
+            const attemptC = await runAttempt(ULTRA_CONSERVATIVE_PROMPT, true, 'C')
+            attemptScores.push(attemptC.qc.overall_score)
+            if (attemptC.qc.overall_score > finalResult.qc.overall_score) {
+              finalResult = attemptC; finalAttempt = 'C'
+            }
+          } catch (cErr: any) {
+            console.warn('[restore] Tentativa C falhou:', cErr.message)
+          }
+        }
+      } catch (bErr: any) {
+        console.warn('[restore] Tentativa B falhou:', bErr.message)
       }
     }
 
-    // Mark as done + debit credit
-    const { createAdminClient } = await import('@/lib/supabase/admin')
-    const adminClient = createAdminClient()
+    const qc = finalResult.qc
+    const finalUrl = finalResult.url
+    const confidenceFlag = qc.confidence === 'low' ? 'low' : null
+
+    // Log estruturado
+    console.log(JSON.stringify({
+      event: 'restoration_complete',
+      photoId: photo.id,
+      userId: user.id,
+      photo_type: aiDiagnosis.photo_type,
+      face_count_estimate: aiDiagnosis.face_count_estimate,
+      restoration_risk: aiDiagnosis.restoration_risk,
+      attempt_scores: attemptScores,
+      final_attempt: finalAttempt,
+      confidence: qc.confidence,
+      model: modeModel,
+      duration_ms: Date.now() - startTime,
+    }))
+
+    // Salvar resultado
     await adminClient.from('photos').update({
       status:                 'done',
       restored_url:           finalUrl,
-      diagnosis:              finalScore >= 70 ? 'Restauração concluída ✨' : 'Restauração entregue ⚠️',
+      diagnosis:              qc.passed ? 'Restauração concluída ✨' : 'Restauração entregue ⚠️',
       colorization_suggested: aiDiagnosis.is_grayscale_or_sepia,
+      photo_type:             aiDiagnosis.photo_type,
+      restoration_risk:       aiDiagnosis.restoration_risk,
+      confidence_flag:        confidenceFlag,
+      qc_scores: {
+        overall:      qc.overall_score,
+        identity:     qc.identity_preservation,
+        visual:       qc.visual_quality,
+        composition:  qc.composition_fidelity,
+        hallucination: qc.hallucination_risk,
+        attempt:      finalAttempt,
+      },
     }).eq('id', photo.id)
     await adminClient.rpc('debit_credit', { user_id_param: user.id })
-
-    console.log(`[restore] Gemini done for ${photo.id}: ${restoredUrl}`)
 
     return NextResponse.json({
       photoId:     photo.id,
@@ -219,18 +284,19 @@ export async function POST(req: NextRequest) {
       restoredUrl: finalUrl,
       diagnosis: {
         label:       'Restauração Gemini IA',
-        description: 'Restauração concluída ✨',
-        icon:        '✨',
-        confidence:  99,
-        model:       'gemini-2.0-flash-exp-image-generation',
+        description: qc.passed ? 'Restauração concluída ✨' : 'Restauração entregue ⚠️',
+        icon:        qc.confidence === 'low' ? '⚠️' : '✨',
+        confidence:  qc.overall_score,
+        model:       modeModel,
       },
       imageInfo: {
         width:       imageStats.width,
         height:      imageStats.height,
         isGrayscale: imageStats.isGrayscale,
       },
-      pipeline:                [],
-      colorization_suggested:  aiDiagnosis.is_grayscale_or_sepia,
+      pipeline:               [],
+      colorization_suggested: aiDiagnosis.is_grayscale_or_sepia,
+      confidence_flag:        confidenceFlag,
     })
 
   } catch (err: any) {

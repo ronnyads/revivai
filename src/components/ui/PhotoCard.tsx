@@ -83,6 +83,9 @@ export default function PhotoCard({ photo, credits = 0 }: { photo: Photo; credit
           {colorizationUrl && !upscaleUrl && (
             <span className="bg-amber-500/80 text-white text-[10px] px-2 py-0.5 rounded-full">cor</span>
           )}
+          {photo.confidence_flag === 'low' && photo.status === 'done' && (
+            <span className="bg-yellow-400/90 text-yellow-900 text-[10px] px-2 py-0.5 rounded-full font-medium">⚠️ conservador</span>
+          )}
         </div>
       </div>
 
