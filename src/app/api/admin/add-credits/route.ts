@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -28,5 +29,6 @@ export async function POST(req: NextRequest) {
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
 
   console.log(`[admin] +${amount} credits → ${userId} (total: ${target.credits + amount})`)
+  revalidatePath('/dashboard', 'layout')
   return NextResponse.json({ ok: true, newTotal: target.credits + amount })
 }
