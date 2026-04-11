@@ -61,7 +61,7 @@ export default function Features() {
               </h3>
               <p className="text-base text-muted leading-relaxed mb-8">{f.desc}</p>
               <a
-                href="/dashboard/upload"
+                href="/#pricing"
                 className="inline-flex items-center gap-2 bg-ink text-white text-sm font-medium px-6 py-3 rounded border-[1.5px] border-ink hover:bg-accent hover:border-accent transition-all duration-200"
               >
                 Restaurar minha foto →

@@ -27,7 +27,7 @@ export default function HomePage() {
           </h2>
           <p className="text-white/50 text-lg mb-10 relative">Comece agora. Primeira foto com diagnóstico gratuito.</p>
           <a
-            href="/dashboard/upload"
+            href="/#pricing"
             className="inline-block bg-accent text-white text-base font-medium px-10 py-4 rounded border-[1.5px] border-accent hover:bg-accent-dark hover:border-accent-dark transition-all duration-200 shadow-lg shadow-accent/20 relative"
           >
             Restaurar minha foto →

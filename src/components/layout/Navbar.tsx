@@ -73,7 +73,7 @@ export default function Navbar() {
               Entrar
             </Link>
             <Link
-              href="/dashboard/upload"
+              href="/#pricing"
               className="text-sm font-medium px-6 py-2.5 transition-all duration-200"
               style={{ backgroundColor: '#D94F2E', color: '#fff' }}
             >
@@ -110,7 +110,7 @@ export default function Navbar() {
           ))}
           <Link href="/auth/login" className="text-sm font-medium" style={{ color: '#e5e2e1' }}>Entrar</Link>
           <Link
-            href="/dashboard/upload"
+            href="/#pricing"
             className="text-sm text-center font-medium px-6 py-3"
             style={{ backgroundColor: '#D94F2E', color: '#fff' }}
           >

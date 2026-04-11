@@ -45,7 +45,7 @@ export default function Hero() {
           </p>
           <div className="flex flex-wrap gap-5 pt-2">
             <a
-              href="/dashboard/upload"
+              href="/#pricing"
               className="px-10 py-4 font-bold tracking-tight transition-all active:scale-95"
               style={{ backgroundColor: '#D94F2E', color: '#fff' }}
             >
