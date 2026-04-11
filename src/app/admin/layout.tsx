@@ -19,8 +19,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/users',    icon: '◉', label: 'Usuários' },
     { href: '/admin/photos',   icon: '◌', label: 'Fotos' },
     { href: '/admin/prompts',  icon: '✦', label: 'Modos de Restauração' },
-    { href: '/admin/plans',    icon: '◆', label: 'Planos' },
-    { href: '/admin/settings', icon: '⚙', label: 'Configurações' },
+    { href: '/admin/plans',        icon: '◆', label: 'Planos' },
+    { href: '/admin/testimonials', icon: '❝', label: 'Depoimentos' },
+    { href: '/admin/faqs',         icon: '?', label: 'FAQ' },
+    { href: '/admin/settings',     icon: '⚙', label: 'Configurações' },
   ]
 
   return (

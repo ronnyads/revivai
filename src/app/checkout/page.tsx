@@ -6,12 +6,12 @@ import { Check, ShieldCheck, Loader2, Copy, CheckCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { fbq } from '@/components/MetaPixel'
 
-const PLANS = {
-  perPhoto:     { name: 'Restauração Avulsa', price: 19.00,  period: 'por foto',     features: ['1 foto restaurada', 'Download em alta resolução', 'Resultado em segundos', 'PIX, cartão ou boleto'] },
-  subscription: { name: 'Assinatura Mensal',  price: 59.00,  period: 'por mês',      features: ['10 fotos por mês', 'Histórico completo', 'Download em 4K', 'Suporte prioritário'] },
-  package:      { name: 'Pacote 10 Créditos', price: 129.00, period: '10 créditos',  features: ['10 créditos permanentes', 'Sem expiração', 'Download em alta resolução', 'Histórico salvo'] },
-} as const
-type PlanId = keyof typeof PLANS
+const PLANS_META: Record<string, { period: string; features: string[] }> = {
+  perPhoto:     { period: 'por foto',    features: ['1 foto restaurada', 'Download em alta resolução', 'Resultado em segundos', 'PIX, cartão ou boleto'] },
+  subscription: { period: 'por mês',    features: ['10 fotos por mês', 'Histórico completo', 'Download em 4K', 'Suporte prioritário'] },
+  package:      { period: '10 créditos', features: ['10 créditos permanentes', 'Sem expiração', 'Download em alta resolução', 'Histórico salvo'] },
+}
+type PlanId = keyof typeof PLANS_META
 
 function formatCPF(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11)
@@ -31,8 +31,10 @@ function CheckoutForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const planId = (searchParams.get('plan') as PlanId) || 'perPhoto'
-  const plan = PLANS[planId]
+  const meta = PLANS_META[planId] || PLANS_META['perPhoto']
 
+  const [planData, setPlanData]   = useState<{ name: string; price: number } | null>(null)
+  const [pixDiscount, setPixDiscount] = useState(5)
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [tab, setTab]             = useState<'pix' | 'card'>('pix')
   const [email, setEmail]         = useState('')
@@ -56,9 +58,16 @@ function CheckoutForm() {
         setEmail(data.user.email)
       }
     })
-    // InitiateCheckout ao abrir a página
-    fbq('track', 'InitiateCheckout', { value: plan?.price, currency: 'BRL' })
-  }, [])
+    // Buscar preços e configurações do DB
+    fetch('/api/plans').then(r => r.json()).then(data => {
+      const p = data[planId]
+      if (p) setPlanData({ name: p.name, price: p.price })
+    }).catch(() => {})
+    fetch('/api/settings').then(r => r.json()).then(data => {
+      const d = parseFloat(data['pix_discount'])
+      if (!isNaN(d)) setPixDiscount(d)
+    }).catch(() => {})
+  }, [planId])
 
   // Poll PIX status
   useEffect(() => {
@@ -69,7 +78,7 @@ function CheckoutForm() {
       if (data.status === 'approved') {
         clearInterval(interval)
         setPolling(false)
-        fbq('track', 'Purchase', { value: plan?.price, currency: 'BRL', content_ids: [planId], content_type: 'product' })
+        fbq('track', 'Purchase', { value: planData?.price, currency: 'BRL', content_ids: [planId], content_type: 'product' })
         if (data.dashboardLink) window.location.href = data.dashboardLink
         else router.push(`/dashboard?success=1&plan=${planId}`)
       }
@@ -87,7 +96,7 @@ function CheckoutForm() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    fbq('track', 'AddPaymentInfo', { value: plan?.price, currency: 'BRL', payment_type: tab })
+    fbq('track', 'AddPaymentInfo', { value: planData?.price, currency: 'BRL', payment_type: tab })
 
     try {
       if (tab === 'pix') {
@@ -139,7 +148,7 @@ function CheckoutForm() {
         const data = await res.json()
         if (!res.ok || !data.success) throw new Error(data.error || 'Pagamento recusado')
 
-        fbq('track', 'Purchase', { value: plan?.price, currency: 'BRL', content_ids: [planId], content_type: 'product' })
+        fbq('track', 'Purchase', { value: planData?.price, currency: 'BRL', content_ids: [planId], content_type: 'product' })
         if (data.dashboardLink) window.location.href = data.dashboardLink
         else router.push(`/dashboard?success=1&plan=${planId}`)
       }
@@ -150,7 +159,7 @@ function CheckoutForm() {
     }
   }
 
-  if (!plan) return null
+  if (!meta) return null
 
   // Tela do PIX gerado
   if (pix) {
@@ -192,10 +201,10 @@ function CheckoutForm() {
           {/* Resumo */}
           <div className="bg-white rounded-2xl border border-[#E8E8E8] p-8">
             <p className="text-xs font-medium tracking-widest uppercase text-muted mb-6">Resumo do pedido</p>
-            <h2 className="font-display text-3xl font-normal tracking-tight mb-1">{plan.name}</h2>
-            <p className="text-xs text-muted mb-6">{plan.period}</p>
+            <h2 className="font-display text-3xl font-normal tracking-tight mb-1">{planData?.name ?? '...'}</h2>
+            <p className="text-xs text-muted mb-6">{meta.period}</p>
             <ul className="flex flex-col gap-3 mb-6">
-              {plan.features.map(f => (
+              {meta.features.map(f => (
                 <li key={f} className="flex items-center gap-3 text-sm">
                   <span className="w-4 h-4 rounded-full bg-accent-light flex items-center justify-center flex-shrink-0"><Check size={10} className="text-accent" /></span>
                   {f}
@@ -204,7 +213,7 @@ function CheckoutForm() {
             </ul>
             <div className="border-t border-[#E8E8E8] pt-6 flex justify-between items-end">
               <span className="text-sm text-muted">Total</span>
-              <span className="font-display text-4xl">R${plan.price.toFixed(2).replace('.', ',')}</span>
+              <span className="font-display text-4xl">{planData ? `R$${planData.price.toFixed(2).replace('.', ',')}` : '...'}</span>
             </div>
             <div className="mt-4 flex items-center gap-2 text-xs text-muted">
               <ShieldCheck size={14} className="text-accent flex-shrink-0" />
@@ -243,7 +252,7 @@ function CheckoutForm() {
               {(['pix', 'card'] as const).map(t => (
                 <button key={t} type="button" onClick={() => setTab(t)}
                   className={`flex-1 py-2 rounded-md text-xs font-medium transition-all ${tab === t ? 'bg-white shadow-sm text-ink' : 'text-muted'}`}>
-                  {t === 'pix' ? '🔑 PIX (5% off)' : '💳 Cartão'}
+                  {t === 'pix' ? `🔑 PIX (${pixDiscount}% off)` : '💳 Cartão'}
                 </button>
               ))}
             </div>
@@ -251,7 +260,7 @@ function CheckoutForm() {
             {/* PIX info */}
             {tab === 'pix' && (
               <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800">
-                Pague via PIX e ganhe <strong>5% de desconto</strong>. O QR code será gerado após confirmar.
+                Pague via PIX e ganhe <strong>{pixDiscount}% de desconto</strong>. O QR code será gerado após confirmar.
               </div>
             )}
 

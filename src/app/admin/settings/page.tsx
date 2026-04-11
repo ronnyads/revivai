@@ -2,13 +2,20 @@ export const dynamic = 'force-dynamic'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import PixelForm from './PixelForm'
+import StatsForm from './StatsForm'
 
 export default async function SettingsPage() {
   const supabase = createAdminClient()
   const { data: rows } = await supabase.from('settings').select('key, value')
   const settings: Record<string, string> = {}
   rows?.forEach((r: { key: string; value: string }) => { settings[r.key] = r.value })
-  const pixelId = settings['meta_pixel_id'] || ''
+
+  const pixelId     = settings['meta_pixel_id']    || ''
+  const photos      = settings['stat_photos']       || '48000'
+  const models      = settings['stat_models']       || '4'
+  const satisfaction = settings['stat_satisfaction'] || '98'
+  const avgTime     = settings['stat_avg_time']     || '30'
+  const pixDiscount = settings['pix_discount']      || '5'
 
   return (
     <div>
@@ -17,35 +24,52 @@ export default async function SettingsPage() {
         <p className="text-sm text-white/40 mt-1">Configure integrações e rastreamento da plataforma.</p>
       </div>
 
-      <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6 max-w-lg">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#1877F2' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-            </svg>
+      <div className="flex flex-col gap-6 max-w-lg">
+        {/* Stats & PIX */}
+        <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#D94F2E' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold">Estatísticas & Checkout</h2>
+              <p className="text-xs text-white/30">Números do Hero e desconto PIX</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-sm font-semibold">Meta Pixel (Facebook Ads)</h2>
-            <p className="text-xs text-white/30">Rastreamento de conversões para campanhas</p>
-          </div>
+          <StatsForm photos={photos} models={models} satisfaction={satisfaction} avgTime={avgTime} pixDiscount={pixDiscount} />
         </div>
 
-        <PixelForm pixelId={pixelId} />
+        {/* Meta Pixel */}
+        <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#1877F2' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold">Meta Pixel (Facebook Ads)</h2>
+              <p className="text-xs text-white/30">Rastreamento de conversões para campanhas</p>
+            </div>
+          </div>
 
-        <div className="mt-4 pt-4 border-t border-white/[0.06]">
-          <p className="text-xs text-white/30 mb-3">
-            {pixelId ? 'Eventos ativos:' : 'Eventos que serão ativados:'}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {['PageView', 'InitiateCheckout', 'AddPaymentInfo', 'Purchase'].map(ev => (
-              <span key={ev} className={`text-[10px] px-2 py-1 rounded-full border font-mono ${
-                pixelId
-                  ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                  : 'bg-white/5 text-white/20 border-white/10'
-              }`}>
-                {pixelId ? '✓ ' : ''}{ev}
-              </span>
-            ))}
+          <PixelForm pixelId={pixelId} />
+
+          <div className="mt-4 pt-4 border-t border-white/[0.06]">
+            <p className="text-xs text-white/30 mb-3">
+              {pixelId ? 'Eventos ativos:' : 'Eventos que serão ativados:'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {['PageView', 'InitiateCheckout', 'AddPaymentInfo', 'Purchase'].map(ev => (
+                <span key={ev} className={`text-[10px] px-2 py-1 rounded-full border font-mono ${
+                  pixelId
+                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                    : 'bg-white/5 text-white/20 border-white/10'
+                }`}>
+                  {pixelId ? '✓ ' : ''}{ev}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>

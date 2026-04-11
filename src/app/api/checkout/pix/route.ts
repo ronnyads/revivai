@@ -6,8 +6,6 @@ import { getMPClient, getPlans, type PlanType } from '@/lib/mercadopago'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-const PIX_DISCOUNT = 0.95 // 5% off
-
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
@@ -24,7 +22,15 @@ export async function POST(req: NextRequest) {
     if (!payerEmail) return NextResponse.json({ success: false, error: 'E-mail inválido' }, { status: 400 })
     if (!cpf || cpf.replace(/\D/g, '').length < 11) return NextResponse.json({ success: false, error: 'CPF inválido' }, { status: 400 })
 
+    // Ler desconto PIX do DB (fallback 5%)
     const admin = createAdminClient()
+    let pixDiscountPct = 5
+    try {
+      const { data: setting } = await admin.from('settings').select('value').eq('key', 'pix_discount').single()
+      if (setting?.value) pixDiscountPct = parseFloat(setting.value) || 5
+    } catch {}
+    const PIX_DISCOUNT = 1 - pixDiscountPct / 100
+
     let userId = user?.id
     let isGuest = !user
 
