@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import Navbar from '@/components/layout/Navbar'
 import Hero from '@/components/landing/Hero'
 import Features from '@/components/landing/Features'
@@ -7,17 +8,35 @@ import Testimonials from '@/components/landing/Testimonials'
 import FAQ from '@/components/landing/FAQ'
 import Footer from '@/components/layout/Footer'
 
+function HeroSkeleton() {
+  return <div className="min-h-[90vh] bg-[#0e0e0e]" />
+}
+function PricingSkeleton() {
+  return <div className="py-28 bg-[#131313]" />
+}
+function SectionSkeleton() {
+  return <div className="py-28" />
+}
+
 export default function HomePage() {
   return (
     <>
       <Navbar />
       <main>
-        <Hero />
+        <Suspense fallback={<HeroSkeleton />}>
+          <Hero />
+        </Suspense>
         <HowItWorks />
         <Features />
-        <Pricing />
-        <Testimonials />
-        <FAQ />
+        <Suspense fallback={<PricingSkeleton />}>
+          <Pricing />
+        </Suspense>
+        <Suspense fallback={<SectionSkeleton />}>
+          <Testimonials />
+        </Suspense>
+        <Suspense fallback={<SectionSkeleton />}>
+          <FAQ />
+        </Suspense>
         {/* CTA Banner */}
         <div className="mx-8 mb-20 bg-ink text-white rounded-3xl px-12 py-24 text-center relative overflow-hidden">
           <div className="absolute w-[600px] h-[600px] rounded-full bg-accent opacity-[0.06] -top-48 -right-24 pointer-events-none" />

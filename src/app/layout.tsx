@@ -1,15 +1,7 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import './globals.css'
-import MetaPixel from '@/components/MetaPixel'
-import { createAdminClient } from '@/lib/supabase/admin'
-
-async function getPixelId() {
-  try {
-    const supabase = createAdminClient()
-    const { data } = await supabase.from('settings').select('value').eq('key', 'meta_pixel_id').single()
-    return data?.value || ''
-  } catch { return '' }
-}
+import MetaPixelLoader from '@/components/MetaPixelLoader'
 
 export const metadata: Metadata = {
   title: 'reviv.ai — Restaure Memórias com Inteligência Artificial',
@@ -22,8 +14,7 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const pixelId = await getPixelId()
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
       <head>
@@ -37,7 +28,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
       </head>
       <body>
-        <MetaPixel pixelId={pixelId} />
+        <Suspense>
+          <MetaPixelLoader />
+        </Suspense>
         {children}
       </body>
     </html>
