@@ -180,16 +180,16 @@ export default function UploadPage() {
                         {/* Before/After — full width, tall */}
                         {hasExamples ? (
                           <div className="relative grid grid-cols-2 h-44">
-                            <div className="relative bg-gray-100 overflow-hidden">
+                            <div className="relative bg-[#f0eeec] overflow-hidden flex items-center justify-center">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={mode.example_before_url!} alt="Antes" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                              <img src={mode.example_before_url!} alt="Antes" className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                               <span className="absolute bottom-3 left-3 text-[10px] font-bold text-white/90 tracking-[2px] uppercase">Antes</span>
                             </div>
-                            <div className="relative bg-gray-100 overflow-hidden border-l-2 border-white">
+                            <div className="relative bg-[#f0eeec] overflow-hidden flex items-center justify-center border-l-2 border-white">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={mode.example_after_url!} alt="Depois" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                              <img src={mode.example_after_url!} alt="Depois" className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
                               <span className="absolute bottom-3 right-3 text-[10px] font-bold text-white/90 tracking-[2px] uppercase">Depois ✦</span>
                             </div>
                             {/* Selected overlay */}
