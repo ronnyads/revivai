@@ -2,9 +2,13 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export async function saveSetting(key: string, value: string) {
+export async function saveSetting(_prev: { ok: boolean; error?: string } | null, formData: FormData) {
+  const key   = formData.get('key') as string
+  const value = (formData.get('value') as string) || ''
   const supabase = createAdminClient()
-  await supabase.from('settings').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+  const { error } = await supabase.from('settings').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+  if (error) return { ok: false, error: error.message }
   revalidatePath('/admin/settings')
   revalidatePath('/', 'layout')
+  return { ok: true }
 }

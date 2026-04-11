@@ -1,20 +1,14 @@
 export const dynamic = 'force-dynamic'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { saveSetting } from './actions'
+import PixelForm from './PixelForm'
 
 export default async function SettingsPage() {
   const supabase = createAdminClient()
   const { data: rows } = await supabase.from('settings').select('key, value')
   const settings: Record<string, string> = {}
   rows?.forEach((r: { key: string; value: string }) => { settings[r.key] = r.value })
-
   const pixelId = settings['meta_pixel_id'] || ''
-
-  async function savePixel(fd: FormData) {
-    'use server'
-    await saveSetting('meta_pixel_id', (fd.get('meta_pixel_id') as string) || '')
-  }
 
   return (
     <div>
@@ -23,7 +17,6 @@ export default async function SettingsPage() {
         <p className="text-sm text-white/40 mt-1">Configure integrações e rastreamento da plataforma.</p>
       </div>
 
-      {/* Meta Pixel */}
       <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6 max-w-lg">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#1877F2' }}>
@@ -37,28 +30,7 @@ export default async function SettingsPage() {
           </div>
         </div>
 
-        <form action={savePixel} className="flex flex-col gap-4">
-          <div>
-            <label className="text-xs text-white/40 mb-1.5 block uppercase tracking-wide">Pixel ID</label>
-            <input
-              name="meta_pixel_id"
-              defaultValue={pixelId}
-              placeholder="123456789012345"
-              className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-[#1877F2]/60 transition-colors placeholder:text-white/20"
-            />
-            <p className="text-xs text-white/25 mt-1.5">
-              Encontre em Meta Business Suite → Gerenciador de Eventos → Pixels
-            </p>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-2.5 rounded-lg text-white text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: '#1877F2' }}
-          >
-            Salvar Pixel ID
-          </button>
-        </form>
+        <PixelForm pixelId={pixelId} />
 
         <div className="mt-4 pt-4 border-t border-white/[0.06]">
           <p className="text-xs text-white/30 mb-3">
