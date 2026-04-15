@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sparkles, User, Info } from 'lucide-react'
 import WebcamRecorder from './WebcamRecorder'
 
@@ -10,12 +10,24 @@ interface Props {
 }
 
 export default function AnimateGenerator({ initial, onGenerate }: Props) {
-  const [portraitUrl,  setPortraitUrl]  = useState(String(initial.portrait_image_url ?? ''))
-  const [drivingUrl,   setDrivingUrl]   = useState(String(initial.driving_video_url  ?? ''))
+  const [portraitUrl, setPortraitUrl] = useState(String(initial.portrait_image_url ?? ''))
+  const [drivingUrl,  setDrivingUrl]  = useState(String(initial.driving_video_url  ?? ''))
+
+  // Sincroniza portrait quando a conexão do canvas injeta o valor via props
+  useEffect(() => {
+    const val = String(initial.portrait_image_url ?? '')
+    if (val) setPortraitUrl(val)
+  }, [initial.portrait_image_url])
+
+  // Sincroniza driving_video apenas se ainda não tem um vídeo gravado
+  useEffect(() => {
+    const val = String(initial.driving_video_url ?? '')
+    if (val && !drivingUrl) setDrivingUrl(val)
+  }, [initial.driving_video_url]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasPortrait = !!portraitUrl.trim()
   const hasDriving  = !!drivingUrl.trim()
-  const isConnected = !!(initial.portrait_image_url)
+  const isConnected = !!portraitUrl && !!initial.portrait_image_url
 
   return (
     <div className="flex flex-col gap-3">
