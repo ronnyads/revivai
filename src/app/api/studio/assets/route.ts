@@ -129,7 +129,14 @@ export async function POST(req: NextRequest) {
 
     await admin.rpc('debit_credit', { user_id_param: user.id })
 
-    return NextResponse.json({ asset: { ...asset, status: 'done', result_url: resultUrl } }, { status: 201 })
+    return NextResponse.json({
+      asset: {
+        ...asset,
+        status: 'done',
+        result_url: resultUrl,
+        input_params: { ...input_params, ...extraData },
+      }
+    }, { status: 201 })
 
   } catch (err: any) {
     console.error(`[studio] Asset ${asset.id} falhou:`, err.message)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from './ImageGenerator'
 import ScriptGenerator from './ScriptGenerator'
@@ -94,12 +94,14 @@ export default function AssetCard({ asset, onDelete, onRetry, onGenerate }: Prop
         {asset.status === 'done' && asset.result_url && (
           <div className="flex flex-col gap-3">
             <ResultPreview type={asset.type} url={asset.result_url} params={asset.input_params} />
-            <button
-              onClick={handleDownload}
-              className="flex items-center justify-center gap-2 text-xs text-zinc-400 hover:text-white border border-zinc-700 px-3 py-2 rounded-xl transition-colors w-full"
-            >
-              <Download size={13} /> Download
-            </button>
+            {asset.type !== 'script' && asset.type !== 'caption' && (
+              <button
+                onClick={handleDownload}
+                className="flex items-center justify-center gap-2 text-xs text-zinc-400 hover:text-white border border-zinc-700 px-3 py-2 rounded-xl transition-colors w-full"
+              >
+                <Download size={13} /> Download
+              </button>
+            )}
           </div>
         )}
 
@@ -140,24 +142,69 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
     return <audio src={url} controls className="w-full" />
   }
   if (type === 'script') {
-    const text = String(params.script_text ?? '')
-    return (
-      <div className="bg-zinc-800 rounded-xl p-3 text-xs text-zinc-300 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
-        {text || 'Script gerado — faça download para ver completo.'}
-      </div>
-    )
+    return <ScriptPreview text={String(params.script_text ?? '')} url={url} />
   }
   if (type === 'caption') {
-    return (
-      <div className="bg-zinc-800 rounded-xl p-3 text-xs text-zinc-300 text-center">
-        <p className="mb-2">Legenda .srt gerada</p>
-        <a href={url} target="_blank" rel="noreferrer" className="text-accent underline">
-          Ver arquivo
-        </a>
-      </div>
-    )
+    return <CaptionPreview url={url} />
   }
   return null
+}
+
+// ── Script inline preview com copiar ──────────────────────────────────────
+function ScriptPreview({ text, url }: { text: string; url: string }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copy() {
+    const content = text || await fetch(url).then(r => r.text()).catch(() => '')
+    await navigator.clipboard.writeText(content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="bg-zinc-800 rounded-xl p-3 text-xs text-zinc-300 whitespace-pre-wrap max-h-56 overflow-y-auto leading-relaxed">
+        {text || <span className="text-zinc-500 italic">Carregando script...</span>}
+      </div>
+      <button
+        onClick={copy}
+        className="flex items-center justify-center gap-2 text-xs text-zinc-400 hover:text-white border border-zinc-700 px-3 py-2 rounded-xl transition-colors w-full"
+      >
+        {copied ? <><Check size={13} className="text-emerald-400" /> Copiado!</> : <><Copy size={13} /> Copiar script</>}
+      </button>
+    </div>
+  )
+}
+
+// ── Caption preview com download .srt ─────────────────────────────────────
+function CaptionPreview({ url }: { url: string }) {
+  const [srt, setSrt] = useState('')
+  const [loaded, setLoaded] = useState(false)
+
+  async function load() {
+    if (loaded) return
+    const text = await fetch(url).then(r => r.text()).catch(() => '')
+    setSrt(text)
+    setLoaded(true)
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div
+        onClick={load}
+        className="bg-zinc-800 rounded-xl p-3 text-xs text-zinc-300 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed cursor-pointer"
+      >
+        {srt || <span className="text-zinc-500 italic">Clique para visualizar a legenda</span>}
+      </div>
+      <a
+        href={url}
+        download
+        className="flex items-center justify-center gap-2 text-xs text-zinc-400 hover:text-white border border-zinc-700 px-3 py-2 rounded-xl transition-colors w-full"
+      >
+        <Download size={13} /> Baixar .srt
+      </a>
+    </div>
+  )
 }
 
 // ── Form routing by type ───────────────────────────────────────────────────
