@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ArrowLeft, Edit2, Check } from 'lucide-react'
+import { ArrowLeft, Edit2, Check, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { StudioAsset, StudioProject, AssetType } from '@/types'
 import AssetCard from './AssetCard'
@@ -13,14 +13,31 @@ interface Props {
   userCredits: number
 }
 
+// Ordem do fluxo guiado
+const GUIDED_FLOW: AssetType[] = ['script', 'image', 'voice', 'video', 'caption']
+
+const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
+  script:  { product: '', audience: '', format: 'reels', hook_style: 'problema' },
+  image:   { prompt: '', style: 'ugc', aspect_ratio: '9:16' },
+  voice:   { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 },
+  video:   { source_image_url: '', motion_prompt: '', duration: 5 },
+  caption: { audio_url: '' },
+  upscale: { source_url: '', scale: 4 },
+}
+
+const CREDIT_COST: Record<AssetType, number> = {
+  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3,
+}
+
 export default function BoardClient({ project, initialAssets, userCredits }: Props) {
-  const [assets,  setAssets]  = useState<StudioAsset[]>(initialAssets)
-  const [credits, setCredits] = useState(userCredits)
-  const [title,   setTitle]   = useState(project.title)
-  const [editing, setEditing] = useState(false)
+  const [assets,       setAssets]       = useState<StudioAsset[]>(initialAssets)
+  const [credits,      setCredits]      = useState(userCredits)
+  const [title,        setTitle]        = useState(project.title)
+  const [editing,      setEditing]      = useState(false)
+  const [guidedMode,   setGuidedMode]   = useState(false)
   const pollingRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
 
-  // ── Polling para assets em processing ───────────────────────────────────
+  // ── Polling ──────────────────────────────────────────────────────────────
   const startPolling = useCallback((assetId: string) => {
     if (pollingRef.current.has(assetId)) return
     const interval = setInterval(async () => {
@@ -38,7 +55,6 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
     pollingRef.current.set(assetId, interval)
   }, [])
 
-  // Inicia polling para assets processing no carregamento
   useEffect(() => {
     assets.filter(a => a.status === 'processing').forEach(a => startPolling(a.id))
     return () => {
@@ -47,53 +63,81 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Adicionar card novo ─────────────────────────────────────────────────
-  async function addCard(type: AssetType) {
-    const costMap: Record<AssetType, number> = {
-      image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3,
-    }
-    const cost = costMap[type]
-    if (credits < cost) {
-      alert(`Você precisa de ${cost} crédito(s) para gerar ${type}.`)
-      return
-    }
-
-    const defaultParams: Record<AssetType, Record<string, unknown>> = {
-      image:   { prompt: '', style: 'ugc', aspect_ratio: '9:16' },
-      script:  { product: '', audience: '', format: 'reels', hook_style: 'problema' },
-      voice:   { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 },
-      video:   { source_image_url: '', motion_prompt: '', duration: 5 },
-      caption: { audio_url: '' },
-      upscale: { source_url: '', scale: 4 },
-    }
-
-    // Adiciona card idle localmente
-    const tempId = `temp-${Date.now()}`
+  // ── Adicionar card idle ──────────────────────────────────────────────────
+  function addIdleCard(type: AssetType, prefillParams?: Record<string, unknown>) {
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
     const tempAsset: StudioAsset = {
       id: tempId,
       project_id: project.id,
       user_id: project.user_id,
       type,
       status: 'idle',
-      input_params: defaultParams[type],
-      credits_cost: cost,
+      input_params: { ...DEFAULT_PARAMS[type], ...prefillParams },
+      credits_cost: CREDIT_COST[type],
       board_order: assets.length,
       created_at: new Date().toISOString(),
     }
     setAssets(prev => [...prev, tempAsset])
   }
 
-  // ── Gerar (de um card idle) ─────────────────────────────────────────────
+  async function addCard(type: AssetType) {
+    if (credits < CREDIT_COST[type]) {
+      alert(`Você precisa de ${CREDIT_COST[type]} crédito(s) para gerar ${type}.`)
+      return
+    }
+    addIdleCard(type)
+  }
+
+  // ── "Usar em..." — cria card pré-preenchido ──────────────────────────────
+  function handleUseAs(targetType: AssetType, prefillParams: Record<string, unknown>) {
+    // Se já existe um card idle desse tipo, atualiza ele em vez de criar novo
+    const existingIdle = assets.find(a => a.type === targetType && a.status === 'idle')
+    if (existingIdle) {
+      setAssets(prev => prev.map(a =>
+        a.id === existingIdle.id
+          ? { ...a, input_params: { ...a.input_params, ...prefillParams } }
+          : a
+      ))
+      // Scroll suave para o card
+      setTimeout(() => {
+        document.getElementById(`card-${existingIdle.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    } else {
+      addIdleCard(targetType, prefillParams)
+    }
+  }
+
+  // ── Fluxo guiado — cria todos os cards em ordem ──────────────────────────
+  function activateGuidedFlow() {
+    if (assets.length > 0) {
+      // Já tem cards — só ativa numeração
+      setGuidedMode(true)
+      return
+    }
+    // Board vazio — cria todos os cards do fluxo
+    const now = Date.now()
+    const newAssets: StudioAsset[] = GUIDED_FLOW.map((type, i) => ({
+      id: `temp-${now}-${i}`,
+      project_id: project.id,
+      user_id: project.user_id,
+      type,
+      status: 'idle',
+      input_params: DEFAULT_PARAMS[type],
+      credits_cost: CREDIT_COST[type],
+      board_order: i,
+      created_at: new Date().toISOString(),
+    }))
+    setAssets(newAssets)
+    setGuidedMode(true)
+  }
+
+  // ── Gerar ────────────────────────────────────────────────────────────────
   async function handleGenerate(type: AssetType, params: Record<string, unknown>, existingId: string) {
     const isTemp = existingId.startsWith('temp-')
-
-    // Se card temporário, cria via API; se já existe no DB, deleta e recria
     if (!isTemp) {
       await fetch(`/api/studio/assets/${existingId}`, { method: 'DELETE' })
-      setAssets(prev => prev.filter(a => a.id !== existingId))
-    } else {
-      setAssets(prev => prev.filter(a => a.id !== existingId))
     }
+    setAssets(prev => prev.filter(a => a.id !== existingId))
 
     const res = await fetch('/api/studio/assets', {
       method: 'POST',
@@ -104,20 +148,16 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
     const { asset, error } = await res.json()
     if (error || !asset) {
       alert(error ?? 'Erro ao gerar')
-      // Readiciona o card idle
-      setAssets(prev => [...prev, { id: existingId, project_id: project.id, user_id: project.user_id, type, status: 'idle', input_params: params, credits_cost: type === 'video' ? 3 : 1, board_order: prev.length, created_at: new Date().toISOString() }])
+      addIdleCard(type, params)
       return
     }
 
     setAssets(prev => [...prev, asset])
     setCredits(c => c - asset.credits_cost)
-
-    if (asset.status === 'processing') {
-      startPolling(asset.id)
-    }
+    if (asset.status === 'processing') startPolling(asset.id)
   }
 
-  // ── Deletar card ────────────────────────────────────────────────────────
+  // ── Deletar / Retry ──────────────────────────────────────────────────────
   async function handleDelete(id: string) {
     setAssets(prev => prev.filter(a => a.id !== id))
     if (!id.startsWith('temp-')) {
@@ -125,12 +165,11 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
     }
   }
 
-  // ── Retry ───────────────────────────────────────────────────────────────
   function handleRetry(id: string, type: AssetType, params: Record<string, unknown>) {
     handleGenerate(type, params, id)
   }
 
-  // ── Salvar título ───────────────────────────────────────────────────────
+  // ── Título ───────────────────────────────────────────────────────────────
   async function saveTitle() {
     setEditing(false)
     if (title === project.title) return
@@ -141,7 +180,13 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
     })
   }
 
-  // ── Empty state placeholders ────────────────────────────────────────────
+  // Numeração para modo guiado
+  function getStepNumber(asset: StudioAsset): number | undefined {
+    if (!guidedMode) return undefined
+    const idx = GUIDED_FLOW.indexOf(asset.type)
+    return idx >= 0 ? idx + 1 : undefined
+  }
+
   const ghostTypes: AssetType[] = ['script', 'image', 'voice', 'video']
 
   return (
@@ -175,46 +220,91 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
             </button>
           )}
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+
+        <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-zinc-500 bg-zinc-800 px-3 py-1.5 rounded-xl">
             {credits} crédito{credits !== 1 ? 's' : ''}
           </span>
+          {/* Fluxo guiado */}
+          <button
+            onClick={activateGuidedFlow}
+            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl border transition-all ${
+              guidedMode
+                ? 'bg-accent/10 border-accent text-accent'
+                : 'border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500'
+            }`}
+          >
+            <Zap size={13} />
+            {guidedMode ? 'Guiado ativo' : 'Fluxo Guiado'}
+          </button>
           <AddCardMenu onAdd={addCard} />
         </div>
       </div>
 
+      {/* Dica do fluxo guiado */}
+      {guidedMode && (
+        <div className="mx-6 mt-4 bg-accent/5 border border-accent/20 rounded-xl px-4 py-3 flex items-center gap-3">
+          <Zap size={15} className="text-accent shrink-0" />
+          <p className="text-xs text-zinc-300">
+            <span className="text-accent font-medium">Modo guiado ativo</span> — siga a numeração nos cards.
+            Quando um card ficar pronto, use o botão <span className="text-white font-medium">"Usar em..."</span> para passar o resultado automaticamente para o próximo.
+          </p>
+          <button onClick={() => setGuidedMode(false)} className="text-zinc-600 hover:text-white text-xs shrink-0">Fechar</button>
+        </div>
+      )}
+
       {/* Board grid */}
       <div className="p-6">
         {assets.length === 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mt-8">
-            {ghostTypes.map(type => (
+          <div className="flex flex-col items-center gap-6 mt-8">
+            {/* Opções de início */}
+            <div className="grid grid-cols-2 gap-4 w-full max-w-md">
               <button
-                key={type}
-                onClick={() => addCard(type)}
-                className="border-2 border-dashed border-zinc-800 hover:border-accent/40 rounded-2xl p-6 flex flex-col items-center gap-2 text-zinc-600 hover:text-accent transition-all group"
+                onClick={activateGuidedFlow}
+                className="flex flex-col items-center gap-2 border-2 border-accent/30 hover:border-accent bg-accent/5 hover:bg-accent/10 rounded-2xl p-6 transition-all group"
               >
-                <span className="text-2xl">{
-                  type === 'script' ? '📝' :
-                  type === 'image'  ? '🖼️' :
-                  type === 'voice'  ? '🎙️' : '🎬'
-                }</span>
-                <p className="text-xs font-medium capitalize">{type === 'script' ? 'Script' : type === 'image' ? 'Imagem' : type === 'voice' ? 'Voz' : 'Vídeo'}</p>
-                <p className="text-[10px] text-zinc-700 group-hover:text-zinc-500">Clique para adicionar</p>
+                <Zap size={24} className="text-accent" />
+                <p className="text-sm font-semibold text-white">Fluxo Guiado</p>
+                <p className="text-[10px] text-zinc-400 text-center">Cria todos os cards em ordem</p>
               </button>
-            ))}
+              <button
+                onClick={() => addIdleCard('script')}
+                className="flex flex-col items-center gap-2 border-2 border-dashed border-zinc-800 hover:border-zinc-600 rounded-2xl p-6 transition-all group"
+              >
+                <span className="text-2xl">✦</span>
+                <p className="text-sm font-semibold text-white group-hover:text-accent transition-colors">Board Livre</p>
+                <p className="text-[10px] text-zinc-400 text-center">Adicione cards à vontade</p>
+              </button>
+            </div>
+            {/* Ghost cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-4xl">
+              {ghostTypes.map(type => (
+                <button
+                  key={type}
+                  onClick={() => addCard(type)}
+                  className="border-2 border-dashed border-zinc-800 hover:border-accent/40 rounded-2xl p-6 flex flex-col items-center gap-2 text-zinc-600 hover:text-accent transition-all group"
+                >
+                  <span className="text-2xl">{type === 'script' ? '📝' : type === 'image' ? '🖼️' : type === 'voice' ? '🎙️' : '🎬'}</span>
+                  <p className="text-xs font-medium">{type === 'script' ? 'Script' : type === 'image' ? 'Imagem' : type === 'voice' ? 'Voz' : 'Vídeo'}</p>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {assets
               .sort((a, b) => a.board_order - b.board_order)
               .map(asset => (
-                <AssetCard
-                  key={asset.id}
-                  asset={asset}
-                  onDelete={handleDelete}
-                  onRetry={handleRetry}
-                  onGenerate={handleGenerate}
-                />
+                <div key={asset.id} id={`card-${asset.id}`}>
+                  <AssetCard
+                    asset={asset}
+                    stepNumber={getStepNumber(asset)}
+                    onDelete={handleDelete}
+                    onRetry={handleRetry}
+                    onGenerate={handleGenerate}
+                    onUseAs={handleUseAs}
+                  />
+                </div>
               ))
             }
           </div>
