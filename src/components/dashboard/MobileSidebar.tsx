@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X, Image as ImageIcon, Sparkles, CreditCard } from 'lucide-react'
+import { Menu, X, Image as ImageIcon, Sparkles, CreditCard, Megaphone } from 'lucide-react'
 import LogoutButton from './LogoutButton'
 
 export default function MobileSidebar({ userEmail, children }: { userEmail: string, children: React.ReactNode }) {
@@ -79,9 +79,14 @@ export default function MobileSidebar({ userEmail, children }: { userEmail: stri
             <Sparkles size={18} />
             Nova restauração
           </Link>
+          <Link href="/dashboard/studio" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all ${pathname.startsWith('/dashboard/studio') ? 'bg-surface text-ink' : 'text-muted hover:text-ink hover:bg-surface/50'}`}>
+            <Megaphone size={18} className={pathname.startsWith('/dashboard/studio') ? 'text-accent' : ''} />
+            Ad Studio
+            <span className="ml-auto text-[10px] bg-accent text-white px-2 py-0.5 rounded-full leading-none">Novo</span>
+          </Link>
           <div className="my-3 border-b border-[#E8E8E8]" />
           <Link href="/dashboard/billing" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all ${pathname === '/dashboard/billing' ? 'bg-surface text-ink' : 'text-muted hover:text-ink hover:bg-surface/50'}`}>
-            <CreditCard size={18} /> 
+            <CreditCard size={18} />
             Planos e Créditos
           </Link>
         </div>

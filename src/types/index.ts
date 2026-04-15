@@ -36,3 +36,34 @@ export interface Order {
   status: 'pending' | 'paid' | 'failed'
   created_at: string
 }
+
+// ── Ad Studio ──────────────────────────────────────────────────────────────
+
+export type StudioTemplate = 'blank' | 'before_after' | 'testimonial' | 'product_showcase'
+export type AssetType = 'image' | 'video' | 'voice' | 'upscale' | 'script' | 'caption'
+export type AssetStatus = 'idle' | 'processing' | 'done' | 'error'
+
+export interface StudioProject {
+  id: string
+  user_id: string
+  title: string
+  template: StudioTemplate
+  status: 'draft' | 'ready'
+  created_at: string
+  updated_at: string
+  asset_count?: number
+}
+
+export interface StudioAsset {
+  id: string
+  project_id: string
+  user_id: string
+  type: AssetType
+  status: AssetStatus
+  input_params: Record<string, unknown>
+  result_url?: string | null
+  error_msg?: string | null
+  credits_cost: number
+  board_order: number
+  created_at: string
+}

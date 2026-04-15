@@ -1,0 +1,176 @@
+'use client'
+
+import { useState } from 'react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions } from 'lucide-react'
+import { StudioAsset, AssetType } from '@/types'
+import ImageGenerator from './ImageGenerator'
+import ScriptGenerator from './ScriptGenerator'
+import VoiceGenerator from './VoiceGenerator'
+import VideoGenerator from './VideoGenerator'
+import CaptionGenerator from './CaptionGenerator'
+import UpscaleCard from './UpscaleCard'
+
+const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string }> = {
+  image:   { icon: <Image size={15} />,    label: 'Imagem',   color: 'text-violet-400' },
+  video:   { icon: <Video size={15} />,    label: 'Vídeo',    color: 'text-blue-400' },
+  voice:   { icon: <Mic size={15} />,      label: 'Voz',      color: 'text-emerald-400' },
+  upscale: { icon: <ZoomIn size={15} />,   label: 'Upscale',  color: 'text-amber-400' },
+  script:  { icon: <FileText size={15} />, label: 'Script',   color: 'text-pink-400' },
+  caption: { icon: <Captions size={15} />, label: 'Legenda',  color: 'text-cyan-400' },
+}
+
+interface Props {
+  asset: StudioAsset
+  onDelete: (id: string) => void
+  onRetry: (id: string, type: AssetType, params: Record<string, unknown>) => void
+  onGenerate: (type: AssetType, params: Record<string, unknown>, existingId: string) => void
+}
+
+export default function AssetCard({ asset, onDelete, onRetry, onGenerate }: Props) {
+  const meta = TYPE_META[asset.type]
+  const [collapsed, setCollapsed] = useState(asset.status === 'done')
+
+  function handleDownload() {
+    if (!asset.result_url) return
+    const a = document.createElement('a')
+    a.href = asset.result_url
+    a.download = `studio-${asset.type}-${asset.id.slice(0, 8)}`
+    a.target = '_blank'
+    a.click()
+  }
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex flex-col">
+      {/* Card header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+        <button
+          onClick={() => setCollapsed(v => !v)}
+          className={`flex items-center gap-2 text-sm font-medium ${meta.color}`}
+        >
+          {meta.icon}
+          {meta.label}
+        </button>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-full">
+            {asset.credits_cost} cr
+          </span>
+          <button
+            onClick={() => onDelete(asset.id)}
+            className="text-zinc-600 hover:text-red-400 transition-colors p-1"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Card body */}
+      <div className="flex-1 p-4">
+
+        {/* Processing */}
+        {asset.status === 'processing' && (
+          <div className="flex flex-col items-center justify-center py-8 gap-3">
+            <Loader2 size={28} className="animate-spin text-accent" />
+            <p className="text-sm text-zinc-400">Gerando com IA...</p>
+            {asset.type === 'video' && (
+              <p className="text-xs text-zinc-600 text-center">Vídeos levam até 3 minutos</p>
+            )}
+          </div>
+        )}
+
+        {/* Error */}
+        {asset.status === 'error' && (
+          <div className="flex flex-col items-center justify-center py-6 gap-3">
+            <p className="text-sm text-red-400 text-center">{asset.error_msg || 'Erro ao gerar'}</p>
+            <button
+              onClick={() => onRetry(asset.id, asset.type, asset.input_params)}
+              className="flex items-center gap-2 text-xs text-zinc-400 hover:text-white border border-zinc-700 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <RotateCcw size={13} /> Tentar novamente
+            </button>
+          </div>
+        )}
+
+        {/* Done — result preview */}
+        {asset.status === 'done' && asset.result_url && (
+          <div className="flex flex-col gap-3">
+            <ResultPreview type={asset.type} url={asset.result_url} params={asset.input_params} />
+            <button
+              onClick={handleDownload}
+              className="flex items-center justify-center gap-2 text-xs text-zinc-400 hover:text-white border border-zinc-700 px-3 py-2 rounded-xl transition-colors w-full"
+            >
+              <Download size={13} /> Download
+            </button>
+          </div>
+        )}
+
+        {/* Idle — show form */}
+        {asset.status === 'idle' && !collapsed && (
+          <FormForType
+            type={asset.type}
+            initialParams={asset.input_params}
+            onGenerate={(params) => onGenerate(asset.type, params, asset.id)}
+          />
+        )}
+
+        {/* Idle collapsed shortcut */}
+        {asset.status === 'idle' && collapsed && (
+          <button
+            onClick={() => setCollapsed(false)}
+            className="w-full text-xs text-zinc-500 hover:text-accent border border-dashed border-zinc-700 rounded-xl py-4 transition-colors"
+          >
+            Configurar e gerar
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Result preview by type ─────────────────────────────────────────────────
+function ResultPreview({ type, url, params }: { type: AssetType; url: string; params: Record<string, unknown> }) {
+  if (type === 'image' || type === 'upscale') {
+    return <img src={url} alt="Resultado" className="w-full rounded-xl object-cover max-h-64" />
+  }
+  if (type === 'video') {
+    return (
+      <video src={url} controls className="w-full rounded-xl max-h-64" playsInline />
+    )
+  }
+  if (type === 'voice') {
+    return <audio src={url} controls className="w-full" />
+  }
+  if (type === 'script') {
+    const text = String(params.script_text ?? '')
+    return (
+      <div className="bg-zinc-800 rounded-xl p-3 text-xs text-zinc-300 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
+        {text || 'Script gerado — faça download para ver completo.'}
+      </div>
+    )
+  }
+  if (type === 'caption') {
+    return (
+      <div className="bg-zinc-800 rounded-xl p-3 text-xs text-zinc-300 text-center">
+        <p className="mb-2">Legenda .srt gerada</p>
+        <a href={url} target="_blank" rel="noreferrer" className="text-accent underline">
+          Ver arquivo
+        </a>
+      </div>
+    )
+  }
+  return null
+}
+
+// ── Form routing by type ───────────────────────────────────────────────────
+function FormForType({ type, initialParams, onGenerate }: {
+  type: AssetType
+  initialParams: Record<string, unknown>
+  onGenerate: (params: Record<string, unknown>) => void
+}) {
+  if (type === 'image')   return <ImageGenerator   initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'script')  return <ScriptGenerator  initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'voice')   return <VoiceGenerator   initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'video')   return <VideoGenerator   initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'caption') return <CaptionGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'upscale') return <UpscaleCard      initial={initialParams} onGenerate={onGenerate} />
+  return null
+}

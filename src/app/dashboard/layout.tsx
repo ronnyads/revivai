@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/dashboard/LogoutButton'
-import { Image as ImageIcon, Sparkles, CreditCard } from 'lucide-react'
+import { Image as ImageIcon, Sparkles, CreditCard, Megaphone } from 'lucide-react'
 import CreditBadge from '@/components/ui/CreditBadge'
 import MobileSidebar from '@/components/dashboard/MobileSidebar'
 
@@ -38,6 +38,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <Link href="/dashboard/upload" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium bg-ink text-white hover:bg-accent transition-all shrink-0 shadow-lg shadow-ink/10">
             <Sparkles size={18} />
             Nova restauração
+          </Link>
+          <Link href="/dashboard/studio" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted hover:text-ink hover:bg-surface transition-all group shrink-0">
+            <Megaphone size={18} className="group-hover:text-accent transition-colors" />
+            Ad Studio
+            <span className="ml-auto text-[10px] bg-accent text-white px-2 py-0.5 rounded-full leading-none">Novo</span>
           </Link>
           <div className="flex-1" />
           <Link href="/dashboard/billing" className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted hover:text-ink hover:bg-surface transition-all">
