@@ -342,29 +342,23 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   const data = await res.json()
   const text: string = data.choices?.[0]?.message?.content?.trim() ?? ''
 
-  // Gera foto com DALL-E 3 usando a descrição
-  const dallePrompt = `RAW photo, candid portrait of a real person: ${text} Shot on iPhone, natural daylight, no makeup artist, authentic UGC selfie style. Skin pores visible, natural imperfections, NOT a model shoot, NOT illustrated, NOT AI-looking, NOT painting. Real human being. DSLR camera, f/1.8 aperture, bokeh background.`
+  // Gera foto com FLUX 1.1 Pro via Replicate (muito mais fotorrealista que DALL-E)
+  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
 
-  const imgRes = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'dall-e-3',
-      prompt: dallePrompt,
-      size: '1024x1792',
-      quality: 'standard',
-      n: 1,
-    }),
-  })
+  const fluxPrompt = `Candid portrait photo of a real person: ${text} Shot on iPhone 15 Pro, natural daylight, authentic UGC style. Skin pores and natural imperfections visible. Real human face, photojournalism style, not a studio shoot, not retouched, not illustrated.`
 
-  if (!imgRes.ok) {
-    const err = await imgRes.json()
-    throw new Error(`DALL-E modelo erro: ${err.error?.message ?? imgRes.status}`)
-  }
+  const fluxOutput = await replicate.run('black-forest-labs/flux-1.1-pro', {
+    input: {
+      prompt: fluxPrompt,
+      aspect_ratio: '9:16',
+      output_format: 'jpg',
+      output_quality: 90,
+      safety_tolerance: 3,
+    },
+  }) as string | { url: () => string }
 
-  const imgData = await imgRes.json()
-  const tempUrl = imgData.data?.[0]?.url
-  if (!tempUrl) throw new Error('DALL-E não retornou URL para o modelo')
+  const tempUrl = typeof fluxOutput === 'string' ? fluxOutput : fluxOutput.url()
+  if (!tempUrl) throw new Error('FLUX não retornou URL para o modelo')
 
   // Re-upload para bucket studio
   const photoBuffer = Buffer.from(await (await fetch(tempUrl)).arrayBuffer())
