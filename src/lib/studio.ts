@@ -464,40 +464,21 @@ async function withReplicateRetry<T>(fn: () => Promise<T>, maxRetries = 3): Prom
   throw new Error('Max retries exceeded')
 }
 
-// ── Compose — AI Fusion: GPT-4o Vision + FLUX (modelo segurando produto) ──────
+// ── Compose — FLUX Kontext: edita foto original, coloca produto na mão ─────────
 export async function composeProductScene(params: {
   portrait_url:   string
   product_url:    string
-  position?:      string   // mantido por compat. de API
-  product_scale?: number   // mantido por compat. de API
+  position?:      string   // mantido por compatibilidade de API
+  product_scale?: number   // mantido por compatibilidade de API
   assetId:        string
   userId:         string
 }): Promise<string> {
-  const admin  = createAdminClient()
-  const apiKey = process.env.OPENAI_API_KEY
+  const admin    = createAdminClient()
+  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+  const apiKey   = process.env.OPENAI_API_KEY
   if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
 
-  // 1. Busca prompts customizados do admin (com fallback defaults)
-  const { data: promptRows } = await admin
-    .from('studio_prompts')
-    .select('key, value')
-    .in('key', ['compose_vision_system', 'compose_flux_template'])
-
-  const promptMap: Record<string, string> = {}
-  for (const row of promptRows ?? []) promptMap[row.key] = row.value
-
-  const visionSystemPrompt = promptMap['compose_vision_system'] ?? `Você é um analista de imagens para geração de fotos UGC (User Generated Content).
-Analise as duas imagens fornecidas (a primeira é uma pessoa/modelo, a segunda é um produto) e retorne um JSON com:
-- "model_desc": descrição detalhada da pessoa (etnia, idade estimada, cor do cabelo, tom de pele, roupa, cenário, iluminação, estilo de câmera)
-- "product_desc": descrição detalhada do produto (o que é, cor, forma, embalagem, marca se visível)
-- "pose_action": como a pessoa deve estar posicionada/gesticulando para parecer que está usando/segurando o produto, SEM mencionar o produto na descrição (ex: "com a mão direita levantada e aberta na frente do peito, olhando para a câmera sorrindo", "com a mão espalmada na bochecha direita, olhos fechados em expressão de prazer")
-- "scene_style": estilo cênico sugerido para UGC autêntico (ex: "iluminação natural, dusk, bokeh, selfie style")
-- "product_gravity": posição ideal para sobrepor o produto na imagem final — APENAS um destes valores: center, north, south, east, west, northeast, northwest, southeast, southwest
-Retorne APENAS JSON válido, sem markdown.`
-
-  const fluxTemplate = promptMap['compose_flux_template'] ?? `Fotografia UGC profissional e autêntica, sem nenhum produto na mão ou no cenário. {model_desc}. {pose_action}. {scene_style}. Estilo UGC real, qualidade de câmera de smartphone, pessoa real. Foco nítido na pessoa. Alta qualidade, fotorrealismo. Mãos naturalmente posicionadas, sem segurar nada.`
-
-  // 2. GPT-4o Vision analisa as duas imagens
+  // 1. GPT-4o Vision — descreve o produto em uma frase curta em inglês
   const visionRes = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
@@ -506,93 +487,43 @@ Retorne APENAS JSON válido, sem markdown.`
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: visionSystemPrompt },
-          { type: 'image_url', image_url: { url: params.portrait_url, detail: 'high' } },
-          { type: 'image_url', image_url: { url: params.product_url,  detail: 'high' } },
+          { type: 'image_url', image_url: { url: params.product_url, detail: 'high' } },
+          { type: 'text', text: 'Describe this product in one short English phrase (e.g. "a red energy drink can with white logo", "a white moisturizer bottle with gold cap"). Return ONLY the description, nothing else.' },
         ],
       }],
-      max_tokens: 600,
-      response_format: { type: 'json_object' },
+      max_tokens: 80,
     }),
   })
-
   if (!visionRes.ok) {
     const err = await visionRes.text()
     throw new Error(`GPT-4o Vision falhou: ${err.slice(0, 200)}`)
   }
-
   const visionData = await visionRes.json()
-  const raw = visionData.choices?.[0]?.message?.content ?? '{}'
-  let analysis: Record<string, string> = {}
-  try { analysis = JSON.parse(raw) } catch { throw new Error('GPT-4o retornou JSON inválido') }
+  const productDesc = visionData.choices?.[0]?.message?.content?.trim() ?? 'the product'
 
-  // 3. Monta prompt FLUX — cena sem o produto (para preservar produto original)
-  const scenePrompt = fluxTemplate
-    .replace('{model_desc}',  analysis.model_desc   ?? 'attractive person')
-    .replace('{pose_action}', analysis.pose_action  ?? 'with hand naturally extended')
-    .replace('{scene_style}', analysis.scene_style  ?? 'natural lighting, UGC style')
+  // 2. FLUX Kontext Pro — edita a foto original: produto aparece naturalmente na mão
+  const editPrompt = `Naturally place ${productDesc} in the person's hand. Keep the person looking exactly the same — same face, hair, skin, clothing, background, and lighting. Do not change anything else. Only add the product to the hand.`
 
-  // 4. FLUX gera a cena SEM o produto
-  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
-
-  // Serializado com retry automático — respeita retry_after do Replicate em caso de 429
-  const bgRemovedRaw = await withReplicateRetry(() =>
-    replicate.run('cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003', {
-      input: { image: params.product_url },
-    })
-  )
-  const fluxOutputRaw = await withReplicateRetry(() =>
-    replicate.run('black-forest-labs/flux-1.1-pro', {
+  const outputRaw = await withReplicateRetry(() =>
+    replicate.run('black-forest-labs/flux-kontext-pro', {
       input: {
-        prompt:           scenePrompt,
-        aspect_ratio:     '9:16',
-        output_format:    'jpg',
-        output_quality:   90,
-        safety_tolerance: 5,
+        prompt:        editPrompt,
+        input_image:   params.portrait_url,
+        output_format: 'jpg',
       },
     })
   )
+  const editedUrl = Array.isArray(outputRaw) ? String(outputRaw[0]) : String(outputRaw)
 
-  const sceneUrl   = Array.isArray(fluxOutputRaw) ? fluxOutputRaw[0] : String(fluxOutputRaw)
-  const productBgRemovedUrl = Array.isArray(bgRemovedRaw) ? bgRemovedRaw[0] : String(bgRemovedRaw)
+  // 3. Baixa resultado e sobe para bucket studio (URL permanente)
+  const imgRes = await fetch(editedUrl)
+  if (!imgRes.ok) throw new Error(`Falha ao baixar imagem editada: ${imgRes.status}`)
+  const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
 
-  // 5. Baixa cena gerada e produto sem fundo em paralelo
-  const [sceneRes, productRes] = await Promise.all([
-    fetch(sceneUrl),
-    fetch(productBgRemovedUrl),
-  ])
-  const [sceneBuffer, productBuffer] = await Promise.all([
-    sceneRes.arrayBuffer().then(b => Buffer.from(b)),
-    productRes.arrayBuffer().then(b => Buffer.from(b)),
-  ])
-
-  // 6. Determina tamanho do produto proporcional à cena
-  const sceneMeta    = await sharp(sceneBuffer).metadata()
-  const sceneWidth   = sceneMeta.width  ?? 1024
-  const sceneHeight  = sceneMeta.height ?? 1792
-  const productScale = params.product_scale ?? 0.38
-  const productWidth = Math.round(sceneWidth * productScale)
-
-  const productResized = await sharp(productBuffer)
-    .resize({ width: productWidth })
-    .toBuffer()
-
-  // 7. Compõe produto ORIGINAL (pixel-perfect) sobre cena gerada pelo FLUX
-  const validGravities = ['center','north','south','east','west','northeast','northwest','southeast','southwest']
-  const gravity = validGravities.includes(analysis.product_gravity ?? '')
-    ? (analysis.product_gravity as any)
-    : (params.position && validGravities.includes(params.position) ? params.position as any : 'southeast')
-
-  const composed = await sharp(sceneBuffer)
-    .composite([{ input: productResized, gravity }])
-    .jpeg({ quality: 92 })
-    .toBuffer()
-
-  // 8. Salva no bucket studio
   const path = `${params.userId}/compose-${params.assetId}.jpg`
   const { error: uploadErr } = await admin.storage
     .from('studio')
-    .upload(path, composed, { contentType: 'image/jpeg', upsert: true })
+    .upload(path, imgBuffer, { contentType: 'image/jpeg', upsert: true })
   if (uploadErr) throw new Error(`Upload falhou: ${uploadErr.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
