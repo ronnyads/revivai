@@ -396,7 +396,7 @@ export async function startVideoGeneration(params: {
     : ''
   const finalMotion = modelContext + (params.motion_prompt || 'smooth product showcase motion')
 
-  await replicate.predictions.create({
+  const prediction = await replicate.predictions.create({
     model: 'kwaivgi/kling-v2.5-turbo-pro',
     input: {
       image:          params.source_image_url,
@@ -408,6 +408,12 @@ export async function startVideoGeneration(params: {
     webhook: webhookUrl,
     webhook_events_filter: ['completed'],
   })
+
+  // Salva prediction_id para permitir sync manual caso webhook falhe
+  const admin = createAdminClient()
+  await admin.from('studio_assets')
+    .update({ input_params: { prediction_id: prediction.id, source_image_url: params.source_image_url, motion_prompt: params.motion_prompt, duration: params.duration } })
+    .eq('id', params.assetId)
 }
 
 // ── Render — merge áudio + vídeo via Replicate ────────────────────────────

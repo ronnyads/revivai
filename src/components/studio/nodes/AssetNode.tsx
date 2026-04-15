@@ -133,7 +133,7 @@ function AssetNode({ data }: NodeProps) {
       {/* Body */}
       <div className="p-4 nodrag">
         {asset.status === 'processing' && (
-          <ProcessingCard type={asset.type} createdAt={asset.created_at} />
+          <ProcessingCard type={asset.type} createdAt={asset.created_at} assetId={asset.id} />
         )}
 
         {asset.status === 'error' && (
@@ -321,7 +321,7 @@ const LABELS: Partial<Record<AssetType, string>> = {
   render:  'Mesclando vídeo + áudio...',
 }
 
-function ProcessingCard({ type, createdAt }: { type: AssetType; createdAt: string }) {
+function ProcessingCard({ type, createdAt, assetId }: { type: AssetType; createdAt: string; assetId: string }) {
   const estimated = ESTIMATED[type] ?? 30
   const label     = LABELS[type] ?? 'Gerando com IA...'
 
@@ -329,6 +329,8 @@ function ProcessingCard({ type, createdAt }: { type: AssetType; createdAt: strin
     const start = new Date(createdAt).getTime()
     return Math.floor((Date.now() - start) / 1000)
   })
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -341,11 +343,28 @@ function ProcessingCard({ type, createdAt }: { type: AssetType; createdAt: strin
   // Progresso falso: vai até 90% suavemente, nunca termina antes do webhook
   const rawProgress = Math.min((elapsed / estimated) * 100, 90)
   const progress    = Math.round(rawProgress)
+  const isStuck     = elapsed > estimated + 60 // +1 min de tolerância
 
   const remaining = Math.max(estimated - elapsed, 0)
   const fmt = (s: number) => s >= 60
     ? `${Math.floor(s / 60)}m ${s % 60}s`
     : `${s}s`
+
+  async function syncNow() {
+    setSyncing(true)
+    setSyncMsg('')
+    try {
+      const res = await fetch(`/api/studio/assets/${assetId}/sync`, { method: 'POST' })
+      const data = await res.json()
+      if (data.status === 'done') setSyncMsg('✅ Pronto! Atualizando...')
+      else if (data.status === 'error') setSyncMsg(`❌ ${data.error}`)
+      else setSyncMsg(`⏳ Status: ${data.status}`)
+    } catch {
+      setSyncMsg('Erro ao verificar')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-3 py-4">
@@ -369,9 +388,28 @@ function ProcessingCard({ type, createdAt }: { type: AssetType; createdAt: strin
         <span className="text-[10px] text-zinc-600">
           {remaining > 0
             ? `~${fmt(remaining)} restante`
-            : 'Aguardando confirmáção...'}
+            : 'Aguardando confirmação...'}
         </span>
       </div>
+
+      {/* Botão de sync manual quando travado */}
+      {isStuck && (
+        <div className="flex flex-col gap-1.5">
+          <button
+            onClick={syncNow}
+            disabled={syncing}
+            className="flex items-center justify-center gap-1.5 text-[10px] text-amber-400 border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            {syncing
+              ? <><Loader2 size={10} className="animate-spin" /> Verificando...</>
+              : <><RotateCcw size={10} /> Verificar status no Replicate</>}
+          </button>
+          {syncMsg && (
+            <p className="text-[10px] text-zinc-400 text-center">{syncMsg}</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
+
