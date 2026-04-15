@@ -258,23 +258,30 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
   // Auto-propaga URLs pelas arestas quando um asset completa (ex: compose → video, video → lipsync)
   useEffect(() => {
-    setEdges(prevEdges => {
-      prevEdges.forEach(edge => {
-        if (!edge.targetHandle) return
-        const src = assets.find(a => a.id === edge.source)
-        const tgt = assets.find(a => a.id === edge.target)
-        if (!src?.result_url || !tgt) return
-        const fillValue = edge.targetHandle === 'continuation_frame'
-          ? (src.last_frame_url ?? src.result_url)
-          : src.result_url
-        const field = HANDLE_TO_FIELD[edge.targetHandle] ?? edge.targetHandle
-        if (!tgt.input_params[field]) {
-          handleUpdateParams(tgt.id, { [field]: fillValue })
-        }
-      })
-      return prevEdges // não muda as arestas — só propaga params
+    const updates: { tgtId: string; field: string; value: string }[] = []
+
+    edges.forEach(edge => {
+      if (!edge.targetHandle) return
+      const src = assets.find(a => a.id === edge.source)
+      const tgt = assets.find(a => a.id === edge.target)
+      if (!src?.result_url || !tgt) return
+
+      const fillValue = edge.targetHandle === 'continuation_frame'
+        ? (src.last_frame_url ?? src.result_url)
+        : src.result_url
+      const field = HANDLE_TO_FIELD[edge.targetHandle] ?? edge.targetHandle
+
+      // Força a atualização se o nó destino estiver com um valor diferente da saída da fonte
+      if (tgt.input_params[field] !== fillValue) {
+        updates.push({ tgtId: tgt.id, field, value: fillValue })
+      }
     })
-  }, [assets]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    if (updates.length > 0) {
+      // Dispara a atualização para todos os campos que defasaram
+      updates.forEach(u => handleUpdateParams(u.tgtId, { [u.field]: u.value }))
+    }
+  }, [assets, edges, handleUpdateParams])
 
   useEffect(() => {
     assets.filter(a => a.status === 'processing').forEach(a => startPolling(a.id))
