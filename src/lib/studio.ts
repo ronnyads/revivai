@@ -507,9 +507,10 @@ export async function composeProductScene(params: {
   const outputRaw = await withReplicateRetry(() =>
     replicate.run('black-forest-labs/flux-kontext-pro', {
       input: {
-        prompt:        editPrompt,
-        input_image:   params.portrait_url,
-        output_format: 'jpg',
+        prompt:           editPrompt,
+        input_image:      params.portrait_url,
+        output_format:    'jpg',
+        safety_tolerance: 5,
       },
     })
   )
