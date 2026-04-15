@@ -462,11 +462,23 @@ export async function composeProductScene(params: {
   const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
 
   // 1. Remove background do produto usando modelo ativo (pixel-perfect)
-  // lucataco/remove-bg é o modelo ativo que substitui briaai/RMBG-1.4 (removido)
-  const bgOutput = await replicate.run('lucataco/remove-bg:95fcc2a26d3899cd6c2691c900465aaeff466285d65c14638cc5f36f34befaf1', {
+  // cjwbw/rembg é estável e ativo no Replicate — busca versão dinamicamente
+  const { getModelVersion } = await import('@/lib/replicate')
+  const bgVersion = await getModelVersion(replicate, 'cjwbw/rembg')
+  const bgPrediction = await replicate.predictions.create({
+    version: bgVersion,
     input: { image: params.product_url },
-  }) as string | string[]
-  const bgRemoved = Array.isArray(bgOutput) ? bgOutput[0] : String(bgOutput)
+  })
+  // Aguarda resultado (síncrono, timeout 60s)
+  let bgResult = bgPrediction
+  const start = Date.now()
+  while (bgResult.status !== 'succeeded' && bgResult.status !== 'failed') {
+    if (Date.now() - start > 60_000) throw new Error('Timeout na remoção de fundo')
+    await new Promise(r => setTimeout(r, 1500))
+    bgResult = await replicate.predictions.get(bgResult.id)
+  }
+  if (bgResult.status === 'failed') throw new Error('Remoção de fundo falhou')
+  const bgRemoved = Array.isArray(bgResult.output) ? bgResult.output[0] : String(bgResult.output)
 
   // 2. Baixa cena base e produto sem fundo em paralelo
   const [sceneRes, productRes] = await Promise.all([
