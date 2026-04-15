@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Video } from 'lucide-react'
+import ImageUpload from './ImageUpload'
 
 interface Props {
   initial: Record<string, unknown>
@@ -9,22 +10,19 @@ interface Props {
 }
 
 export default function VideoGenerator({ initial, onGenerate }: Props) {
-  const [imageUrl, setImageUrl]     = useState(String(initial.source_image_url ?? ''))
-  const [motion,   setMotion]       = useState(String(initial.motion_prompt    ?? ''))
-  const [duration, setDuration]     = useState(Number(initial.duration         ?? 5))
+  const [imageUrl, setImageUrl] = useState(String(initial.source_image_url ?? ''))
+  const [motion,   setMotion]   = useState(String(initial.motion_prompt    ?? ''))
+  const [duration, setDuration] = useState(Number(initial.duration         ?? 5))
 
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">URL da imagem base</label>
-        <input
-          value={imageUrl}
-          onChange={e => setImageUrl(e.target.value)}
-          placeholder="Cole a URL de uma imagem gerada acima..."
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent"
-        />
-        <p className="text-[10px] text-zinc-600 mt-1">Dica: gere uma imagem acima e cole o link aqui</p>
-      </div>
+      <ImageUpload
+        value={imageUrl}
+        onChange={setImageUrl}
+        label="Imagem base (da galeria ou computador)"
+        accept="image/*"
+        preview
+      />
       <div>
         <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">Descrição do movimento</label>
         <input
@@ -37,10 +35,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
       <div>
         <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">Duração: {duration}s</label>
         <input
-          type="range"
-          min="3"
-          max="10"
-          step="1"
+          type="range" min="3" max="10" step="1"
           value={duration}
           onChange={e => setDuration(Number(e.target.value))}
           className="w-full accent-accent"

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ZoomIn } from 'lucide-react'
+import ImageUpload from './ImageUpload'
 
 interface Props {
   initial: Record<string, unknown>
@@ -14,23 +15,17 @@ export default function UpscaleCard({ initial, onGenerate }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">URL da imagem</label>
-        <input
-          value={sourceUrl}
-          onChange={e => setSourceUrl(e.target.value)}
-          placeholder="URL de uma foto antiga ou restaurada..."
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent"
-        />
-        <p className="text-[10px] text-zinc-600 mt-1">Dica: use fotos restauradas do seu dashboard</p>
-      </div>
+      <ImageUpload
+        value={sourceUrl}
+        onChange={setSourceUrl}
+        label="Foto (da galeria, computador ou restaurada)"
+        accept="image/*"
+        preview
+      />
       <div>
         <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">Escala: {scale}x</label>
         <input
-          type="range"
-          min="2"
-          max="4"
-          step="1"
+          type="range" min="2" max="4" step="1"
           value={scale}
           onChange={e => setScale(Number(e.target.value))}
           className="w-full accent-accent"

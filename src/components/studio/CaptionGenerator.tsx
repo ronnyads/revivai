@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Captions } from 'lucide-react'
+import ImageUpload from './ImageUpload'
 
 interface Props {
   initial: Record<string, unknown>
@@ -13,16 +14,13 @@ export default function CaptionGenerator({ initial, onGenerate }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div>
-        <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">URL do áudio</label>
-        <input
-          value={audioUrl}
-          onChange={e => setAudioUrl(e.target.value)}
-          placeholder="Cole a URL do áudio gerado pela Voz..."
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent"
-        />
-        <p className="text-[10px] text-zinc-600 mt-1">Funciona com MP3, WAV, M4A e outros formatos</p>
-      </div>
+      <ImageUpload
+        value={audioUrl}
+        onChange={setAudioUrl}
+        label="Áudio (do computador ou gerado pela Voz)"
+        accept="audio/*"
+        preview={false}
+      />
       <div className="bg-zinc-800/60 rounded-xl p-3 text-xs text-zinc-500">
         Powered by <span className="text-white font-medium">Whisper</span> — transcrição em português com timestamps.
         Gera arquivo <span className="text-white">.srt</span> pronto para importar no editor de vídeo.
