@@ -56,7 +56,7 @@ function AssetNode({ data }: NodeProps) {
   }
 
   return (
-    <div className="w-[300px] bg-zinc-900 border border-zinc-700 rounded-2xl overflow-visible shadow-2xl shadow-black/40">
+    <div className={`${asset.type === 'model' ? 'w-[360px]' : 'w-[300px]'} bg-zinc-900 border border-zinc-700 rounded-2xl overflow-visible shadow-2xl shadow-black/40`}>
 
       {/* INPUT handles — esquerda */}
       {inputHandles.map((h, i) => (
@@ -168,7 +168,7 @@ export default memo(AssetNode)
 function ResultPreview({ type, url, params }: { type: AssetType; url: string; params: Record<string, unknown> }) {
   if (type === 'model') return (
     <div className="flex flex-col gap-2">
-      <img src={url} alt="Modelo UGC" className="w-full rounded-xl object-cover max-h-52" />
+      <img src={url} alt="Modelo UGC" className="w-full rounded-xl object-cover max-h-72" />
       {!!params.model_text && (
         <div className="bg-zinc-800 border border-indigo-500/20 rounded-xl p-2.5">
           <p className="text-[10px] text-indigo-400 uppercase tracking-widest mb-1 font-medium">Descrição</p>
