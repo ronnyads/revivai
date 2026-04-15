@@ -475,11 +475,12 @@ export async function composeProductScene(params: {
 Analise as duas imagens fornecidas (a primeira é uma pessoa/modelo, a segunda é um produto) e retorne um JSON com:
 - "model_desc": descrição detalhada da pessoa (etnia, idade estimada, cor do cabelo, tom de pele, roupa, cenário, iluminação, estilo de câmera)
 - "product_desc": descrição detalhada do produto (o que é, cor, forma, embalagem, marca se visível)
-- "hold_action": como essa pessoa seguraria ou usaria naturalmente esse produto específico (ex: "segurando a garrafa levantada com a mão direita", "aplicando o creme na bochecha", "exibindo a caixa aberta com um sorriso")
+- "pose_action": como a pessoa deve estar posicionada/gesticulando para parecer que está usando/segurando o produto, SEM mencionar o produto na descrição (ex: "com a mão direita levantada e aberta na frente do peito, olhando para a câmera sorrindo", "com a mão espalmada na bochecha direita, olhos fechados em expressão de prazer")
 - "scene_style": estilo cênico sugerido para UGC autêntico (ex: "iluminação natural, dusk, bokeh, selfie style")
+- "product_gravity": posição ideal para sobrepor o produto na imagem final — APENAS um destes valores: center, north, south, east, west, northeast, northwest, southeast, southwest
 Retorne APENAS JSON válido, sem markdown.`
 
-  const fluxTemplate = promptMap['compose_flux_template'] ?? `Fotografia UGC profissional e autêntica. {model_desc}. Ela está {hold_action} ({product_desc}). O produto está claramente visível e naturalmente integrado à cena. {scene_style}. Estilo UGC real, qualidade de câmera de smartphone, pessoa real. Foco nítido na pessoa e no produto. Alta qualidade, fotorrealismo.`
+  const fluxTemplate = promptMap['compose_flux_template'] ?? `Fotografia UGC profissional e autêntica, sem nenhum produto na mão ou no cenário. {model_desc}. {pose_action}. {scene_style}. Estilo UGC real, qualidade de câmera de smartphone, pessoa real. Foco nítido na pessoa. Alta qualidade, fotorrealismo. Mãos naturalmente posicionadas, sem segurar nada.`
 
   // 2. GPT-4o Vision analisa as duas imagens
   const visionRes = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -510,35 +511,72 @@ Retorne APENAS JSON válido, sem markdown.`
   let analysis: Record<string, string> = {}
   try { analysis = JSON.parse(raw) } catch { throw new Error('GPT-4o retornou JSON inválido') }
 
-  // 3. Monta prompt FLUX com a análise
-  const fusionPrompt = fluxTemplate
+  // 3. Monta prompt FLUX — cena sem o produto (para preservar produto original)
+  const scenePrompt = fluxTemplate
     .replace('{model_desc}',  analysis.model_desc   ?? 'attractive person')
-    .replace('{hold_action}', analysis.hold_action  ?? 'holding the product')
-    .replace('{product_desc}',analysis.product_desc ?? 'a product')
+    .replace('{pose_action}', analysis.pose_action  ?? 'with hand naturally extended')
     .replace('{scene_style}', analysis.scene_style  ?? 'natural lighting, UGC style')
 
-  // 4. FLUX 1.1 Pro gera a nova imagem
+  // 4. FLUX gera a cena SEM o produto
   const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
-  const fluxOutput = await replicate.run('black-forest-labs/flux-1.1-pro', {
-    input: {
-      prompt:         fusionPrompt,
-      aspect_ratio:   '9:16',
-      output_format:  'jpg',
-      output_quality: 90,
-      safety_tolerance: 5,
-    },
-  }) as string | string[]
 
-  const imageUrl = Array.isArray(fluxOutput) ? fluxOutput[0] : String(fluxOutput)
+  const [fluxOutputRaw, bgRemovedRaw] = await Promise.all([
+    // Cena com modelo (sem produto)
+    replicate.run('black-forest-labs/flux-1.1-pro', {
+      input: {
+        prompt:           scenePrompt,
+        aspect_ratio:     '9:16',
+        output_format:    'jpg',
+        output_quality:   90,
+        safety_tolerance: 5,
+      },
+    }),
+    // Background removal do produto ORIGINAL em paralelo
+    replicate.run('cjwbw/rembg', {
+      input: { image: params.product_url },
+    }),
+  ])
 
-  // 5. Baixa e salva no bucket studio
-  const imgRes = await fetch(imageUrl)
-  const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+  const sceneUrl   = Array.isArray(fluxOutputRaw) ? fluxOutputRaw[0] : String(fluxOutputRaw)
+  const productBgRemovedUrl = Array.isArray(bgRemovedRaw) ? bgRemovedRaw[0] : String(bgRemovedRaw)
 
+  // 5. Baixa cena gerada e produto sem fundo em paralelo
+  const [sceneRes, productRes] = await Promise.all([
+    fetch(sceneUrl),
+    fetch(productBgRemovedUrl),
+  ])
+  const [sceneBuffer, productBuffer] = await Promise.all([
+    sceneRes.arrayBuffer().then(b => Buffer.from(b)),
+    productRes.arrayBuffer().then(b => Buffer.from(b)),
+  ])
+
+  // 6. Determina tamanho do produto proporcional à cena
+  const sceneMeta    = await sharp(sceneBuffer).metadata()
+  const sceneWidth   = sceneMeta.width  ?? 1024
+  const sceneHeight  = sceneMeta.height ?? 1792
+  const productScale = params.product_scale ?? 0.38
+  const productWidth = Math.round(sceneWidth * productScale)
+
+  const productResized = await sharp(productBuffer)
+    .resize({ width: productWidth })
+    .toBuffer()
+
+  // 7. Compõe produto ORIGINAL (pixel-perfect) sobre cena gerada pelo FLUX
+  const validGravities = ['center','north','south','east','west','northeast','northwest','southeast','southwest']
+  const gravity = validGravities.includes(analysis.product_gravity ?? '')
+    ? (analysis.product_gravity as any)
+    : (params.position && validGravities.includes(params.position) ? params.position as any : 'southeast')
+
+  const composed = await sharp(sceneBuffer)
+    .composite([{ input: productResized, gravity }])
+    .jpeg({ quality: 92 })
+    .toBuffer()
+
+  // 8. Salva no bucket studio
   const path = `${params.userId}/compose-${params.assetId}.jpg`
   const { error: uploadErr } = await admin.storage
     .from('studio')
-    .upload(path, imgBuf, { contentType: 'image/jpeg', upsert: true })
+    .upload(path, composed, { contentType: 'image/jpeg', upsert: true })
   if (uploadErr) throw new Error(`Upload falhou: ${uploadErr.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)

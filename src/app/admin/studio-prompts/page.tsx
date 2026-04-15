@@ -7,13 +7,13 @@ const PROMPT_DEFS = [
   {
     key: 'compose_vision_system',
     label: '🔍 Análise GPT-4o Vision (Fusão UGC)',
-    description: 'Instrução para o GPT-4o analisar a foto da modelo + produto. Use {model_desc}, {product_desc}, {hold_action}, {scene_style} como variáveis de saída no JSON.',
-    rows: 12,
+    description: 'GPT-4o analisa modelo + produto. O JSON de saída deve conter: model_desc, product_desc, pose_action (pose SEM mencionar o produto), scene_style, product_gravity (valor sharp: center/north/south/east/west/northeast/northwest/southeast/southwest).',
+    rows: 14,
   },
   {
     key: 'compose_flux_template',
-    label: '🎨 Template FLUX (Geração da cena)',
-    description: 'Prompt enviado ao FLUX para gerar a foto final. Use {model_desc}, {hold_action}, {product_desc} e {scene_style} como placeholders.',
+    label: '🎨 Template FLUX (cena sem produto)',
+    description: 'FLUX gera a cena com a modelo em pose — sem o produto. O produto original é colado depois pelo sharp (pixel-perfect). Variáveis: {model_desc}, {pose_action}, {scene_style}.',
     rows: 6,
   },
   {
@@ -84,8 +84,9 @@ export default async function StudioPromptsPage() {
       <div className="mt-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
         <p className="text-xs text-amber-400/80 font-medium mb-1">💡 Variáveis disponíveis no template FLUX:</p>
         <code className="text-[11px] text-white/50 font-mono">
-          {'{model_desc}'} · {'{hold_action}'} · {'{product_desc}'} · {'{scene_style}'}
+          {'{model_desc}'} · {'{pose_action}'} · {'{scene_style}'}
         </code>
+        <p className="text-[10px] text-white/30 mt-2">O produto é sempre o original do cliente, colado pixel-perfect pelo sharp após a geração.</p>
       </div>
     </div>
   )
