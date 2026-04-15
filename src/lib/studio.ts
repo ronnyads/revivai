@@ -461,10 +461,12 @@ export async function composeProductScene(params: {
   const admin     = createAdminClient()
   const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
 
-  // 1. Remove background do produto (pixel-perfect — produto nunca é alterado)
-  const bgRemoved = String(await replicate.run('briaai/RMBG-1.4', {
+  // 1. Remove background do produto usando modelo ativo (pixel-perfect)
+  // lucataco/remove-bg é o modelo ativo que substitui briaai/RMBG-1.4 (removido)
+  const bgOutput = await replicate.run('lucataco/remove-bg:95fcc2a26d3899cd6c2691c900465aaeff466285d65c14638cc5f36f34befaf1', {
     input: { image: params.product_url },
-  }))
+  }) as string | string[]
+  const bgRemoved = Array.isArray(bgOutput) ? bgOutput[0] : String(bgOutput)
 
   // 2. Baixa cena base e produto sem fundo em paralelo
   const [sceneRes, productRes] = await Promise.all([
@@ -515,8 +517,10 @@ export async function startAnimateGeneration(params: {
 
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
 
+  // svjack/live-portrait é o modelo ativo que substitui fofr/live-portrait (removido)
   await replicate.predictions.create({
     model: 'fofr/live-portrait',
+    version: 'a63d25e17e4d684e4f5af21e5fa6a20a1d6af26543154bda9e97aa80c6c7eb22',
     input: {
       image:         params.portrait_image_url,
       video:         params.driving_video_url,
