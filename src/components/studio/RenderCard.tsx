@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Film, Video, Mic } from 'lucide-react'
 
 interface Props {
@@ -11,6 +11,17 @@ interface Props {
 export default function RenderCard({ initial, onGenerate }: Props) {
   const [videoUrl, setVideoUrl] = useState(String(initial.source_image_url ?? ''))
   const [audioUrl, setAudioUrl] = useState(String(initial.audio_url        ?? ''))
+
+  // Sincroniza quando conexões do canvas injetam os valores via props
+  useEffect(() => {
+    const val = String(initial.source_image_url ?? '')
+    if (val) setVideoUrl(val)
+  }, [initial.source_image_url])
+
+  useEffect(() => {
+    const val = String(initial.audio_url ?? '')
+    if (val) setAudioUrl(val)
+  }, [initial.audio_url])
 
   const hasVideo = !!videoUrl.trim()
   const hasAudio = !!audioUrl.trim()

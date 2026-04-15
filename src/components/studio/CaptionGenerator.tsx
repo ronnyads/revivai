@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Captions } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 
@@ -11,6 +11,12 @@ interface Props {
 
 export default function CaptionGenerator({ initial, onGenerate }: Props) {
   const [audioUrl, setAudioUrl] = useState(String(initial.audio_url ?? ''))
+
+  // Sincroniza audio_url quando conexão Voice → Caption injeta via props
+  useEffect(() => {
+    const val = String(initial.audio_url ?? '')
+    if (val) setAudioUrl(val)
+  }, [initial.audio_url])
 
   return (
     <div className="flex flex-col gap-3">

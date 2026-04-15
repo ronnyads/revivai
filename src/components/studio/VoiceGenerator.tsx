@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Mic, Upload, Loader2 } from 'lucide-react'
 
 const BR_VOICES = [
@@ -22,6 +22,12 @@ export default function VoiceGenerator({ initial, onGenerate }: Props) {
   const [speed,   setSpeed]   = useState(Number(initial.speed    ?? 1.0))
   const [cloning, setCloning] = useState(false)
   const [cloneMsg, setCloneMsg] = useState('')
+
+  // Sincroniza script quando conexão Script → Voice injeta via props
+  useEffect(() => {
+    const val = String(initial.script ?? '')
+    if (val) setScript(val)
+  }, [initial.script])
 
   async function handleClone(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

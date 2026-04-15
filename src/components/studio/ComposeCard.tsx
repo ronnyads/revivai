@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Layers, ShieldCheck, Image as ImageIcon } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 
@@ -24,9 +24,15 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
   const [position,    setPosition]    = useState(String(initial.position     ?? 'southeast'))
   const [scale,       setScale]       = useState(Number(initial.product_scale ?? 0.35))
 
+  // Sincroniza portrait_url quando a conexão do canvas injeta via props
+  useEffect(() => {
+    const val = String(initial.portrait_url ?? '')
+    if (val) setPortraitUrl(val)
+  }, [initial.portrait_url])
+
   const hasPortrait = !!portraitUrl.trim()
   const hasProduct  = !!productUrl.trim()
-  const isConnected = !!initial.portrait_url
+  const isConnected = !!portraitUrl && !!initial.portrait_url
 
   return (
     <div className="flex flex-col gap-3">

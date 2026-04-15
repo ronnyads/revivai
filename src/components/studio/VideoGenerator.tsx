@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Video, Link2 } from 'lucide-react'
+import { Video, Link2, User } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 
 interface Props {
@@ -41,7 +41,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
       )}
       {!!initial.model_prompt && (
         <div className="flex items-center gap-1.5 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 px-2.5 py-1.5 rounded-xl">
-          <span>👤</span> Modelo conectado
+          <User size={11} /> Modelo conectado
         </div>
       )}
       <div>
