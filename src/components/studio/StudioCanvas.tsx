@@ -55,6 +55,7 @@ function buildNodes(assets: StudioAsset[], callbacks: Omit<AssetNodeData, 'asset
       y: asset.position_y ?? (100 + Math.floor(i / 3) * 440),
     },
     data: { asset, ...callbacks } as unknown as Record<string, unknown>,
+    style: { overflow: 'visible' },
   }))
 }
 

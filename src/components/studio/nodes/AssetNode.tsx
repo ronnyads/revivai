@@ -62,7 +62,7 @@ function AssetNode({ data }: NodeProps) {
           type="target"
           position={Position.Left}
           id={h.id}
-          style={{ top: `${40 + i * 24}px`, background: '#3b82f6', width: 10, height: 10, border: '2px solid #1e3a5f' }}
+          style={{ top: `${48 + i * 28}px`, background: '#3b82f6', width: 14, height: 14, border: '2px solid #1e40af', zIndex: 50, cursor: 'crosshair' }}
           title={h.label}
         />
       ))}
@@ -72,7 +72,7 @@ function AssetNode({ data }: NodeProps) {
         type="source"
         position={Position.Right}
         id="output"
-        style={{ background: '#f97316', width: 10, height: 10, border: '2px solid #7c2d12' }}
+        style={{ background: '#f97316', width: 14, height: 14, border: '2px solid #c2410c', zIndex: 50, cursor: 'crosshair' }}
       />
 
       {/* Header */}
