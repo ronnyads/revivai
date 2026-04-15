@@ -51,7 +51,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </nav>
 
         {/* User Footer */}
-        <div className="p-6 border-t border-[#E8E8E8] flex-col gap-4">
+        <div className="p-6 border-t border-[#E8E8E8] flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-accent-light text-accent flex items-center justify-center font-bold text-sm">
               {user.email?.[0].toUpperCase()}

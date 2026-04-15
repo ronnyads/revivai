@@ -1,10 +1,9 @@
-export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import PhotoCard from '@/components/ui/PhotoCard'
-import { Plus } from 'lucide-react'
+import { Plus, Hand } from 'lucide-react'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -20,8 +19,8 @@ export default async function DashboardPage() {
   return (
     <main className="max-w-6xl mx-auto px-6 md:px-12 py-10 md:py-16">
       <div className="mb-10">
-        <h1 className="font-display text-4xl font-normal tracking-tight mb-1">
-          Olá, {user.email?.split('@')[0]} 👋
+        <h1 className="font-display text-4xl font-normal tracking-tight mb-1 flex items-center gap-3">
+          Olá, {user.email?.split('@')[0]} <Hand size={32} className="text-accent" aria-hidden="true" />
         </h1>
         <p className="text-muted text-sm border-l-2 border-accent pl-2 mt-2">
           Aqui estão suas fotos restauradas.

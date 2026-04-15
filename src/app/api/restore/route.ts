@@ -13,6 +13,7 @@ import {
 import { getModelVersion, createPredictionWithRetry } from '@/lib/replicate'
 import { analyzeEnterpriseDamage } from '@/lib/openai'
 import { restoreWithGemini } from '@/lib/gemini'
+import { checkRateLimit, getRateLimitInfo } from '@/lib/rateLimit'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,24 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // ── Rate limit: max 5 restores/minute per user ──
+  const rateLimitPassed = checkRateLimit(user.id, 'restore', { max: 5, windowMs: 60_000 })
+  if (!rateLimitPassed) {
+    const info = getRateLimitInfo(user.id, 'restore', { max: 5, windowMs: 60_000 })
+    return NextResponse.json(
+      { error: 'Muitas requisições. Aguarde um momento antes de tentar novamente.' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': '5',
+          'X-RateLimit-Remaining': String(info.remaining),
+          'X-RateLimit-Reset': String(Math.ceil(info.resetAt / 1000)),
+          'Retry-After': String(Math.ceil((info.resetAt - Date.now()) / 1000)),
+        },
+      }
+    )
+  }
 
   // ── Credit check ──
   const { data: profile } = await supabase

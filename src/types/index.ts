@@ -3,6 +3,7 @@ export interface User {
   email: string
   plan: 'free' | 'subscription' | 'package'
   credits: number
+  /** @deprecated O projeto usa Mercado Pago, não Stripe. Campo mantido para retrocompatibilidade DB. */
   stripe_customer_id?: string
   created_at: string
 }

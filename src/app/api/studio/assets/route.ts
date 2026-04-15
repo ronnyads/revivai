@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene } from '@/lib/studio'
 import { AssetType } from '@/types'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/studio/assets — cria asset e dispara geração
@@ -14,6 +15,14 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // ── Rate limit: max 10 assets/minute por usuário ──
+  if (!checkRateLimit(user.id, 'studio-asset', { max: 10, windowMs: 60_000 })) {
+    return NextResponse.json(
+      { error: 'Muitos assets gerados. Aguarde um momento.' },
+      { status: 429 }
+    )
+  }
 
   const body = await req.json()
   const { project_id, type, input_params } = body as { project_id: string; type: AssetType; input_params: Record<string, unknown> }
