@@ -130,10 +130,12 @@ export async function POST(req: NextRequest) {
         scale: Number(input_params.scale ?? 4),
       })
     } else if (type === 'video') {
-      // Assíncrono — webhook atualiza status
-      // VERCEL_URL é injetado automaticamente em todos os deploys da Vercel
-      const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000'
+      // Detecta a URL real a partir da própria requisição — imune a env vars erradas
+      const origin = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
+      const appUrl = origin
+        ? (origin.startsWith('http') ? origin : `https://${origin}`)
+        : (process.env.NEXT_PUBLIC_APP_URL ?? `https://${process.env.VERCEL_URL}` ?? 'http://localhost:3000')
+
       // Suporta continuação (video→video): usa continuation_frame como source se disponível
       const sourceImageUrl = String(
         input_params.continuation_frame ?? input_params.source_image_url ?? ''
@@ -149,8 +151,10 @@ export async function POST(req: NextRequest) {
       })
       return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
     } else if (type === 'animate') {
-      const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000'
+      const origin = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
+      const appUrl = origin
+        ? (origin.startsWith('http') ? origin : `https://${origin}`)
+        : (process.env.NEXT_PUBLIC_APP_URL ?? `https://${process.env.VERCEL_URL}` ?? 'http://localhost:3000')
       await startAnimateGeneration({
         portrait_image_url: String(input_params.portrait_image_url ?? ''),
         driving_video_url:  String(input_params.driving_video_url  ?? ''),
