@@ -112,15 +112,22 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
   const handleGenerate = useCallback(async (type: AssetType, params: Record<string, unknown>, existingId: string) => {
     const isTemp = existingId.startsWith('temp-')
-    if (!isTemp) {
-      await fetch(`/api/studio/assets/${existingId}`, { method: 'DELETE' })
-    }
-    setAssets(prev => prev.filter(a => a.id !== existingId))
 
+    // Salva posição antes de qualquer mudança de estado
     const currentAsset = assets.find(a => a.id === existingId)
     const pos = currentAsset
       ? { x: currentAsset.position_x, y: currentAsset.position_y }
       : { x: 100 + (assets.length % 3) * 380, y: 100 + Math.floor(assets.length / 3) * 440 }
+
+    // Mostra spinner no card existente enquanto a API processa
+    setAssets(prev => prev.map(a =>
+      a.id === existingId ? { ...a, status: 'processing', error_msg: null } : a
+    ))
+
+    // Deleta do banco (em paralelo, não bloqueia a UI)
+    if (!isTemp) {
+      fetch(`/api/studio/assets/${existingId}`, { method: 'DELETE' })
+    }
 
     const res = await fetch('/api/studio/assets', {
       method: 'POST',
@@ -128,16 +135,27 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       body: JSON.stringify({ project_id: project.id, type, input_params: params }),
     })
     const { asset, error } = await res.json()
-    if (error || !asset) { alert(error ?? 'Erro ao gerar'); return }
+
+    if (error || !asset) {
+      // Mostra erro no card sem sumir
+      setAssets(prev => prev.map(a =>
+        a.id === existingId ? { ...a, status: 'error', error_msg: error ?? 'Erro ao gerar' } : a
+      ))
+      return
+    }
 
     // Salva posição no DB
-    await fetch(`/api/studio/assets/${asset.id}`, {
+    fetch(`/api/studio/assets/${asset.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ position_x: pos.x, position_y: pos.y }),
     })
 
-    setAssets(prev => [...prev, { ...asset, position_x: pos.x, position_y: pos.y }])
+    // Substitui o card antigo pelo novo
+    setAssets(prev => [
+      ...prev.filter(a => a.id !== existingId),
+      { ...asset, position_x: pos.x, position_y: pos.y },
+    ])
     setCredits(c => c - asset.credits_cost)
     if (asset.status === 'processing') startPolling(asset.id)
   }, [assets, project.id, startPolling])

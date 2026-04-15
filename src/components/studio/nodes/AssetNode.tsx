@@ -101,7 +101,8 @@ function AssetNode({ data }: NodeProps) {
           <div className="flex flex-col items-center py-6 gap-2">
             <Loader2 size={24} className="animate-spin text-accent" />
             <p className="text-xs text-zinc-400">Gerando com IA...</p>
-            {asset.type === 'video' && <p className="text-[10px] text-zinc-600">Vídeos levam até 3 min</p>}
+            {asset.type === 'video'  && <p className="text-[10px] text-zinc-600">Vídeos levam até 3 min</p>}
+            {asset.type === 'model'  && <p className="text-[10px] text-zinc-600">Foto pode levar ~30 segundos</p>}
           </div>
         )}
 
