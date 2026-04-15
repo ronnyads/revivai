@@ -103,17 +103,22 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
   const startPolling = useCallback((assetId: string) => {
     if (pollingRef.current.has(assetId)) return
+    const stopPolling = () => {
+      clearInterval(pollingRef.current.get(assetId))
+      pollingRef.current.delete(assetId)
+    }
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/studio/assets/${assetId}`)
+        // 404 = asset foi deletado/substituído — para de fazer poll
+        if (!res.ok) { stopPolling(); return }
         const { asset } = await res.json()
-        if (!asset) return
+        if (!asset) { stopPolling(); return }
         if (asset.status === 'done' || asset.status === 'error') {
-          clearInterval(pollingRef.current.get(assetId))
-          pollingRef.current.delete(assetId)
+          stopPolling()
           setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...asset } : a))
         }
-      } catch { /* silencioso */ }
+      } catch { /* rede — tenta de novo no próximo tick */ }
     }, 3000)
     pollingRef.current.set(assetId, interval)
   }, [])
