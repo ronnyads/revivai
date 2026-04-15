@@ -175,6 +175,20 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     ])
     setCredits(c => c - asset.credits_cost)
     if (asset.status === 'processing') startPolling(asset.id)
+
+    // Remapeia connections e edges do ID antigo → novo ID (preserva conexões visuais)
+    if (asset.id !== existingId) {
+      setConnections(prev => prev.map(c => ({
+        ...c,
+        source_id: c.source_id === existingId ? asset.id : c.source_id,
+        target_id: c.target_id === existingId ? asset.id : c.target_id,
+      })))
+      setEdges(prev => prev.map(e => ({
+        ...e,
+        source: e.source === existingId ? asset.id : e.source,
+        target: e.target === existingId ? asset.id : e.target,
+      })))
+    }
   }, [assets, project.id, startPolling])
 
   const nodeCallbacks: Omit<AssetNodeData, 'asset'> = {
@@ -187,9 +201,37 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [nodes, setNodes, onNodesChange] = useNodesState(buildNodes(assets, nodeCallbacks))
   const [edges, setEdges, onEdgesChange] = useEdgesState(buildEdges(connections))
 
-  // Sincroniza assets → nodes quando assets mudam
+  // Sincroniza assets → nodes de forma granular (sem recriar todos — preserva edges)
   useEffect(() => {
-    setNodes(buildNodes(assets, nodeCallbacks))
+    setNodes(prev => {
+      const assetMap = new Map(assets.map(a => [a.id, a]))
+      const existingIds = new Set(prev.map(n => n.id))
+
+      // Atualiza apenas o campo `asset` dos nodes existentes (posição preservada)
+      const updated = prev
+        .filter(n => assetMap.has(n.id))
+        .map(n => ({
+          ...n,
+          data: { ...n.data, asset: assetMap.get(n.id)! },
+          style: { overflow: 'visible', width: assetMap.get(n.id)!.type === 'model' ? 360 : 300 },
+        }))
+
+      // Adiciona nodes novos que ainda não existem no ReactFlow
+      const newAssets = assets.filter(a => !existingIds.has(a.id))
+      const offset = prev.length
+      const newNodes = newAssets.map((asset, j) => ({
+        id: asset.id,
+        type: 'assetNode' as const,
+        position: {
+          x: asset.position_x ?? (100 + ((offset + j) % 3) * 380),
+          y: asset.position_y ?? (100 + Math.floor((offset + j) / 3) * 440),
+        },
+        data: { asset, ...nodeCallbacks } as unknown as Record<string, unknown>,
+        style: { overflow: 'visible', width: asset.type === 'model' ? 360 : 300 },
+      }))
+
+      return [...updated, ...newNodes]
+    })
   }, [assets]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
