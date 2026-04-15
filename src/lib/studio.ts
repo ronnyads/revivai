@@ -342,11 +342,37 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   const data = await res.json()
   const text: string = data.choices?.[0]?.message?.content?.trim() ?? ''
 
-  const path = `${params.userId}/${params.assetId}-model.txt`
+  // Gera foto com DALL-E 3 usando a descrição
+  const dallePrompt = `Portrait photo of ${text} Looking directly at camera, UGC ad style, natural lighting, photorealistic, high quality, 9:16 vertical format.`
+
+  const imgRes = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'dall-e-3',
+      prompt: dallePrompt,
+      size: '1024x1792',
+      quality: 'standard',
+      n: 1,
+    }),
+  })
+
+  if (!imgRes.ok) {
+    const err = await imgRes.json()
+    throw new Error(`DALL-E modelo erro: ${err.error?.message ?? imgRes.status}`)
+  }
+
+  const imgData = await imgRes.json()
+  const tempUrl = imgData.data?.[0]?.url
+  if (!tempUrl) throw new Error('DALL-E não retornou URL para o modelo')
+
+  // Re-upload para bucket studio
+  const photoBuffer = Buffer.from(await (await fetch(tempUrl)).arrayBuffer())
+  const path = `${params.userId}/${params.assetId}-model.jpg`
   const { error } = await admin.storage
     .from('studio')
-    .upload(path, Buffer.from(text, 'utf-8'), { contentType: 'text/plain', upsert: true })
-  if (error) throw new Error(`Upload modelo falhou: ${error.message}`)
+    .upload(path, photoBuffer, { contentType: 'image/jpeg', upsert: true })
+  if (error) throw new Error(`Upload foto modelo falhou: ${error.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
   return { url: publicUrl, text }

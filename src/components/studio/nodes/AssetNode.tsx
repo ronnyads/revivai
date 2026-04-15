@@ -120,7 +120,13 @@ function AssetNode({ data }: NodeProps) {
         {asset.status === 'done' && asset.result_url && (
           <div className="flex flex-col gap-2">
             <ResultPreview type={asset.type} url={asset.result_url} params={asset.input_params} />
-            {asset.type !== 'script' && asset.type !== 'caption' && (
+            {asset.type === 'model' && (
+              <ModelDoneActions
+                asset={asset}
+                onRegenerate={() => onGenerate(asset.type, asset.input_params, asset.id)}
+              />
+            )}
+            {asset.type !== 'script' && asset.type !== 'caption' && asset.type !== 'model' && (
               <button
                 onClick={handleDownload}
                 className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-3 py-1.5 rounded-xl transition-colors w-full"
@@ -159,6 +165,17 @@ export default memo(AssetNode)
 
 // ── Result previews ───────────────────────────────────────────────────────
 function ResultPreview({ type, url, params }: { type: AssetType; url: string; params: Record<string, unknown> }) {
+  if (type === 'model') return (
+    <div className="flex flex-col gap-2">
+      <img src={url} alt="Modelo UGC" className="w-full rounded-xl object-cover max-h-52" />
+      {!!params.model_text && (
+        <div className="bg-zinc-800 border border-indigo-500/20 rounded-xl p-2.5">
+          <p className="text-[10px] text-indigo-400 uppercase tracking-widest mb-1 font-medium">Descrição</p>
+          <p className="text-[10px] text-zinc-400 leading-relaxed line-clamp-3">{String(params.model_text)}</p>
+        </div>
+      )}
+    </div>
+  )
   if (type === 'image' || type === 'upscale') return <img src={url} alt="" className="w-full rounded-xl object-cover max-h-48" />
   if (type === 'video') return <video src={url} controls className="w-full rounded-xl max-h-48" playsInline />
   if (type === 'voice') return <audio src={url} controls className="w-full" />
@@ -197,6 +214,38 @@ function CaptionPreview({ url }: { url: string }) {
       <a href={url} download className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-3 py-1.5 rounded-xl transition-colors">
         <Download size={11} /> Baixar .srt
       </a>
+    </div>
+  )
+}
+
+function ModelDoneActions({ asset, onRegenerate }: { asset: StudioAsset; onRegenerate: () => void }) {
+  const [saved, setSaved] = useState(false)
+  async function handleSave() {
+    const text = String(asset.input_params.model_text ?? '')
+    if (!text) return
+    const res = await fetch('/api/studio/save-model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: text }),
+    })
+    if (res.ok) setSaved(true)
+  }
+  return (
+    <div className="flex gap-2">
+      <button
+        onClick={onRegenerate}
+        className="flex items-center justify-center gap-1.5 flex-1 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 py-2 rounded-xl transition-colors"
+      >
+        <RotateCcw size={11} /> Regenerar
+      </button>
+      <button
+        onClick={handleSave}
+        className={`flex items-center justify-center gap-1.5 flex-1 text-[11px] py-2 rounded-xl transition-colors border ${
+          saved ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : 'border-indigo-500/30 text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20'
+        }`}
+      >
+        {saved ? <><Check size={11} /> Salvo!</> : <><ArrowRight size={11} /> Salvar Modelo</>}
+      </button>
     </div>
   )
 }
