@@ -8,12 +8,13 @@ import {
   MarkerType, ReactFlowProvider,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ArrowLeft, Edit2, Check, Plus, Zap } from 'lucide-react'
+import { ArrowLeft, Edit2, Check, Plus, Wand2, LayoutGrid } from 'lucide-react'
 import Link from 'next/link'
 import { StudioAsset, StudioConnection, StudioProject, AssetType } from '@/types'
 import AssetNode, { AssetNodeData } from './nodes/AssetNode'
 import LightEdge from './edges/LightEdge'
 import AddCardMenu from './AddCardMenu'
+import CampaignWizard, { WizardResult } from './CampaignWizard'
 
 const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
@@ -85,6 +86,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [credits,     setCredits]     = useState(userCredits)
   const [title,       setTitle]       = useState(project.title)
   const [editing,     setEditing]     = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
   const pollingRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
 
   // ── Callbacks passados para os nós ──────────────────────────────────────
@@ -322,24 +324,84 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     setAssets(prev => [...prev, newAsset])
   }
 
-  // ── Fluxo guiado ─────────────────────────────────────────────────────────
-  function startGuidedFlow() {
-    if (assets.length > 0) return
-    const types: AssetType[] = ['model', 'script', 'image', 'voice', 'video', 'caption']
+  // ── Campaign Wizard → monta cards automaticamente ──────────────────────
+  function buildCampaign(result: WizardResult) {
+    setShowWizard(false)
     const now = Date.now()
-    const newAssets: StudioAsset[] = types.map((type, i) => ({
-      id: `temp-${now}-${i}`,
-      project_id: project.id,
-      user_id: project.user_id,
-      type,
-      status: 'idle',
-      input_params: DEFAULT_PARAMS[type],
-      credits_cost: CREDIT_COST[type],
-      board_order: i,
-      position_x: 120 + i * 380,
-      position_y: 200,
+    const newAssets: StudioAsset[] = []
+    let idx = 0
+
+    // 1. Card Modelo UGC
+    newAssets.push({
+      id: `temp-${now}-${idx++}`,
+      project_id: project.id, user_id: project.user_id,
+      type: 'model', status: 'idle',
+      input_params: { ...result.modelConfig },
+      credits_cost: 1, board_order: idx,
+      position_x: 60, position_y: 100,
       created_at: new Date().toISOString(),
-    }))
+    })
+
+    // 2. Card Compose (produto + modelo) — se houver produto
+    if (result.productUrl) {
+      newAssets.push({
+        id: `temp-${now}-${idx++}`,
+        project_id: project.id, user_id: project.user_id,
+        type: 'compose', status: 'idle',
+        input_params: { portrait_url: '', product_url: result.productUrl, position: 'southeast', product_scale: 0.35 },
+        credits_cost: 1, board_order: idx,
+        position_x: 460, position_y: 100,
+        created_at: new Date().toISOString(),
+      })
+    }
+
+    // 3. Cards por segmento: Script → Voz → Vídeo
+    const baseX = result.productUrl ? 860 : 460
+    result.segments.forEach((seg, i) => {
+      const colX  = baseX + i * 800
+      const scriptId = `temp-${now}-script-${i}`
+      const voiceId  = `temp-${now}-voice-${i}`
+      const videoId  = `temp-${now}-video-${i}`
+
+      newAssets.push({
+        id: scriptId, project_id: project.id, user_id: project.user_id,
+        type: 'script', status: 'idle',
+        input_params: { product: '', audience: '', format: 'reels', script_text: seg.script },
+        credits_cost: 1, board_order: idx++,
+        position_x: colX, position_y: 100,
+        created_at: new Date().toISOString(),
+      })
+      newAssets.push({
+        id: voiceId, project_id: project.id, user_id: project.user_id,
+        type: 'voice', status: 'idle',
+        input_params: { script: seg.script, voice_id: result.voiceId, speed: 1.0 },
+        credits_cost: 1, board_order: idx++,
+        position_x: colX, position_y: 380,
+        created_at: new Date().toISOString(),
+      })
+      newAssets.push({
+        id: videoId, project_id: project.id, user_id: project.user_id,
+        type: 'video', status: 'idle',
+        input_params: { source_image_url: '', motion_prompt: seg.script.slice(0, 100), duration: result.duration },
+        credits_cost: 3, board_order: idx++,
+        position_x: colX, position_y: 620,
+        created_at: new Date().toISOString(),
+      })
+    })
+
+    // 4. Render final (apenas para série)
+    if (result.mode === 'series' && result.segments.length > 1) {
+      newAssets.push({
+        id: `temp-${now}-render`,
+        project_id: project.id, user_id: project.user_id,
+        type: 'render', status: 'idle',
+        input_params: { source_image_url: '', audio_url: '' },
+        credits_cost: 1, board_order: idx++,
+        position_x: baseX + result.segments.length * 800, position_y: 620,
+        created_at: new Date().toISOString(),
+      })
+    }
+
     setAssets(newAssets)
   }
 
@@ -377,8 +439,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-zinc-500 bg-zinc-800 px-3 py-1.5 rounded-xl">{credits} cr</span>
           {assets.length === 0 && (
-            <button onClick={startGuidedFlow} className="flex items-center gap-1.5 text-xs font-medium border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 px-3 py-1.5 rounded-xl transition-all">
-              <Zap size={13} /> Fluxo Guiado
+            <button
+              onClick={() => setShowWizard(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-xl transition-all"
+            >
+              <Wand2 size={13} /> Campaign Builder
             </button>
           )}
           <AddCardMenu onAdd={addCard} />
@@ -418,9 +483,31 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           {/* Empty state */}
           {assets.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center">
-                <p className="text-zinc-600 text-sm mb-2">Canvas vazio</p>
-                <p className="text-zinc-700 text-xs">Use "Fluxo Guiado" ou "+ Adicionar card" para começar</p>
+              <div className="text-center space-y-4">
+                <p className="text-zinc-500 text-sm font-medium">Canvas vazio — como quer começar?</p>
+                <div className="flex items-center gap-3 pointer-events-auto">
+                  <button
+                    onClick={() => setShowWizard(true)}
+                    className="flex flex-col items-center gap-2 px-5 py-4 rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 transition-all group cursor-pointer"
+                  >
+                    <Wand2 size={20} className="text-fuchsia-400" />
+                    <div className="text-center">
+                      <p className="text-xs font-semibold text-fuchsia-400">Campaign Builder</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">Guiado · recomendado</p>
+                    </div>
+                  </button>
+                  <span className="text-zinc-700 text-xs">ou</span>
+                  <button
+                    onClick={() => addCard('model')}
+                    className="flex flex-col items-center gap-2 px-5 py-4 rounded-2xl border border-zinc-700 bg-zinc-800/50 hover:border-zinc-600 transition-all cursor-pointer"
+                  >
+                    <LayoutGrid size={20} className="text-zinc-400" />
+                    <div className="text-center">
+                      <p className="text-xs font-semibold text-zinc-400">Modo livre</p>
+                      <p className="text-[10px] text-zinc-600 mt-0.5">Monte card a card</p>
+                    </div>
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -435,6 +522,15 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           <span><kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400">Del</kbd> para remover conexão selecionada</span>
         </div>
       </div>
+
+      {/* Campaign Wizard modal */}
+      {showWizard && (
+        <CampaignWizard
+          credits={credits}
+          onConfirm={buildCampaign}
+          onClose={() => setShowWizard(false)}
+        />
+      )}
     </div>
   )
 }
