@@ -472,42 +472,55 @@ export async function composeProductScene(params: {
   assetId:        string
   userId:         string
 }): Promise<string> {
-  const admin    = createAdminClient()
+  const admin     = createAdminClient()
   const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
-  const apiKey   = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
 
-  // 1. GPT-4o Vision — descreve o produto em uma frase curta em inglês
-  const visionRes = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: params.product_url, detail: 'high' } },
-          { type: 'text', text: 'Describe this product in one short English phrase (e.g. "a red energy drink can with white logo", "a white moisturizer bottle with gold cap"). Return ONLY the description, nothing else.' },
-        ],
-      }],
-      max_tokens: 80,
-    }),
+  // 1. Baixa portrait e produto em paralelo
+  const [portraitRes, productRes] = await Promise.all([
+    fetch(params.portrait_url),
+    fetch(params.product_url),
+  ])
+  const [portraitBuf, productBuf] = await Promise.all([
+    portraitRes.arrayBuffer().then(b => Buffer.from(b)),
+    productRes.arrayBuffer().then(b => Buffer.from(b)),
+  ])
+
+  // 2. Redimensiona produto para mesma altura do portrait e cria imagem composta lado-a-lado
+  //    Nano Banana recebe UMA imagem — enviamos portrait | produto para que veja ambos
+  const portraitMeta = await sharp(portraitBuf).metadata()
+  const targetH = portraitMeta.height ?? 1024
+
+  const productResized = await sharp(productBuf)
+    .resize({ height: targetH, fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+    .jpeg()
+    .toBuffer()
+
+  const productMeta = await sharp(productResized).metadata()
+  const totalW = (portraitMeta.width ?? 768) + (productMeta.width ?? 512)
+
+  const sideBySide = await sharp({
+    create: { width: totalW, height: targetH, channels: 3, background: { r: 255, g: 255, b: 255 } },
   })
-  if (!visionRes.ok) {
-    const err = await visionRes.text()
-    throw new Error(`GPT-4o Vision falhou: ${err.slice(0, 200)}`)
-  }
-  const visionData = await visionRes.json()
-  const productDesc = visionData.choices?.[0]?.message?.content?.trim() ?? 'the product'
+    .composite([
+      { input: portraitBuf,     left: 0,                           top: 0 },
+      { input: productResized,  left: portraitMeta.width ?? 768,   top: 0 },
+    ])
+    .jpeg({ quality: 90 })
+    .toBuffer()
 
-  // 2. Nano Banana (Gemini 2.0 Flash Image) — edita a foto original com o produto na mão
-  const editPrompt = `Naturally place ${productDesc} in the person's hand. Keep the person looking exactly the same — same face, hair, skin, clothing, background, and lighting. Do not change anything else. Only add the product to the hand in a realistic and natural way.`
+  // Sobe imagem composta temporária no Supabase para ter URL pública
+  const tmpPath = `${params.userId}/compose-tmp-${params.assetId}.jpg`
+  await admin.storage.from('studio').upload(tmpPath, sideBySide, { contentType: 'image/jpeg', upsert: true })
+  const { data: { publicUrl: tmpUrl } } = admin.storage.from('studio').getPublicUrl(tmpPath)
+
+  // 3. Nano Banana — vê portrait (esquerda) + produto (direita), coloca produto na mão
+  const editPrompt = `The left half of this image shows a person (model). The right half shows a product. Edit the image so that the person on the LEFT is holding the product from the RIGHT naturally in their hand. Return ONLY the person with the product in their hand — same face, hair, skin, clothing, background, and lighting as the original. Do not include the right half in the output.`
 
   const outputRaw = await withReplicateRetry(() =>
     replicate.run('google/nano-banana', {
       input: {
         prompt: editPrompt,
-        image:  params.portrait_url,
+        image:  tmpUrl,
       },
     })
   )
