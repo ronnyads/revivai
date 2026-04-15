@@ -19,7 +19,7 @@ const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
 
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3,
+  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3, compose: 1,
 }
 
 const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
@@ -32,6 +32,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   upscale: { source_url: '', scale: 4 },
   render:  { source_image_url: '', audio_url: '' },
   animate: { portrait_image_url: '', driving_video_url: '' },
+  compose: { portrait_url: '', product_url: '', position: 'southeast', product_scale: 0.35 },
 }
 
 // Mapeamento: targetHandle → campo a preencher no nó destino
@@ -43,6 +44,7 @@ const HANDLE_TO_FIELD: Record<string, string> = {
   model_prompt:      'model_prompt',
   continuation_frame:  'continuation_frame',
   portrait_image_url:  'portrait_image_url',
+  portrait_url:        'portrait_url',
 }
 
 interface Props {
@@ -227,6 +229,9 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       if (src.type === 'voice'   && tgt.type === 'video')    return 'audio_url'
       if (src.type === 'model'   && tgt.type === 'animate')  return 'portrait_image_url'
       if (src.type === 'image'   && tgt.type === 'animate')  return 'portrait_image_url'
+      if (src.type === 'model'   && tgt.type === 'compose')  return 'portrait_url'
+      if (src.type === 'image'   && tgt.type === 'compose')  return 'portrait_url'
+      if (src.type === 'compose' && tgt.type === 'video')    return 'source_image_url'
       return null
     }
 

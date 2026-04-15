@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Video, Link2 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 
@@ -16,6 +16,12 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
   )
   const [motion,   setMotion]   = useState(String(initial.motion_prompt ?? ''))
   const [duration, setDuration] = useState(Number(initial.duration      ?? 5))
+
+  // Sync when connection fills source_image_url or continuation_frame
+  useEffect(() => {
+    const url = String(initial.continuation_frame ?? initial.source_image_url ?? '')
+    if (url) setImageUrl(url)
+  }, [initial.source_image_url, initial.continuation_frame])
 
   return (
     <div className="flex flex-col gap-3">

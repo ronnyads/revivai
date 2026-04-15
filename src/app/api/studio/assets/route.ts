@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, generateModel, mergeVideoAudio, startAnimateGeneration } from '@/lib/studio'
+import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene } from '@/lib/studio'
 import { AssetType } from '@/types'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -147,6 +147,15 @@ export async function POST(req: NextRequest) {
         appUrl,
       })
       return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
+    } else if (type === 'compose') {
+      resultUrl = await composeProductScene({
+        portrait_url:  String(input_params.portrait_url   ?? ''),
+        product_url:   String(input_params.product_url    ?? ''),
+        position:      (input_params.position as any)     ?? 'southeast',
+        product_scale: input_params.product_scale ? Number(input_params.product_scale) : 0.35,
+        assetId: asset.id,
+        userId:  user.id,
+      })
     } else if (type === 'render') {
       resultUrl = await mergeVideoAudio({
         video_url: String(input_params.source_image_url ?? ''),

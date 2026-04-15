@@ -2,7 +2,7 @@
 
 import { memo } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers } from 'lucide-react'
 import { useState } from 'react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from '../ImageGenerator'
@@ -14,6 +14,7 @@ import UpscaleCard from '../UpscaleCard'
 import ModelGenerator from '../ModelGenerator'
 import RenderCard from '../RenderCard'
 import AnimateGenerator from '../AnimateGenerator'
+import ComposeCard from '../ComposeCard'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string }> = {
   model:   { icon: <User size={14} />,     label: 'Modelo UGC',  color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30' },
@@ -24,7 +25,8 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   script:  { icon: <FileText size={14} />, label: 'Script',      color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/30' },
   caption: { icon: <Captions size={14} />, label: 'Legenda',     color: 'text-cyan-400',   bg: 'bg-cyan-500/10 border-cyan-500/30' },
   render:  { icon: <Film size={14} />,     label: 'Vídeo Final', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/30' },
-  animate: { icon: <Sparkles size={14} />, label: 'Animar',     color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10 border-fuchsia-500/30' },
+  animate: { icon: <Sparkles size={14} />, label: 'Animar',      color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10 border-fuchsia-500/30' },
+  compose: { icon: <Layers size={14} />,   label: 'Compor Cena', color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30'   },
 }
 
 // Handles de entrada por tipo de nó
@@ -44,7 +46,10 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
     { id: 'audio_url',          label: 'Voz'       },
   ],
   animate: [
-    { id: 'portrait_image_url', label: 'Retrato'   },
+    { id: 'portrait_image_url', label: 'Retrato'      },
+  ],
+  compose: [
+    { id: 'portrait_url',       label: 'Cena/Modelo'  },
   ],
 }
 
@@ -193,7 +198,7 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
       )}
     </div>
   )
-  if (type === 'image' || type === 'upscale') return <img src={url} alt="" className="w-full rounded-xl object-cover max-h-48" />
+  if (type === 'image' || type === 'upscale' || type === 'compose') return <img src={url} alt="" className="w-full rounded-xl object-cover max-h-48" />
   if (type === 'video' || type === 'render' || type === 'animate') return <video src={url} controls className="w-full rounded-xl max-h-48" playsInline />
   if (type === 'voice') return <audio src={url} controls className="w-full" />
   if (type === 'script') return <ScriptPreview text={String(params.script_text ?? '')} url={url} />
@@ -277,5 +282,6 @@ function FormForType({ type, initialParams, onGenerate }: { type: AssetType; ini
   if (type === 'model')   return <ModelGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'render')  return <RenderCard        initial={initialParams} onGenerate={onGenerate} />
   if (type === 'animate') return <AnimateGenerator  initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'compose') return <ComposeCard        initial={initialParams} onGenerate={onGenerate} />
   return null
 }

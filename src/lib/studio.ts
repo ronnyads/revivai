@@ -1,4 +1,5 @@
 import Replicate from 'replicate'
+import sharp from 'sharp'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AssetType } from '@/types'
 
@@ -12,6 +13,7 @@ export const CREDIT_COST: Record<AssetType, number> = {
   model:   1,
   render:  1,
   animate: 3,
+  compose: 1,
 }
 
 // ── Image — DALL-E 3 via fetch ─────────────────────────────────────────────
@@ -435,6 +437,60 @@ export async function mergeVideoAudio(params: {
     .from('studio')
     .upload(path, buffer, { contentType: 'video/mp4', upsert: true })
   if (error) throw new Error(`Upload render falhou: ${error.message}`)
+
+  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return publicUrl
+}
+
+// ── Compose — background removal + sharp composite ───────────────────────
+export async function composeProductScene(params: {
+  portrait_url:   string
+  product_url:    string
+  position?:      'southeast' | 'south' | 'southwest' | 'east' | 'west' | 'center'
+  product_scale?: number
+  assetId:        string
+  userId:         string
+}): Promise<string> {
+  const admin     = createAdminClient()
+  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+
+  // 1. Remove background do produto (pixel-perfect — produto nunca é alterado)
+  const bgRemoved = String(await replicate.run('briaai/RMBG-1.4', {
+    input: { image: params.product_url },
+  }))
+
+  // 2. Baixa cena base e produto sem fundo em paralelo
+  const [sceneRes, productRes] = await Promise.all([
+    fetch(params.portrait_url),
+    fetch(bgRemoved),
+  ])
+  const [sceneBuffer, productBuffer] = await Promise.all([
+    sceneRes.arrayBuffer().then(b => Buffer.from(b)),
+    productRes.arrayBuffer().then(b => Buffer.from(b)),
+  ])
+
+  // 3. Calcula largura do produto proporcional à cena
+  const sceneMeta  = await sharp(sceneBuffer).metadata()
+  const sceneWidth = sceneMeta.width ?? 1024
+  const productWidth = Math.round(sceneWidth * (params.product_scale ?? 0.35))
+
+  // 4. Redimensiona produto mantendo proporção (sem alterar pixels originais)
+  const productResized = await sharp(productBuffer)
+    .resize({ width: productWidth })
+    .toBuffer()
+
+  // 5. Compõe produto sobre a cena
+  const composed = await sharp(sceneBuffer)
+    .composite([{ input: productResized, gravity: params.position ?? 'southeast' }])
+    .jpeg({ quality: 92 })
+    .toBuffer()
+
+  // 6. Faz upload para bucket studio
+  const path = `${params.userId}/compose-${params.assetId}.jpg`
+  const { error } = await admin.storage
+    .from('studio')
+    .upload(path, composed, { contentType: 'image/jpeg', upsert: true })
+  if (error) throw new Error(`Upload falhou: ${error.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
   return publicUrl
