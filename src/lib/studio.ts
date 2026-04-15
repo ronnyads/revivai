@@ -397,12 +397,13 @@ export async function startVideoGeneration(params: {
   const finalMotion = modelContext + (params.motion_prompt || 'smooth product showcase motion')
 
   await replicate.predictions.create({
-    model: 'kwaivgi/kling-v1-5-pro',
+    model: 'kwaivgi/kling-v2.5-turbo-pro',
     input: {
-      image: params.source_image_url,
-      prompt: finalMotion,
-      duration: params.duration ?? 5,
-      aspect_ratio: '9:16',
+      image:          params.source_image_url,
+      prompt:         finalMotion,
+      duration:       params.duration ?? 5,
+      aspect_ratio:   '9:16',
+      cfg_scale:      0.5,
     },
     webhook: webhookUrl,
     webhook_events_filter: ['completed'],
