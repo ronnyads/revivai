@@ -14,6 +14,7 @@ export const CREDIT_COST: Record<AssetType, number> = {
   render:  1,
   animate: 3,
   compose: 1,
+  lipsync: 3,
 }
 
 // ── Image — DALL-E 3 via fetch ─────────────────────────────────────────────
@@ -526,6 +527,33 @@ export async function composeProductScene(params: {
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
   return publicUrl
+}
+
+// ── Lip Sync — SyncLabs via Replicate (async — usa webhook) ──────────────
+export async function startLipsyncGeneration(params: {
+  face_url:  string   // vídeo ou imagem do rosto
+  audio_url: string
+  assetId:   string
+  userId:    string
+  appUrl:    string
+}) {
+  const replicate  = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+  const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
+
+  const prediction = await replicate.predictions.create({
+    model: 'synchlabs/sync-1.9.1-beta',
+    input: {
+      video_input: params.face_url,
+      audio_input: params.audio_url,
+    },
+    webhook: webhookUrl,
+    webhook_events_filter: ['completed'],
+  })
+
+  const admin = createAdminClient()
+  await admin.from('studio_assets')
+    .update({ input_params: { face_url: params.face_url, audio_url: params.audio_url, prediction_id: prediction.id } })
+    .eq('id', params.assetId)
 }
 
 // ── Animate — LivePortrait via Replicate (async — usa webhook) ────────────

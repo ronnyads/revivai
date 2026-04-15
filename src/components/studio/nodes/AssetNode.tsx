@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2 } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from '../ImageGenerator'
 import ScriptGenerator from '../ScriptGenerator'
@@ -14,6 +14,7 @@ import ModelGenerator from '../ModelGenerator'
 import RenderCard from '../RenderCard'
 import AnimateGenerator from '../AnimateGenerator'
 import ComposeCard from '../ComposeCard'
+import LipsyncGenerator from '../LipsyncGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string; hint: string; output: string }> = {
   model:   { icon: <User size={14} />,     label: 'Modelo UGC',  color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Gera foto do modelo', output: 'Foto do modelo →' },
@@ -26,6 +27,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   render:  { icon: <Film size={14} />,     label: 'Vídeo Final', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/30',    hint: '← Conecte Vídeo + Voz → resultado final', output: '🎬 Vídeo com voz →' },
   animate: { icon: <Sparkles size={14} />, label: 'Animar',      color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10 border-fuchsia-500/30', hint: '← Conecte foto do modelo + vídeo de referência', output: 'Vídeo animado →' },
   compose: { icon: <Layers size={14} />,   label: 'Fusão UGC',   color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',   hint: '← Conecte Modelo + foto do produto → IA gera cena integrada', output: 'Cena gerada →' },
+  lipsync: { icon: <Wand2 size={14} />,    label: 'Lip Sync',    color: 'text-cyan-400',    bg: 'bg-cyan-500/10 border-cyan-500/30',        hint: '← Conecte Vídeo + Voz', output: 'Vídeo sincronizado →' },
 }
 
 // Handles de entrada por tipo de nó
@@ -49,6 +51,10 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
   ],
   compose: [
     { id: 'portrait_url',       label: 'Cena/Modelo'  },
+  ],
+  lipsync: [
+    { id: 'face_url',           label: 'Vídeo/Rosto'  },
+    { id: 'audio_url',          label: 'Áudio'        },
   ],
 }
 
@@ -232,7 +238,7 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
     </div>
   )
   if (type === 'image' || type === 'upscale' || type === 'compose') return <img src={url} alt="" className="w-full rounded-xl object-cover max-h-48" />
-  if (type === 'video' || type === 'render' || type === 'animate') return <video src={url} controls className="w-full rounded-xl max-h-48" playsInline />
+  if (type === 'video' || type === 'render' || type === 'animate' || type === 'lipsync') return <video src={url} controls className="w-full rounded-xl max-h-48" playsInline />
   if (type === 'voice') return <audio src={url} controls className="w-full" />
   if (type === 'script') return <ScriptPreview text={String(params.script_text ?? '')} url={url} />
   if (type === 'caption') return <CaptionPreview url={url} />
@@ -316,6 +322,7 @@ function FormForType({ type, initialParams, onGenerate }: { type: AssetType; ini
   if (type === 'render')  return <RenderCard        initial={initialParams} onGenerate={onGenerate} />
   if (type === 'animate') return <AnimateGenerator  initial={initialParams} onGenerate={onGenerate} />
   if (type === 'compose') return <ComposeCard        initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'lipsync') return <LipsyncGenerator   initial={initialParams} onGenerate={onGenerate} />
   return null
 }
 // ── Processing card com barra de progresso e timer ──────────────────────────────
@@ -330,6 +337,7 @@ const ESTIMATED: Partial<Record<AssetType, number>> = {
   caption: 15,
   compose: 20,
   render:  30,
+  lipsync: 90,
 }
 
 const LABELS: Partial<Record<AssetType, string>> = {
@@ -343,6 +351,7 @@ const LABELS: Partial<Record<AssetType, string>> = {
   caption: 'Whisper transcrevendo...',
   compose: 'Compondo cena...',
   render:  'Mesclando vídeo + áudio...',
+  lipsync: 'SyncLabs sincronizando lábios...',
 }
 
 function ProcessingCard({ type, createdAt, assetId }: { type: AssetType; createdAt: string; assetId: string }) {

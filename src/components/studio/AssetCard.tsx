@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2 } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from './ImageGenerator'
 import ScriptGenerator from './ScriptGenerator'
@@ -21,6 +21,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   caption: { icon: <Captions size={15} />, label: 'Legenda',    color: 'text-cyan-400' },
   animate: { icon: <Sparkles size={15} />, label: 'Animar',      color: 'text-fuchsia-400' },
   compose: { icon: <Layers size={15} />,   label: 'Compor Cena', color: 'text-orange-400'  },
+  lipsync: { icon: <Wand2 size={15} />,    label: 'Lip Sync',    color: 'text-cyan-400'    },
 }
 
 // Mapeamento: tipo de origem → ações "Usar em..."

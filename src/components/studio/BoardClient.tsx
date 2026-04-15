@@ -27,10 +27,11 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   render:  { source_image_url: '', audio_url: '' },
   animate: { portrait_image_url: '', driving_video_url: '' },
   compose: { portrait_url: '', product_url: '', position: 'southeast', product_scale: 0.35 },
+  lipsync: { face_url: '', audio_url: '' },
 }
 
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3, compose: 1,
+  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3, compose: 1, lipsync: 3,
 }
 
 export default function BoardClient({ project, initialAssets, userCredits }: Props) {

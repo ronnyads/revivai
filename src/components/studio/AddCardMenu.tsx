@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Image, Video, Mic, ZoomIn, FileText, Captions, X, User, Film, Sparkles, Layers } from 'lucide-react'
+import { Plus, Image, Video, Mic, ZoomIn, FileText, Captions, X, User, Film, Sparkles, Layers, Wand2 } from 'lucide-react'
 import { AssetType } from '@/types'
 
 const TYPES: { type: AssetType; icon: React.ReactNode; label: string; desc: string; cost: number }[] = [
@@ -15,6 +15,7 @@ const TYPES: { type: AssetType; icon: React.ReactNode; label: string; desc: stri
   { type: 'render',  icon: <Film size={18} />,        label: 'Vídeo Final',  desc: 'Merge vídeo + voz em MP4',     cost: 1 },
   { type: 'animate', icon: <Sparkles size={18} />,   label: 'Animar Modelo', desc: 'Seu rosto → persona via LivePortrait', cost: 3 },
   { type: 'compose', icon: <Layers size={18} />,     label: 'Compor Cena',   desc: 'Produto real + modelo pixel-perfect', cost: 1 },
+  { type: 'lipsync', icon: <Wand2 size={18} />,     label: 'Lip Sync',      desc: 'Lábios sincronizados com áudio via SyncLabs', cost: 3 },
 ]
 
 interface Props {

@@ -4,7 +4,7 @@ export const maxDuration = 300
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene } from '@/lib/studio'
+import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration } from '@/lib/studio'
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
 
@@ -172,6 +172,20 @@ export async function POST(req: NextRequest) {
         driving_video_url:  String(input_params.driving_video_url  ?? ''),
         assetId: asset.id,
         userId: user.id,
+        appUrl,
+      })
+      return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
+    } else if (type === 'lipsync') {
+      const origin    = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
+      const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
+      const appUrl    = origin
+        ? (origin.startsWith('http') ? origin : `https://${origin}`)
+        : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
+      await startLipsyncGeneration({
+        face_url:  String(input_params.face_url  ?? ''),
+        audio_url: String(input_params.audio_url ?? ''),
+        assetId: asset.id,
+        userId:  user.id,
         appUrl,
       })
       return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })

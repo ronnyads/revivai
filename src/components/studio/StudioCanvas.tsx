@@ -20,7 +20,7 @@ const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
 
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3, compose: 1,
+  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3, compose: 1, lipsync: 3,
 }
 
 const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
@@ -34,6 +34,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   render:  { source_image_url: '', audio_url: '' },
   animate: { portrait_image_url: '', driving_video_url: '' },
   compose: { portrait_url: '', product_url: '', position: 'southeast', product_scale: 0.35 },
+  lipsync: { face_url: '', audio_url: '' },
 }
 
 // Mapeamento: targetHandle → campo a preencher no nó destino
@@ -46,6 +47,7 @@ const HANDLE_TO_FIELD: Record<string, string> = {
   continuation_frame:  'continuation_frame',
   portrait_image_url:  'portrait_image_url',
   portrait_url:        'portrait_url',
+  face_url:            'face_url',
 }
 
 interface Props {
@@ -225,6 +227,26 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     setEdges(buildEdges(connections))
   }, [connections]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-propaga URLs pelas arestas quando um asset completa (ex: compose → video, video → lipsync)
+  useEffect(() => {
+    setEdges(prevEdges => {
+      prevEdges.forEach(edge => {
+        if (!edge.targetHandle) return
+        const src = assets.find(a => a.id === edge.source)
+        const tgt = assets.find(a => a.id === edge.target)
+        if (!src?.result_url || !tgt) return
+        const fillValue = edge.targetHandle === 'continuation_frame'
+          ? (src.last_frame_url ?? src.result_url)
+          : src.result_url
+        const field = HANDLE_TO_FIELD[edge.targetHandle] ?? edge.targetHandle
+        if (!tgt.input_params[field]) {
+          handleUpdateParams(tgt.id, { [field]: fillValue })
+        }
+      })
+      return prevEdges // não muda as arestas — só propaga params
+    })
+  }, [assets]) // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     assets.filter(a => a.status === 'processing').forEach(a => startPolling(a.id))
     return () => {
@@ -268,6 +290,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       if (src.type === 'model'   && tgt.type === 'compose')  return 'portrait_url'
       if (src.type === 'image'   && tgt.type === 'compose')  return 'portrait_url'
       if (src.type === 'compose' && tgt.type === 'video')    return 'source_image_url'
+      if (src.type === 'video'   && tgt.type === 'lipsync')  return 'face_url'
+      if (src.type === 'compose' && tgt.type === 'lipsync')  return 'face_url'
+      if (src.type === 'animate' && tgt.type === 'lipsync')  return 'face_url'
+      if (src.type === 'voice'   && tgt.type === 'lipsync')  return 'audio_url'
       return null
     }
 
@@ -363,80 +389,117 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     setShowWizard(false)
     const now = Date.now()
     const newAssets: StudioAsset[] = []
+    const tempEdges: Edge[] = []
     let idx = 0
+    let edgeIdx = 0
 
-    // 1. Card Modelo UGC
+    function mkEdge(source: string, target: string, sh: string, th: string): Edge {
+      return {
+        id: `temp-edge-${now}-${edgeIdx++}`,
+        source, target, sourceHandle: sh, targetHandle: th,
+        type: 'lightEdge',
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316', width: 16, height: 16 },
+      }
+    }
+
+    // 1. Card Modelo UGC — coluna esquerda
+    const modelId = `temp-${now}-model`
     newAssets.push({
-      id: `temp-${now}-${idx++}`,
+      id: modelId,
       project_id: project.id, user_id: project.user_id,
       type: 'model', status: 'idle',
       input_params: { ...result.modelConfig },
-      credits_cost: 1, board_order: idx,
-      position_x: 60, position_y: 100,
+      credits_cost: 1, board_order: idx++,
+      position_x: 60, position_y: 440,
       created_at: new Date().toISOString(),
     })
 
-    // 2. Card Compose (produto + modelo) — se houver produto
+    // 2. Card Compose — se tiver produto
+    let composeId: string | null = null
     if (result.productUrl) {
+      composeId = `temp-${now}-compose`
       newAssets.push({
-        id: `temp-${now}-${idx++}`,
+        id: composeId,
         project_id: project.id, user_id: project.user_id,
         type: 'compose', status: 'idle',
         input_params: { portrait_url: '', product_url: result.productUrl, position: 'southeast', product_scale: 0.35 },
-        credits_cost: 1, board_order: idx,
-        position_x: 460, position_y: 100,
+        credits_cost: 1, board_order: idx++,
+        position_x: 440, position_y: 440,
         created_at: new Date().toISOString(),
       })
+      tempEdges.push(mkEdge(modelId, composeId, 'output', 'portrait_url'))
     }
 
-    // 3. Cards por segmento: Script → Voz → Vídeo
-    const baseX = result.productUrl ? 860 : 460
+    // 3. Cards por segmento: Script → Voz → Vídeo (contínuo) → Lip Sync
+    const baseX = result.productUrl ? 820 : 440
+    let prevVideoId: string | null = null
+
     result.segments.forEach((seg, i) => {
-      const colX  = baseX + i * 800
-      const scriptId = `temp-${now}-script-${i}`
-      const voiceId  = `temp-${now}-voice-${i}`
-      const videoId  = `temp-${now}-video-${i}`
+      const colX      = baseX + i * 380
+      const scriptId  = `temp-${now}-script-${i}`
+      const voiceId   = `temp-${now}-voice-${i}`
+      const videoId   = `temp-${now}-video-${i}`
+      const lipsyncId = `temp-${now}-lipsync-${i}`
 
       newAssets.push({
-        id: scriptId, project_id: project.id, user_id: project.user_id,
+        id: scriptId,
+        project_id: project.id, user_id: project.user_id,
         type: 'script', status: 'idle',
         input_params: { product: '', audience: '', format: 'reels', script_text: seg.script },
         credits_cost: 1, board_order: idx++,
-        position_x: colX, position_y: 100,
+        position_x: colX, position_y: 60,
         created_at: new Date().toISOString(),
       })
       newAssets.push({
-        id: voiceId, project_id: project.id, user_id: project.user_id,
+        id: voiceId,
+        project_id: project.id, user_id: project.user_id,
         type: 'voice', status: 'idle',
         input_params: { script: seg.script, voice_id: result.voiceId, speed: 1.0 },
         credits_cost: 1, board_order: idx++,
-        position_x: colX, position_y: 380,
+        position_x: colX, position_y: 340,
         created_at: new Date().toISOString(),
       })
       newAssets.push({
-        id: videoId, project_id: project.id, user_id: project.user_id,
+        id: videoId,
+        project_id: project.id, user_id: project.user_id,
         type: 'video', status: 'idle',
-        input_params: { source_image_url: '', motion_prompt: seg.script.slice(0, 100), duration: result.duration },
+        input_params: { source_image_url: '', continuation_frame: '', motion_prompt: seg.script.slice(0, 100), duration: result.duration },
         credits_cost: 3, board_order: idx++,
-        position_x: colX, position_y: 620,
+        position_x: colX, position_y: 600,
         created_at: new Date().toISOString(),
       })
+      newAssets.push({
+        id: lipsyncId,
+        project_id: project.id, user_id: project.user_id,
+        type: 'lipsync', status: 'idle',
+        input_params: { face_url: '', audio_url: '' },
+        credits_cost: 3, board_order: idx++,
+        position_x: colX, position_y: 860,
+        created_at: new Date().toISOString(),
+      })
+
+      // Script → Voz
+      tempEdges.push(mkEdge(scriptId, voiceId, 'output', 'script'))
+      // Voz → Lip Sync (áudio)
+      tempEdges.push(mkEdge(voiceId, lipsyncId, 'output', 'audio_url'))
+      // Vídeo → Lip Sync (rosto)
+      tempEdges.push(mkEdge(videoId, lipsyncId, 'output', 'face_url'))
+
+      // Fonte de imagem do vídeo
+      if (i === 0) {
+        // Primeiro segmento: usa compose (ou modelo se não tiver produto)
+        const sourceId = composeId ?? modelId
+        tempEdges.push(mkEdge(sourceId, videoId, 'output', 'source_image_url'))
+      } else {
+        // Segmentos seguintes: continua no último frame do vídeo anterior
+        tempEdges.push(mkEdge(prevVideoId!, videoId, 'output', 'continuation_frame'))
+      }
+
+      prevVideoId = videoId
     })
 
-    // 4. Render final (apenas para série)
-    if (result.mode === 'series' && result.segments.length > 1) {
-      newAssets.push({
-        id: `temp-${now}-render`,
-        project_id: project.id, user_id: project.user_id,
-        type: 'render', status: 'idle',
-        input_params: { source_image_url: '', audio_url: '' },
-        credits_cost: 1, board_order: idx++,
-        position_x: baseX + result.segments.length * 800, position_y: 620,
-        created_at: new Date().toISOString(),
-      })
-    }
-
     setAssets(newAssets)
+    setEdges(tempEdges)
   }
 
   // ── Título ───────────────────────────────────────────────────────────────

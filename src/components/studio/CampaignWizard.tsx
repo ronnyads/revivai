@@ -86,8 +86,8 @@ export default function CampaignWizard({ onConfirm, onClose, credits }: Props) {
   // Segmentos ativos de acordo com a quantidade escolhida
   const activeSegments = segments.slice(0, mode === 'single' ? 1 : segCount)
 
-  // Créditos estimados: modelo(1) + fusion(1) + video*N(3) + voice*N(1) + render(1)
-  const estCredits = 1 + 1 + activeSegments.length * (3 + 1) + (mode === 'series' ? 1 : 0)
+  // Créditos estimados: modelo(1) + fusão(1 se produto) + N×(script+voz+vídeo+lipsync) = 1+1+N*8
+  const estCredits = 1 + (productUrl ? 1 : 0) + activeSegments.length * 8
 
   async function generateScripts() {
     if (!productUrl) return
@@ -251,7 +251,7 @@ export default function CampaignWizard({ onConfirm, onClose, credits }: Props) {
                     Quantos clipes?
                   </label>
                   <div className="flex gap-2">
-                    {[1, 2, 3, 4].map(n => (
+                    {[1, 2, 3, 4, 5, 6].map(n => (
                       <button
                         key={n}
                         onClick={() => setSegCount(n)}
@@ -348,11 +348,17 @@ export default function CampaignWizard({ onConfirm, onClose, credits }: Props) {
                 </div>
               </div>
 
-              <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-xl p-3.5">
+              <div className="bg-zinc-800/60 border border-zinc-700/50 rounded-xl p-3.5 space-y-2">
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  <span className="text-fuchsia-400 font-medium">Como funciona a série:</span>{' '}
-                  Cada clipe começa exatamente no último frame do anterior — mesmo modelo,
-                  mesmo cenário, mesma iluminação. Só a fala muda. O resultado final é uma série fluida.
+                  <span className="text-fuchsia-400 font-medium">Vídeos contínuos:</span>{' '}
+                  Cada clipe começa exatamente no último frame do anterior — mesmo modelo, mesmo cenário, mesma iluminação.
+                </p>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  <span className="text-cyan-400 font-medium">Lip Sync automático:</span>{' '}
+                  Cada clipe recebe um card Lip Sync — SyncLabs sincroniza os lábios do modelo com a voz gerada em cada segmento.
+                </p>
+                <p className="text-[10px] text-zinc-500">
+                  Limite Reels: 6 clipes × 10s = 60s de conteúdo fluido e profissional.
                 </p>
               </div>
             </div>
@@ -367,6 +373,7 @@ export default function CampaignWizard({ onConfirm, onClose, credits }: Props) {
                   { icon: <User size={13} />, label: `Modelo ${GENDERS.find(g => g.v === modelConfig.gender)?.l ?? ''} · ${AGE_RANGES.find(a => a.v === modelConfig.age_range)?.l ?? ''} anos`, color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
                   { icon: <Mic size={13} />, label: `Voz: ${VOICES.find(v => v.id === voiceId)?.name ?? ''}`, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
                   { icon: <Film size={13} />, label: `${duration}s por clipe`, color: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
+                  { icon: <Wand2 size={13} />, label: 'Lip Sync em cada clipe', color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20' },
                 ].map((item, i) => (
                   <div key={i} className={`flex items-center gap-2 text-[11px] font-medium px-3 py-2.5 rounded-xl border ${item.color}`}>
                     {item.icon}
@@ -395,7 +402,7 @@ export default function CampaignWizard({ onConfirm, onClose, credits }: Props) {
               }`}>
                 <div>
                   <p className="text-xs font-semibold text-white">Total estimado</p>
-                  <p className="text-[10px] text-zinc-500">Modelo + Fusão + Vídeos + Vozes{mode === 'series' ? ' + Render final' : ''}</p>
+                  <p className="text-[10px] text-zinc-500">Modelo{productUrl ? ' + Fusão' : ''} + {activeSegments.length}× (Script + Voz + Vídeo + Lip Sync)</p>
                 </div>
                 <div className="text-right">
                   <p className={`text-lg font-bold ${credits >= estCredits ? 'text-emerald-400' : 'text-red-400'}`}>
