@@ -500,16 +500,14 @@ export async function composeProductScene(params: {
   const visionData = await visionRes.json()
   const productDesc = visionData.choices?.[0]?.message?.content?.trim() ?? 'the product'
 
-  // 2. FLUX Kontext Pro — edita a foto original: produto aparece naturalmente na mão
-  const editPrompt = `Naturally place ${productDesc} in the person's hand. Keep the person looking exactly the same — same face, hair, skin, clothing, background, and lighting. Do not change anything else. Only add the product to the hand.`
+  // 2. Nano Banana (Gemini 2.0 Flash Image) — edita a foto original com o produto na mão
+  const editPrompt = `Naturally place ${productDesc} in the person's hand. Keep the person looking exactly the same — same face, hair, skin, clothing, background, and lighting. Do not change anything else. Only add the product to the hand in a realistic and natural way.`
 
   const outputRaw = await withReplicateRetry(() =>
-    replicate.run('black-forest-labs/flux-kontext-pro', {
+    replicate.run('google/nano-banana', {
       input: {
-        prompt:           editPrompt,
-        input_image:      params.portrait_url,
-        output_format:    'jpg',
-        safety_tolerance: 5,
+        prompt: editPrompt,
+        image:  params.portrait_url,
       },
     })
   )
