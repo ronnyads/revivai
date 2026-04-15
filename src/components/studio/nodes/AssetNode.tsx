@@ -25,7 +25,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   caption: { icon: <Captions size={14} />, label: 'Legenda',     color: 'text-cyan-400',   bg: 'bg-cyan-500/10 border-cyan-500/30',    hint: '← Conecte o Áudio aqui', output: 'Legendas →' },
   render:  { icon: <Film size={14} />,     label: 'Vídeo Final', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/30',    hint: '← Conecte Vídeo + Voz → resultado final', output: '🎬 Vídeo com voz →' },
   animate: { icon: <Sparkles size={14} />, label: 'Animar',      color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10 border-fuchsia-500/30', hint: '← Conecte foto do modelo + vídeo de referência', output: 'Vídeo animado →' },
-  compose: { icon: <Layers size={14} />,   label: 'Compor Cena', color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',   hint: '← Conecte Modelo + envie foto do produto', output: 'Foto composta →' },
+  compose: { icon: <Layers size={14} />,   label: 'Fusão UGC',   color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',   hint: '← Conecte Modelo + foto do produto → IA gera cena integrada', output: 'Cena gerada →' },
 }
 
 // Handles de entrada por tipo de nó
