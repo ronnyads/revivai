@@ -532,7 +532,7 @@ Retorne APENAS JSON válido, sem markdown.`
       },
     }),
     // Background removal do produto ORIGINAL em paralelo
-    replicate.run('lucataco/remove-bg:95fcc2a26d3899cd6c2691c900465aaeff466285d65bf02a4ca5a8afbe69f1d8', {
+    replicate.run('cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003', {
       input: { image: params.product_url },
     }),
   ])
