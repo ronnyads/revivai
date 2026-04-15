@@ -65,5 +65,17 @@ export interface StudioAsset {
   error_msg?: string | null
   credits_cost: number
   board_order: number
+  position_x?: number | null
+  position_y?: number | null
+  created_at: string
+}
+
+export interface StudioConnection {
+  id: string
+  project_id: string
+  source_id: string
+  target_id: string
+  source_handle: string
+  target_handle: string
   created_at: string
 }

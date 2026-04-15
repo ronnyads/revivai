@@ -37,9 +37,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
 
   const updates: Record<string, unknown> = {}
-  if (body.board_order !== undefined) updates.board_order = body.board_order
+  if (body.board_order  !== undefined) updates.board_order  = body.board_order
   if (body.input_params !== undefined) updates.input_params = body.input_params
-  if (body.status !== undefined) updates.status = body.status
+  if (body.status       !== undefined) updates.status       = body.status
+  if (body.position_x   !== undefined) updates.position_x   = body.position_x
+  if (body.position_y   !== undefined) updates.position_y   = body.position_y
 
   if (Object.keys(updates).length === 0) return NextResponse.json({ error: 'Nenhum campo para atualizar' }, { status: 400 })
 

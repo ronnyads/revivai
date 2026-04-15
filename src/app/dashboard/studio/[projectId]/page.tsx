@@ -2,8 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
-import BoardClient from '@/components/studio/BoardClient'
-import { StudioProject, StudioAsset } from '@/types'
+import StudioCanvas from '@/components/studio/StudioCanvas'
+import { StudioProject, StudioAsset, StudioConnection } from '@/types'
 
 interface Props {
   params: Promise<{ projectId: string }>
@@ -32,6 +32,12 @@ export default async function BoardPage({ params }: Props) {
     .eq('project_id', projectId)
     .order('board_order', { ascending: true })
 
+  // Carrega conexões
+  const { data: connections } = await supabase
+    .from('studio_connections')
+    .select('*')
+    .eq('project_id', projectId)
+
   // Créditos do usuário
   const { data: profile } = await supabase
     .from('users')
@@ -40,9 +46,10 @@ export default async function BoardPage({ params }: Props) {
     .single()
 
   return (
-    <BoardClient
+    <StudioCanvas
       project={project as StudioProject}
       initialAssets={(assets ?? []) as StudioAsset[]}
+      initialConnections={(connections ?? []) as StudioConnection[]}
       userCredits={profile?.credits ?? 0}
     />
   )
