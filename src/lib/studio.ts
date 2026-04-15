@@ -449,69 +449,97 @@ export async function mergeVideoAudio(params: {
   return publicUrl
 }
 
-// ── Compose — background removal + sharp composite ───────────────────────
+// ── Compose — AI Fusion: GPT-4o Vision + FLUX (modelo segurando produto) ──────
 export async function composeProductScene(params: {
   portrait_url:   string
   product_url:    string
-  position?:      'southeast' | 'south' | 'southwest' | 'east' | 'west' | 'center'
-  product_scale?: number
+  position?:      string   // mantido por compat. de API
+  product_scale?: number   // mantido por compat. de API
   assetId:        string
   userId:         string
 }): Promise<string> {
-  const admin     = createAdminClient()
-  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+  const admin  = createAdminClient()
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
 
-  // 1. Remove background do produto usando modelo ativo (pixel-perfect)
-  // cjwbw/rembg é estável e ativo no Replicate — busca versão dinamicamente
-  const { getModelVersion } = await import('@/lib/replicate')
-  const bgVersion = await getModelVersion(replicate, 'cjwbw/rembg')
-  const bgPrediction = await replicate.predictions.create({
-    version: bgVersion,
-    input: { image: params.product_url },
+  // 1. Busca prompts customizados do admin (com fallback defaults)
+  const { data: promptRows } = await admin
+    .from('studio_prompts')
+    .select('key, value')
+    .in('key', ['compose_vision_system', 'compose_flux_template'])
+
+  const promptMap: Record<string, string> = {}
+  for (const row of promptRows ?? []) promptMap[row.key] = row.value
+
+  const visionSystemPrompt = promptMap['compose_vision_system'] ?? `Você é um analista de imagens para geração de fotos UGC (User Generated Content).
+Analise as duas imagens fornecidas (a primeira é uma pessoa/modelo, a segunda é um produto) e retorne um JSON com:
+- "model_desc": descrição detalhada da pessoa (etnia, idade estimada, cor do cabelo, tom de pele, roupa, cenário, iluminação, estilo de câmera)
+- "product_desc": descrição detalhada do produto (o que é, cor, forma, embalagem, marca se visível)
+- "hold_action": como essa pessoa seguraria ou usaria naturalmente esse produto específico (ex: "segurando a garrafa levantada com a mão direita", "aplicando o creme na bochecha", "exibindo a caixa aberta com um sorriso")
+- "scene_style": estilo cênico sugerido para UGC autêntico (ex: "iluminação natural, dusk, bokeh, selfie style")
+Retorne APENAS JSON válido, sem markdown.`
+
+  const fluxTemplate = promptMap['compose_flux_template'] ?? `Fotografia UGC profissional e autêntica. {model_desc}. Ela está {hold_action} ({product_desc}). O produto está claramente visível e naturalmente integrado à cena. {scene_style}. Estilo UGC real, qualidade de câmera de smartphone, pessoa real. Foco nítido na pessoa e no produto. Alta qualidade, fotorrealismo.`
+
+  // 2. GPT-4o Vision analisa as duas imagens
+  const visionRes = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: visionSystemPrompt },
+          { type: 'image_url', image_url: { url: params.portrait_url, detail: 'high' } },
+          { type: 'image_url', image_url: { url: params.product_url,  detail: 'high' } },
+        ],
+      }],
+      max_tokens: 600,
+      response_format: { type: 'json_object' },
+    }),
   })
-  // Aguarda resultado (síncrono, timeout 60s)
-  let bgResult = bgPrediction
-  const start = Date.now()
-  while (bgResult.status !== 'succeeded' && bgResult.status !== 'failed') {
-    if (Date.now() - start > 60_000) throw new Error('Timeout na remoção de fundo')
-    await new Promise(r => setTimeout(r, 1500))
-    bgResult = await replicate.predictions.get(bgResult.id)
+
+  if (!visionRes.ok) {
+    const err = await visionRes.text()
+    throw new Error(`GPT-4o Vision falhou: ${err.slice(0, 200)}`)
   }
-  if (bgResult.status === 'failed') throw new Error('Remoção de fundo falhou')
-  const bgRemoved = Array.isArray(bgResult.output) ? bgResult.output[0] : String(bgResult.output)
 
-  // 2. Baixa cena base e produto sem fundo em paralelo
-  const [sceneRes, productRes] = await Promise.all([
-    fetch(params.portrait_url),
-    fetch(bgRemoved),
-  ])
-  const [sceneBuffer, productBuffer] = await Promise.all([
-    sceneRes.arrayBuffer().then(b => Buffer.from(b)),
-    productRes.arrayBuffer().then(b => Buffer.from(b)),
-  ])
+  const visionData = await visionRes.json()
+  const raw = visionData.choices?.[0]?.message?.content ?? '{}'
+  let analysis: Record<string, string> = {}
+  try { analysis = JSON.parse(raw) } catch { throw new Error('GPT-4o retornou JSON inválido') }
 
-  // 3. Calcula largura do produto proporcional à cena
-  const sceneMeta  = await sharp(sceneBuffer).metadata()
-  const sceneWidth = sceneMeta.width ?? 1024
-  const productWidth = Math.round(sceneWidth * (params.product_scale ?? 0.35))
+  // 3. Monta prompt FLUX com a análise
+  const fusionPrompt = fluxTemplate
+    .replace('{model_desc}',  analysis.model_desc   ?? 'attractive person')
+    .replace('{hold_action}', analysis.hold_action  ?? 'holding the product')
+    .replace('{product_desc}',analysis.product_desc ?? 'a product')
+    .replace('{scene_style}', analysis.scene_style  ?? 'natural lighting, UGC style')
 
-  // 4. Redimensiona produto mantendo proporção (sem alterar pixels originais)
-  const productResized = await sharp(productBuffer)
-    .resize({ width: productWidth })
-    .toBuffer()
+  // 4. FLUX 1.1 Pro gera a nova imagem
+  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+  const fluxOutput = await replicate.run('black-forest-labs/flux-1.1-pro', {
+    input: {
+      prompt:         fusionPrompt,
+      aspect_ratio:   '9:16',
+      output_format:  'jpg',
+      output_quality: 90,
+      safety_tolerance: 5,
+    },
+  }) as string | string[]
 
-  // 5. Compõe produto sobre a cena
-  const composed = await sharp(sceneBuffer)
-    .composite([{ input: productResized, gravity: params.position ?? 'southeast' }])
-    .jpeg({ quality: 92 })
-    .toBuffer()
+  const imageUrl = Array.isArray(fluxOutput) ? fluxOutput[0] : String(fluxOutput)
 
-  // 6. Faz upload para bucket studio
+  // 5. Baixa e salva no bucket studio
+  const imgRes = await fetch(imageUrl)
+  const imgBuf = Buffer.from(await imgRes.arrayBuffer())
+
   const path = `${params.userId}/compose-${params.assetId}.jpg`
-  const { error } = await admin.storage
+  const { error: uploadErr } = await admin.storage
     .from('studio')
-    .upload(path, composed, { contentType: 'image/jpeg', upsert: true })
-  if (error) throw new Error(`Upload falhou: ${error.message}`)
+    .upload(path, imgBuf, { contentType: 'image/jpeg', upsert: true })
+  if (uploadErr) throw new Error(`Upload falhou: ${uploadErr.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
   return publicUrl

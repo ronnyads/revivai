@@ -14,15 +14,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user || user.email !== ADMIN_EMAIL) redirect('/auth/login')
 
   const navItems = [
-    { href: '/admin',          icon: '◈', label: 'Dashboard' },
-    { href: '/admin/orders',   icon: '◎', label: 'Pedidos' },
-    { href: '/admin/users',    icon: '◉', label: 'Usuários' },
-    { href: '/admin/photos',   icon: '◌', label: 'Fotos' },
-    { href: '/admin/prompts',  icon: '✦', label: 'Modos de Restauração' },
-    { href: '/admin/plans',        icon: '◆', label: 'Planos' },
-    { href: '/admin/testimonials', icon: '❝', label: 'Depoimentos' },
-    { href: '/admin/faqs',         icon: '?', label: 'FAQ' },
-    { href: '/admin/settings',     icon: '⚙', label: 'Configurações' },
+    { href: '/admin',                icon: '◈', label: 'Dashboard' },
+    { href: '/admin/orders',         icon: '◎', label: 'Pedidos' },
+    { href: '/admin/users',          icon: '◉', label: 'Usuários' },
+    { href: '/admin/photos',         icon: '◌', label: 'Fotos' },
+    { href: '/admin/prompts',        icon: '✦', label: 'Modos de Restauração' },
+    { href: '/admin/studio-prompts', icon: '🎬', label: 'Prompts Studio IA' },
+    { href: '/admin/plans',          icon: '◆', label: 'Planos' },
+    { href: '/admin/testimonials',   icon: '❝', label: 'Depoimentos' },
+    { href: '/admin/faqs',           icon: '?', label: 'FAQ' },
+    { href: '/admin/settings',       icon: '⚙', label: 'Configurações' },
   ]
 
   return (
