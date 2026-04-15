@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   ReactFlow, Background, BackgroundVariant, MiniMap, Controls,
-  useNodesState, useEdgesState, addEdge,
+  useNodesState, useEdgesState, addEdge, ConnectionMode,
   type Node, type Edge, type Connection, type NodeChange, type EdgeChange,
   MarkerType, ReactFlowProvider,
 } from '@xyflow/react'
@@ -57,7 +57,7 @@ function buildNodes(assets: StudioAsset[], callbacks: Omit<AssetNodeData, 'asset
       y: asset.position_y ?? (100 + Math.floor(i / 3) * 440),
     },
     data: { asset, ...callbacks } as unknown as Record<string, unknown>,
-    style: { overflow: 'visible' },
+    style: { overflow: 'visible', width: asset.type === 'model' ? 360 : 300 },
   }))
 }
 
@@ -197,10 +197,26 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     })
   }, [])
 
+  // Infere o targetHandle quando o usuário solta em cima do nó (connectionMode loose)
+  function inferTargetHandle(sourceId: string, targetId: string): string | null {
+    const src = assets.find(a => a.id === sourceId)
+    const tgt = assets.find(a => a.id === targetId)
+    if (!src || !tgt) return null
+    if (src.type === 'model'   && (tgt.type === 'image' || tgt.type === 'video'))  return 'model_prompt'
+    if (src.type === 'image'   && tgt.type === 'video')   return 'source_image_url'
+    if (src.type === 'image'   && tgt.type === 'upscale') return 'source_url'
+    if (src.type === 'upscale' && tgt.type === 'video')   return 'source_image_url'
+    if (src.type === 'script'  && tgt.type === 'voice')   return 'script'
+    if (src.type === 'voice'   && tgt.type === 'caption') return 'audio_url'
+    return null
+  }
+
   // ── Conectar dois nós ────────────────────────────────────────────────────
   const onConnect = useCallback(async (connection: Connection) => {
-    const { source, target, sourceHandle, targetHandle } = connection
-    if (!source || !target || !targetHandle) return
+    const { source, target, sourceHandle } = connection
+    if (!source || !target) return
+    const targetHandle = connection.targetHandle ?? inferTargetHandle(source, target)
+    if (!targetHandle) return
 
     const res = await fetch('/api/studio/connections', {
       method: 'POST',
@@ -344,6 +360,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           fitViewOptions={{ padding: 0.2 }}
           minZoom={0.2}
           maxZoom={1.5}
+          connectionMode={ConnectionMode.Loose}
           deleteKeyCode="Delete"
           proOptions={{ hideAttribution: true }}
         >
