@@ -541,10 +541,10 @@ export async function startLipsyncGeneration(params: {
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
 
   const prediction = await replicate.predictions.create({
-    model: 'synchlabs/sync-1.9.1-beta',
+    version: 'db9c01140ed55a15993efcbafcd301e7a5fb82ee418d1f7ac71ccfc56e3eb39e', // cjwbw/video-retalking
     input: {
-      video_input: params.face_url,
-      audio_input: params.audio_url,
+      face: params.face_url,
+      input_audio: params.audio_url,
     },
     webhook: webhookUrl,
     webhook_events_filter: ['completed'],
