@@ -41,15 +41,19 @@ export default function WebcamRecorder({ value, onChange }: Props) {
     streamRef.current = null
   }
 
+  // Quando o vídeo monta (após setPhase), aplica o stream
+  useEffect(() => {
+    if ((phase === 'preview' || phase === 'countdown' || phase === 'recording') && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current
+      videoRef.current.muted = true
+    }
+  }, [phase])
+
   async function openCamera() {
     setError('')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.muted = true
-      }
       setPhase('preview')
     } catch {
       setError('Câmera não encontrada ou acesso negado.')
