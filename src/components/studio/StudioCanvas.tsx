@@ -187,11 +187,15 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         source: e.source === oldId ? newId : e.source,
         target: e.target === oldId ? newId : e.target,
       })))
-      setConnections(prev => prev.map(c => ({
-        ...c,
-        source_id: c.source_id === oldId ? newId : c.source_id,
-        target_id: c.target_id === oldId ? newId : c.target_id,
-      })))
+      // Só remapeia connections se o ID antigo existe nelas
+      const hasOldId = connections.some(c => c.source_id === oldId || c.target_id === oldId)
+      if (hasOldId) {
+        setConnections(prev => prev.map(c => ({
+          ...c,
+          source_id: c.source_id === oldId ? newId : c.source_id,
+          target_id: c.target_id === oldId ? newId : c.target_id,
+        })))
+      }
     }
 
     setCredits(c => c - asset.credits_cost)
@@ -242,7 +246,14 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   }, [assets]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    setEdges(buildEdges(connections))
+    // Merge: mantém edges temp visuais + sincroniza as do banco
+    // Sem isso, setEdges(buildEdges(connections)) apagaria todas as temp-edges da campanha
+    setEdges(prev => {
+      const dbEdges = buildEdges(connections)
+      const dbIds   = new Set(dbEdges.map(e => e.id))
+      const tempEdges = prev.filter(e => e.id.startsWith('temp-') && !dbIds.has(e.id))
+      return [...dbEdges, ...tempEdges]
+    })
   }, [connections]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-propaga URLs pelas arestas quando um asset completa (ex: compose → video, video → lipsync)
