@@ -1,9 +1,8 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
 import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers } from 'lucide-react'
-import { useState } from 'react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from '../ImageGenerator'
 import ScriptGenerator from '../ScriptGenerator'
@@ -119,12 +118,7 @@ function AssetNode({ data }: NodeProps) {
       {/* Body */}
       <div className="p-4 nodrag">
         {asset.status === 'processing' && (
-          <div className="flex flex-col items-center py-6 gap-2">
-            <Loader2 size={24} className="animate-spin text-accent" />
-            <p className="text-xs text-zinc-400">Gerando com IA...</p>
-            {asset.type === 'video'  && <p className="text-[10px] text-zinc-600">Vídeos levam até 3 min</p>}
-            {asset.type === 'model'  && <p className="text-[10px] text-zinc-600">Foto pode levar ~30 segundos</p>}
-          </div>
+          <ProcessingCard type={asset.type} createdAt={asset.created_at} />
         )}
 
         {asset.status === 'error' && (
@@ -284,4 +278,85 @@ function FormForType({ type, initialParams, onGenerate }: { type: AssetType; ini
   if (type === 'animate') return <AnimateGenerator  initial={initialParams} onGenerate={onGenerate} />
   if (type === 'compose') return <ComposeCard        initial={initialParams} onGenerate={onGenerate} />
   return null
+}
+// ── Processing card com barra de progresso e timer ──────────────────────────────
+const ESTIMATED: Partial<Record<AssetType, number>> = {
+  video:   180, // 3 min
+  animate: 90,  // 1.5 min
+  model:   35,
+  image:   20,
+  voice:   10,
+  script:  8,
+  upscale: 25,
+  caption: 15,
+  compose: 20,
+  render:  30,
+}
+
+const LABELS: Partial<Record<AssetType, string>> = {
+  video:   'Kling AI gerando seu vídeo...',
+  animate: 'LivePortrait animando o modelo...',
+  model:   'FLUX gerando o modelo UGC...',
+  image:   'DALL-E gerando imagem...',
+  voice:   'ElevenLabs sintetizando voz...',
+  script:  'GPT-4o escrevendo script...',
+  upscale: 'Real-ESRGAN fazendo upscale...',
+  caption: 'Whisper transcrevendo...',
+  compose: 'Compondo cena...',
+  render:  'Mesclando vídeo + áudio...',
+}
+
+function ProcessingCard({ type, createdAt }: { type: AssetType; createdAt: string }) {
+  const estimated = ESTIMATED[type] ?? 30
+  const label     = LABELS[type] ?? 'Gerando com IA...'
+
+  const [elapsed, setElapsed] = useState(() => {
+    const start = new Date(createdAt).getTime()
+    return Math.floor((Date.now() - start) / 1000)
+  })
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      const start = new Date(createdAt).getTime()
+      setElapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+    return () => clearInterval(t)
+  }, [createdAt])
+
+  // Progresso falso: vai até 90% suavemente, nunca termina antes do webhook
+  const rawProgress = Math.min((elapsed / estimated) * 100, 90)
+  const progress    = Math.round(rawProgress)
+
+  const remaining = Math.max(estimated - elapsed, 0)
+  const fmt = (s: number) => s >= 60
+    ? `${Math.floor(s / 60)}m ${s % 60}s`
+    : `${s}s`
+
+  return (
+    <div className="flex flex-col gap-3 py-4">
+      <div className="flex items-center gap-2.5">
+        <Loader2 size={15} className="animate-spin text-accent shrink-0" />
+        <p className="text-[11px] text-zinc-300 font-medium leading-tight">{label}</p>
+      </div>
+
+      {/* Progress bar */}
+      <div className="relative h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+        <div
+          className="absolute inset-y-0 left-0 bg-gradient-to-r from-accent to-fuchsia-500 rounded-full transition-all duration-1000"
+          style={{ width: `${progress}%` }}
+        />
+        {/* Shimmer */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+      </div>
+
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-zinc-600">{progress}%</span>
+        <span className="text-[10px] text-zinc-600">
+          {remaining > 0
+            ? `~${fmt(remaining)} restante`
+            : 'Aguardando confirmáção...'}
+        </span>
+      </div>
+    </div>
+  )
 }

@@ -60,9 +60,15 @@ body {
   50%       { opacity: 0.4; }
 }
 
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 /* ── Utility patches for Tailwind v4 ── */
 .animate-fade-up   { animation: fadeUp 0.6s ease forwards; }
 .animate-pulse-dot { animation: pulseDot 2s infinite; }
+.animate-shimmer   { animation: shimmer 1.8s infinite linear; }
 
 /* ── Reveal ── */
 .reveal {

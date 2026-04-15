@@ -174,14 +174,17 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Operações síncronas — atualiza resultado e debita crédito
+    // Operações síncronas — atualiza resultado e debita custo real
     await admin.from('studio_assets').update({
       status: 'done',
       result_url: resultUrl,
       input_params: { ...input_params, ...extraData },
     }).eq('id', asset.id)
 
-    await admin.rpc('debit_credit', { user_id_param: user.id })
+    // Debita o custo real do asset (não sempre 1)
+    for (let i = 0; i < cost; i++) {
+      await admin.rpc('debit_credit', { user_id_param: user.id })
+    }
 
     return NextResponse.json({
       asset: {
