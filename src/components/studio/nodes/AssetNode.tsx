@@ -15,17 +15,17 @@ import RenderCard from '../RenderCard'
 import AnimateGenerator from '../AnimateGenerator'
 import ComposeCard from '../ComposeCard'
 
-const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string }> = {
-  model:   { icon: <User size={14} />,     label: 'Modelo UGC',  color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30' },
-  image:   { icon: <Image size={14} />,    label: 'Imagem',      color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30' },
-  video:   { icon: <Video size={14} />,    label: 'Vídeo',       color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/30' },
-  voice:   { icon: <Mic size={14} />,      label: 'Voz',         color: 'text-emerald-400',bg: 'bg-emerald-500/10 border-emerald-500/30' },
-  upscale: { icon: <ZoomIn size={14} />,   label: 'Upscale',     color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/30' },
-  script:  { icon: <FileText size={14} />, label: 'Script',      color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/30' },
-  caption: { icon: <Captions size={14} />, label: 'Legenda',     color: 'text-cyan-400',   bg: 'bg-cyan-500/10 border-cyan-500/30' },
-  render:  { icon: <Film size={14} />,     label: 'Vídeo Final', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/30' },
-  animate: { icon: <Sparkles size={14} />, label: 'Animar',      color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10 border-fuchsia-500/30' },
-  compose: { icon: <Layers size={14} />,   label: 'Compor Cena', color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30'   },
+const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string; hint: string; output: string }> = {
+  model:   { icon: <User size={14} />,     label: 'Modelo UGC',  color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Gera foto do modelo', output: 'Foto do modelo →' },
+  image:   { icon: <Image size={14} />,    label: 'Imagem',      color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30', hint: 'Gera imagem com IA', output: 'Imagem gerada →' },
+  video:   { icon: <Video size={14} />,    label: 'Vídeo',       color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/30',   hint: '← Conecte imagem + áudio', output: 'Vídeo animado →' },
+  voice:   { icon: <Mic size={14} />,      label: 'Voz',         color: 'text-emerald-400',bg: 'bg-emerald-500/10 border-emerald-500/30', hint: '← Conecte o Script aqui', output: 'Áudio da voz →' },
+  upscale: { icon: <ZoomIn size={14} />,   label: 'Upscale',     color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/30',  hint: '← Conecte imagem para melhorar', output: 'Imagem 4K →' },
+  script:  { icon: <FileText size={14} />, label: 'Script',      color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/30',    hint: 'Escreve a fala do modelo', output: 'Texto do script →' },
+  caption: { icon: <Captions size={14} />, label: 'Legenda',     color: 'text-cyan-400',   bg: 'bg-cyan-500/10 border-cyan-500/30',    hint: '← Conecte o Áudio aqui', output: 'Legendas →' },
+  render:  { icon: <Film size={14} />,     label: 'Vídeo Final', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/30',    hint: '← Conecte Vídeo + Voz → resultado final', output: '🎬 Vídeo com voz →' },
+  animate: { icon: <Sparkles size={14} />, label: 'Animar',      color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10 border-fuchsia-500/30', hint: '← Conecte foto do modelo + vídeo de referência', output: 'Vídeo animado →' },
+  compose: { icon: <Layers size={14} />,   label: 'Compor Cena', color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',   hint: '← Conecte Modelo + envie foto do produto', output: 'Foto composta →' },
 }
 
 // Handles de entrada por tipo de nó
@@ -78,34 +78,49 @@ function AssetNode({ data }: NodeProps) {
   return (
     <div className={`${asset.type === 'model' ? 'w-[360px]' : 'w-[300px]'} bg-zinc-900 border ${asset.type === 'render' ? 'border-rose-500/30' : 'border-zinc-700'} rounded-2xl overflow-visible shadow-2xl shadow-black/40`}>
 
-      {/* INPUT handles — esquerda */}
+      {/* INPUT handles — esquerda com label visível */}
       {inputHandles.map((h, i) => (
-        <Handle
+        <div
           key={h.id}
-          type="target"
-          position={Position.Left}
-          id={h.id}
-          style={{ top: `${48 + i * 28}px`, background: '#3b82f6', width: 14, height: 14, border: '2px solid #1e40af', zIndex: 50, cursor: 'crosshair' }}
-          title={h.label}
-        />
+          style={{ position: 'absolute', left: 0, top: `${48 + i * 28}px`, transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', zIndex: 50, pointerEvents: 'none' }}
+        >
+          <Handle
+            type="target"
+            position={Position.Left}
+            id={h.id}
+            style={{ position: 'relative', left: 0, top: 0, transform: 'none', background: '#3b82f6', width: 14, height: 14, border: '2px solid #1e40af', cursor: 'crosshair', pointerEvents: 'auto' }}
+            title={h.label}
+          />
+          <span style={{ marginLeft: 6, fontSize: 9, color: '#6b7280', whiteSpace: 'nowrap', background: 'rgba(9,9,11,0.85)', padding: '1px 5px', borderRadius: 4, border: '1px solid #3f3f46', pointerEvents: 'none' }}>
+            {h.label}
+          </span>
+        </div>
       ))}
 
       {/* OUTPUT handle — direita */}
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="output"
-        style={{ background: '#f97316', width: 14, height: 14, border: '2px solid #c2410c', zIndex: 50, cursor: 'crosshair' }}
-      />
+      <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', zIndex: 50, pointerEvents: 'none' }}>
+        <span style={{ marginRight: 6, fontSize: 9, color: '#f97316', whiteSpace: 'nowrap', background: 'rgba(9,9,11,0.85)', padding: '1px 5px', borderRadius: 4, border: '1px solid #431407', pointerEvents: 'none' }}>
+          {meta.output}
+        </span>
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="output"
+          style={{ position: 'relative', right: 0, top: 0, transform: 'none', background: '#f97316', width: 14, height: 14, border: '2px solid #c2410c', cursor: 'crosshair', pointerEvents: 'auto' }}
+          title={meta.output}
+        />
+      </div>
 
       {/* Header */}
       <div className={`flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 rounded-t-2xl ${meta.bg}`}>
         <button
           onClick={() => setCollapsed(v => !v)}
-          className={`flex items-center gap-2 text-sm font-semibold ${meta.color}`}
+          className={`flex flex-col items-start text-left`}
         >
-          {meta.icon}
-          {meta.label}
+          <span className={`flex items-center gap-1.5 text-sm font-semibold ${meta.color}`}>
+            {meta.icon}{meta.label}
+          </span>
+          <span className="text-[9px] text-zinc-600 mt-0.5 leading-none">{meta.hint}</span>
         </button>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded-full">{asset.credits_cost}cr</span>
