@@ -520,22 +520,19 @@ Retorne APENAS JSON válido, sem markdown.`
   // 4. FLUX gera a cena SEM o produto
   const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
 
-  const [fluxOutputRaw, bgRemovedRaw] = await Promise.all([
-    // Cena com modelo (sem produto)
-    replicate.run('black-forest-labs/flux-1.1-pro', {
-      input: {
-        prompt:           scenePrompt,
-        aspect_ratio:     '9:16',
-        output_format:    'jpg',
-        output_quality:   90,
-        safety_tolerance: 5,
-      },
-    }),
-    // Background removal do produto ORIGINAL em paralelo
-    replicate.run('cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003', {
-      input: { image: params.product_url },
-    }),
-  ])
+  // Serializado para evitar burst limit do Replicate (burst=1 em contas com saldo baixo)
+  const bgRemovedRaw = await replicate.run('cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003', {
+    input: { image: params.product_url },
+  })
+  const fluxOutputRaw = await replicate.run('black-forest-labs/flux-1.1-pro', {
+    input: {
+      prompt:           scenePrompt,
+      aspect_ratio:     '9:16',
+      output_format:    'jpg',
+      output_quality:   90,
+      safety_tolerance: 5,
+    },
+  })
 
   const sceneUrl   = Array.isArray(fluxOutputRaw) ? fluxOutputRaw[0] : String(fluxOutputRaw)
   const productBgRemovedUrl = Array.isArray(bgRemovedRaw) ? bgRemovedRaw[0] : String(bgRemovedRaw)
