@@ -11,12 +11,13 @@ import CaptionGenerator from './CaptionGenerator'
 import UpscaleCard from './UpscaleCard'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string }> = {
-  image:   { icon: <Image size={15} />,    label: 'Imagem',   color: 'text-violet-400' },
-  video:   { icon: <Video size={15} />,    label: 'Vídeo',    color: 'text-blue-400' },
-  voice:   { icon: <Mic size={15} />,      label: 'Voz',      color: 'text-emerald-400' },
-  upscale: { icon: <ZoomIn size={15} />,   label: 'Upscale',  color: 'text-amber-400' },
-  script:  { icon: <FileText size={15} />, label: 'Script',   color: 'text-pink-400' },
-  caption: { icon: <Captions size={15} />, label: 'Legenda',  color: 'text-cyan-400' },
+  model:   { icon: <FileText size={15} />, label: 'Modelo UGC', color: 'text-indigo-400' },
+  image:   { icon: <Image size={15} />,    label: 'Imagem',     color: 'text-violet-400' },
+  video:   { icon: <Video size={15} />,    label: 'Vídeo',      color: 'text-blue-400' },
+  voice:   { icon: <Mic size={15} />,      label: 'Voz',        color: 'text-emerald-400' },
+  upscale: { icon: <ZoomIn size={15} />,   label: 'Upscale',    color: 'text-amber-400' },
+  script:  { icon: <FileText size={15} />, label: 'Script',     color: 'text-pink-400' },
+  caption: { icon: <Captions size={15} />, label: 'Legenda',    color: 'text-cyan-400' },
 }
 
 // Mapeamento: tipo de origem → ações "Usar em..."

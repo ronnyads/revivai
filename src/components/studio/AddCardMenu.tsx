@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Image, Video, Mic, ZoomIn, FileText, Captions, X } from 'lucide-react'
+import { Plus, Image, Video, Mic, ZoomIn, FileText, Captions, X, User } from 'lucide-react'
 import { AssetType } from '@/types'
 
 const TYPES: { type: AssetType; icon: React.ReactNode; label: string; desc: string; cost: number }[] = [
-  { type: 'script',  icon: <FileText size={18} />,   label: 'Script UGC',   desc: 'Texto viral com GPT-4o',       cost: 1 },
+  { type: 'model',   icon: <User size={18} />,        label: 'Modelo UGC',   desc: 'Persona visual com GPT-4o',    cost: 1 },
+  { type: 'script',  icon: <FileText size={18} />,    label: 'Script UGC',   desc: 'Texto viral com GPT-4o',       cost: 1 },
   { type: 'image',   icon: <Image size={18} />,       label: 'Imagem',       desc: 'Foto de produto com DALL-E 3', cost: 1 },
   { type: 'voice',   icon: <Mic size={18} />,         label: 'Voz',          desc: 'Locução com ElevenLabs',       cost: 1 },
   { type: 'caption', icon: <Captions size={18} />,    label: 'Legenda',      desc: 'Legenda .srt com Whisper',     cost: 1 },

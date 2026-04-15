@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, User } from 'lucide-react'
 
 interface Props {
   initial: Record<string, unknown>
@@ -15,6 +15,11 @@ export default function ImageGenerator({ initial, onGenerate }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
+      {!!initial.model_prompt && (
+        <div className="flex items-center gap-1.5 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 px-2.5 py-1.5 rounded-xl">
+          <User size={11} /> Modelo conectado
+        </div>
+      )}
       <textarea
         value={prompt}
         onChange={e => setPrompt(e.target.value)}

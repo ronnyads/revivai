@@ -40,7 +40,7 @@ export interface Order {
 // ── Ad Studio ──────────────────────────────────────────────────────────────
 
 export type StudioTemplate = 'blank' | 'before_after' | 'testimonial' | 'product_showcase'
-export type AssetType = 'image' | 'video' | 'voice' | 'upscale' | 'script' | 'caption'
+export type AssetType = 'image' | 'video' | 'voice' | 'upscale' | 'script' | 'caption' | 'model'
 export type AssetStatus = 'idle' | 'processing' | 'done' | 'error'
 
 export interface StudioProject {

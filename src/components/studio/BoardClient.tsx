@@ -17,6 +17,7 @@ interface Props {
 const GUIDED_FLOW: AssetType[] = ['script', 'image', 'voice', 'video', 'caption']
 
 const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
+  model:   { gender: '', age_range: '', skin_tone: '', body_type: '', style: '' },
   script:  { product: '', audience: '', format: 'reels', hook_style: 'problema' },
   image:   { prompt: '', style: 'ugc', aspect_ratio: '9:16' },
   voice:   { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 },
@@ -26,7 +27,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
 }
 
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3,
+  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1,
 }
 
 export default function BoardClient({ project, initialAssets, userCredits }: Props) {

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration } from '@/lib/studio'
+import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, generateModel } from '@/lib/studio'
 import { AssetType } from '@/types'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -72,9 +72,23 @@ export async function POST(req: NextRequest) {
         prompt: String(input_params.prompt ?? ''),
         style: String(input_params.style ?? 'ugc'),
         aspect_ratio: String(input_params.aspect_ratio ?? '1:1'),
+        model_prompt: input_params.model_prompt ? String(input_params.model_prompt) : undefined,
         assetId: asset.id,
         userId: user.id,
       })
+    } else if (type === 'model') {
+      const { url, text } = await generateModel({
+        gender:       String(input_params.gender       ?? 'feminino'),
+        age_range:    String(input_params.age_range    ?? '20-30'),
+        skin_tone:    String(input_params.skin_tone    ?? 'media'),
+        body_type:    String(input_params.body_type    ?? 'normal'),
+        style:        String(input_params.style        ?? 'casual'),
+        extra_details: input_params.extra_details ? String(input_params.extra_details) : undefined,
+        assetId: asset.id,
+        userId: user.id,
+      })
+      resultUrl = url
+      extraData = { model_text: text }
     } else if (type === 'script') {
       const { url, text } = await generateScript({
         product: String(input_params.product ?? ''),

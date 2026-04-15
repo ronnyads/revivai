@@ -2,7 +2,7 @@
 
 import { memo } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User } from 'lucide-react'
 import { useState } from 'react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from '../ImageGenerator'
@@ -11,19 +11,22 @@ import VoiceGenerator from '../VoiceGenerator'
 import VideoGenerator from '../VideoGenerator'
 import CaptionGenerator from '../CaptionGenerator'
 import UpscaleCard from '../UpscaleCard'
+import ModelGenerator from '../ModelGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string }> = {
-  image:   { icon: <Image size={14} />,    label: 'Imagem',  color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30' },
-  video:   { icon: <Video size={14} />,    label: 'Vídeo',   color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/30' },
-  voice:   { icon: <Mic size={14} />,      label: 'Voz',     color: 'text-emerald-400',bg: 'bg-emerald-500/10 border-emerald-500/30' },
-  upscale: { icon: <ZoomIn size={14} />,   label: 'Upscale', color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/30' },
-  script:  { icon: <FileText size={14} />, label: 'Script',  color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/30' },
-  caption: { icon: <Captions size={14} />, label: 'Legenda', color: 'text-cyan-400',   bg: 'bg-cyan-500/10 border-cyan-500/30' },
+  model:   { icon: <User size={14} />,     label: 'Modelo UGC', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30' },
+  image:   { icon: <Image size={14} />,    label: 'Imagem',     color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30' },
+  video:   { icon: <Video size={14} />,    label: 'Vídeo',      color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/30' },
+  voice:   { icon: <Mic size={14} />,      label: 'Voz',        color: 'text-emerald-400',bg: 'bg-emerald-500/10 border-emerald-500/30' },
+  upscale: { icon: <ZoomIn size={14} />,   label: 'Upscale',    color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/30' },
+  script:  { icon: <FileText size={14} />, label: 'Script',     color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/30' },
+  caption: { icon: <Captions size={14} />, label: 'Legenda',    color: 'text-cyan-400',   bg: 'bg-cyan-500/10 border-cyan-500/30' },
 }
 
 // Handles de entrada por tipo de nó
 const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string }>>> = {
-  video:   [{ id: 'source_image_url', label: 'Imagem' }],
+  image:   [{ id: 'model_prompt',     label: 'Modelo' }],
+  video:   [{ id: 'source_image_url', label: 'Imagem' }, { id: 'model_prompt', label: 'Modelo' }],
   upscale: [{ id: 'source_url',       label: 'Imagem' }],
   voice:   [{ id: 'script',           label: 'Script' }],
   caption: [{ id: 'audio_url',        label: 'Áudio'  }],
@@ -205,5 +208,6 @@ function FormForType({ type, initialParams, onGenerate }: { type: AssetType; ini
   if (type === 'video')   return <VideoGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'caption') return <CaptionGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'upscale') return <UpscaleCard      initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'model')   return <ModelGenerator   initial={initialParams} onGenerate={onGenerate} />
   return null
 }

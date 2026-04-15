@@ -9,6 +9,7 @@ export const CREDIT_COST: Record<AssetType, number> = {
   caption: 1,
   upscale: 1,
   video:   3,
+  model:   1,
 }
 
 // ── Image — DALL-E 3 via fetch ─────────────────────────────────────────────
@@ -16,6 +17,7 @@ export async function generateImage(params: {
   prompt: string
   style: string
   aspect_ratio: string
+  model_prompt?: string
   assetId: string
   userId: string
 }) {
@@ -36,12 +38,16 @@ export async function generateImage(params: {
     ? 'professional product photography, clean background, studio lighting, '
     : 'lifestyle photography, natural light, aspirational, '
 
+  const finalPrompt = params.model_prompt
+    ? `${params.model_prompt}. ${stylePrefix}${params.prompt}`
+    : stylePrefix + params.prompt
+
   const res = await fetch('https://api.openai.com/v1/images/generations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model: 'dall-e-3',
-      prompt: stylePrefix + params.prompt,
+      prompt: finalPrompt,
       size,
       quality: 'standard',
       n: 1,
@@ -275,6 +281,75 @@ export async function generateUpscale(params: {
   const url = typeof output === 'string' ? output : Array.isArray(output) ? output[0] : null
   if (!url) throw new Error('Real-ESRGAN retornou saída inválida')
   return url as string
+}
+
+// ── Model — GPT-4o gera descrição visual única para UGC ───────────────────
+export async function generateModel(params: {
+  gender: string
+  age_range: string
+  skin_tone: string
+  body_type: string
+  style: string
+  extra_details?: string
+  assetId: string
+  userId: string
+}) {
+  const admin = createAdminClient()
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
+
+  const seed = Math.random().toString(36).slice(2, 8)
+
+  const GENDER_MAP:    Record<string, string> = { feminino: 'woman', masculino: 'man' }
+  const AGE_MAP:       Record<string, string> = { '20-30': 'in her/his mid-twenties', '30-40': 'in her/his mid-thirties', '40-55': 'in her/his mid-forties', '55+': 'in her/his late fifties' }
+  const SKIN_MAP:      Record<string, string> = { muito_clara: 'very fair porcelain skin', clara: 'light peachy skin', media: 'medium warm skin', oliva: 'olive-toned skin', morena: 'rich brown skin', negra: 'deep ebony skin' }
+  const BODY_MAP:      Record<string, string> = { magro: 'slim slender build', atletico: 'athletic toned build', normal: 'average proportional build', robusto: 'stocky sturdy build', plus_size: 'plus-size full-figured build' }
+  const STYLE_MAP:     Record<string, string> = { casual: 'casual everyday streetwear', profissional: 'smart professional business attire', esportivo: 'sporty activewear', elegante: 'elegant formal wear', alternativo: 'alternative edgy fashion' }
+
+  const g = GENDER_MAP[params.gender]   ?? params.gender
+  const a = AGE_MAP[params.age_range]   ?? params.age_range
+  const s = SKIN_MAP[params.skin_tone]  ?? params.skin_tone
+  const b = BODY_MAP[params.body_type]  ?? params.body_type
+  const e = STYLE_MAP[params.style]     ?? params.style
+
+  const system = `You are a UGC creative director specializing in AI image generation for ads.
+Generate a UNIQUE, vivid, photorealistic visual description of a model for DALL-E 3.
+Vary vocabulary, hair details, facial features, and scene context every response — never repeat.
+Seed for uniqueness: ${seed}.
+Output: one dense English paragraph (3-5 sentences). No names. Pure visual description.`
+
+  const user = `Create a unique visual model description for: a ${g}, ${a}, ${s}, with a ${b}, wearing ${e}.${params.extra_details ? ' Additional details: ' + params.extra_details : ''} Include specific facial features, hair style, and overall energy suitable for a UGC ad.`
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      temperature: 1.0,
+      max_tokens: 280,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user',   content: user },
+      ],
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(`GPT-4o erro: ${err.error?.message ?? res.status}`)
+  }
+
+  const data = await res.json()
+  const text: string = data.choices?.[0]?.message?.content?.trim() ?? ''
+
+  const path = `${params.userId}/${params.assetId}-model.txt`
+  const { error } = await admin.storage
+    .from('studio')
+    .upload(path, Buffer.from(text, 'utf-8'), { contentType: 'text/plain', upsert: true })
+  if (error) throw new Error(`Upload modelo falhou: ${error.message}`)
+
+  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return { url: publicUrl, text }
 }
 
 // ── Video — Kling AI via Replicate (async — usa webhook) ──────────────────
