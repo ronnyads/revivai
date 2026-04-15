@@ -449,6 +449,21 @@ export async function mergeVideoAudio(params: {
   return publicUrl
 }
 
+// Helper: executa fn com retry automático em caso de 429 (respeita retry_after)
+async function withReplicateRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (err: any) {
+      const is429 = err?.message?.includes('429') || err?.status === 429
+      if (!is429 || attempt === maxRetries) throw err
+      const retryAfter = parseInt(err?.message?.match(/"retry_after":(\d+)/)?.[1] ?? '10', 10)
+      await new Promise(r => setTimeout(r, (retryAfter + 1) * 1000))
+    }
+  }
+  throw new Error('Max retries exceeded')
+}
+
 // ── Compose — AI Fusion: GPT-4o Vision + FLUX (modelo segurando produto) ──────
 export async function composeProductScene(params: {
   portrait_url:   string
@@ -520,21 +535,23 @@ Retorne APENAS JSON válido, sem markdown.`
   // 4. FLUX gera a cena SEM o produto
   const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
 
-  // Serializado com delay para evitar burst limit do Replicate (burst=1 por janela de ~10s)
-  const bgRemovedRaw = await replicate.run('cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003', {
-    input: { image: params.product_url },
-  })
-  // Aguarda reset do burst limit antes da próxima predição
-  await new Promise(r => setTimeout(r, 5000))
-  const fluxOutputRaw = await replicate.run('black-forest-labs/flux-1.1-pro', {
-    input: {
-      prompt:           scenePrompt,
-      aspect_ratio:     '9:16',
-      output_format:    'jpg',
-      output_quality:   90,
-      safety_tolerance: 5,
-    },
-  })
+  // Serializado com retry automático — respeita retry_after do Replicate em caso de 429
+  const bgRemovedRaw = await withReplicateRetry(() =>
+    replicate.run('cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003', {
+      input: { image: params.product_url },
+    })
+  )
+  const fluxOutputRaw = await withReplicateRetry(() =>
+    replicate.run('black-forest-labs/flux-1.1-pro', {
+      input: {
+        prompt:           scenePrompt,
+        aspect_ratio:     '9:16',
+        output_format:    'jpg',
+        output_quality:   90,
+        safety_tolerance: 5,
+      },
+    })
+  )
 
   const sceneUrl   = Array.isArray(fluxOutputRaw) ? fluxOutputRaw[0] : String(fluxOutputRaw)
   const productBgRemovedUrl = Array.isArray(bgRemovedRaw) ? bgRemovedRaw[0] : String(bgRemovedRaw)
