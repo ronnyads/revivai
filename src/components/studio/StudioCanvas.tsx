@@ -170,12 +170,30 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       body: JSON.stringify({ position_x: pos.x, position_y: pos.y }),
     })
 
-    // Atualiza o card in-place (o ID é o mesmo — conexões nunca se perdem)
+    // Atualiza o card in-place (o ID pode mudar se era temp → substitui em assets, edges e connections)
+    const newId = asset.id
+    const oldId = existingId
+
     setAssets(prev => prev.map(a =>
-      a.id === existingId
+      a.id === oldId
         ? { ...asset, position_x: pos.x, position_y: pos.y }
         : a
     ))
+
+    // Re-mapeia edges para o novo ID (evita conexões órfãs quando temp- vira UUID real)
+    if (newId !== oldId) {
+      setEdges(prev => prev.map(e => ({
+        ...e,
+        source: e.source === oldId ? newId : e.source,
+        target: e.target === oldId ? newId : e.target,
+      })))
+      setConnections(prev => prev.map(c => ({
+        ...c,
+        source_id: c.source_id === oldId ? newId : c.source_id,
+        target_id: c.target_id === oldId ? newId : c.target_id,
+      })))
+    }
+
     setCredits(c => c - asset.credits_cost)
     if (asset.status === 'processing') startPolling(asset.id)
   }, [assets, project.id, startPolling])
