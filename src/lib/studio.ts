@@ -476,59 +476,52 @@ export async function composeProductScene(params: {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
 
-  // 1. GPT-4o Vision: analisa portrait → onde estão as mãos (gravity sharp)
-  const visionRes = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: params.portrait_url, detail: 'high' } },
-          { type: 'text', text: 'Look at this image. Where are the person\'s hands located in the frame? Return ONLY one of these values: center, north, south, east, west, northeast, northwest, southeast, southwest. Choose the value closest to where the hands are visible.' },
-        ],
-      }],
-      max_tokens: 20,
-    }),
-  })
-  const visionData = await visionRes.json()
-  const rawGravity = visionData.choices?.[0]?.message?.content?.trim().toLowerCase() ?? 'southeast'
-  const validGravities = ['center','north','south','east','west','northeast','northwest','southeast','southwest']
-  const gravity = validGravities.includes(rawGravity) ? rawGravity : 'southeast'
-
-  // 2. Baixa portrait e produto em paralelo + remove fundo do produto
-  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
-  const [portraitRes, bgRemovedRaw] = await Promise.all([
+  // 1. Baixa portrait e produto em paralelo
+  const [portraitRes, productRes] = await Promise.all([
     fetch(params.portrait_url),
-    withReplicateRetry(() =>
-      replicate.run('cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003', {
-        input: { image: params.product_url },
-      })
-    ),
+    fetch(params.product_url),
   ])
-  const portraitBuf = Buffer.from(await portraitRes.arrayBuffer())
-  const bgRemovedUrl = Array.isArray(bgRemovedRaw) ? String(bgRemovedRaw[0]) : String(bgRemovedRaw)
-  const productRes  = await fetch(bgRemovedUrl)
-  const productBuf  = Buffer.from(await productRes.arrayBuffer())
+  const [portraitBuf, productBuf] = await Promise.all([
+    portraitRes.arrayBuffer().then(b => Buffer.from(b)),
+    productRes.arrayBuffer().then(b => Buffer.from(b)),
+  ])
 
-  // 3. Redimensiona produto proporcional à cena (~35% da largura)
-  const portraitMeta = await sharp(portraitBuf).metadata()
-  const sceneW       = portraitMeta.width  ?? 1024
-  const productW     = Math.round(sceneW * (params.product_scale ?? 0.35))
-  const productResized = await sharp(productBuf).resize({ width: productW }).toBuffer()
+  // 2. GPT Image 1 — edição com as duas imagens como referência
+  //    Vê a modelo E o produto, gera composição natural com produto na mão
+  const formData = new FormData()
+  formData.append('model', 'gpt-image-1')
+  formData.append(
+    'prompt',
+    'This person is naturally holding the product in their hand, as if showcasing it for a UGC advertisement. ' +
+    'The product must appear physically held — with realistic hand grip, natural shadows, and correct scale. ' +
+    'Keep the person exactly the same: same face, hair, skin tone, clothing, background, and lighting. ' +
+    'Keep the product exactly the same: same colors, text, logo, shape, packaging — do not alter the product in any way. ' +
+    'The result should look like a real photo of a real person holding the real product.',
+  )
+  formData.append('image[]', new Blob([portraitBuf], { type: 'image/jpeg' }), 'portrait.jpg')
+  formData.append('image[]', new Blob([productBuf],  { type: 'image/jpeg' }), 'product.jpg')
+  formData.append('size', '1024x1536')
+  formData.append('quality', 'high')
 
-  // 4. Compõe produto original (pixel-perfect) sobre a foto da modelo na posição das mãos
-  const composed = await sharp(portraitBuf)
-    .composite([{ input: productResized, gravity: gravity as any }])
-    .jpeg({ quality: 92 })
-    .toBuffer()
+  const editRes = await fetch('https://api.openai.com/v1/images/edits', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: formData,
+  })
+  if (!editRes.ok) {
+    const err = await editRes.text()
+    throw new Error(`GPT Image 1 falhou: ${err.slice(0, 300)}`)
+  }
+  const editData = await editRes.json()
+  const b64 = editData.data?.[0]?.b64_json
+  if (!b64) throw new Error('GPT Image 1 não retornou imagem')
+  const imgBuffer = Buffer.from(b64, 'base64')
 
-  // 5. Upload resultado final
+  // 3. Upload resultado final
   const path = `${params.userId}/compose-${params.assetId}.jpg`
   const { error: uploadErr } = await admin.storage
     .from('studio')
-    .upload(path, composed, { contentType: 'image/jpeg', upsert: true })
+    .upload(path, imgBuffer, { contentType: 'image/jpeg', upsert: true })
   if (uploadErr) throw new Error(`Upload falhou: ${uploadErr.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
