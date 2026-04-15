@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, generateModel } from '@/lib/studio'
+import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, generateModel, mergeVideoAudio, startAnimateGeneration } from '@/lib/studio'
 import { AssetType } from '@/types'
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -123,15 +123,37 @@ export async function POST(req: NextRequest) {
     } else if (type === 'video') {
       // Assíncrono — webhook atualiza status
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+      // Suporta continuação (video→video): usa continuation_frame como source se disponível
+      const sourceImageUrl = String(
+        input_params.continuation_frame ?? input_params.source_image_url ?? ''
+      )
       await startVideoGeneration({
-        source_image_url: String(input_params.source_image_url ?? ''),
+        source_image_url: sourceImageUrl,
         motion_prompt: String(input_params.motion_prompt ?? ''),
         duration: Number(input_params.duration ?? 5),
+        model_prompt: input_params.model_prompt ? String(input_params.model_prompt) : undefined,
         assetId: asset.id,
         userId: user.id,
         appUrl,
       })
       return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
+    } else if (type === 'animate') {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+      await startAnimateGeneration({
+        portrait_image_url: String(input_params.portrait_image_url ?? ''),
+        driving_video_url:  String(input_params.driving_video_url  ?? ''),
+        assetId: asset.id,
+        userId: user.id,
+        appUrl,
+      })
+      return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
+    } else if (type === 'render') {
+      resultUrl = await mergeVideoAudio({
+        video_url: String(input_params.source_image_url ?? ''),
+        audio_url: String(input_params.audio_url ?? ''),
+        assetId: asset.id,
+        userId: user.id,
+      })
     }
 
     // Operações síncronas — atualiza resultado e debita crédito

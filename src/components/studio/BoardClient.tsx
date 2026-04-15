@@ -24,10 +24,12 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   video:   { source_image_url: '', motion_prompt: '', duration: 5 },
   caption: { audio_url: '' },
   upscale: { source_url: '', scale: 4 },
+  render:  { source_image_url: '', audio_url: '' },
+  animate: { portrait_image_url: '', driving_video_url: '' },
 }
 
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1,
+  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3,
 }
 
 export default function BoardClient({ project, initialAssets, userCredits }: Props) {

@@ -32,10 +32,17 @@ export async function POST(req: NextRequest) {
     await admin.from('studio_assets').update({
       status: 'done',
       result_url: videoUrl,
+      last_frame_url: videoUrl,
     }).eq('id', assetId)
 
-    // Debita créditos do vídeo (3)
-    for (let i = 0; i < 3; i++) {
+    // Debita créditos dinamicamente usando credits_cost do asset
+    const { data: assetData } = await admin
+      .from('studio_assets')
+      .select('credits_cost')
+      .eq('id', assetId)
+      .single()
+    const cost = assetData?.credits_cost ?? 3
+    for (let i = 0; i < cost; i++) {
       await admin.rpc('debit_credit', { user_id_param: userId })
     }
 

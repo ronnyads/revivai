@@ -40,7 +40,7 @@ export interface Order {
 // ── Ad Studio ──────────────────────────────────────────────────────────────
 
 export type StudioTemplate = 'blank' | 'before_after' | 'testimonial' | 'product_showcase'
-export type AssetType = 'image' | 'video' | 'voice' | 'upscale' | 'script' | 'caption' | 'model'
+export type AssetType = 'image' | 'video' | 'voice' | 'upscale' | 'script' | 'caption' | 'model' | 'render' | 'animate'
 export type AssetStatus = 'idle' | 'processing' | 'done' | 'error'
 
 export interface StudioProject {
@@ -62,6 +62,7 @@ export interface StudioAsset {
   status: AssetStatus
   input_params: Record<string, unknown>
   result_url?: string | null
+  last_frame_url?: string | null
   error_msg?: string | null
   credits_cost: number
   board_order: number

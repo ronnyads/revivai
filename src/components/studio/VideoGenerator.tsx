@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Video } from 'lucide-react'
+import { Video, Link2 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 
 interface Props {
@@ -10,25 +10,44 @@ interface Props {
 }
 
 export default function VideoGenerator({ initial, onGenerate }: Props) {
-  const [imageUrl, setImageUrl] = useState(String(initial.source_image_url ?? ''))
-  const [motion,   setMotion]   = useState(String(initial.motion_prompt    ?? ''))
-  const [duration, setDuration] = useState(Number(initial.duration         ?? 5))
+  const isContinuation = !!initial.continuation_frame
+  const [imageUrl, setImageUrl] = useState(
+    String(initial.continuation_frame ?? initial.source_image_url ?? '')
+  )
+  const [motion,   setMotion]   = useState(String(initial.motion_prompt ?? ''))
+  const [duration, setDuration] = useState(Number(initial.duration      ?? 5))
 
   return (
     <div className="flex flex-col gap-3">
-      <ImageUpload
-        value={imageUrl}
-        onChange={setImageUrl}
-        label="Imagem base (da galeria ou computador)"
-        accept="image/*"
-        preview
-      />
+      {isContinuation ? (
+        <div className="flex items-center gap-2 text-[11px] text-blue-400 bg-blue-500/10 border border-blue-500/30 px-2.5 py-2 rounded-xl">
+          <Link2 size={12} />
+          <span>Continuando do clipe anterior</span>
+        </div>
+      ) : (
+        <ImageUpload
+          value={imageUrl}
+          onChange={setImageUrl}
+          label="Imagem base (da galeria ou computador)"
+          accept="image/*"
+          preview
+        />
+      )}
+      {!!initial.model_prompt && (
+        <div className="flex items-center gap-1.5 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 px-2.5 py-1.5 rounded-xl">
+          <span>👤</span> Modelo conectado
+        </div>
+      )}
       <div>
-        <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">Descrição do movimento</label>
+        <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">
+          {isContinuation ? 'Movimento deste segmento' : 'Descrição do movimento'}
+        </label>
         <input
           value={motion}
           onChange={e => setMotion(e.target.value)}
-          placeholder="Ex: câmera suave girando ao redor do produto..."
+          placeholder={isContinuation
+            ? 'Descreva a continuação do movimento...'
+            : 'Ex: câmera suave girando ao redor do produto...'}
           className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent"
         />
       </div>
@@ -46,11 +65,16 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
         Geração leva 2–5 minutos.
       </div>
       <button
-        onClick={() => onGenerate({ source_image_url: imageUrl, motion_prompt: motion, duration })}
+        onClick={() => onGenerate({
+          source_image_url: imageUrl,
+          continuation_frame: isContinuation ? imageUrl : undefined,
+          motion_prompt: motion,
+          duration,
+        })}
         disabled={!imageUrl.trim()}
         className="flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-all disabled:opacity-40 w-full"
       >
-        <Video size={15} /> Gerar vídeo — 3 créditos
+        <Video size={15} /> {isContinuation ? 'Gerar segmento' : 'Gerar vídeo'} — 3 créditos
       </button>
     </div>
   )

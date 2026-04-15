@@ -10,6 +10,8 @@ export const CREDIT_COST: Record<AssetType, number> = {
   upscale: 1,
   video:   3,
   model:   1,
+  render:  1,
+  animate: 3,
 }
 
 // ── Image — DALL-E 3 via fetch ─────────────────────────────────────────────
@@ -377,6 +379,71 @@ export async function startVideoGeneration(params: {
   source_image_url: string
   motion_prompt: string
   duration: number
+  model_prompt?: string
+  assetId: string
+  appUrl: string
+  userId: string
+}) {
+  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+
+  const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
+
+  // Injeta contexto do modelo UGC no prompt de movimento
+  const modelContext = params.model_prompt
+    ? `Person: ${params.model_prompt.slice(0, 200)}. `
+    : ''
+  const finalMotion = modelContext + (params.motion_prompt || 'smooth product showcase motion')
+
+  await replicate.predictions.create({
+    model: 'kwaivgi/kling-v1-5-pro',
+    input: {
+      image: params.source_image_url,
+      prompt: finalMotion,
+      duration: params.duration ?? 5,
+      aspect_ratio: '9:16',
+    },
+    webhook: webhookUrl,
+    webhook_events_filter: ['completed'],
+  })
+}
+
+// ── Render — merge áudio + vídeo via Replicate ────────────────────────────
+export async function mergeVideoAudio(params: {
+  video_url: string
+  audio_url: string
+  assetId: string
+  userId: string
+}) {
+  const admin = createAdminClient()
+  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+
+  const output = await replicate.run('nateraw/video-add-audio' as `${string}/${string}`, {
+    input: {
+      video: params.video_url,
+      audio: params.audio_url,
+    },
+  }) as string | { url: () => string }
+
+  const outputUrl = typeof output === 'string' ? output : output.url()
+  if (!outputUrl) throw new Error('Merge não retornou URL')
+
+  const renderRes = await fetch(outputUrl)
+  const buffer = Buffer.from(await renderRes.arrayBuffer())
+  const path = `${params.userId}/${params.assetId}-render.mp4`
+
+  const { error } = await admin.storage
+    .from('studio')
+    .upload(path, buffer, { contentType: 'video/mp4', upsert: true })
+  if (error) throw new Error(`Upload render falhou: ${error.message}`)
+
+  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return publicUrl
+}
+
+// ── Animate — LivePortrait via Replicate (async — usa webhook) ────────────
+export async function startAnimateGeneration(params: {
+  portrait_image_url: string
+  driving_video_url: string
   assetId: string
   appUrl: string
   userId: string
@@ -386,12 +453,11 @@ export async function startVideoGeneration(params: {
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
 
   await replicate.predictions.create({
-    model: 'kwaivgi/kling-v1-5-pro',
+    model: 'fofr/live-portrait',
     input: {
-      image: params.source_image_url,
-      prompt: params.motion_prompt || 'smooth product showcase motion',
-      duration: params.duration ?? 5,
-      aspect_ratio: '9:16',
+      image:         params.portrait_image_url,
+      video:         params.driving_video_url,
+      output_format: 'mp4',
     },
     webhook: webhookUrl,
     webhook_events_filter: ['completed'],

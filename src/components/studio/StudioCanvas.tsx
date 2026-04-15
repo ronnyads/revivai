@@ -19,7 +19,7 @@ const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
 
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1,
+  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3,
 }
 
 const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
@@ -30,15 +30,19 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   video:   { source_image_url: '', motion_prompt: '', duration: 5 },
   caption: { audio_url: '' },
   upscale: { source_url: '', scale: 4 },
+  render:  { source_image_url: '', audio_url: '' },
+  animate: { portrait_image_url: '', driving_video_url: '' },
 }
 
-// Mapeamento: handle de saída → campo a preencher no nó destino
+// Mapeamento: targetHandle → campo a preencher no nó destino
 const HANDLE_TO_FIELD: Record<string, string> = {
-  source_image_url: 'source_image_url',
-  source_url:       'source_url',
-  script:           'script',
-  audio_url:        'audio_url',
-  model_prompt:     'model_prompt',
+  source_image_url:  'source_image_url',
+  source_url:        'source_url',
+  script:            'script',
+  audio_url:         'audio_url',
+  model_prompt:      'model_prompt',
+  continuation_frame:  'continuation_frame',
+  portrait_image_url:  'portrait_image_url',
 }
 
 interface Props {
@@ -119,6 +123,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       ? { x: currentAsset.position_x, y: currentAsset.position_y }
       : { x: 100 + (assets.length % 3) * 380, y: 100 + Math.floor(assets.length / 3) * 440 }
 
+    // Mescla params do form com campos já preenchidos por conexões (ex: model_prompt, source_image_url)
+    // Os params do form têm prioridade sobre os defaults, mas campos de conexão são preservados
+    const mergedParams = { ...(currentAsset?.input_params ?? {}), ...params }
+
     // Mostra spinner no card existente enquanto a API processa
     setAssets(prev => prev.map(a =>
       a.id === existingId ? { ...a, status: 'processing', error_msg: null } : a
@@ -132,7 +140,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     const res = await fetch('/api/studio/assets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project_id: project.id, type, input_params: params }),
+      body: JSON.stringify({ project_id: project.id, type, input_params: mergedParams }),
     })
     const { asset, error } = await res.json()
 
@@ -197,55 +205,83 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     })
   }, [])
 
-  // Infere o targetHandle quando o usuário solta em cima do nó (connectionMode loose)
-  function inferTargetHandle(sourceId: string, targetId: string): string | null {
-    const src = assets.find(a => a.id === sourceId)
-    const tgt = assets.find(a => a.id === targetId)
-    if (!src || !tgt) return null
-    if (src.type === 'model'   && (tgt.type === 'image' || tgt.type === 'video'))  return 'model_prompt'
-    if (src.type === 'image'   && tgt.type === 'video')   return 'source_image_url'
-    if (src.type === 'image'   && tgt.type === 'upscale') return 'source_url'
-    if (src.type === 'upscale' && tgt.type === 'video')   return 'source_image_url'
-    if (src.type === 'script'  && tgt.type === 'voice')   return 'script'
-    if (src.type === 'voice'   && tgt.type === 'caption') return 'audio_url'
-    return null
-  }
-
   // ── Conectar dois nós ────────────────────────────────────────────────────
   const onConnect = useCallback(async (connection: Connection) => {
     const { source, target, sourceHandle } = connection
     if (!source || !target) return
-    const targetHandle = connection.targetHandle ?? inferTargetHandle(source, target)
+
+    // Infere o handle alvo inline (sem stale closure — assets sempre atual via deps)
+    function inferTarget(): string | null {
+      const src = assets.find(a => a.id === source)
+      const tgt = assets.find(a => a.id === target)
+      if (!src || !tgt) return null
+      if (src.type === 'model'   && (tgt.type === 'image' || tgt.type === 'video'))  return 'model_prompt'
+      if (src.type === 'image'   && tgt.type === 'video')    return 'source_image_url'
+      if (src.type === 'video'   && tgt.type === 'video')    return 'continuation_frame'
+      if (src.type === 'video'   && tgt.type === 'render')   return 'source_image_url'
+      if (src.type === 'image'   && tgt.type === 'upscale')  return 'source_url'
+      if (src.type === 'upscale' && tgt.type === 'video')    return 'source_image_url'
+      if (src.type === 'script'  && tgt.type === 'voice')    return 'script'
+      if (src.type === 'voice'   && tgt.type === 'caption')  return 'audio_url'
+      if (src.type === 'voice'   && tgt.type === 'render')   return 'audio_url'
+      if (src.type === 'voice'   && tgt.type === 'video')    return 'audio_url'
+      if (src.type === 'model'   && tgt.type === 'animate')  return 'portrait_image_url'
+      if (src.type === 'image'   && tgt.type === 'animate')  return 'portrait_image_url'
+      return null
+    }
+
+    const targetHandle = connection.targetHandle ?? inferTarget()
     if (!targetHandle) return
 
-    const res = await fetch('/api/studio/connections', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        project_id: project.id,
-        source_id: source,
-        target_id: target,
-        source_handle: sourceHandle ?? 'output',
-        target_handle: targetHandle,
-      }),
-    })
-    const { connection: conn } = await res.json()
-    if (!conn) return
+    const isSourceTemp = source.startsWith('temp-')
+    const isTargetTemp = target.startsWith('temp-')
 
-    setConnections(prev => [...prev, conn])
+    if (!isSourceTemp && !isTargetTemp) {
+      // Ambos têm UUIDs reais — persiste no DB
+      const res = await fetch('/api/studio/connections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: project.id,
+          source_id: source,
+          target_id: target,
+          source_handle: sourceHandle ?? 'output',
+          target_handle: targetHandle,
+        }),
+      })
+      const { connection: conn } = await res.json()
+      if (conn) setConnections(prev => [...prev, conn])
+    } else {
+      // Pelo menos um card ainda é temporário — adiciona aresta visual localmente
+      const tempConnId = `temp-conn-${Date.now()}`
+      setEdges(prev => addEdge({
+        id: tempConnId,
+        source,
+        target,
+        sourceHandle: sourceHandle ?? 'output',
+        targetHandle,
+        type: 'lightEdge',
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316', width: 16, height: 16 },
+      }, prev))
+    }
 
-    // Auto-preenche o campo no nó destino com a URL do nó fonte
+    // Auto-preenche o campo no nó destino com a URL do nó fonte (sempre)
     const sourceAsset = assets.find(a => a.id === source)
     if (sourceAsset?.result_url) {
+      const fillValue = targetHandle === 'continuation_frame'
+        ? (sourceAsset.last_frame_url ?? sourceAsset.result_url)
+        : sourceAsset.result_url
       const field = HANDLE_TO_FIELD[targetHandle] ?? targetHandle
-      handleUpdateParams(target, { [field]: sourceAsset.result_url })
-      await fetch(`/api/studio/assets/${target}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input_params: { [field]: sourceAsset.result_url } }),
-      })
+      handleUpdateParams(target, { [field]: fillValue })
+      if (!isTargetTemp) {
+        await fetch(`/api/studio/assets/${target}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ input_params: { [field]: fillValue } }),
+        })
+      }
     }
-  }, [assets, project.id, handleUpdateParams])
+  }, [assets, project.id, handleUpdateParams, setEdges])
 
   // ── Deletar aresta ───────────────────────────────────────────────────────
   const onEdgesDelete = useCallback((deletedEdges: Edge[]) => {
