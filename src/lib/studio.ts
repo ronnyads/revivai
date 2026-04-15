@@ -343,7 +343,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   const text: string = data.choices?.[0]?.message?.content?.trim() ?? ''
 
   // Gera foto com DALL-E 3 usando a descrição
-  const dallePrompt = `Portrait photo of ${text} Looking directly at camera, UGC ad style, natural lighting, photorealistic, high quality, 9:16 vertical format.`
+  const dallePrompt = `RAW photo, candid portrait of a real person: ${text} Shot on iPhone, natural daylight, no makeup artist, authentic UGC selfie style. Skin pores visible, natural imperfections, NOT a model shoot, NOT illustrated, NOT AI-looking, NOT painting. Real human being. DSLR camera, f/1.8 aperture, bokeh background.`
 
   const imgRes = await fetch('https://api.openai.com/v1/images/generations', {
     method: 'POST',
