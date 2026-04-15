@@ -66,7 +66,7 @@ function buildNodes(assets: StudioAsset[], callbacks: Omit<AssetNodeData, 'asset
       y: asset.position_y ?? (100 + Math.floor(i / 3) * 440),
     },
     data: { asset, ...callbacks } as unknown as Record<string, unknown>,
-    style: { overflow: 'visible', width: asset.type === 'model' ? 360 : 300 },
+    style: { overflow: 'visible', width: 360 },
   }))
 }
 
@@ -224,7 +224,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         .map(n => ({
           ...n,
           data: { ...n.data, asset: assetMap.get(n.id)! },
-          style: { overflow: 'visible', width: assetMap.get(n.id)!.type === 'model' ? 360 : 300 },
+          style: { overflow: 'visible', width: 360 },
         }))
 
       // Adiciona nodes novos que ainda não existem no ReactFlow
@@ -238,7 +238,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           y: asset.position_y ?? (100 + Math.floor((offset + j) / 3) * 440),
         },
         data: { asset, ...nodeCallbacks } as unknown as Record<string, unknown>,
-        style: { overflow: 'visible', width: asset.type === 'model' ? 360 : 300 },
+        style: { overflow: 'visible', width: 360 },
       }))
 
       return [...updated, ...newNodes]

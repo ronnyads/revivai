@@ -82,7 +82,7 @@ function AssetNode({ data }: NodeProps) {
   }
 
   return (
-    <div className={`${asset.type === 'model' ? 'w-[360px]' : 'w-[300px]'} bg-zinc-900 border ${asset.type === 'render' ? 'border-rose-500/30' : 'border-zinc-700'} rounded-2xl overflow-visible shadow-2xl shadow-black/40`}>
+    <div className={`w-[360px] bg-zinc-900 border ${asset.type === 'render' ? 'border-rose-500/30' : 'border-zinc-700'} rounded-2xl overflow-visible shadow-2xl shadow-black/40`}>
 
       {/* INPUT handles — esquerda com label visível */}
       {inputHandles.map((h, i) => (
