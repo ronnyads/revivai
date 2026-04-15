@@ -141,54 +141,41 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       a.id === existingId ? { ...a, status: 'processing', error_msg: null } : a
     ))
 
-    // Deleta do banco (em paralelo, não bloqueia a UI)
-    if (!isTemp) {
-      fetch(`/api/studio/assets/${existingId}`, { method: 'DELETE' })
-    }
-
+    // Passa existing_id para o backend reutilizar o mesmo registro (ID estável = conexões preservadas)
     const res = await fetch('/api/studio/assets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project_id: project.id, type, input_params: mergedParams }),
+      body: JSON.stringify({
+        project_id: project.id,
+        type,
+        input_params: mergedParams,
+        existing_id: isTemp ? undefined : existingId,
+      }),
     })
     const { asset, error } = await res.json()
 
     if (error || !asset) {
-      // Mostra erro no card sem sumir
       setAssets(prev => prev.map(a =>
         a.id === existingId ? { ...a, status: 'error', error_msg: error ?? 'Erro ao gerar' } : a
       ))
       return
     }
 
-    // Salva posição no DB
+    // Atualiza posição no DB
     fetch(`/api/studio/assets/${asset.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ position_x: pos.x, position_y: pos.y }),
     })
 
-    // Substitui o card antigo pelo novo
-    setAssets(prev => [
-      ...prev.filter(a => a.id !== existingId),
-      { ...asset, position_x: pos.x, position_y: pos.y },
-    ])
+    // Atualiza o card in-place (o ID é o mesmo — conexões nunca se perdem)
+    setAssets(prev => prev.map(a =>
+      a.id === existingId
+        ? { ...asset, position_x: pos.x, position_y: pos.y }
+        : a
+    ))
     setCredits(c => c - asset.credits_cost)
     if (asset.status === 'processing') startPolling(asset.id)
-
-    // Remapeia connections e edges do ID antigo → novo ID (preserva conexões visuais)
-    if (asset.id !== existingId) {
-      setConnections(prev => prev.map(c => ({
-        ...c,
-        source_id: c.source_id === existingId ? asset.id : c.source_id,
-        target_id: c.target_id === existingId ? asset.id : c.target_id,
-      })))
-      setEdges(prev => prev.map(e => ({
-        ...e,
-        source: e.source === existingId ? asset.id : e.source,
-        target: e.target === existingId ? asset.id : e.target,
-      })))
-    }
   }, [assets, project.id, startPolling])
 
   const nodeCallbacks: Omit<AssetNodeData, 'asset'> = {

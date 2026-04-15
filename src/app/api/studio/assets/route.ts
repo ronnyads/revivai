@@ -26,7 +26,12 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { project_id, type, input_params } = body as { project_id: string; type: AssetType; input_params: Record<string, unknown> }
+  const { project_id, type, input_params, existing_id } = body as {
+    project_id: string
+    type: AssetType
+    input_params: Record<string, unknown>
+    existing_id?: string
+  }
 
   if (!project_id || !type) return NextResponse.json({ error: 'project_id e type obrigatórios' }, { status: 400 })
 
@@ -46,31 +51,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Sem créditos suficientes.' }, { status: 402 })
   }
 
-  // Conta assets existentes para board_order
-  const { count } = await supabase
-    .from('studio_assets')
-    .select('*', { count: 'exact', head: true })
-    .eq('project_id', project_id)
-  const board_order = (count ?? 0)
-
   const admin = createAdminClient()
 
-  // Cria o asset com status processing
-  const { data: asset, error: insertErr } = await admin
-    .from('studio_assets')
-    .insert({
-      project_id,
-      user_id: user.id,
-      type,
-      status: 'processing',
-      input_params,
-      credits_cost: cost,
-      board_order,
-    })
-    .select()
-    .single()
-
-  if (insertErr || !asset) return NextResponse.json({ error: insertErr?.message ?? 'Erro ao criar asset' }, { status: 500 })
+  // Reutiliza existing_id se fornecido (mantém o ID estável → conexões no canvas preservadas)
+  // Caso contrário, cria novo registro
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let asset: any
+  if (existing_id) {
+    const { data: updated, error: updateErr } = await admin
+      .from('studio_assets')
+      .update({ type, status: 'processing', input_params, credits_cost: cost, result_url: null, error_msg: null })
+      .eq('id', existing_id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+    if (updateErr || !updated) return NextResponse.json({ error: updateErr?.message ?? 'Erro ao atualizar asset' }, { status: 500 })
+    asset = updated
+  } else {
+    const { count } = await supabase
+      .from('studio_assets')
+      .select('*', { count: 'exact', head: true })
+      .eq('project_id', project_id)
+    const board_order = (count ?? 0)
+    const { data: inserted, error: insertErr } = await admin
+      .from('studio_assets')
+      .insert({ project_id, user_id: user.id, type, status: 'processing', input_params, credits_cost: cost, board_order })
+      .select()
+      .single()
+    if (insertErr || !inserted) return NextResponse.json({ error: insertErr?.message ?? 'Erro ao criar asset' }, { status: 500 })
+    asset = inserted
+  }
 
   // Dispatch de geração
   try {
