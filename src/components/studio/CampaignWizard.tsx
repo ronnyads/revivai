@@ -61,10 +61,13 @@ const STYLES = [
   { v: 'elegante',     l: 'Elegante'     },
 ]
 
-const SEGMENT_LABELS = ['Hook (Gancho)', 'Benefício', 'CTA (Chamada)']
+const SEGMENT_LABELS = ['Hook (Gancho)', 'Benefício 1', 'Benefício 2', 'Prova Social', 'Objeção', 'CTA (Chamada)']
 const SEGMENT_HINTS  = [
   'Chame atenção nos primeiros 2s. Ex: "Esse detalhe tá destruindo sua pele..."',
   'Mostre o benefício principal. Ex: "Com o FPS 90, eu fico protegida o dia inteiro..."',
+  'Aprofunde o benefício. Ex: "Além disso, a textura leve não deixa pele oleosa..."',
+  'Adicione prova social. Ex: "Já são mais de 50 mil pessoas usando diariamente..."',
+  'Quebre uma objeção. Ex: "Achei que ia ser caro, mas o frasco dura 3 meses..."',
   'Convide para a ação. Ex: "Testa por 7 dias e me conta o resultado!"',
 ]
 
@@ -74,7 +77,7 @@ export default function CampaignWizard({ onConfirm, onClose, credits }: Props) {
   const [productUrl, setProductUrl] = useState('')
   const [segCount,   setSegCount]   = useState(3)
   const [segments, setSegments]     = useState<WizardSegment[]>(
-    SEGMENT_LABELS.map(label => ({ label, script: '' }))
+    Array.from({ length: 6 }, (_, i) => ({ label: SEGMENT_LABELS[i], script: '' }))
   )
   const [modelConfig, setModelConfig] = useState({
     gender: 'feminino', age_range: '20-30', skin_tone: 'media', body_type: 'normal', style: 'casual',
