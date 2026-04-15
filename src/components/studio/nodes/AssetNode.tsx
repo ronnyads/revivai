@@ -165,6 +165,7 @@ function AssetNode({ data }: NodeProps) {
                 <Download size={12} /> Download
               </button>
             )}
+            <NextStepHint type={asset.type} />
           </div>
         )}
 
@@ -193,6 +194,29 @@ function AssetNode({ data }: NodeProps) {
 }
 
 export default memo(AssetNode)
+
+// ── Next Step Hint ────────────────────────────────────────────────────────────
+const NEXT_STEPS: Partial<Record<AssetType, { icon: string; text: string; sub: string }>> = {
+  model:   { icon: '🖼️', text: 'Adicione "Compor Cena"',    sub: 'Para incluir seu produto na imagem da modelo' },
+  compose: { icon: '📝', text: 'Adicione "Script" + "Voz"', sub: 'Escreva o que ela vai falar e gere o áudio' },
+  video:   { icon: '🎙️', text: 'Conecte uma "Voz" aqui',    sub: 'Arraste o ponto azul "Áudio" até a saída da Voz' },
+  script:  { icon: '🎙️', text: 'Conecte ao card "Voz"',     sub: 'Arraste a saída deste Script para a entrada da Voz' },
+  voice:   { icon: '🎬', text: 'Adicione "Vídeo Final"',    sub: 'Conecte Vídeo + Voz para gerar o anúncio completo' },
+}
+
+function NextStepHint({ type }: { type: AssetType }) {
+  const hint = NEXT_STEPS[type]
+  if (!hint) return null
+  return (
+    <div className="flex items-start gap-2 mt-1 px-2 py-2 bg-zinc-800/60 border border-zinc-700/50 rounded-xl">
+      <span className="text-sm shrink-0 mt-0.5">{hint.icon}</span>
+      <div>
+        <p className="text-[10px] font-semibold text-zinc-300">{hint.text}</p>
+        <p className="text-[9px] text-zinc-500 leading-relaxed mt-0.5">{hint.sub}</p>
+      </div>
+    </div>
+  )
+}
 
 // ── Result previews ───────────────────────────────────────────────────────
 function ResultPreview({ type, url, params }: { type: AssetType; url: string; params: Record<string, unknown> }) {
