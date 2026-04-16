@@ -1,4 +1,3 @@
-import Replicate from 'replicate'
 import sharp from 'sharp'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AssetType } from '@/types'
