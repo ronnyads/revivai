@@ -551,7 +551,7 @@ export async function startLipsyncGeneration(params: {
     body: JSON.stringify({
       video_url: params.face_url,
       audio_url: params.audio_url,
-      webhookUrl: webhookUrl
+      webhook_url: webhookUrl  // snake_case conforme documentação da Fal AI
     })
   })
 
