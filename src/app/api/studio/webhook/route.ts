@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic'
+export const maxDuration = 120 // 2 minutes to allow downloading/uploading videos without Vercel killing the webhook
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -88,6 +89,10 @@ export async function POST(req: NextRequest) {
 
     if (!rawUrl) {
       console.warn(`[studio/webhook] Nenhuma URL extraída do payload para ${assetId}`)
+      await admin.from('studio_assets').update({
+        status: 'error',
+        error_msg: `Succeeded but no URL found. Body: ${JSON.stringify(body).slice(0, 500)}`
+      }).eq('id', assetId)
       return NextResponse.json({ ok: true })
     }
 
