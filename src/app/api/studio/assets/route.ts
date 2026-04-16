@@ -181,14 +181,14 @@ export async function POST(req: NextRequest) {
       const appUrl    = origin
         ? (origin.startsWith('http') ? origin : `https://${origin}`)
         : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
-      await startLipsyncGeneration({
+      // startLipsyncGeneration agora é síncrono — aguarda e retorna a URL
+      resultUrl = await startLipsyncGeneration({
         face_url:  String(input_params.face_url  ?? ''),
         audio_url: String(input_params.audio_url ?? ''),
         assetId: asset.id,
         userId:  user.id,
         appUrl,
       })
-      return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
     } else if (type === 'compose') {
       resultUrl = await composeProductScene({
         portrait_url:  String(input_params.portrait_url   ?? ''),
