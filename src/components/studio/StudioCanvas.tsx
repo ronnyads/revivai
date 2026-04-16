@@ -87,7 +87,7 @@ function buildEdges(connections: StudioConnection[]): Edge[] {
     sourceHandle: c.source_handle,
     targetHandle: c.target_handle,
     type: 'lightEdge',
-    markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316', width: 16, height: 16 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
   }))
 }
 
@@ -593,7 +593,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         sourceHandle: sourceHandle ?? 'output',
         targetHandle,
         type: 'lightEdge',
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316', width: 16, height: 16 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
       }, prev))
     }
 
@@ -679,7 +679,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         id: `temp-edge-${now}-${edgeIdx++}`,
         source, target, sourceHandle: sh, targetHandle: th,
         type: 'lightEdge',
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316', width: 16, height: 16 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
       }
     }
 
@@ -813,7 +813,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       sourceHandle: e.sourceHandle,
       targetHandle: e.targetHandle,
       type: 'lightEdge',
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316', width: 16, height: 16 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
     }))
 
     setAssets(newAssets)
@@ -832,11 +832,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   }
 
   return (
-    <div className="w-full h-screen bg-zinc-950 flex flex-col">
+    <div className="w-full h-screen bg-[#f4f4f5] flex flex-col">
       {/* Top bar */}
-      <div className="shrink-0 z-10 bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 px-6 py-3 flex items-center justify-between gap-4">
+      <div className="shrink-0 z-10 bg-white/90 backdrop-blur-md border-b border-zinc-200 px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
-          <Link href="/dashboard/studio" className="text-zinc-500 hover:text-white transition-colors shrink-0">
+          <Link href="/dashboard/studio" className="text-zinc-400 hover:text-zinc-800 transition-colors shrink-0">
             <ArrowLeft size={18} />
           </Link>
           {editing ? (
@@ -847,23 +847,23 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
                 onKeyDown={e => e.key === 'Enter' && saveTitle()} 
                 onBlur={saveTitle}
                 autoFocus 
-                className="bg-zinc-800 border border-accent rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none min-w-[200px]" 
+                className="bg-white border border-accent rounded-lg px-3 py-1.5 text-sm text-zinc-900 focus:outline-none min-w-[200px] shadow-sm" 
                 placeholder="Nome do workflow..."
               />
-              <button onMouseDown={e => { e.preventDefault(); saveTitle(); }} className="text-accent hover:text-white"><Check size={16} /></button>
+              <button onMouseDown={e => { e.preventDefault(); saveTitle(); }} className="text-accent hover:text-accent/80"><Check size={16} /></button>
             </div>
           ) : (
-            <button onClick={() => setEditing(true)} title="Clique ou Ctrl+S para renomear" className="flex items-center gap-2 text-sm font-semibold text-white hover:text-accent transition-colors group truncate">
+            <button onClick={() => setEditing(true)} title="Clique ou Ctrl+S para renomear" className="flex items-center gap-2 text-sm font-semibold text-zinc-800 hover:text-accent transition-colors group truncate">
               {title || 'Projeto sem nome'}
-              <Edit2 size={12} className="text-zinc-600 group-hover:text-accent shrink-0" />
+              <Edit2 size={12} className="text-zinc-400 group-hover:text-accent shrink-0" />
             </button>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs text-zinc-500 bg-zinc-800 px-3 py-1.5 rounded-xl">{credits} cr</span>
+          <span className="text-xs font-medium text-zinc-500 bg-zinc-100 border border-zinc-200 px-3 py-1.5 rounded-xl">{credits} cr</span>
           <button
             onClick={() => setShowGallery(true)}
-            className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-white border border-zinc-700 hover:border-accent/50 px-3 py-1.5 rounded-xl transition-all"
+            className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 bg-white border border-zinc-200 hover:border-accent/50 hover:shadow-sm px-3 py-1.5 rounded-xl transition-all"
           >
             <Plus size={13} /> Templates
           </button>
@@ -891,21 +891,21 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           deleteKeyCode="Delete"
           proOptions={{ hideAttribution: true }}
         >
-          <Background variant={BackgroundVariant.Dots} color="#27272a" gap={20} size={1} />
+          <Background variant={BackgroundVariant.Dots} color="#d4d4d8" gap={24} size={1.5} />
           <MiniMap
-            nodeColor="#3f3f46"
-            maskColor="rgba(9,9,11,0.8)"
-            style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 12 }}
+            nodeColor="#e4e4e7"
+            maskColor="rgba(244, 244, 245, 0.7)"
+            style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 12, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
           />
           <Controls
-            style={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 12 }}
+            style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)', fill: '#71717a' }}
           />
 
           {/* Empty state */}
           {assets.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center">
-                <p className="text-zinc-600 text-xs">Canvas vazio — clique em <span className="text-accent">Templates</span> para começar</p>
+              <div className="text-center bg-white/60 px-6 py-3 rounded-2xl border border-zinc-200 shadow-sm backdrop-blur-sm">
+                <p className="text-zinc-500 text-sm font-medium">Canvas vazio — clique em <span className="text-accent underline decoration-accent/30 underline-offset-2">Templates</span> para começar</p>
               </div>
             </div>
           )}
@@ -913,11 +913,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       </div>
 
       {/* Dica de conexão */}
-      <div className="shrink-0 px-6 py-2 border-t border-zinc-800 flex items-center gap-3">
-        <div className="flex items-center gap-4 text-[10px] text-zinc-600">
-          <span>🟠 Arraste do <span className="text-zinc-400">ponto laranja</span> para conectar saídas</span>
-          <span>🔵 <span className="text-zinc-400">Ponto azul</span> = entrada de dados</span>
-          <span><kbd className="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400">Del</kbd> para remover conexão selecionada</span>
+      <div className="shrink-0 px-6 py-2 border-t border-zinc-200 bg-white/70 backdrop-blur-sm flex items-center gap-3">
+        <div className="flex items-center gap-4 text-[10px] font-medium text-zinc-500">
+          <span>🟠 Arraste do <span className="text-orange-500">ponto laranja</span> para conectar saídas</span>
+          <span>🔵 <span className="text-blue-500">Ponto azul</span> = entrada de dados</span>
+          <span><kbd className="bg-white border border-zinc-200 shadow-sm px-1.5 py-0.5 rounded text-zinc-500">Del</kbd> para remover conexão</span>
         </div>
       </div>
 
