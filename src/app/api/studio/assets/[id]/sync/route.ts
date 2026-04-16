@@ -51,12 +51,29 @@ export async function POST(
     const prediction = await res.json()
 
     if (prediction.status === 'COMPLETED' || prediction.status === 'OK') {
-      let videoUrl = prediction.payload?.video?.url || prediction.output?.[0]
+      // output pode vir em diferentes campos dependendo da versão da API
+      let videoUrl: string | null =
+        prediction.output?.video?.url
+        ?? prediction.output?.video_url
+        ?? prediction.output?.[0]
+        ?? prediction.payload?.video?.url
+        ?? null
+
+      if (!videoUrl) {
+        // Fal queue: busca via /output endpoint
+        const outRes = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predictionId}/output`, {
+          headers: { 'Authorization': `Key ${falKey}` }
+        })
+        if (outRes.ok) {
+          const out = await outRes.json()
+          videoUrl = out.video?.url ?? out.video_url ?? out.output?.[0] ?? null
+        }
+      }
+
       if (!videoUrl && prediction.response_url) {
-        // Fal queue retorna response_url
         const resultRes = await fetch(prediction.response_url, { headers: { 'Authorization': `Key ${falKey}` } })
         const resultPayload = await resultRes.json()
-        videoUrl = resultPayload.video?.url || resultPayload.output?.[0]
+        videoUrl = resultPayload.video?.url ?? resultPayload.video_url ?? resultPayload.output?.[0] ?? null
       }
       
       await admin.from('studio_assets').update({
