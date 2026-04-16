@@ -9,17 +9,24 @@ interface Props {
   onGenerate: (params: Record<string, unknown>) => void
 }
 
+// Ignora continuation_frame se for áudio (conexão errada de Voz → Vídeo)
+const AUDIO_EXTS = /\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i
+
+function resolveImageUrl(params: Record<string, unknown>): string {
+  const cont = String(params.continuation_frame ?? '')
+  if (cont && !AUDIO_EXTS.test(cont)) return cont
+  return String(params.source_image_url ?? '')
+}
+
 export default function VideoGenerator({ initial, onGenerate }: Props) {
-  const isContinuation = !!initial.continuation_frame
-  const [imageUrl, setImageUrl] = useState(
-    String(initial.continuation_frame ?? initial.source_image_url ?? '')
-  )
+  const isContinuation = !!initial.continuation_frame && !AUDIO_EXTS.test(String(initial.continuation_frame))
+  const [imageUrl, setImageUrl] = useState(resolveImageUrl(initial))
   const [motion,   setMotion]   = useState(String(initial.motion_prompt ?? ''))
   const [duration, setDuration] = useState(Number(initial.duration      ?? 5))
 
-  // Sync when connection fills source_image_url or continuation_frame
+  // Sync quando conexão do canvas preenche source_image_url ou continuation_frame
   useEffect(() => {
-    const url = String(initial.continuation_frame ?? initial.source_image_url ?? '')
+    const url = resolveImageUrl(initial)
     if (url) setImageUrl(url)
   }, [initial.source_image_url, initial.continuation_frame])
 
