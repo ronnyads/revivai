@@ -605,23 +605,42 @@ export async function composeProductScene(params: {
       .toBuffer()
 
   } else {
-    // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando Fashn V1.6 via subscribe ----
-    const { subscribe } = await import('@fal-ai/serverless-client')
+    // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON (Native Fetch) ----
     
-    // Fashn V1.6 suporta category: tops, bottoms, one-pieces
-    const result = await subscribe('fal-ai/fashn/tryon', {
-      input: {
-        model_image: params.portrait_url,
-        garment_image: params.product_url,
-        category: params.vton_category || 'tops',
-      }
-    }) as any
+    // Mapeia categorias do nosso UI (tops, bottoms, one-pieces) para as suportadas pelo IDM-VTON
+    let idmCategory = 'upper_body'
+    if (params.vton_category === 'bottoms') idmCategory = 'lower_body'
+    if (params.vton_category === 'one-pieces') idmCategory = 'dresses'
 
-    const vtonImageUrl = result.images?.[0]?.url || result.image?.url
-    if (!vtonImageUrl) throw new Error('Fashn VTON não retornou imagem válida.')
+    // O prompt robusto previne que o IDM-VTON interprete paletós abertos como "decotes femininos em V"
+    const description = `A fully closed masculine ${params.vton_category || 'tops'}, completely buttoned, chest fully covered by fabric, formal menswear, highly masculine tailoring, strictly male outfit, no cleavage, no skin visible on chest.`
+
+    const vtonRes = await fetch('https://fal.run/fal-ai/idm-vton', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        human_image_url: params.portrait_url,
+        garment_image_url: params.product_url,
+        description: description,
+        category: idmCategory,
+      })
+    })
+
+    if (!vtonRes.ok) {
+      const err = await vtonRes.text()
+      const status = vtonRes.status
+      throw new Error(`IDM-VTON falhou (Status ${status}): ${err.slice(0, 400)}`)
+    }
+
+    const data = await vtonRes.json()
+    const vtonImageUrl = data.image?.url || data.images?.[0]?.url
+    if (!vtonImageUrl) throw new Error('IDM-VTON não retornou imagem válida.')
 
     const imgRes = await fetch(vtonImageUrl)
-    if (!imgRes.ok) throw new Error('Falha ao baixar imagem do Fashn VTON.')
+    if (!imgRes.ok) throw new Error('Falha ao baixar imagem do IDM-VTON.')
     resultBuffer = Buffer.from(await imgRes.arrayBuffer())
   }
 
