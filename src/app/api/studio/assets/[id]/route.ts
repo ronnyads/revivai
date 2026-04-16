@@ -21,6 +21,55 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .single()
 
   if (error || !asset) return NextResponse.json({ error: 'Asset não encontrado' }, { status: 404 })
+
+  // Polling dinâmico: se estiver travado em processamento de lipsync, verificamos o provedor diretamente!
+  if (asset.status === 'processing' && asset.type === 'lipsync' && (asset.input_params as Record<string, any>)?.prediction_id) {
+    try {
+      const predId = (asset.input_params as Record<string, any>).prediction_id
+      const res = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predId}`, {
+        headers: { 'Authorization': `Key ${process.env.FAL_KEY}` }
+      })
+      if (res.ok) {
+        const prediction = await res.json()
+        if (prediction.status === 'COMPLETED' || prediction.status === 'OK') {
+           let videoUrl = prediction.output?.video?.url ?? prediction.output?.video_url ?? prediction.output?.[0] ?? prediction.payload?.video?.url
+           if (!videoUrl && prediction.response_url) {
+              const outRes = await fetch(prediction.response_url, { headers: { 'Authorization': `Key ${process.env.FAL_KEY}` } })
+              if (outRes.ok) {
+                const outJson = await outRes.json()
+                videoUrl = outJson.video?.url ?? outJson.video_url ?? outJson.output?.[0]
+              }
+           }
+           if (videoUrl) {
+             const admin = createAdminClient()
+             await admin.from('studio_assets').update({
+               status: 'done',
+               result_url: videoUrl,
+               last_frame_url: videoUrl,
+               error_msg: null
+             }).eq('id', asset.id)
+             asset.status = 'done'
+             asset.result_url = videoUrl
+
+             // Importante: debitamos os créditos uma vez que foi entregue via fallback polling
+             const cost = asset.credits_cost ?? 3
+             for (let i = 0; i < cost; i++) {
+               await admin.rpc('debit_credit', { user_id_param: user.id })
+             }
+           }
+        } else if (prediction.status === 'ERROR' || prediction.status === 'FAILED') {
+           const errReason = prediction.error ? String(prediction.error) : 'Falhou no provedor'
+           const admin = createAdminClient()
+           await admin.from('studio_assets').update({ status: 'error', error_msg: errReason }).eq('id', asset.id)
+           asset.status = 'error'
+           asset.error_msg = errReason
+        }
+      }
+    } catch (err) {
+      console.warn(`[assets/id] Falha ao consultar fallback do Fal AI:`, err)
+    }
+  }
+
   return NextResponse.json({ asset })
 }
 
