@@ -605,32 +605,22 @@ export async function composeProductScene(params: {
       .toBuffer()
 
   } else {
-    // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON ----
-    const vtonRes = await fetch('https://fal.run/fal-ai/idm-vton', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${falKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        human_image_url: params.portrait_url,
-        garment_image_url: params.product_url,
-        description: `Virtual try-on garment, category: ${params.vton_category || 'tops'}`
-      })
-    })
+    // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando Fashn V1.6 via subscribe ----
+    const { subscribe } = await import('@fal-ai/serverless-client')
+    
+    // Fashn NÃO usa category livre no schema raiz. O schema pede model_image e garment_image.
+    const result = await subscribe('fal-ai/fashn/tryon', {
+      input: {
+        model_image: params.portrait_url,
+        garment_image: params.product_url,
+      }
+    }) as any
 
-    if (!vtonRes.ok) {
-      const err = await vtonRes.text()
-      const status = vtonRes.status
-      throw new Error(`IDM-VTON falhou (Status ${status}): ${err.slice(0, 400)}`)
-    }
-
-    const data = await vtonRes.json()
-    const vtonImageUrl = data.image?.url || data.images?.[0]?.url
-    if (!vtonImageUrl) throw new Error('IDM-VTON não retornou imagem válida.')
+    const vtonImageUrl = result.images?.[0]?.url || result.image?.url
+    if (!vtonImageUrl) throw new Error('Fashn VTON não retornou imagem válida.')
 
     const imgRes = await fetch(vtonImageUrl)
-    if (!imgRes.ok) throw new Error('Falha ao baixar imagem do IDM-VTON.')
+    if (!imgRes.ok) throw new Error('Falha ao baixar imagem do Fashn VTON.')
     resultBuffer = Buffer.from(await imgRes.arrayBuffer())
   }
 
