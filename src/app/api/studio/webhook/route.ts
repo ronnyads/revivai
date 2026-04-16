@@ -37,11 +37,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
-  const { status, output, error: reqError } = body
+  const { status, output, payload, error: reqError } = body
 
-  // Replicate: status 'succeeded'
-  if (status === 'succeeded' && output) {
-    const videoUrl = Array.isArray(output) ? (output as string[])[0] : output as string
+  // Replicate: status === 'succeeded'. Fal AI: status === 'OK'
+  if ((status === 'succeeded' && output) || (status === 'OK' && payload)) {
+    let videoUrl = ''
+    if (output) { // Replicate
+      videoUrl = Array.isArray(output) ? (output as string[])[0] : output as string
+    } else if (payload) { // Fal AI
+      const falPayload = payload as any
+      videoUrl = falPayload.video?.url ?? falPayload.output?.[0]
+    }
 
     await admin.from('studio_assets').update({
       status: 'done',
@@ -55,8 +61,8 @@ export async function POST(req: NextRequest) {
       await admin.rpc('debit_credit', { user_id_param: userId })
     }
 
-    console.log(`[studio/webhook] ✅ Vídeo ${assetId} concluído: ${videoUrl}`)
-  } else if (status === 'failed' || status === 'canceled') {
+    console.log(`[studio/webhook] ✅ Vídeo/LipSync ${assetId} concluído: ${videoUrl}`)
+  } else if (status === 'failed' || status === 'canceled' || status === 'ERROR' || status === 'FAILED') {
     await admin.from('studio_assets').update({
       status: 'error',
       error_msg: reqError ? String(reqError) : 'Geração falhou no provedor',
