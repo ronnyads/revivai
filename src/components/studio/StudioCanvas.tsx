@@ -374,34 +374,71 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     const { source, target, sourceHandle } = connection
     if (!source || !target) return
 
-    // Infere o handle alvo inline (sem stale closure — assets sempre atual via deps)
+    // Infere o handle alvo com base nos tipos — cobre todas as combinações relevantes
+    // A inferência SEMPRE tem prioridade sobre o handle clicado manualmente,
+    // para que o cliente não precise saber qual porta usar.
     function inferTarget(): string | null {
       const src = assets.find(a => a.id === source)
       const tgt = assets.find(a => a.id === target)
       if (!src || !tgt) return null
-      if (src.type === 'model'   && (tgt.type === 'image' || tgt.type === 'video'))  return 'model_prompt'
-      if (src.type === 'image'   && tgt.type === 'video')    return 'source_image_url'
-      if (src.type === 'video'   && tgt.type === 'video')    return 'continuation_frame'
-      if (src.type === 'video'   && tgt.type === 'render')   return 'source_image_url'
-      if (src.type === 'image'   && tgt.type === 'upscale')  return 'source_url'
-      if (src.type === 'upscale' && tgt.type === 'video')    return 'source_image_url'
-      if (src.type === 'script'  && tgt.type === 'voice')    return 'script'
-      if (src.type === 'voice'   && tgt.type === 'caption')  return 'audio_url'
-      if (src.type === 'voice'   && tgt.type === 'render')   return 'audio_url'
-      if (src.type === 'voice'   && tgt.type === 'video')    return 'audio_url'
-      if (src.type === 'model'   && tgt.type === 'animate')  return 'portrait_image_url'
-      if (src.type === 'image'   && tgt.type === 'animate')  return 'portrait_image_url'
-      if (src.type === 'model'   && tgt.type === 'compose')  return 'portrait_url'
-      if (src.type === 'image'   && tgt.type === 'compose')  return 'portrait_url'
-      if (src.type === 'compose' && tgt.type === 'video')    return 'source_image_url'
-      if (src.type === 'video'   && tgt.type === 'lipsync')  return 'face_url'
-      if (src.type === 'compose' && tgt.type === 'lipsync')  return 'face_url'
-      if (src.type === 'animate' && tgt.type === 'lipsync')  return 'face_url'
-      if (src.type === 'voice'   && tgt.type === 'lipsync')  return 'audio_url'
+
+      const s = src.type
+      const t = tgt.type
+
+      // Categorias de saída por tipo
+      const isImage = (x: AssetType) => ['model', 'image', 'compose', 'upscale'].includes(x)
+      const isVideo = (x: AssetType) => ['video', 'animate', 'lipsync'].includes(x)
+      const isAudio = (x: AssetType) => x === 'voice'
+      const isText  = (x: AssetType) => x === 'script'
+
+      switch (t) {
+        case 'image':
+          if (s === 'model')     return 'model_prompt'
+          break
+
+        case 'video':
+          if (s === 'model')     return 'model_prompt'    // descreve o personagem no prompt
+          if (isImage(s))        return 'source_image_url'
+          if (isVideo(s))        return 'continuation_frame'
+          if (isAudio(s))        return 'audio_url'
+          break
+
+        case 'voice':
+          if (isText(s))         return 'script'
+          break
+
+        case 'caption':
+          if (isAudio(s))        return 'audio_url'
+          break
+
+        case 'upscale':
+          if (isImage(s))        return 'source_url'
+          break
+
+        case 'render':
+          if (isVideo(s))        return 'source_image_url'
+          if (isAudio(s))        return 'audio_url'
+          break
+
+        case 'animate':
+          if (isImage(s))        return 'portrait_image_url'
+          break
+
+        case 'compose':
+          if (isImage(s))        return 'portrait_url'
+          break
+
+        case 'lipsync':
+          if (isVideo(s) || isImage(s)) return 'face_url'
+          if (isAudio(s))               return 'audio_url'
+          break
+      }
       return null
     }
 
-    const targetHandle = connection.targetHandle ?? inferTarget()
+    // Inferência tem prioridade: identifica automaticamente o campo correto pelo tipo do card.
+    // Só usa o handle clicado explicitamente se não houver inferência disponível.
+    const targetHandle = inferTarget() ?? connection.targetHandle
     if (!targetHandle) return
 
     const isSourceTemp = source.startsWith('temp-')
