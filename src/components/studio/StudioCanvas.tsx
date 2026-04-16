@@ -8,7 +8,7 @@ import {
   MarkerType, ReactFlowProvider,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ArrowLeft, Edit2, Check, Plus, Wand2, LayoutGrid } from 'lucide-react'
+import { ArrowLeft, Edit2, Check, Plus, Wand2, LayoutGrid, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
 import { StudioAsset, StudioConnection, StudioProject, AssetType } from '@/types'
 import AssetNode, { AssetNodeData } from './nodes/AssetNode'
@@ -91,8 +91,16 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [showWizard, setShowWizard] = useState(false)
   const pollingRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
   
-  // Lixeira para Ctrl+Z (apenas conexões por enquanto, pois reviver assets reativa a IA)
+  // Lixeira para Ctrl+Z — conexões e soft-delete de assets
   const trashRef = useRef<{ connections: StudioConnection[] }>({ connections: [] })
+
+  // Soft-delete: card some da tela mas só é deletado do DB após 8s
+  // Se o usuário clicar "Desfazer" antes, o card volta sem nenhuma chamada de rede
+  const pendingDeleteRef = useRef<{
+    asset: StudioAsset
+    timer: ReturnType<typeof setTimeout>
+  } | null>(null)
+  const [undoToast, setUndoToast] = useState<{ label: string } | null>(null)
 
   // ── Atalhos de Teclado (Ctrl+Z e Ctrl+S) ────────────────────────────────
   useEffect(() => {
@@ -106,25 +114,29 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         setEditing(true)
       }
 
-      // Ctrl+Z: Desfazer exclusão de conexão
+      // Ctrl+Z: Desfazer exclusão de card (soft-delete) ou conexão
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !isInput) {
         e.preventDefault()
-        const lastConn = trashRef.current.connections.pop()
-        if (lastConn) {
-          setConnections(prev => [...prev, lastConn])
-          if (!lastConn.id.startsWith('temp-')) {
-            // Recria no DB
-            fetch('/api/studio/connections', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                project_id: lastConn.project_id,
-                source_id: lastConn.source_id,
-                target_id: lastConn.target_id,
-                source_handle: lastConn.source_handle,
-                target_handle: lastConn.target_handle
-              }),
-            })
+        // Prioridade: card deletado > conexão deletada
+        if (pendingDeleteRef.current) {
+          undoDeleteAsset()
+        } else {
+          const lastConn = trashRef.current.connections.pop()
+          if (lastConn) {
+            setConnections(prev => [...prev, lastConn])
+            if (!lastConn.id.startsWith('temp-')) {
+              fetch('/api/studio/connections', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  project_id: lastConn.project_id,
+                  source_id: lastConn.source_id,
+                  target_id: lastConn.target_id,
+                  source_handle: lastConn.source_handle,
+                  target_handle: lastConn.target_handle
+                }),
+              })
+            }
           }
         }
       }
@@ -133,13 +145,49 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // ── Callbacks passados para os nós ──────────────────────────────────────
-  const handleDelete = useCallback(async (id: string) => {
-    setAssets(prev => prev.filter(a => a.id !== id))
-    if (!id.startsWith('temp-')) {
-      await fetch(`/api/studio/assets/${id}`, { method: 'DELETE' })
-    }
+  // ── Desfazer exclusão de card ────────────────────────────────────────────
+  const undoDeleteAsset = useCallback(() => {
+    const pending = pendingDeleteRef.current
+    if (!pending) return
+    clearTimeout(pending.timer)
+    pendingDeleteRef.current = null
+    setUndoToast(null)
+    setAssets(prev => {
+      // Reinsere na posição original (por board_order)
+      const withoutDup = prev.filter(a => a.id !== pending.asset.id)
+      return [...withoutDup, pending.asset].sort((a, b) => a.board_order - b.board_order)
+    })
   }, [])
+
+  // ── Callbacks passados para os nós ──────────────────────────────────────
+  const handleDelete = useCallback((id: string) => {
+    const asset = assets.find(a => a.id === id)
+    if (!asset) return
+
+    // 1. Se já há um delete pendente, executa-o imediatamente (libera slot)
+    const prev = pendingDeleteRef.current
+    if (prev) {
+      clearTimeout(prev.timer)
+      if (!prev.asset.id.startsWith('temp-')) {
+        fetch(`/api/studio/assets/${prev.asset.id}`, { method: 'DELETE' })
+      }
+    }
+
+    // 2. Remove visualmente agora
+    setAssets(p => p.filter(a => a.id !== id))
+
+    // 3. Agenda o DELETE real após 8 segundos
+    const timer = setTimeout(() => {
+      pendingDeleteRef.current = null
+      setUndoToast(null)
+      if (!id.startsWith('temp-')) {
+        fetch(`/api/studio/assets/${id}`, { method: 'DELETE' })
+      }
+    }, 8000)
+
+    pendingDeleteRef.current = { asset, timer }
+    setUndoToast({ label: asset.type })
+  }, [assets])
 
   const handleUpdateParams = useCallback((id: string, params: Record<string, unknown>) => {
     setAssets(prev => prev.map(a => a.id === id ? { ...a, input_params: { ...a.input_params, ...params } } : a))
@@ -779,6 +827,21 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           onConfirm={buildCampaign}
           onClose={() => setShowWizard(false)}
         />
+      )}
+
+      {/* Undo toast — aparece 8s após deletar um card */}
+      {undoToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-800 border border-zinc-600 text-white text-sm px-4 py-3 rounded-2xl shadow-2xl shadow-black/60 animate-in slide-in-from-bottom-4 duration-300">
+          <span className="text-zinc-300">Card excluído</span>
+          <button
+            onClick={undoDeleteAsset}
+            className="flex items-center gap-1.5 text-accent hover:text-white font-semibold transition-colors"
+          >
+            <RotateCcw size={13} />
+            Desfazer
+          </button>
+          <span className="text-zinc-600 text-[10px]">Ctrl+Z</span>
+        </div>
       )}
     </div>
   )
