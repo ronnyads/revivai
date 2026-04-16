@@ -427,7 +427,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   )
   const fluxPrompt = `Candid portrait photo of a real person: ${text} ${fluxSuffix}`
 
-  const imgRes = await fetch('https://fal.run/fal-ai/flux-pro/v1.1', {
+  const imgRes = await fetch('https://fal.run/fal-ai/flux-pro/v1.1-ultra', {
     method: 'POST',
     headers: {
       'Authorization': `Key ${falKey}`,
@@ -751,7 +751,7 @@ export async function composeProductScene(params: {
   return publicUrl
 }
 
-// ── Lip Sync — Fal AI latentsync (assíncrono via webhook) ────────────────────────
+// ── Lip Sync — Fal AI SyncLabs 2.0 Pro (assíncrono via webhook) ────────────────────────
 export async function startLipsyncGeneration(params: {
   face_url:  string
   audio_url: string
@@ -765,8 +765,8 @@ export async function startLipsyncGeneration(params: {
   const admin = createAdminClient()
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}&provider=fal`
 
-  // 1. Envia o job para a fila da Fal AI
-  const queueRes = await fetch('https://queue.fal.run/fal-ai/latentsync', {
+  // 1. Envia o job para a fila da Fal AI (usando SyncLabs 2.0 Pro API)
+  const queueRes = await fetch('https://queue.fal.run/fal-ai/sync-lipsync/v2/pro', {
     method: 'POST',
     headers: {
       'Authorization': `Key ${falKey}`,
@@ -781,7 +781,7 @@ export async function startLipsyncGeneration(params: {
 
   if (!queueRes.ok) {
     const err = await queueRes.text()
-    throw new Error(`Fal AI erro ao enfileirar lipsync: ${err}`)
+    throw new Error(`Fal AI erro ao enfileirar SyncLabs: ${err}`)
   }
 
   const { request_id } = await queueRes.json()
