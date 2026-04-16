@@ -5,8 +5,40 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/studio/webhook?assetId=&userId=
-   Callback do Replicate (vídeo Kling) — idempotente
+   Callback do Replicate (vídeo Kling) e Fal AI (lipsync) — idempotente
 ───────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Baixa um arquivo de URL temporária (Replicate/Fal AI) e re-faz upload no
+ * Supabase Storage para garantir que a URL seja permanente.
+ * Se o download ou upload falhar, retorna a URL original como fallback.
+ */
+async function persistToStorage(
+  admin: ReturnType<typeof createAdminClient>,
+  url: string,
+  userId: string,
+  assetId: string,
+): Promise<string> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return url
+    const buffer = Buffer.from(await res.arrayBuffer())
+    const path = `${userId}/${assetId}-result.mp4`
+    const { error } = await admin.storage
+      .from('studio')
+      .upload(path, buffer, { contentType: 'video/mp4', upsert: true })
+    if (error) {
+      console.warn(`[studio/webhook] Upload Supabase falhou para ${assetId}: ${error.message}`)
+      return url
+    }
+    const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+    return publicUrl
+  } catch (e) {
+    console.warn(`[studio/webhook] persistToStorage falhou para ${assetId}:`, e)
+    return url // fallback — melhor ter URL temporária do que nada
+  }
+}
+
 export async function POST(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const assetId = searchParams.get('assetId')
@@ -39,15 +71,28 @@ export async function POST(req: NextRequest) {
 
   const { status, output, payload, error: reqError } = body
 
-  // Replicate: status === 'succeeded'. Fal AI: status === 'OK'
-  if ((status === 'succeeded' && output) || (status === 'OK' && payload)) {
-    let videoUrl = ''
+  // Replicate: status === 'succeeded', output contém a URL
+  // Fal AI:    status === 'COMPLETED' (fila) ou 'OK' (legado), payload contém o resultado
+  const isSuccess =
+    (status === 'succeeded' && output) ||
+    ((status === 'OK' || status === 'COMPLETED') && payload)
+
+  if (isSuccess) {
+    let rawUrl = ''
     if (output) { // Replicate
-      videoUrl = Array.isArray(output) ? (output as string[])[0] : output as string
+      rawUrl = Array.isArray(output) ? (output as string[])[0] : output as string
     } else if (payload) { // Fal AI
-      const falPayload = payload as any
-      videoUrl = falPayload.video?.url ?? falPayload.output?.[0]
+      const falPayload = payload as Record<string, any>
+      rawUrl = falPayload.video?.url ?? falPayload.output?.[0] ?? ''
     }
+
+    if (!rawUrl) {
+      console.warn(`[studio/webhook] Nenhuma URL extraída do payload para ${assetId}`)
+      return NextResponse.json({ ok: true })
+    }
+
+    // Re-upload para Supabase para garantir URL permanente (Replicate/Fal URLs expiram)
+    const videoUrl = await persistToStorage(admin, rawUrl, userId, assetId)
 
     await admin.from('studio_assets').update({
       status: 'done',
@@ -61,8 +106,11 @@ export async function POST(req: NextRequest) {
       await admin.rpc('debit_credit', { user_id_param: userId })
     }
 
-    console.log(`[studio/webhook] ✅ Vídeo/LipSync ${assetId} concluído: ${videoUrl}`)
-  } else if (status === 'failed' || status === 'canceled' || status === 'ERROR' || status === 'FAILED') {
+    console.log(`[studio/webhook] ✅ Asset ${assetId} concluído: ${videoUrl}`)
+  } else if (
+    status === 'failed' || status === 'canceled' ||
+    status === 'ERROR'  || status === 'FAILED'
+  ) {
     await admin.from('studio_assets').update({
       status: 'error',
       error_msg: reqError ? String(reqError) : 'Geração falhou no provedor',

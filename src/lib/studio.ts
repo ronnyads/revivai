@@ -634,7 +634,25 @@ export async function startAnimateGeneration(params: {
 
   if (!videoUrl) throw new Error('Fal AI (animate): timeout aguardando resultado')
 
-  // 3. Salva resultado
+  // 3. Re-upload para Supabase — URL Fal AI expira após horas
+  try {
+    const videoRes = await fetch(videoUrl)
+    if (videoRes.ok) {
+      const buffer = Buffer.from(await videoRes.arrayBuffer())
+      const path = `${params.userId}/${params.assetId}-animate.mp4`
+      const { error: uploadErr } = await admin.storage
+        .from('studio')
+        .upload(path, buffer, { contentType: 'video/mp4', upsert: true })
+      if (!uploadErr) {
+        const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+        videoUrl = publicUrl
+      }
+    }
+  } catch (e) {
+    console.warn(`[animate] Re-upload Supabase falhou para ${params.assetId}, usando URL Fal AI:`, e)
+  }
+
+  // 4. Salva resultado
   await admin.from('studio_assets').update({
     status: 'done',
     result_url: videoUrl,
