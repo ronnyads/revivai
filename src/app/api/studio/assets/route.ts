@@ -150,15 +150,6 @@ export async function POST(req: NextRequest) {
       const sourceImageUrl = String(
         input_params.continuation_frame ?? input_params.source_image_url ?? ''
       )
-
-      // Rejeita apenas arquivos de ÁUDIO puro (mp3/wav/ogg/m4a/aac)
-      // MP4/MOV/WEBM são válidos para continuação video→video
-      const PURE_AUDIO_EXTS = /\.(mp3|wav|ogg|m4a|aac)$/i
-      if (sourceImageUrl && PURE_AUDIO_EXTS.test(sourceImageUrl)) {
-        await admin.from('studio_assets').update({ status: 'error', error_msg: 'Conecte uma imagem ou vídeo no campo Imagem/Continuar — não um áudio.' }).eq('id', asset.id)
-        return NextResponse.json({ error: 'source_image_url deve ser imagem ou vídeo, não áudio', asset: { ...asset, status: 'error' } }, { status: 422 })
-      }
-
       await startVideoGeneration({
         source_image_url: sourceImageUrl,
         motion_prompt: String(input_params.motion_prompt ?? ''),
@@ -189,26 +180,10 @@ export async function POST(req: NextRequest) {
       const appUrl    = origin
         ? (origin.startsWith('http') ? origin : `https://${origin}`)
         : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
-
-      const faceUrl  = String(input_params.face_url  ?? '')
-      const audioUrl = String(input_params.audio_url ?? '')
-
-      // Valida: face_url deve ser imagem ou vídeo, audio_url deve ser áudio
-      const IMAGE_VIDEO_EXTS = /\.(jpg|jpeg|png|webp|gif|mp4|mov|webm)$/i
-      const AUDIO_EXTS       = /\.(mp3|wav|ogg|m4a|aac)$/i
-      if (audioUrl && IMAGE_VIDEO_EXTS.test(audioUrl)) {
-        await admin.from('studio_assets').update({ status: 'error', error_msg: 'O campo Áudio recebeu um vídeo/imagem. Conecte um arquivo de voz ou áudio.' }).eq('id', asset.id)
-        return NextResponse.json({ error: 'audio_url deve ser um arquivo de áudio', asset: { ...asset, status: 'error' } }, { status: 422 })
-      }
-      if (faceUrl && AUDIO_EXTS.test(faceUrl)) {
-        await admin.from('studio_assets').update({ status: 'error', error_msg: 'O campo Vídeo/Rosto recebeu um áudio. Conecte um vídeo ou imagem com rosto.' }).eq('id', asset.id)
-        return NextResponse.json({ error: 'face_url deve ser uma imagem ou vídeo', asset: { ...asset, status: 'error' } }, { status: 422 })
-      }
-
-      // startLipsyncGeneration agora é síncrono — aguarda e retorna a URL
+      // startLipsyncGeneration é síncrono — aguarda e retorna a URL
       resultUrl = await startLipsyncGeneration({
-        face_url:  faceUrl,
-        audio_url: audioUrl,
+        face_url:  String(input_params.face_url  ?? ''),
+        audio_url: String(input_params.audio_url ?? ''),
         assetId: asset.id,
         userId:  user.id,
         appUrl,
