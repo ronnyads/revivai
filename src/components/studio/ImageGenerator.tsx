@@ -23,9 +23,9 @@ const PRESETS = [
   },
   {
     value: 'clone',
-    label: 'Clone (Seu Rosto)',
+    label: 'Clonar Rosto do Modelo',
     style: 'ugc',
-    hint: 'Conecte um card Modelo UGC para usar sua persona gerada',
+    hint: 'Conecte um card Modelo UGC para manter a mesma persona na cena',
   },
   {
     value: 'produto_realista',
