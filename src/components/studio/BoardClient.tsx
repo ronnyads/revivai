@@ -48,6 +48,12 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/studio/assets/${assetId}`)
+        // 404 = asset deletado/inválido — para polling
+        if (!res.ok) {
+          clearInterval(pollingRef.current.get(assetId))
+          pollingRef.current.delete(assetId)
+          return
+        }
         const { asset } = await res.json()
         if (!asset) return
         if (asset.status === 'done' || asset.status === 'error') {
