@@ -4,6 +4,8 @@ import { memo, useState, useEffect } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
 import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2, CopyPlus } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
+import FaceGenerator from '../FaceGenerator'
+import JoinGenerator from '../JoinGenerator'
 import ImageGenerator from '../ImageGenerator'
 import ScriptGenerator from '../ScriptGenerator'
 import VoiceGenerator from '../VoiceGenerator'
@@ -328,6 +330,8 @@ function ModelDoneActions({ asset, onRegenerate }: { asset: StudioAsset; onRegen
 }
 
 function FormForType({ type, initialParams, onGenerate }: { type: AssetType; initialParams: Record<string, unknown>; onGenerate: (p: Record<string, unknown>) => void }) {
+  if (type === 'face')    return <FaceGenerator    initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'join')    return <JoinGenerator    initial={initialParams} onGenerate={onGenerate} />
   if (type === 'image')   return <ImageGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'script')  return <ScriptGenerator  initial={initialParams} onGenerate={onGenerate} />
   if (type === 'voice')   return <VoiceGenerator   initial={initialParams} onGenerate={onGenerate} />
@@ -335,10 +339,10 @@ function FormForType({ type, initialParams, onGenerate }: { type: AssetType; ini
   if (type === 'caption') return <CaptionGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'upscale') return <UpscaleCard      initial={initialParams} onGenerate={onGenerate} />
   if (type === 'model')   return <ModelGenerator   initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'render')  return <RenderCard        initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'animate') return <AnimateGenerator  initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'compose') return <ComposeCard        initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'lipsync') return <LipsyncGenerator   initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'render')  return <RenderCard       initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'animate') return <AnimateGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'compose') return <ComposeCard      initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'lipsync') return <LipsyncGenerator initial={initialParams} onGenerate={onGenerate} />
   return null
 }
 // ── Processing card com barra de progresso e timer ──────────────────────────────
