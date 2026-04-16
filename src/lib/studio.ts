@@ -484,7 +484,7 @@ export async function startVideoGeneration(params: {
     : ''
   const finalMotion = modelContext + (params.motion_prompt || 'smooth product showcase motion')
 
-  const queueRes = await fetch('https://queue.fal.run/fal-ai/kling-video/v1.5/pro/image-to-video', {
+  const queueRes = await fetch('https://queue.fal.run/fal-ai/kling-video/o3/pro/image-to-video', {
     method: 'POST',
     headers: {
       'Authorization': `Key ${falKey}`,
