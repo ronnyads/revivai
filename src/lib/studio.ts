@@ -544,10 +544,11 @@ async function withReplicateRetry<T>(fn: () => Promise<T>, maxRetries = 3): Prom
 export async function composeProductScene(params: {
   portrait_url:   string
   product_url:    string
-  compose_mode?:  string   // 'try-on' (default) ou 'overlay'
+  compose_mode?:  string   // 'try-on' (default), 'overlay', 'prompt'
   position?:      string
   product_scale?: number
   vton_category?: string
+  costume_prompt?: string
   assetId:        string
   userId:         string
 }): Promise<string> {
@@ -557,7 +558,43 @@ export async function composeProductScene(params: {
 
   let resultBuffer: Buffer
 
-  if (params.compose_mode === 'overlay') {
+  if (params.compose_mode === 'prompt') {
+    // ---- MODO VESTIR VIA PROMPT (FLUX-PULID) ----
+    const promptValue = params.costume_prompt || 'wearing beautiful clothes'
+    const pulidRes = await fetch('https://fal.run/fal-ai/flux-pulid', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: `A beautiful portrait of the person, ${promptValue}, perfectly fitted, hyperrealistic photography, 8k resolution, raw photo`,
+        reference_images: [
+          {
+            image_url: params.portrait_url,
+            image_size: 1024
+          }
+        ],
+        identity_only: true, // Garante que apenas o rosto seja transferido
+        num_inference_steps: 25,
+        guidance_scale: 3.5,
+        true_cfg: 1,
+      })
+    })
+
+    if (!pulidRes.ok) {
+      const err = await pulidRes.text()
+      throw new Error(`Flux Prompt falhou: ${err.slice(0, 300)}`)
+    }
+
+    const data = await pulidRes.json()
+    const finalUrl = data.images?.[0]?.url || data.image?.url
+    if (!finalUrl) throw new Error('Flux Prompt não retornou imagem válida.')
+
+    const imgRes = await fetch(finalUrl)
+    resultBuffer = Buffer.from(await imgRes.arrayBuffer())
+
+  } else if (params.compose_mode === 'overlay') {
     // ---- MODO OVERLAY (Colar como objeto) ----
     const sharp = (await import('sharp')).default
 
@@ -610,10 +647,11 @@ export async function composeProductScene(params: {
     // Mapeia categorias do nosso UI (tops, bottoms, one-pieces) para as suportadas pelo IDM-VTON
     let idmCategory = 'upper_body'
     if (params.vton_category === 'bottoms') idmCategory = 'lower_body'
-    if (params.vton_category === 'one-pieces') idmCategory = 'dresses'
+    // ATENÇÃO: Nunca usar 'dresses' para ternos masculinos! O IDM-VTON força decotes femininos no VAE quando a categoria é dresses.
+    // Manteremos 'upper_body' mesmo para conjuntos, e o modelo vai usar a parte de cima principal, deixando o prompt cuidar da parte de baixo.
 
-    // O prompt robusto previne que o IDM-VTON interprete paletós abertos como "decotes femininos em V"
-    const description = `A fully closed masculine ${params.vton_category || 'tops'}, completely buttoned, chest fully covered by fabric, formal menswear, highly masculine tailoring, strictly male outfit, no cleavage, no skin visible on chest.`
+    // O prompt robusto foca em neutralidade de gênero e fechamento da roupa
+    const description = `virtual try on, formal ${params.vton_category || 'wear'}, fully covered chest, high buttoned up, no cleavage, masculine or gender-neutral cut, realistic fabric, complete clothing.`
 
     const vtonRes = await fetch('https://fal.run/fal-ai/idm-vton', {
       method: 'POST',

@@ -208,6 +208,7 @@ export async function POST(req: NextRequest) {
         position:      (input_params.position as any)     ?? 'southeast',
         product_scale: input_params.product_scale ? Number(input_params.product_scale) : 0.35,
         vton_category: String(input_params.vton_category  ?? 'tops'),
+        costume_prompt: input_params.costume_prompt ? String(input_params.costume_prompt) : undefined,
         assetId: asset.id,
         userId:  user.id,
       })

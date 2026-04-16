@@ -35,6 +35,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
   
   // TryOn params
   const [category,    setCategory]    = useState(String(initial.vton_category ?? 'tops'))
+  const [costumePrompt, setCostumePrompt] = useState(String(initial.costume_prompt ?? ''))
 
   // Sincroniza portrait_url quando a conexão do canvas injeta via props
   useEffect(() => {
@@ -58,6 +59,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
           className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-2 py-1.5 text-xs text-white focus:outline-none focus:border-accent"
         >
           <option value="try-on">Virtual Try-On (Roupas)</option>
+          <option value="prompt">Vestir Personagem (Através de Prompt)</option>
           <option value="overlay">Colar Produto (Objetos na cena)</option>
         </select>
       </div>
@@ -84,24 +86,26 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
       )}
 
       {/* Produto/Roupa do cliente */}
-      <div>
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <label className="text-[10px] text-zinc-500 uppercase tracking-wide">{mode === 'try-on' ? 'Foto da Roupa (Garment)' : 'Foto do produto'}</label>
-          <div className="flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">
-            <ShieldCheck size={9} /> Preservado 100%
+      {mode !== 'prompt' && (
+        <div>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <label className="text-[10px] text-zinc-500 uppercase tracking-wide">{mode === 'try-on' ? 'Foto da Roupa (Garment)' : 'Foto do produto'}</label>
+            <div className="flex items-center gap-1 text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">
+              <ShieldCheck size={9} /> Preservado 100%
+            </div>
           </div>
+          <ImageUpload
+            value={productUrl}
+            onChange={setProductUrl}
+            label=""
+            accept="image/*"
+            preview
+          />
         </div>
-        <ImageUpload
-          value={productUrl}
-          onChange={setProductUrl}
-          label=""
-          accept="image/*"
-          preview
-        />
-      </div>
+      )}
 
       {/* Preview side-by-side */}
-      {hasPortrait && hasProduct && (
+      {hasPortrait && hasProduct && mode !== 'prompt' && (
         <div className="flex gap-2">
           <div className="flex-1 flex flex-col gap-1">
             <p className="text-[9px] text-zinc-500 uppercase tracking-wide">Cena</p>
@@ -158,12 +162,33 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
         </div>
       )}
 
+      {mode === 'prompt' && (
+        <div className="mt-1">
+          <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">Descreva a Roupa (Sem Imagem)</label>
+          <input
+            type="text"
+            value={costumePrompt}
+            onChange={e => setCostumePrompt(e.target.value)}
+            placeholder="Ex: vestindo um terno amarelo com gravata perfeitamente ajustado"
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-2.5 py-2 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-accent"
+          />
+        </div>
+      )}
+
       <button
-        onClick={() => onGenerate({ portrait_url: portraitUrl, product_url: productUrl, compose_mode: mode, position, product_scale: scale, vton_category: category })}
-        disabled={!hasPortrait || !hasProduct}
+        onClick={() => onGenerate({ 
+          portrait_url: portraitUrl, 
+          product_url: mode === 'prompt' ? '' : productUrl, 
+          compose_mode: mode, 
+          position, 
+          product_scale: scale, 
+          vton_category: category,
+          costume_prompt: costumePrompt
+        })}
+        disabled={!hasPortrait || (mode !== 'prompt' && !hasProduct) || (mode === 'prompt' && !costumePrompt.trim())}
         className="flex items-center justify-center gap-2 bg-orange-700 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-all disabled:opacity-40 w-full mt-2"
       >
-        <Layers size={15} /> Compor Cena ({mode === 'try-on' ? 'Vestir' : 'Colar'})
+        <Layers size={15} /> Compor Cena ({mode === 'try-on' ? 'Vestir IDM' : mode === 'prompt' ? 'Vestir Mágico' : 'Colar'})
       </button>
     </div>
   )
