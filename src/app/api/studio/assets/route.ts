@@ -183,14 +183,22 @@ export async function POST(req: NextRequest) {
         appUrl,
       })
     } else if (type === 'lipsync') {
-      // startLipsyncGeneration é síncrono (polling inline) — retorna URL diretamente
-      resultUrl = await startLipsyncGeneration({
+      const origin    = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
+      const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
+      const appUrl    = origin
+        ? (origin.startsWith('http') ? origin : `https://${origin}`)
+        : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
+
+      // startLipsyncGeneration agora é ASSÍNCRONO e usa o webhook da Fal AI
+      await startLipsyncGeneration({
         face_url:  String(input_params.face_url  ?? ''),
         audio_url: String(input_params.audio_url ?? ''),
         assetId: asset.id,
         userId:  user.id,
-        appUrl:  process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+        appUrl,
       })
+      // Não debitamos créditos aqui — o webhook debita quando concluir!
+      return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
     } else if (type === 'compose') {
       resultUrl = await composeProductScene({
         portrait_url:  String(input_params.portrait_url   ?? ''),

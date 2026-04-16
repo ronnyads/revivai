@@ -565,7 +565,7 @@ export async function composeProductScene(params: {
   return publicUrl
 }
 
-// ── Lip Sync — Fal AI latentsync (síncrono com polling, igual ao animate) ───
+// ── Lip Sync — Fal AI latentsync (assíncrono via webhook) ────────────────────────
 export async function startLipsyncGeneration(params: {
   face_url:  string
   audio_url: string
@@ -577,8 +577,9 @@ export async function startLipsyncGeneration(params: {
   if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
 
   const admin = createAdminClient()
+  const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}&provider=fal`
 
-  // 1. Envia o job para a fila da Fal AI (sem webhook — controle via polling)
+  // 1. Envia o job para a fila da Fal AI
   const queueRes = await fetch('https://queue.fal.run/fal-ai/latentsync', {
     method: 'POST',
     headers: {
@@ -588,6 +589,7 @@ export async function startLipsyncGeneration(params: {
     body: JSON.stringify({
       video_url: params.face_url,
       audio_url: params.audio_url,
+      webhook_url: webhookUrl,
     }),
   })
 
@@ -599,63 +601,10 @@ export async function startLipsyncGeneration(params: {
   const { request_id } = await queueRes.json()
   if (!request_id) throw new Error('Fal AI não retornou request_id')
 
-  // Salva request_id para permitir sync manual caso o polling server-side falhe
+  // Salva request_id para o webhook identificar depois
   await admin.from('studio_assets')
     .update({ input_params: { face_url: params.face_url, audio_url: params.audio_url, prediction_id: request_id } })
     .eq('id', params.assetId)
-
-  // 2. Polling síncrono — até 240s (igual ao animate)
-  const statusUrl = `https://queue.fal.run/fal-ai/latentsync/requests/${request_id}`
-  const deadline  = Date.now() + 240_000
-  let videoUrl: string | null = null
-
-  while (Date.now() < deadline) {
-    await new Promise(r => setTimeout(r, 5000))
-
-    const statusRes = await fetch(statusUrl, {
-      headers: { 'Authorization': `Key ${falKey}` },
-    })
-    const status = await statusRes.json()
-
-    if (status.status === 'COMPLETED') {
-      // Fal AI: resultado em status.output (direto) ou via /output endpoint
-      videoUrl = status.output?.video?.url ?? status.output?.[0] ?? null
-      if (!videoUrl) {
-        const outRes = await fetch(`${statusUrl}/output`, {
-          headers: { 'Authorization': `Key ${falKey}` },
-        })
-        const out = await outRes.json()
-        videoUrl = out.video?.url ?? out.output?.[0] ?? null
-      }
-      break
-    }
-
-    if (status.status === 'ERROR' || status.status === 'FAILED') {
-      throw new Error(`Fal AI (lipsync) falhou: ${status.error ?? 'erro desconhecido'}`)
-    }
-  }
-
-  if (!videoUrl) throw new Error('Fal AI (lipsync): timeout aguardando resultado')
-
-  // 3. Re-upload para Supabase — URL Fal AI expira após horas
-  try {
-    const videoRes = await fetch(videoUrl)
-    if (videoRes.ok) {
-      const buffer = Buffer.from(await videoRes.arrayBuffer())
-      const path = `${params.userId}/${params.assetId}-lipsync.mp4`
-      const { error: uploadErr } = await admin.storage
-        .from('studio')
-        .upload(path, buffer, { contentType: 'video/mp4', upsert: true })
-      if (!uploadErr) {
-        const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
-        videoUrl = publicUrl
-      }
-    }
-  } catch (e) {
-    console.warn(`[lipsync] Re-upload Supabase falhou para ${params.assetId}:`, e)
-  }
-
-  return videoUrl
 }
 
 // ── Animate — Fal AI live-portrait (síncrono — mesma estratégia do Lip Sync) ─
