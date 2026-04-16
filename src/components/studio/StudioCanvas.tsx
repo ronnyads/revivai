@@ -256,7 +256,9 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     })
   }, [connections]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-propaga URLs pelas arestas quando um asset completa (ex: compose → video, video → lipsync)
+  // Auto-propaga URLs pelas arestas quando um asset completa
+  // Usa ref para evitar loop infinito (assets → update → assets → ...)
+  const lastPropagated = useRef<Map<string, string>>(new Map())
   useEffect(() => {
     const updates: { tgtId: string; field: string; value: string }[] = []
 
@@ -271,17 +273,20 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         : src.result_url
       const field = HANDLE_TO_FIELD[edge.targetHandle] ?? edge.targetHandle
 
-      // Força a atualização se o nó destino estiver com um valor diferente da saída da fonte
-      if (tgt.input_params[field] !== fillValue) {
+      const cacheKey = `${edge.id}:${field}`
+      const currentInTarget = tgt.input_params[field] as string | undefined
+
+      // Só propaga se o valor mudou E ainda não propagamos esse valor para esse campo
+      if (currentInTarget !== fillValue && lastPropagated.current.get(cacheKey) !== fillValue) {
         updates.push({ tgtId: tgt.id, field, value: fillValue })
+        lastPropagated.current.set(cacheKey, fillValue)
       }
     })
 
     if (updates.length > 0) {
-      // Dispara a atualização para todos os campos que defasaram
       updates.forEach(u => handleUpdateParams(u.tgtId, { [u.field]: u.value }))
     }
-  }, [assets, edges, handleUpdateParams])
+  }, [assets, edges]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     assets.filter(a => a.status === 'processing').forEach(a => startPolling(a.id))
