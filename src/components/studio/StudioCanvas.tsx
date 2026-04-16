@@ -21,7 +21,7 @@ const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
 
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3, compose: 1, lipsync: 3, face: 0,
+  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3, compose: 1, lipsync: 3, face: 0, join: 0,
 }
 
 const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
@@ -37,6 +37,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   compose: { portrait_url: '', product_url: '', position: 'southeast', product_scale: 0.35 },
   lipsync: { face_url: '', audio_url: '' },
   face:    { face_image_url: '' },
+  join:    { video_urls: [] },
 }
 
 // Mapeamento: targetHandle → campo a preencher no nó destino
@@ -50,6 +51,12 @@ const HANDLE_TO_FIELD: Record<string, string> = {
   portrait_image_url:  'portrait_image_url',
   portrait_url:        'portrait_url',
   face_url:            'face_url',
+  video_0:             'video_urls',
+  video_1:             'video_urls',
+  video_2:             'video_urls',
+  video_3:             'video_urls',
+  video_4:             'video_urls',
+  video_5:             'video_urls',
 }
 
 interface Props {
@@ -415,7 +422,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   // Usa ref para evitar loop infinito (assets → update → assets → ...)
   const lastPropagated = useRef<Map<string, string>>(new Map())
   useEffect(() => {
-    const updates: { tgtId: string; field: string; value: string }[] = []
+    const updates: { tgtId: string; params: Record<string, unknown> }[] = []
 
     edges.forEach(edge => {
       if (!edge.targetHandle) return
@@ -426,20 +433,37 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       const fillValue = edge.targetHandle === 'continuation_frame'
         ? (src.last_frame_url ?? src.result_url)
         : src.result_url
-      const field = HANDLE_TO_FIELD[edge.targetHandle] ?? edge.targetHandle
 
-      const cacheKey = `${edge.id}:${field}`
-      const currentInTarget = tgt.input_params[field] as string | undefined
+      const cacheKey = `${edge.id}:${edge.targetHandle}`
+      
+      let finalParams: Record<string, unknown> | null = null
+      let isDifferent = false
 
-      // Só propaga se o valor mudou E ainda não propagamos esse valor para esse campo
-      if (currentInTarget !== fillValue && lastPropagated.current.get(cacheKey) !== fillValue) {
-        updates.push({ tgtId: tgt.id, field, value: fillValue })
+      if (edge.targetHandle.startsWith('video_')) {
+        const idx = parseInt(edge.targetHandle.split('_')[1])
+        const currentArray = [...(tgt.input_params.video_urls as string[] ?? [])]
+        if (currentArray[idx] !== fillValue) {
+          isDifferent = true
+          currentArray[idx] = fillValue
+          finalParams = { video_urls: currentArray }
+        }
+      } else {
+        const field = HANDLE_TO_FIELD[edge.targetHandle] ?? edge.targetHandle
+        const currentInTarget = tgt.input_params[field] as string | undefined
+        if (currentInTarget !== fillValue) {
+          isDifferent = true
+          finalParams = { [field]: fillValue }
+        }
+      }
+
+      if (isDifferent && finalParams && lastPropagated.current.get(cacheKey) !== fillValue) {
+        updates.push({ tgtId: tgt.id, params: finalParams })
         lastPropagated.current.set(cacheKey, fillValue)
       }
     })
 
     if (updates.length > 0) {
-      updates.forEach(u => handleUpdateParams(u.tgtId, { [u.field]: u.value }))
+      updates.forEach(u => handleUpdateParams(u.tgtId, u.params))
     }
   }, [assets, edges]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -525,6 +549,13 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           if (isVideo(s) || isImage(s)) return 'face_url'
           if (isAudio(s))               return 'audio_url'
           break
+
+        case 'join':
+          if (isVideo(s) || isImage(s)) {
+            const currentArray = tgt?.input_params.video_urls as string[] ?? []
+            return `video_${Math.min(currentArray.length, 5)}`
+          }
+          break
       }
       return null
     }
@@ -572,13 +603,26 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       const fillValue = targetHandle === 'continuation_frame'
         ? (sourceAsset.last_frame_url ?? sourceAsset.result_url)
         : sourceAsset.result_url
-      const field = HANDLE_TO_FIELD[targetHandle] ?? targetHandle
-      handleUpdateParams(target, { [field]: fillValue })
+      const targetAsset = assets.find(a => a.id === target)
+      let finalParams: Record<string, unknown> = {}
+
+      if (targetHandle.startsWith('video_') && targetAsset) {
+        // Trata a injeção em arrays (ex: video_0 -> video_urls[0])
+        const idx = parseInt(targetHandle.split('_')[1])
+        const currentArray = [...(targetAsset.input_params.video_urls as string[] ?? [])]
+        currentArray[idx] = fillValue
+        finalParams = { video_urls: currentArray }
+      } else {
+        const field = HANDLE_TO_FIELD[targetHandle] ?? targetHandle
+        finalParams = { [field]: fillValue }
+      }
+
+      handleUpdateParams(target, finalParams)
       if (!isTargetTemp) {
         await fetch(`/api/studio/assets/${target}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ input_params: { [field]: fillValue } }),
+          body: JSON.stringify({ input_params: finalParams }),
         })
       }
     }

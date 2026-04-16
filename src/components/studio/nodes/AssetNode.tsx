@@ -18,6 +18,7 @@ import LipsyncGenerator from '../LipsyncGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string; hint: string; output: string }> = {
   face:    { icon: <User size={14} />,     label: 'Rosto Real (Upload)', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Faça upload de uma foto', output: 'Foto salva →' },
+  join:    { icon: <Film size={14} />,     label: 'Exportar MP4 Master', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/30',   hint: '← Conecte vídeos em ordem', output: 'MP4 Master →' },
   model:   { icon: <User size={14} />,     label: 'Modelo UGC',  color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Gera foto do modelo', output: 'Foto do modelo →' },
   image:   { icon: <Image size={14} />,    label: 'Imagem',      color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30', hint: 'Gera imagem com IA', output: 'Imagem gerada →' },
   video:   { icon: <Video size={14} />,    label: 'Vídeo',       color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/30',   hint: '← Conecte imagem + áudio', output: 'Vídeo animado →' },
@@ -58,6 +59,14 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
   lipsync: [
     { id: 'face_url',           label: 'Vídeo/Rosto'  },
     { id: 'audio_url',          label: 'Áudio'        },
+  ],
+  join: [
+    { id: 'video_0', label: 'Cena 1' },
+    { id: 'video_1', label: 'Cena 2' },
+    { id: 'video_2', label: 'Cena 3' },
+    { id: 'video_3', label: 'Cena 4' },
+    { id: 'video_4', label: 'Cena 5' },
+    { id: 'video_5', label: 'Cena 6' },
   ],
 }
 

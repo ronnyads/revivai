@@ -4,7 +4,7 @@ export const maxDuration = 300
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration } from '@/lib/studio'
+import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos } from '@/lib/studio'
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
 
@@ -218,6 +218,12 @@ export async function POST(req: NextRequest) {
       })
     } else if (type === 'face') {
       resultUrl = String(input_params.face_image_url ?? '')
+    } else if (type === 'join') {
+      const rawUrls = input_params.video_urls
+      const videoUrls: string[] = Array.isArray(rawUrls)
+        ? rawUrls.filter(Boolean).map(String)
+        : []
+      resultUrl = await joinVideos({ video_urls: videoUrls, assetId: asset.id, userId: user.id })
     }
 
     // Operações síncronas — atualiza resultado e debita custo real

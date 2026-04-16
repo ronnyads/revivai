@@ -16,6 +16,7 @@ export const CREDIT_COST: Record<AssetType, number> = {
   compose: 1,
   lipsync: 3,
   face:    0,
+  join:    0,
 }
 
 // ── Prompt helper — lê da tabela studio_prompts, usa fallback hardcoded ─────
@@ -743,3 +744,69 @@ export async function startAnimateGeneration(params: {
   return videoUrl
 }
 
+// ── Join — Costura de vídeos via FFmpeg (Fase 3) ───────────────────────────
+export async function joinVideos(params: {
+  video_urls: string[]   // array ordenado de URLs de vídeo
+  assetId:    string
+  userId:     string
+}) {
+  if (params.video_urls.length < 2) throw new Error('Mínimo de 2 vídeos para unir')
+
+  const admin   = createAdminClient()
+  const os      = await import('os')
+  const path    = await import('path')
+  const fs      = await import('fs')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const ffmpegPath = require('ffmpeg-static') as string
+  const { default: ffmpeg } = await import('fluent-ffmpeg')
+  ffmpeg.setFfmpegPath(ffmpegPath)
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-join-'))
+  const localPaths: string[] = []
+
+  try {
+    // 1. Download de cada vídeo para /tmp
+    for (let i = 0; i < params.video_urls.length; i++) {
+      const url = params.video_urls[i]
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`Falha ao baixar vídeo ${i + 1}: ${res.status}`)
+      const buf = Buffer.from(await res.arrayBuffer())
+      const localPath = path.join(tmpDir, `clip_${i}.mp4`)
+      fs.writeFileSync(localPath, buf)
+      localPaths.push(localPath)
+    }
+
+    // 2. Cria arquivo de concat list para FFmpeg
+    const listPath = path.join(tmpDir, 'list.txt')
+    const listContent = localPaths.map(p => `file '${p}'`).join('\n')
+    fs.writeFileSync(listPath, listContent)
+
+    // 3. Executa FFmpeg concat
+    const outputPath = path.join(tmpDir, 'joined.mp4')
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg()
+        .input(listPath)
+        .inputOptions(['-f', 'concat', '-safe', '0'])
+        .outputOptions(['-c', 'copy'])
+        .output(outputPath)
+        .on('end', () => resolve())
+        .on('error', (err: Error) => reject(new Error(`FFmpeg erro: ${err.message}`)))
+        .run()
+    })
+
+    // 4. Upload do arquivo final para Supabase
+    const finalBuffer = fs.readFileSync(outputPath)
+    const storagePath = `${params.userId}/${params.assetId}-joined.mp4`
+    const { error: uploadErr } = await admin.storage
+      .from('studio')
+      .upload(storagePath, finalBuffer, { contentType: 'video/mp4', upsert: true })
+    if (uploadErr) throw new Error(`Upload falhou: ${uploadErr.message}`)
+
+    const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(storagePath)
+    return publicUrl
+
+  } finally {
+    // Limpa arquivos temporários
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ignora */ }
+  }
+}

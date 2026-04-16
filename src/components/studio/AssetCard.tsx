@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2, User } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2, User, Film } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from './ImageGenerator'
 import ScriptGenerator from './ScriptGenerator'
@@ -10,9 +10,11 @@ import VideoGenerator from './VideoGenerator'
 import CaptionGenerator from './CaptionGenerator'
 import UpscaleCard from './UpscaleCard'
 import FaceGenerator from './FaceGenerator'
+import JoinGenerator from './JoinGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string }> = {
   face:    { icon: <User size={15} />,     label: 'Rosto Real',  color: 'text-indigo-400' },
+  join:    { icon: <Film size={15} />,     label: 'Exportar MP4 Master', color: 'text-rose-400' },
   model:   { icon: <FileText size={15} />, label: 'Modelo UGC',  color: 'text-indigo-400' },
   render:  { icon: <Video size={15} />,    label: 'Vídeo Final', color: 'text-rose-400'   },
   image:   { icon: <Image size={15} />,    label: 'Imagem',      color: 'text-violet-400' },
@@ -184,7 +186,7 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
   if (type === 'image' || type === 'upscale' || type === 'face') {
     return <img src={url} alt="Resultado" className="w-full rounded-xl object-cover max-h-64" />
   }
-  if (type === 'video') {
+  if (type === 'video' || type === 'join') {
     return <video src={url} controls className="w-full rounded-xl max-h-64" playsInline />
   }
   if (type === 'voice') {
@@ -256,6 +258,7 @@ function FormForType({ type, initialParams, onGenerate }: {
   onGenerate: (params: Record<string, unknown>) => void
 }) {
   if (type === 'face')    return <FaceGenerator    initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'join')    return <JoinGenerator    initial={initialParams} onGenerate={onGenerate} />
   if (type === 'image')   return <ImageGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'script')  return <ScriptGenerator  initial={initialParams} onGenerate={onGenerate} />
   if (type === 'voice')   return <VoiceGenerator   initial={initialParams} onGenerate={onGenerate} />

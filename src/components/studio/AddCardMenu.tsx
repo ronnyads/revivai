@@ -32,6 +32,7 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
       { type: 'upscale', icon: <ZoomIn size={18} />,   label: 'Upscale',            desc: 'Restaurar foto para Ultra HD',            cost: 1 },
       { type: 'caption', icon: <Captions size={18} />, label: 'Legenda',            desc: 'Legendas dinâmicas sincronizadas',        cost: 1 },
       { type: 'render',  icon: <Film size={18} />,     label: 'Vídeo Final',        desc: 'Finalização cinematográfica',             cost: 1 },
+      { type: 'join',    icon: <Film size={18} />,     label: '🎬 Exportar MP4 Master', desc: 'Costura vídeos em 1 arquivo final',    cost: 0 },
     ],
   },
 ]
