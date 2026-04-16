@@ -540,12 +540,14 @@ async function withReplicateRetry<T>(fn: () => Promise<T>, maxRetries = 3): Prom
   throw new Error('Max retries exceeded')
 }
 
-// ── Compose — Virtual Try-On (VTON) via Fashn AI ─────────
+// ── Compose — Virtual Try-On ou Colar Produto ─────────
 export async function composeProductScene(params: {
   portrait_url:   string
   product_url:    string
-  position?:      string   // mantido por compatibilidade
-  product_scale?: number   // mantido por compatibilidade
+  compose_mode?:  string   // 'try-on' (default) ou 'overlay'
+  position?:      string
+  product_scale?: number
+  vton_category?: string
   assetId:        string
   userId:         string
 }): Promise<string> {
@@ -553,39 +555,88 @@ export async function composeProductScene(params: {
   const falKey = process.env.FAL_KEY
   if (!falKey) throw new Error('FAL_KEY não configurada')
 
-  // 1. Envia as duas imagens nativamente para o motor de TryOn (VTON)
-  const vtonRes = await fetch('https://fal.run/fal-ai/fashn/tryon', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Key ${falKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model_image: params.portrait_url,
-      garment_image: params.product_url,
-      category: 'tops', // Padrão recomendado pela Fashn (auto-adapta para vestidos e calças muitas vezes)
-    })
-  })
+  let resultBuffer: Buffer
 
-  if (!vtonRes.ok) {
-    const err = await vtonRes.text()
-    throw new Error(`Fashn VTON falhou: ${err.slice(0, 300)}`)
+  if (params.compose_mode === 'overlay') {
+    // ---- MODO OVERLAY (Colar como objeto) ----
+    const sharp = (await import('sharp')).default
+
+    // Remove background do produto
+    const bgRes = await fetch('https://fal.run/fal-ai/bria/background-removal', {
+      method: 'POST',
+      headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_url: params.product_url })
+    })
+
+    let transparentUrl = params.product_url
+    if (bgRes.ok) {
+      const bgData = await bgRes.json()
+      if (bgData.image?.url) transparentUrl = bgData.image.url
+    }
+
+    const [portraitRes, productRes] = await Promise.all([
+      fetch(params.portrait_url),
+      fetch(transparentUrl),
+    ])
+    const [portraitBuf, productBuf] = await Promise.all([
+      portraitRes.arrayBuffer().then(b => Buffer.from(b)),
+      productRes.arrayBuffer().then(b => Buffer.from(b)),
+    ])
+
+    const portraitMeta = await sharp(portraitBuf).metadata()
+    const portraitWidth = portraitMeta.width ?? 1024
+    
+    const scale = params.product_scale || 0.45
+    const productTargetWidth = Math.round(portraitWidth * scale)
+
+    const resizedProductBuf = await sharp(productBuf)
+      .resize({ width: productTargetWidth, withoutEnlargement: true })
+      .toBuffer()
+
+    let gravity = 'southeast'
+    if (params.position === 'south' || params.position?.includes('center')) gravity = 'south'
+    if (params.position === 'southwest') gravity = 'southwest'
+    if (params.position === 'west') gravity = 'west'
+    if (params.position === 'east') gravity = 'east'
+
+    resultBuffer = await sharp(portraitBuf)
+      .composite([{ input: resizedProductBuf, gravity }])
+      .jpeg({ quality: 95 })
+      .toBuffer()
+
+  } else {
+    // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) ----
+    const vtonRes = await fetch('https://fal.run/fal-ai/fashn/tryon', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model_image: params.portrait_url,
+        garment_image: params.product_url,
+        category: params.vton_category || 'tops',
+      })
+    })
+
+    if (!vtonRes.ok) {
+      const err = await vtonRes.text()
+      throw new Error(`Fashn VTON falhou: ${err.slice(0, 300)}`)
+    }
+
+    const data = await vtonRes.json()
+    const vtonImageUrl = data.images?.[0]?.url || data.image?.url
+    if (!vtonImageUrl) throw new Error('Fashn VTON não retornou imagem válida.')
+
+    const imgRes = await fetch(vtonImageUrl)
+    resultBuffer = Buffer.from(await imgRes.arrayBuffer())
   }
 
-  const data = await vtonRes.json()
-  const vtonImageUrl = data.images?.[0]?.url || data.image?.url
-  
-  if (!vtonImageUrl) throw new Error('Fashn VTON não retornou imagem válida.')
-
-  // 2. Baixa o resultado final do VTON
-  const imgRes = await fetch(vtonImageUrl)
-  const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
-
-  // 3. Upload resultado final para o supabase
+  // Upload final
   const path = `${params.userId}/compose-${params.assetId}.jpg`
   const { error: uploadErr } = await admin.storage
     .from('studio')
-    .upload(path, imgBuffer, { contentType: 'image/jpeg', upsert: true })
+    .upload(path, resultBuffer, { contentType: 'image/jpeg', upsert: true })
   if (uploadErr) throw new Error(`Upload falhou: ${uploadErr.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
