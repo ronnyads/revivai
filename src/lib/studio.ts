@@ -17,6 +17,24 @@ export const CREDIT_COST: Record<AssetType, number> = {
   lipsync: 3,
 }
 
+// ── Prompt helper — lê da tabela studio_prompts, usa fallback hardcoded ─────
+async function getStudioPrompt(
+  admin: ReturnType<typeof createAdminClient>,
+  key: string,
+  fallback: string,
+): Promise<string> {
+  try {
+    const { data } = await admin
+      .from('studio_prompts')
+      .select('value')
+      .eq('key', key)
+      .single()
+    return data?.value?.trim() || fallback
+  } catch {
+    return fallback
+  }
+}
+
 // ── Image — DALL-E 3 via fetch ─────────────────────────────────────────────
 export async function generateImage(params: {
   prompt: string
@@ -37,11 +55,14 @@ export async function generateImage(params: {
   }
   const size = sizeMap[params.aspect_ratio] ?? '1024x1024'
 
-  const stylePrefix = params.style === 'ugc'
-    ? 'UGC style ad photo, authentic, shot on phone, candid, real person, '
-    : params.style === 'product'
-    ? 'professional product photography, clean background, studio lighting, '
-    : 'lifestyle photography, natural light, aspirational, '
+  const STYLE_FALLBACKS: Record<string, string> = {
+    ugc:       'UGC style ad photo, authentic, shot on phone, candid, real person, ',
+    product:   'professional product photography, clean background, studio lighting, ',
+    logo:      'professional logo design, clean vector style, transparent background, ',
+    lifestyle: 'lifestyle photography, natural light, aspirational, ',
+  }
+  const styleKey = `image_style_${params.style}`
+  const stylePrefix = await getStudioPrompt(admin, styleKey, STYLE_FALLBACKS[params.style] ?? STYLE_FALLBACKS.lifestyle)
 
   const finalPrompt = params.model_prompt
     ? `${params.model_prompt}. ${stylePrefix}${params.prompt}`
@@ -117,9 +138,13 @@ export async function generateScript(params: {
       messages: [
         {
           role: 'system',
-          content: `Você é um especialista em criação de scripts UGC virais para o mercado brasileiro.
+          content: (await getStudioPrompt(
+            admin,
+            'script_generation_system',
+            `Você é um especialista em criação de scripts UGC virais para o mercado brasileiro.
 Crie scripts autênticos, conversacionais e de alta conversão. Use linguagem natural e cotidiana do brasileiro.
-Inclua indicações de tom, pausas e emoção entre colchetes. Formato: ${formatGuide[params.format] ?? formatGuide.reels}.`,
+Inclua indicações de tom, pausas e emoção entre colchetes.`,
+          )) + ` Formato: ${formatGuide[params.format] ?? formatGuide.reels}.`,
         },
         {
           role: 'user',
@@ -317,11 +342,15 @@ export async function generateModel(params: {
   const b = BODY_MAP[params.body_type]  ?? params.body_type
   const e = STYLE_MAP[params.style]     ?? params.style
 
-  const system = `You are a UGC creative director specializing in AI image generation for ads.
+  const systemBase = await getStudioPrompt(
+    admin,
+    'model_generation_system',
+    `You are a UGC creative director specializing in AI image generation for ads.
 Generate a UNIQUE, vivid, photorealistic visual description of a model for DALL-E 3.
 Vary vocabulary, hair details, facial features, and scene context every response — never repeat.
-Seed for uniqueness: ${seed}.
-Output: one dense English paragraph (3-5 sentences). No names. Pure visual description.`
+Output: one dense English paragraph (3-5 sentences). No names. Pure visual description.`,
+  )
+  const system = `${systemBase}\nSeed for uniqueness: ${seed}.`
 
   const user = `Create a unique visual model description for: a ${g}, ${a}, ${s}, with a ${b}, wearing ${e}.${params.extra_details ? ' Additional details: ' + params.extra_details : ''} Include specific facial features, hair style, and overall energy suitable for a UGC ad.`
 
@@ -350,7 +379,12 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   // Gera foto com FLUX 1.1 Pro via Replicate (muito mais fotorrealista que DALL-E)
   const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
 
-  const fluxPrompt = `Candid portrait photo of a real person: ${text} Shot on iPhone 15 Pro, natural daylight, authentic UGC style. Skin pores and natural imperfections visible. Real human face, photojournalism style, not a studio shoot, not retouched, not illustrated.`
+  const fluxSuffix = await getStudioPrompt(
+    admin,
+    'model_flux_suffix',
+    'Shot on iPhone 15 Pro, natural daylight, authentic UGC style. Skin pores and natural imperfections visible. Real human face, photojournalism style, not a studio shoot, not retouched, not illustrated.',
+  )
+  const fluxPrompt = `Candid portrait photo of a real person: ${text} ${fluxSuffix}`
 
   const fluxOutput = await replicate.run('black-forest-labs/flux-1.1-pro', {
     input: {
@@ -491,14 +525,16 @@ export async function composeProductScene(params: {
   //    Vê a modelo E o produto, gera composição natural com produto na mão
   const formData = new FormData()
   formData.append('model', 'gpt-image-1')
-  formData.append(
-    'prompt',
+  const composePrompt = await getStudioPrompt(
+    admin,
+    'compose_gpt_prompt',
     'This person is naturally holding the product in their hand, as if showcasing it for a UGC advertisement. ' +
     'The product must appear physically held — with realistic hand grip, natural shadows, and correct scale. ' +
     'Keep the person exactly the same: same face, hair, skin tone, clothing, background, and lighting. ' +
     'Keep the product exactly the same: same colors, text, logo, shape, packaging — do not alter the product in any way. ' +
     'The result should look like a real photo of a real person holding the real product.',
   )
+  formData.append('prompt', composePrompt)
   formData.append('image[]', new Blob([portraitBuf], { type: 'image/jpeg' }), 'portrait.jpg')
   formData.append('image[]', new Blob([productBuf],  { type: 'image/jpeg' }), 'product.jpg')
   formData.append('size', '1024x1536')
