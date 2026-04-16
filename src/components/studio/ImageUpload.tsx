@@ -20,8 +20,15 @@ export default function ImageUpload({ value, onChange, label = 'Imagem', accept 
     setUploading(true)
     setError('')
     try {
+      let finalFile = file;
+      
+      // Se for imagem e pesar mais que 1.5MB, comprimimos no client para não bater no 4.5MB limit da Vercel
+      if (file.type.startsWith('image/') && file.size > 1.5 * 1024 * 1024) {
+        finalFile = await compressImage(file)
+      }
+
       const form = new FormData()
-      form.append('file', file)
+      form.append('file', finalFile)
       const res = await fetch('/api/studio/upload', { method: 'POST', body: form })
       const data = await res.json()
       if (data.url) {
@@ -30,10 +37,47 @@ export default function ImageUpload({ value, onChange, label = 'Imagem', accept 
         setError(data.error ?? 'Erro no upload')
       }
     } catch {
-      setError('Erro ao enviar arquivo')
+      setError('Erro ao enviar arquivo. O arquivo pode ser muito pesado.')
     } finally {
       setUploading(false)
     }
+  }
+
+  function compressImage(file: File): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const img = new globalThis.Image()
+      img.src = URL.createObjectURL(file)
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+        
+        // Max dimensions (e.g. 1920x1080 -> scale down proportionally)
+        const MAX_SIZE = 1600
+        if (width > height && width > MAX_SIZE) {
+          height *= MAX_SIZE / width
+          width = MAX_SIZE
+        } else if (height > MAX_SIZE) {
+          width *= MAX_SIZE / height
+          height = MAX_SIZE
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(img, 0, 0, width, height)
+        
+        canvas.toBlob(blob => {
+          URL.revokeObjectURL(img.src)
+          if (blob) {
+            resolve(new File([blob], file.name, { type: 'image/jpeg' }))
+          } else {
+            resolve(file)
+          }
+        }, 'image/jpeg', 0.8)
+      }
+      img.onerror = () => resolve(file)
+    })
   }
 
   function handleDrop(e: React.DragEvent) {
