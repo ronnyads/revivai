@@ -529,7 +529,7 @@ export async function composeProductScene(params: {
   return publicUrl
 }
 
-// ── Lip Sync — SyncLabs via Replicate (async — usa webhook) ──────────────
+// ── Lip Sync — Fal AI (async — usa webhook) ──────────────
 export async function startLipsyncGeneration(params: {
   face_url:  string   // vídeo ou imagem do rosto
   audio_url: string
@@ -537,22 +537,34 @@ export async function startLipsyncGeneration(params: {
   userId:    string
   appUrl:    string
 }) {
-  const replicate  = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+  const falKey = process.env.FAL_KEY
+  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
 
-  const prediction = await replicate.predictions.create({
-    model: 'bytedance/latentsync',
-    input: {
-      video: params.face_url,
-      audio: params.audio_url,
+  const response = await fetch('https://queue.fal.run/fal-ai/latentsync', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${falKey}`,
+      'Content-Type': 'application/json',
     },
-    webhook: webhookUrl,
-    webhook_events_filter: ['completed'],
+    body: JSON.stringify({
+      video_url: params.face_url,
+      audio_url: params.audio_url,
+      webhookUrl: webhookUrl
+    })
   })
+
+  if (!response.ok) {
+    const err = await response.text()
+    throw new Error(`Fal AI erro: ${err}`)
+  }
+
+  const prediction = await response.json()
 
   const admin = createAdminClient()
   await admin.from('studio_assets')
-    .update({ input_params: { face_url: params.face_url, audio_url: params.audio_url, prediction_id: prediction.id } })
+    .update({ input_params: { face_url: params.face_url, audio_url: params.audio_url, prediction_id: prediction.request_id } })
     .eq('id', params.assetId)
 }
 

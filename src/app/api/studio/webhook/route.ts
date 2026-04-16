@@ -24,10 +24,12 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const { status, output, error: replicateError } = body
+  const { status, output, error: reqError, payload } = body
 
-  if (status === 'succeeded' && output) {
-    const videoUrl = Array.isArray(output) ? output[0] : output
+  // Replicate diz 'succeeded', Fal diz 'OK'
+  if ((status === 'succeeded' || status === 'OK') && (output || payload)) {
+    // Fal AI retorna a URL dentro do payload.video.url
+    const videoUrl = payload?.video?.url ?? (Array.isArray(output) ? output[0] : output)
 
     await admin.from('studio_assets').update({
       status: 'done',
@@ -47,10 +49,10 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[studio/webhook] Vídeo ${assetId} concluído: ${videoUrl}`)
-  } else if (status === 'failed' || status === 'canceled') {
+  } else if (status === 'failed' || status === 'canceled' || status === 'ERROR') {
     await admin.from('studio_assets').update({
       status: 'error',
-      error_msg: replicateError ? String(replicateError) : 'Geração de vídeo falhou',
+      error_msg: reqError ? String(reqError) : 'Geração de ativo falhou',
     }).eq('id', assetId)
   }
 
