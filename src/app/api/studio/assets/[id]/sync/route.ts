@@ -21,6 +21,22 @@ export async function POST(
   const { id } = await params
   const admin = createAdminClient()
 
+// Baixa url temporária e salva no Supabase Storage
+async function persistToStorage(admin: ReturnType<typeof createAdminClient>, url: string, userId: string, assetId: string): Promise<string> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return url
+    const buffer = Buffer.from(await res.arrayBuffer())
+    const path = `${userId}/${assetId}-result.mp4`
+    const { error } = await admin.storage.from('studio').upload(path, buffer, { contentType: 'video/mp4', upsert: true })
+    if (error) return url
+    const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+    return publicUrl
+  } catch {
+    return url
+  }
+}
+
   // Busca o asset com prediction_id
   const { data: asset } = await admin
     .from('studio_assets')
@@ -72,6 +88,8 @@ export async function POST(
       if (!videoUrl) {
          return NextResponse.json({ status: 'processing', message: 'Video URL pending in payload' })
       }
+
+      videoUrl = await persistToStorage(admin, videoUrl, user.id, id)
 
       await admin.from('studio_assets').update({
         status: 'done',

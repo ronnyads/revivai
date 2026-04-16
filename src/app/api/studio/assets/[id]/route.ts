@@ -22,6 +22,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   if (error || !asset) return NextResponse.json({ error: 'Asset não encontrado' }, { status: 404 })
 
+// Baixa url temporária e salva no Supabase Storage
+async function persistToStorage(admin: ReturnType<typeof createAdminClient>, url: string, userId: string, assetId: string): Promise<string> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return url
+    const buffer = Buffer.from(await res.arrayBuffer())
+    const path = `${userId}/${assetId}-result.mp4`
+    const { error } = await admin.storage.from('studio').upload(path, buffer, { contentType: 'video/mp4', upsert: true })
+    if (error) return url
+    const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+    return publicUrl
+  } catch {
+    return url
+  }
+}
+
   // Polling dinâmico: se estiver travado em processamento de lipsync, verificamos o provedor diretamente!
   if (asset.status === 'processing' && asset.type === 'lipsync' && (asset.input_params as Record<string, any>)?.prediction_id) {
     try {
@@ -51,6 +67,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
            }
            if (videoUrl) {
              const admin = createAdminClient()
+             videoUrl = await persistToStorage(admin, videoUrl, user.id, asset.id)
+
              await admin.from('studio_assets').update({
                status: 'done',
                result_url: videoUrl,
