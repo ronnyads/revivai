@@ -540,7 +540,7 @@ async function withReplicateRetry<T>(fn: () => Promise<T>, maxRetries = 3): Prom
   throw new Error('Max retries exceeded')
 }
 
-// ── Compose — FLUX Kontext: edita foto original, coloca produto na mão ─────────
+// ── Compose — Remoção de BG + Composição Perfeita (100% Original) ─────────
 export async function composeProductScene(params: {
   portrait_url:   string
   product_url:    string
@@ -550,57 +550,64 @@ export async function composeProductScene(params: {
   userId:         string
 }): Promise<string> {
   const admin  = createAdminClient()
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
+  const falKey = process.env.FAL_KEY
+  if (!falKey) throw new Error('FAL_KEY não configurada')
 
-  // 1. Baixa portrait e produto em paralelo
+  const sharp = (await import('sharp')).default
+
+  // 1. Remove background do produto usando FAL AI
+  const bgRes = await fetch('https://fal.run/fal-ai/bria/background-removal', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${falKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ image_url: params.product_url })
+  })
+
+  let transparentProductUrl = params.product_url
+  if (bgRes.ok) {
+    const bgData = await bgRes.json()
+    if (bgData.image?.url) transparentProductUrl = bgData.image.url
+  }
+
+  // 2. Baixa portrait e produto (agora com BG removido se funcionou) em paralelo
   const [portraitRes, productRes] = await Promise.all([
     fetch(params.portrait_url),
-    fetch(params.product_url),
+    fetch(transparentProductUrl),
   ])
   const [portraitBuf, productBuf] = await Promise.all([
     portraitRes.arrayBuffer().then(b => Buffer.from(b)),
     productRes.arrayBuffer().then(b => Buffer.from(b)),
   ])
 
-  // 2. GPT Image 1 — edição com as duas imagens como referência
-  //    Vê a modelo E o produto, gera composição natural com produto na mão
-  const formData = new FormData()
-  formData.append('model', 'gpt-image-1')
-  const composePrompt = await getStudioPrompt(
-    admin,
-    'compose_gpt_prompt',
-    'This person is naturally holding the product in their hand, as if showcasing it for a UGC advertisement. ' +
-    'The product must appear physically held — with realistic hand grip, natural shadows, and correct scale. ' +
-    'Keep the person exactly the same: same face, hair, skin tone, clothing, background, and lighting. ' +
-    'Keep the product exactly the same: same colors, text, logo, shape, packaging — do not alter the product in any way. ' +
-    'The result should look like a real photo of a real person holding the real product.',
-  )
-  formData.append('prompt', composePrompt)
-  formData.append('image[]', new Blob([portraitBuf], { type: 'image/jpeg' }), 'portrait.jpg')
-  formData.append('image[]', new Blob([productBuf],  { type: 'image/jpeg' }), 'product.jpg')
-  formData.append('size', '1024x1536')
-  formData.append('quality', 'high')
+  // 3. Processa e compõe usando sharp (Garante 100% de originalidade)
+  const portraitMeta = await sharp(portraitBuf).metadata()
+  const portraitWidth = portraitMeta.width ?? 1024
+  
+  // Escala produto: ex 0.35 da largura do portrait (ajustado para melhor proporção)
+  const scale = params.product_scale || 0.45
+  const productTargetWidth = Math.round(portraitWidth * scale)
 
-  const editRes = await fetch('https://api.openai.com/v1/images/edits', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: formData,
-  })
-  if (!editRes.ok) {
-    const err = await editRes.text()
-    throw new Error(`GPT Image 1 falhou: ${err.slice(0, 300)}`)
-  }
-  const editData = await editRes.json()
-  const b64 = editData.data?.[0]?.b64_json
-  if (!b64) throw new Error('GPT Image 1 não retornou imagem')
-  const imgBuffer = Buffer.from(b64, 'base64')
+  const resizedProductBuf = await sharp(productBuf)
+    .resize({ width: productTargetWidth, withoutEnlargement: true })
+    .toBuffer()
 
-  // 3. Upload resultado final
+  // Tratando posição para o sharp
+  let gravity = 'southeast'
+  if (params.position === 'south' || params.position?.includes('center')) gravity = 'south'
+  if (params.position === 'southwest') gravity = 'southwest'
+
+  const composedBuf = await sharp(portraitBuf)
+    .composite([{ input: resizedProductBuf, gravity }])
+    .jpeg({ quality: 95 })
+    .toBuffer()
+
+  // 4. Upload resultado final
   const path = `${params.userId}/compose-${params.assetId}.jpg`
   const { error: uploadErr } = await admin.storage
     .from('studio')
-    .upload(path, imgBuffer, { contentType: 'image/jpeg', upsert: true })
+    .upload(path, composedBuf, { contentType: 'image/jpeg', upsert: true })
   if (uploadErr) throw new Error(`Upload falhou: ${uploadErr.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
