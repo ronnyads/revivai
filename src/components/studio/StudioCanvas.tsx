@@ -89,7 +89,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [title,       setTitle]       = useState(project.title)
   const [editing,     setEditing]     = useState(false)
   const [showWizard, setShowWizard] = useState(false)
-  const pollingRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
+  const pollingRef        = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
+  const startPollingRef   = useRef<(id: string) => void>(() => {})
   
   // Lixeira para Ctrl+Z — conexões e soft-delete de assets
   const trashRef = useRef<{ connections: StudioConnection[] }>({ connections: [] })
@@ -146,17 +147,36 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   }, [])
 
   // ── Desfazer exclusão de card ────────────────────────────────────────────
-  const undoDeleteAsset = useCallback(() => {
+  const undoDeleteAsset = useCallback(async () => {
     const pending = pendingDeleteRef.current
     if (!pending) return
     clearTimeout(pending.timer)
     pendingDeleteRef.current = null
     setUndoToast(null)
+
+    let restored = pending.asset
+
+    // Se o card estava processando, re-busca o status atual do DB:
+    // o webhook pode ter completado durante os 8s de soft-delete.
+    if (pending.asset.status === 'processing' && !pending.asset.id.startsWith('temp-')) {
+      try {
+        const res = await fetch(`/api/studio/assets/${pending.asset.id}`)
+        if (res.ok) {
+          const { asset } = await res.json()
+          if (asset) restored = asset
+        }
+      } catch { /* usa o estado salvo se falhar */ }
+    }
+
     setAssets(prev => {
-      // Reinsere na posição original (por board_order)
-      const withoutDup = prev.filter(a => a.id !== pending.asset.id)
-      return [...withoutDup, pending.asset].sort((a, b) => a.board_order - b.board_order)
+      const withoutDup = prev.filter(a => a.id !== restored.id)
+      return [...withoutDup, restored].sort((a, b) => a.board_order - b.board_order)
     })
+
+    // Se ainda estiver processando, retoma o polling para atualizar quando concluir
+    if (restored.status === 'processing') {
+      startPollingRef.current(restored.id)
+    }
   }, [])
 
   // ── Callbacks passados para os nós ──────────────────────────────────────
@@ -228,6 +248,9 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     const timer = setTimeout(() => poll(0), 3000)
     pollingRef.current.set(assetId, timer as unknown as ReturnType<typeof setInterval>)
   }, [])
+
+  // Expõe startPolling via ref para que undoDeleteAsset possa usá-lo sem dep circular
+  startPollingRef.current = startPolling
 
   const handleGenerate = useCallback(async (type: AssetType, params: Record<string, unknown>, existingId: string) => {
     const isTemp = existingId.startsWith('temp-')
