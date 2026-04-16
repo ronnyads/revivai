@@ -541,7 +541,7 @@ export async function startLipsyncGeneration(params: {
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
 
   const prediction = await replicate.predictions.create({
-    model: 'lucataco/latentsync',
+    model: 'bytedance/latentsync',
     input: {
       video: params.face_url,
       audio: params.audio_url,
