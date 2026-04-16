@@ -90,6 +90,48 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [editing,     setEditing]     = useState(false)
   const [showWizard, setShowWizard] = useState(false)
   const pollingRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
+  
+  // Lixeira para Ctrl+Z (apenas conexões por enquanto, pois reviver assets reativa a IA)
+  const trashRef = useRef<{ connections: StudioConnection[] }>({ connections: [] })
+
+  // ── Atalhos de Teclado (Ctrl+Z e Ctrl+S) ────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignora se estiver digitando em um input
+      const isInput = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA'
+      
+      // Ctrl+S: Salvar / Renomear projeto
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        setEditing(true)
+      }
+
+      // Ctrl+Z: Desfazer exclusão de conexão
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !isInput) {
+        e.preventDefault()
+        const lastConn = trashRef.current.connections.pop()
+        if (lastConn) {
+          setConnections(prev => [...prev, lastConn])
+          if (!lastConn.id.startsWith('temp-')) {
+            // Recria no DB
+            fetch('/api/studio/connections', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project_id: lastConn.project_id,
+                source_id: lastConn.source_id,
+                target_id: lastConn.target_id,
+                source_handle: lastConn.source_handle,
+                target_handle: lastConn.target_handle
+              }),
+            })
+          }
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // ── Callbacks passados para os nós ──────────────────────────────────────
   const handleDelete = useCallback(async (id: string) => {
@@ -408,12 +450,15 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   // ── Deletar aresta ───────────────────────────────────────────────────────
   const onEdgesDelete = useCallback((deletedEdges: Edge[]) => {
     deletedEdges.forEach(async e => {
+      const connToDelete = connections.find(c => c.id === e.id)
+      if (connToDelete) trashRef.current.connections.push(connToDelete) // Salva para Ctrl+Z
+      
       setConnections(prev => prev.filter(c => c.id !== e.id))
       if (!e.id.startsWith('temp-')) {
         await fetch(`/api/studio/connections/${e.id}`, { method: 'DELETE' })
       }
     })
-  }, [])
+  }, [connections])
 
   // ── Adicionar card ───────────────────────────────────────────────────────
   function addCard(type: AssetType) {
@@ -578,12 +623,20 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           </Link>
           {editing ? (
             <div className="flex items-center gap-2">
-              <input value={title} onChange={e => setTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && saveTitle()} autoFocus className="bg-zinc-800 border border-accent rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none min-w-[200px]" />
-              <button onClick={saveTitle} className="text-accent hover:text-white"><Check size={16} /></button>
+              <input 
+                value={title} 
+                onChange={e => setTitle(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && saveTitle()} 
+                onBlur={saveTitle}
+                autoFocus 
+                className="bg-zinc-800 border border-accent rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none min-w-[200px]" 
+                placeholder="Nome do workflow..."
+              />
+              <button onMouseDown={e => { e.preventDefault(); saveTitle(); }} className="text-accent hover:text-white"><Check size={16} /></button>
             </div>
           ) : (
-            <button onClick={() => setEditing(true)} className="flex items-center gap-2 text-sm font-semibold text-white hover:text-accent transition-colors group truncate">
-              {title}
+            <button onClick={() => setEditing(true)} title="Clique ou Ctrl+S para renomear" className="flex items-center gap-2 text-sm font-semibold text-white hover:text-accent transition-colors group truncate">
+              {title || 'Projeto sem nome'}
               <Edit2 size={12} className="text-zinc-600 group-hover:text-accent shrink-0" />
             </button>
           )}
