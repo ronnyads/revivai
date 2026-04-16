@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const { data: asset, error } = await supabase
     .from('studio_assets')
-    .select('id, status, result_url, error_msg, input_params')
+    .select('id, status, result_url, error_msg, input_params, type, credits_cost')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
