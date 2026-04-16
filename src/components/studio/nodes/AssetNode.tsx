@@ -351,7 +351,7 @@ const LABELS: Partial<Record<AssetType, string>> = {
   caption: 'Whisper transcrevendo...',
   compose: 'Compondo cena...',
   render:  'Mesclando vídeo + áudio...',
-  lipsync: 'SyncLabs sincronizando lábios...',
+  lipsync: 'Fal AI sincronizando lábios...',
 }
 
 function ProcessingCard({ type, createdAt, assetId }: { type: AssetType; createdAt: string; assetId: string }) {
@@ -435,7 +435,7 @@ function ProcessingCard({ type, createdAt, assetId }: { type: AssetType; created
           >
             {syncing
               ? <><Loader2 size={10} className="animate-spin" /> Verificando...</>
-              : <><RotateCcw size={10} /> Verificar status no Replicate</>}
+              : <><RotateCcw size={10} /> Forçar atualização de status</>}
           </button>
           {syncMsg && (
             <p className="text-[10px] text-zinc-400 text-center">{syncMsg}</p>
