@@ -303,11 +303,18 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
   useEffect(() => {
     // Merge: mantém edges temp visuais + sincroniza as do banco
-    // Sem isso, setEdges(buildEdges(connections)) apagaria todas as temp-edges da campanha
+    // Deduplication por source+target+handle evita fios duplos quando temp vira UUID real
     setEdges(prev => {
       const dbEdges = buildEdges(connections)
-      const dbIds   = new Set(dbEdges.map(e => e.id))
-      const tempEdges = prev.filter(e => e.id.startsWith('temp-') && !dbIds.has(e.id))
+      const tempEdges = prev.filter(e => {
+        if (!e.id.startsWith('temp-')) return false
+        // Remove temp edge se já existe uma DB edge cobrindo a mesma conexão
+        return !dbEdges.some(de =>
+          de.source === e.source &&
+          de.target === e.target &&
+          de.targetHandle === e.targetHandle
+        )
+      })
       return [...dbEdges, ...tempEdges]
     })
   }, [connections]) // eslint-disable-line react-hooks/exhaustive-deps
