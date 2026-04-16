@@ -146,10 +146,17 @@ export async function POST(req: NextRequest) {
       const appUrl    = origin
         ? (origin.startsWith('http') ? origin : `https://${origin}`)
         : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
-      // Suporta continuação (video→video): usa continuation_frame como source se disponível
-      const sourceImageUrl = String(
-        input_params.continuation_frame ?? input_params.source_image_url ?? ''
-      )
+
+      // Resolução da imagem fonte:
+      // 1. continuation_frame (video→video) — mas só se NÃO for áudio
+      // 2. source_image_url (imagem normal)
+      // Áudio conectado ao campo "Continuar" por engano é ignorado silenciosamente
+      const AUDIO_EXTS = /\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i
+      const continuationFrame = String(input_params.continuation_frame ?? '')
+      const sourceImageUrl = (continuationFrame && !AUDIO_EXTS.test(continuationFrame))
+        ? continuationFrame
+        : String(input_params.source_image_url ?? '')
+
       await startVideoGeneration({
         source_image_url: sourceImageUrl,
         motion_prompt: String(input_params.motion_prompt ?? ''),
@@ -160,6 +167,7 @@ export async function POST(req: NextRequest) {
         appUrl,
       })
       return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
+
     } else if (type === 'animate') {
       const origin    = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
       const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
