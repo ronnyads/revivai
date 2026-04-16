@@ -655,17 +655,6 @@ export async function startLipsyncGeneration(params: {
     console.warn(`[lipsync] Re-upload Supabase falhou para ${params.assetId}:`, e)
   }
 
-  // 4. Salva resultado
-  await admin.from('studio_assets').update({
-    status: 'done',
-    result_url: videoUrl,
-    last_frame_url: videoUrl,
-  }).eq('id', params.assetId)
-
-  for (let i = 0; i < 3; i++) {
-    await admin.rpc('debit_credit', { user_id_param: params.userId })
-  }
-
   return videoUrl
 }
 
