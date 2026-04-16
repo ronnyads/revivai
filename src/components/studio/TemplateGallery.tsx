@@ -32,48 +32,63 @@ export interface WorkflowTemplate {
 }
 
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
-  // ── Template 1: Short de 30 Segundos ──────────────────────────────────────
+  // ── Template 1: Short de 60 Segundos ──────────────────────────────────────
   {
-    id: 'story_30s',
-    label: 'Série Viral (30s)',
-    description: 'Workflow completo: Rosto + 3 Cenas (10s cada) + Voz + Edição Final. Costura tudo no automático.',
+    id: 'story_60s',
+    label: 'Série Viral (60s)',
+    description: 'Workflow gigante: Rosto + 6 Cenas (10s cada) + Voz + Edição Final. Alto engajamento, renderiza um MP4 fechado.',
     icon: <Film size={20} />,
-    badge: '🎬 Mais popular',
+    badge: '🎬 Blockbuster',
     badgeColor: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
-    estimatedTime: '~15 min',
-    credits: 12,
+    estimatedTime: '~25 min',
+    credits: 24, // 6 params(img) = 6, 6 videos = 18, total ~24 + voz/script = 26
     nodes: [
-      // Coluna 0 — Rosto
+      // Coluna 0 — Rosto (Node 0)
       { type: 'face',   x: 60,   y: 100, params: { face_image_url: '' } },
-      // Coluna 1 — Script & Voice
+      // Coluna 1 — Script & Voice (Nodes 1, 2)
       { type: 'script', x: 460,  y: 100, params: { product: '', audience: '', format: 'reels', hook_style: 'problema', _placeholder: 'Descreva seu produto e público-alvo para a série...' } },
-      { type: 'voice',  x: 460,  y: 560, params: { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 } },
-      // Coluna 2 — 3 Cenas de Imagem
-      { type: 'image',  x: 860,  y: 100, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 1: O personagem aparece em um local incrível...' } },
-      { type: 'image',  x: 860,  y: 560, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 2: Perto do produto, expressão de surpresa...' } },
-      { type: 'image',  x: 860,  y: 1020, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 3: Fechamento, sorriso, chama para ação...' } },
-      // Coluna 3 — 3 Vídeos (um por cena)
-      { type: 'video',  x: 1260, y: 100,  params: { source_image_url: '', motion_prompt: 'câmera suave e natural, expressão animada', duration: 10 } },
-      { type: 'video',  x: 1260, y: 560,  params: { source_image_url: '', motion_prompt: 'zoom suave no produto, iluminação dramática', duration: 10 } },
-      { type: 'video',  x: 1260, y: 1020, params: { source_image_url: '', motion_prompt: 'personagem gesticula, aponta para câmera', duration: 10 } },
-      // Coluna 4 — Costura (Join)
-      { type: 'join',   x: 1660, y: 560,  params: { video_urls: [] } },
+      { type: 'voice',  x: 460,  y: 1020, params: { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 } },
+      // Coluna 2 — 6 Cenas de Imagem (Nodes 3 a 8)
+      { type: 'image',  x: 860,  y: 100,  params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 1: Introdução...' } },
+      { type: 'image',  x: 860,  y: 560,  params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 2: Ponto de dor...' } },
+      { type: 'image',  x: 860,  y: 1020, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 3: Virada...' } },
+      { type: 'image',  x: 860,  y: 1480, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 4: Apresentando solução...' } },
+      { type: 'image',  x: 860,  y: 1940, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 5: Benefício claro...' } },
+      { type: 'image',  x: 860,  y: 2400, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 6: Fechamento / Call To Action...' } },
+      // Coluna 3 — 6 Vídeos (Nodes 9 a 14)
+      { type: 'video',  x: 1260, y: 100,  params: { source_image_url: '', motion_prompt: 'câmera suave e natural', duration: 10 } },
+      { type: 'video',  x: 1260, y: 560,  params: { source_image_url: '', motion_prompt: 'zoom in no rosto', duration: 10 } },
+      { type: 'video',  x: 1260, y: 1020, params: { source_image_url: '', motion_prompt: 'gesticula levemente', duration: 10 } },
+      { type: 'video',  x: 1260, y: 1480, params: { source_image_url: '', motion_prompt: 'sorriso de confiança', duration: 10 } },
+      { type: 'video',  x: 1260, y: 1940, params: { source_image_url: '', motion_prompt: 'mostrando o ambiente ao redor', duration: 10 } },
+      { type: 'video',  x: 1260, y: 2400, params: { source_image_url: '', motion_prompt: 'apontando para baixo (clique no link)', duration: 10 } },
+      // Coluna 4 — Costura (Join) (Node 15)
+      { type: 'join',   x: 1660, y: 1020, params: { video_urls: [] } },
     ],
     edges: [
-      // Face → 3 imagens
+      // Face → 6 imagens
       { source: 0, target: 3, sourceHandle: 'output', targetHandle: 'source_face_url' },
       { source: 0, target: 4, sourceHandle: 'output', targetHandle: 'source_face_url' },
       { source: 0, target: 5, sourceHandle: 'output', targetHandle: 'source_face_url' },
+      { source: 0, target: 6, sourceHandle: 'output', targetHandle: 'source_face_url' },
+      { source: 0, target: 7, sourceHandle: 'output', targetHandle: 'source_face_url' },
+      { source: 0, target: 8, sourceHandle: 'output', targetHandle: 'source_face_url' },
       // Script → Voice
       { source: 1, target: 2, sourceHandle: 'output', targetHandle: 'script' },
       // Imagens → Vídeos
-      { source: 3, target: 6, sourceHandle: 'output', targetHandle: 'source_image_url' },
-      { source: 4, target: 7, sourceHandle: 'output', targetHandle: 'source_image_url' },
-      { source: 5, target: 8, sourceHandle: 'output', targetHandle: 'source_image_url' },
+      { source: 3, target: 9,  sourceHandle: 'output', targetHandle: 'source_image_url' },
+      { source: 4, target: 10, sourceHandle: 'output', targetHandle: 'source_image_url' },
+      { source: 5, target: 11, sourceHandle: 'output', targetHandle: 'source_image_url' },
+      { source: 6, target: 12, sourceHandle: 'output', targetHandle: 'source_image_url' },
+      { source: 7, target: 13, sourceHandle: 'output', targetHandle: 'source_image_url' },
+      { source: 8, target: 14, sourceHandle: 'output', targetHandle: 'source_image_url' },
       // Vídeos → Join
-      { source: 6, target: 9, sourceHandle: 'output', targetHandle: 'video_0' },
-      { source: 7, target: 9, sourceHandle: 'output', targetHandle: 'video_1' },
-      { source: 8, target: 9, sourceHandle: 'output', targetHandle: 'video_2' },
+      { source: 9,  target: 15, sourceHandle: 'output', targetHandle: 'video_0' },
+      { source: 10, target: 15, sourceHandle: 'output', targetHandle: 'video_1' },
+      { source: 11, target: 15, sourceHandle: 'output', targetHandle: 'video_2' },
+      { source: 12, target: 15, sourceHandle: 'output', targetHandle: 'video_3' },
+      { source: 13, target: 15, sourceHandle: 'output', targetHandle: 'video_4' },
+      { source: 14, target: 15, sourceHandle: 'output', targetHandle: 'video_5' },
     ],
   },
 
