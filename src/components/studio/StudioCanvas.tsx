@@ -306,10 +306,28 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     if (asset.status === 'processing') startPolling(asset.id)
   }, [assets, project.id, startPolling])
 
+  const handleDuplicate = useCallback((id: string) => {
+    const original = assets.find(a => a.id === id)
+    if (!original) return
+    const copy: StudioAsset = {
+      ...original,
+      id: `temp-${Date.now()}`,
+      status: 'idle',
+      result_url: null,
+      last_frame_url: null,
+      error_msg: null,
+      position_x: (original.position_x ?? 100) + 40,
+      position_y: (original.position_y ?? 100) + 40,
+      created_at: new Date().toISOString(),
+    }
+    setAssets(prev => [...prev, copy])
+  }, [assets])
+
   const nodeCallbacks: Omit<AssetNodeData, 'asset'> = {
     onDelete: handleDelete,
     onGenerate: handleGenerate,
     onUpdateParams: handleUpdateParams,
+    onDuplicate: handleDuplicate,
   }
 
   // ── React Flow state ─────────────────────────────────────────────────────

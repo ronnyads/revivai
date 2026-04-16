@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2 } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2, CopyPlus } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from '../ImageGenerator'
 import ScriptGenerator from '../ScriptGenerator'
@@ -60,14 +60,15 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
 
 export interface AssetNodeData {
   asset: StudioAsset
-  onDelete: (id: string) => void
-  onGenerate: (type: AssetType, params: Record<string, unknown>, existingId: string) => void
+  onDelete:       (id: string) => void
+  onGenerate:     (type: AssetType, params: Record<string, unknown>, existingId: string) => void
   onUpdateParams: (id: string, params: Record<string, unknown>) => void
+  onDuplicate:    (id: string) => void
   [key: string]: unknown
 }
 
 function AssetNode({ data }: NodeProps) {
-  const { asset, onDelete, onGenerate, onUpdateParams } = data as AssetNodeData
+  const { asset, onDelete, onGenerate, onUpdateParams, onDuplicate } = data as AssetNodeData
   const meta = TYPE_META[asset.type]
   const inputHandles = INPUT_HANDLES[asset.type] ?? []
   const [collapsed, setCollapsed] = useState(asset.status === 'done')
@@ -130,7 +131,10 @@ function AssetNode({ data }: NodeProps) {
         </button>
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded-full">{asset.credits_cost}cr</span>
-          <button onClick={() => onDelete(asset.id)} className="text-zinc-600 hover:text-red-400 transition-colors">
+          <button onClick={() => onDuplicate(asset.id)} title="Duplicar card" className="text-zinc-600 hover:text-zinc-300 transition-colors">
+            <CopyPlus size={13} />
+          </button>
+          <button onClick={() => onDelete(asset.id)} title="Deletar card" className="text-zinc-600 hover:text-red-400 transition-colors">
             <Trash2 size={13} />
           </button>
         </div>
