@@ -463,7 +463,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   return { url: publicUrl, text }
 }
 
-// ── Video — Kling AI via Replicate (async — usa webhook) ──────────────────
+// ── Video — Kling AI via Fal AI (async — usa webhook) ──────────────────
 export async function startVideoGeneration(params: {
   source_image_url: string
   motion_prompt: string
@@ -473,7 +473,8 @@ export async function startVideoGeneration(params: {
   appUrl: string
   userId: string
 }) {
-  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+  const falKey = process.env.FAL_KEY
+  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
 
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
 
@@ -483,22 +484,33 @@ export async function startVideoGeneration(params: {
     : ''
   const finalMotion = modelContext + (params.motion_prompt || 'smooth product showcase motion')
 
-  const prediction = await replicate.predictions.create({
-    model: 'kwaivgi/kling-v2.5-turbo-pro',
-    input: {
-      image:        params.source_image_url,
-      prompt:       finalMotion,
-      duration:     params.duration ?? 5,
-      aspect_ratio: '9:16',
+  const queueRes = await fetch('https://queue.fal.run/fal-ai/kling-video/v1.5/pro/image-to-video', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${falKey}`,
+      'Content-Type': 'application/json',
     },
-    webhook: webhookUrl,
-    webhook_events_filter: ['completed'],
+    body: JSON.stringify({
+      image_url: params.source_image_url,
+      prompt: finalMotion,
+      duration: '5',
+      aspect_ratio: '9:16',
+      webhook_url: webhookUrl,
+    }),
   })
 
-  // Salva prediction_id para permitir sync manual caso webhook falhe
+  if (!queueRes.ok) {
+    const err = await queueRes.text()
+    throw new Error(`Fal AI erro ao enfileirar vídeo Kling: ${err}`)
+  }
+
+  const { request_id } = await queueRes.json()
+  if (!request_id) throw new Error('Fal AI não retornou request_id para video')
+
+  // Salva prediction_id para permitir sync manual e rastreamento
   const admin = createAdminClient()
   await admin.from('studio_assets')
-    .update({ input_params: { prediction_id: prediction.id, source_image_url: params.source_image_url, motion_prompt: params.motion_prompt, duration: params.duration } })
+    .update({ input_params: { prediction_id: request_id, provider: 'fal', source_image_url: params.source_image_url, motion_prompt: params.motion_prompt, duration: params.duration } })
     .eq('id', params.assetId)
 }
 
@@ -509,30 +521,63 @@ export async function mergeVideoAudio(params: {
   assetId: string
   userId: string
 }) {
-  const admin = createAdminClient()
-  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+  const admin   = createAdminClient()
+  const os      = await import('os')
+  const path    = await import('path')
+  const fs      = await import('fs')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const ffmpegPath = require('ffmpeg-static') as string
+  const { default: ffmpeg } = await import('fluent-ffmpeg')
+  ffmpeg.setFfmpegPath(ffmpegPath)
 
-  const output = await replicate.run('nateraw/video-add-audio' as `${string}/${string}`, {
-    input: {
-      video: params.video_url,
-      audio: params.audio_url,
-    },
-  }) as string | { url: () => string }
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-merge-'))
+  const videoPath = path.join(tmpDir, 'video.mp4')
+  const audioPath = path.join(tmpDir, 'audio.mp3')
+  const outputPath = path.join(tmpDir, 'merged.mp4')
 
-  const outputUrl = typeof output === 'string' ? output : output.url()
-  if (!outputUrl) throw new Error('Merge não retornou URL')
+  try {
+    // Baixa o video e o audio originais
+    const [vidRes, audRes] = await Promise.all([
+      fetch(params.video_url),
+      fetch(params.audio_url),
+    ])
+    if (!vidRes.ok || !audRes.ok) throw new Error('Falha ao baixar media originais')
 
-  const renderRes = await fetch(outputUrl)
-  const buffer = Buffer.from(await renderRes.arrayBuffer())
-  const path = `${params.userId}/${params.assetId}-render.mp4`
+    fs.writeFileSync(videoPath, Buffer.from(await vidRes.arrayBuffer()))
+    fs.writeFileSync(audioPath, Buffer.from(await audRes.arrayBuffer()))
 
-  const { error } = await admin.storage
-    .from('studio')
-    .upload(path, buffer, { contentType: 'video/mp4', upsert: true })
-  if (error) throw new Error(`Upload render falhou: ${error.message}`)
+    // Executa merge super rapido (stream copy para video)
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg()
+        .input(videoPath)
+        .input(audioPath)
+        .outputOptions([
+          '-c:v', 'copy',       // copia stream original sem reencodar video
+          '-c:a', 'aac',        // encoder compatível pra audio
+          '-map', '0:v:0',      // pega o primeiro track de video
+          '-map', '1:a:0',      // pega o primeiro track de audio
+          '-shortest',          // acaba quando a variavel mais curta acabar
+        ])
+        .output(outputPath)
+        .on('end', () => resolve())
+        .on('error', (err: Error) => reject(new Error(`FFmpeg merge erro: ${err.message}`)))
+        .run()
+    })
 
-  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
-  return publicUrl
+    // Upload
+    const finalBuffer = fs.readFileSync(outputPath)
+    const storagePath = `${params.userId}/${params.assetId}-render.mp4`
+    const { error: uploadErr } = await admin.storage
+      .from('studio')
+      .upload(storagePath, finalBuffer, { contentType: 'video/mp4', upsert: true })
+    if (uploadErr) throw new Error(`Upload render falhou: ${uploadErr.message}`)
+
+    const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(storagePath)
+    return publicUrl
+
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ignora */ }
+  }
 }
 
 // Helper: executa fn com retry automático em caso de 429 (respeita retry_after)
