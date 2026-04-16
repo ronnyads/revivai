@@ -204,8 +204,10 @@ export async function POST(req: NextRequest) {
       resultUrl = await composeProductScene({
         portrait_url:  String(input_params.portrait_url   ?? ''),
         product_url:   String(input_params.product_url    ?? ''),
+        compose_mode:  String(input_params.compose_mode   ?? 'try-on'),
         position:      (input_params.position as any)     ?? 'southeast',
         product_scale: input_params.product_scale ? Number(input_params.product_scale) : 0.35,
+        vton_category: String(input_params.vton_category  ?? 'tops'),
         assetId: asset.id,
         userId:  user.id,
       })

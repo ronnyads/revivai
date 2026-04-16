@@ -605,30 +605,32 @@ export async function composeProductScene(params: {
       .toBuffer()
 
   } else {
-    // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) ----
-    const vtonRes = await fetch('https://fal.run/fal-ai/fashn/tryon', {
+    // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON ----
+    const vtonRes = await fetch('https://fal.run/fal-ai/idm-vton', {
       method: 'POST',
       headers: {
         'Authorization': `Key ${falKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model_image: params.portrait_url,
-        garment_image: params.product_url,
-        category: params.vton_category || 'tops',
+        human_image_url: params.portrait_url,
+        garment_image_url: params.product_url,
+        description: `Virtual try-on garment, category: ${params.vton_category || 'tops'}`
       })
     })
 
     if (!vtonRes.ok) {
       const err = await vtonRes.text()
-      throw new Error(`Fashn VTON falhou: ${err.slice(0, 300)}`)
+      const status = vtonRes.status
+      throw new Error(`IDM-VTON falhou (Status ${status}): ${err.slice(0, 400)}`)
     }
 
     const data = await vtonRes.json()
-    const vtonImageUrl = data.images?.[0]?.url || data.image?.url
-    if (!vtonImageUrl) throw new Error('Fashn VTON não retornou imagem válida.')
+    const vtonImageUrl = data.image?.url || data.images?.[0]?.url
+    if (!vtonImageUrl) throw new Error('IDM-VTON não retornou imagem válida.')
 
     const imgRes = await fetch(vtonImageUrl)
+    if (!imgRes.ok) throw new Error('Falha ao baixar imagem do IDM-VTON.')
     resultBuffer = Buffer.from(await imgRes.arrayBuffer())
   }
 
