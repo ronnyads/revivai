@@ -418,8 +418,8 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   const data = await res.json()
   const text: string = data.choices?.[0]?.message?.content?.trim() ?? ''
 
-  // Gera foto com FLUX 1.1 Pro via Replicate (muito mais fotorrealista que DALL-E)
-  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+  const falKey = process.env.FAL_KEY
+  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
 
   const fluxSuffix = await getStudioPrompt(
     admin,
@@ -428,18 +428,29 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   )
   const fluxPrompt = `Candid portrait photo of a real person: ${text} ${fluxSuffix}`
 
-  const fluxOutput = await replicate.run('black-forest-labs/flux-1.1-pro', {
-    input: {
+  const imgRes = await fetch('https://fal.run/fal-ai/flux-pro/v1.1', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${falKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
       prompt: fluxPrompt,
       aspect_ratio: '9:16',
-      output_format: 'jpg',
-      output_quality: 90,
-      safety_tolerance: 3,
-    },
-  }) as string | { url: () => string }
+      output_format: 'jpeg',
+      safety_tolerance: '3',
+    }),
+  })
 
-  const tempUrl = typeof fluxOutput === 'string' ? fluxOutput : fluxOutput.url()
-  if (!tempUrl) throw new Error('FLUX não retornou URL para o modelo')
+  // Log error text se Fal falhar
+  if (!imgRes.ok) {
+    const errText = await imgRes.text()
+    throw new Error(`FLUX 1.1 Pro (Fal AI) Error: ${errText}`)
+  }
+
+  const imgData = await imgRes.json()
+  const tempUrl = imgData.images?.[0]?.url
+  if (!tempUrl) throw new Error('FLUX não retornou URL para o modelo na Fal AI')
 
   // Re-upload para bucket studio
   const photoBuffer = Buffer.from(await (await fetch(tempUrl)).arrayBuffer())
