@@ -32,6 +32,23 @@ export default async function BoardPage({ params }: Props) {
     .eq('project_id', projectId)
     .order('board_order', { ascending: true })
 
+  // Limpa assets "processing" há mais de 30 min (tentativas antigas falhas)
+  // Evita polling infinito no browser por assets zumbis
+  const staleThreshold = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  const staleIds = (assets ?? [])
+    .filter(a => a.status === 'processing' && a.created_at < staleThreshold)
+    .map(a => a.id)
+  if (staleIds.length > 0) {
+    await supabase
+      .from('studio_assets')
+      .update({ status: 'error', error_msg: 'Tempo limite excedido — tente novamente' })
+      .in('id', staleIds)
+    // Atualiza localmente para não enviar status errado ao canvas
+    ;(assets ?? []).forEach(a => {
+      if (staleIds.includes(a.id)) { a.status = 'error'; a.error_msg = 'Tempo limite excedido — tente novamente' }
+    })
+  }
+
   // Carrega conexões
   const { data: connections } = await supabase
     .from('studio_connections')
