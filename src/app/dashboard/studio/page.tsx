@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Plus, Megaphone, Trash2, Clock } from 'lucide-react'
 import { StudioProject } from '@/types'
 import NewProjectButton from '@/components/studio/NewProjectButton'
+import ProjectCard from '@/components/studio/ProjectCard'
 
 export default async function StudioPage() {
   const supabase = await createClient()
@@ -79,31 +80,12 @@ export default async function StudioPage() {
           <p className="text-xs text-zinc-500 uppercase tracking-widest mb-4 font-medium">Meus projetos</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {projects.map(project => (
-              <Link
+              <ProjectCard
                 key={project.id}
-                href={`/dashboard/studio/${project.id}`}
-                className="group block"
-              >
-                <div className={`${templateColors[project.template] ?? 'bg-zinc-800'} border border-zinc-700 rounded-2xl p-5 hover:border-accent/40 transition-all`}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="font-semibold text-white group-hover:text-accent transition-colors truncate max-w-[180px]">
-                        {project.title}
-                      </p>
-                      <p className="text-xs text-zinc-500 mt-0.5">
-                        {templateLabels[project.template] ?? project.template}
-                      </p>
-                    </div>
-                    <span className="text-xs text-zinc-500 bg-zinc-800/80 px-2 py-1 rounded-lg">
-                      {project.asset_count} cards
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-zinc-500">
-                    <Clock size={12} />
-                    {new Date(project.created_at).toLocaleDateString('pt-BR')}
-                  </div>
-                </div>
-              </Link>
+                project={project}
+                templateLabel={templateLabels[project.template] ?? project.template}
+                templateColor={templateColors[project.template] ?? 'bg-zinc-800'}
+              />
             ))}
           </div>
         </div>
