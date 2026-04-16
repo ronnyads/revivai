@@ -358,7 +358,7 @@ export default function CampaignWizard({ onConfirm, onClose, credits }: Props) {
                 </p>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
                   <span className="text-cyan-400 font-medium">Lip Sync automático:</span>{' '}
-                  Cada clipe recebe um card Lip Sync — SyncLabs sincroniza os lábios do modelo com a voz gerada em cada segmento.
+                  Cada clipe recebe um card Lip Sync — o Motor Neural de Sincronia mapeia os lábios do modelo com a voz gerada em cada segmento.
                 </p>
                 <p className="text-[10px] text-zinc-500">
                   Limite Reels: 6 clipes × 10s = 60s de conteúdo fluido e profissional.

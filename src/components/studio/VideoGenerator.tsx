@@ -67,7 +67,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
         />
       </div>
       <div className="bg-zinc-800/60 rounded-xl p-3 text-xs text-zinc-500">
-        Powered by <span className="text-white font-medium">Kling AI</span> — o melhor image-to-video do mercado.
+        Processamento Neural: <span className="text-white font-medium">Animador Max 2.5</span> — O melhor gerador de movimento do mercado.
         Geração leva 2–5 minutos.
       </div>
       <button

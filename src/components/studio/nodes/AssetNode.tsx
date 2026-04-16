@@ -341,17 +341,17 @@ const ESTIMATED: Partial<Record<AssetType, number>> = {
 }
 
 const LABELS: Partial<Record<AssetType, string>> = {
-  video:   'Kling AI gerando seu vídeo...',
-  animate: 'LivePortrait animando o modelo...',
-  model:   'FLUX gerando o modelo UGC...',
-  image:   'DALL-E gerando imagem...',
-  voice:   'ElevenLabs sintetizando voz...',
-  script:  'GPT-4o escrevendo script...',
-  upscale: 'Real-ESRGAN fazendo upscale...',
-  caption: 'Whisper transcrevendo...',
-  compose: 'Compondo cena...',
-  render:  'Mesclando vídeo + áudio...',
-  lipsync: 'Fal AI sincronizando lábios...',
+  video:   'Animador Neural gerando movimentos...',
+  animate: 'Reanimando características da modelo...',
+  model:   'Fotógrafo Virtual criando modelo UGC...',
+  image:   'Renderizando cena em alta definição...',
+  voice:   'Sintetizando locução humana natural...',
+  script:  'Roteirista de Alta Conversão redigindo...',
+  upscale: 'Elevando nitidez para Ultra Resolução...',
+  caption: 'Transcrevendo áudio em legendas dinâmicas...',
+  compose: 'Integrando seu produto ao ambiente...',
+  render:  'Processando corte final e áudio...',
+  lipsync: 'Motor de Mapeamento sincronizando lábios...',
 }
 
 function ProcessingCard({ type, createdAt, assetId }: { type: AssetType; createdAt: string; assetId: string }) {

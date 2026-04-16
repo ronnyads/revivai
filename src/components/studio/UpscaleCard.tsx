@@ -32,8 +32,8 @@ export default function UpscaleCard({ initial, onGenerate }: Props) {
         />
       </div>
       <div className="bg-zinc-800/60 rounded-xl p-3 text-xs text-zinc-500">
-        Powered by <span className="text-white font-medium">Real-ESRGAN</span> — ideal para transformar fotos antigas
-        em imagens de alta resolução para anúncios.
+        Processamento Neural: <span className="text-white font-medium">Ultra HD Enhancer</span> — transforma fotos antigas
+        em imagens nítidas para anúncios.
       </div>
       <button
         onClick={() => onGenerate({ source_url: sourceUrl, scale })}

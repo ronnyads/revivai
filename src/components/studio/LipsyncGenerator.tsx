@@ -77,7 +77,7 @@ export default function LipsyncGenerator({ initial, onGenerate }: Props) {
       <div className="flex items-start gap-2 bg-cyan-500/5 border border-cyan-500/20 rounded-xl p-2.5">
         <Info size={11} className="text-cyan-400 mt-0.5 shrink-0" />
         <p className="text-[10px] text-zinc-400 leading-relaxed">
-          <span className="text-cyan-300 font-medium">SyncLabs</span> sincroniza os lábios do vídeo com o áudio gerado. Leva ~1-2 min.
+          <span className="text-cyan-300 font-medium">Motor de Sincronia Neural</span> mapeia os movimentos dos lábios frame a frame com o áudio. Leva ~1-2 min.
         </p>
       </div>
 

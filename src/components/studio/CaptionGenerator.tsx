@@ -28,8 +28,7 @@ export default function CaptionGenerator({ initial, onGenerate }: Props) {
         preview={false}
       />
       <div className="bg-zinc-800/60 rounded-xl p-3 text-xs text-zinc-500">
-        Powered by <span className="text-white font-medium">Whisper</span> — transcrição em português com timestamps.
-        Gera arquivo <span className="text-white">.srt</span> pronto para importar no editor de vídeo.
+        Processamento Neural: <span className="text-white font-medium">Transcrição Dinâmica</span> — sincronia perfeita com timestamps. Gera arquivo <span className="text-white">.srt</span> pronto para importar no editor de vídeo.
       </div>
       <button
         onClick={() => onGenerate({ audio_url: audioUrl })}

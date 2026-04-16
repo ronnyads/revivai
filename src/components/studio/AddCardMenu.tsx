@@ -5,17 +5,17 @@ import { Plus, Image, Video, Mic, ZoomIn, FileText, Captions, X, User, Film, Spa
 import { AssetType } from '@/types'
 
 const TYPES: { type: AssetType; icon: React.ReactNode; label: string; desc: string; cost: number }[] = [
-  { type: 'model',   icon: <User size={18} />,        label: 'Modelo UGC',   desc: 'Persona visual com GPT-4o',    cost: 1 },
-  { type: 'script',  icon: <FileText size={18} />,    label: 'Script UGC',   desc: 'Texto viral com GPT-4o',       cost: 1 },
-  { type: 'image',   icon: <Image size={18} />,       label: 'Imagem',       desc: 'Foto de produto com DALL-E 3', cost: 1 },
-  { type: 'voice',   icon: <Mic size={18} />,         label: 'Voz',          desc: 'Locução com ElevenLabs',       cost: 1 },
-  { type: 'caption', icon: <Captions size={18} />,    label: 'Legenda',      desc: 'Legenda .srt com Whisper',     cost: 1 },
-  { type: 'upscale', icon: <ZoomIn size={18} />,      label: 'Upscale',      desc: 'Foto em HD com Real-ESRGAN',   cost: 1 },
-  { type: 'video',   icon: <Video size={18} />,       label: 'Vídeo',        desc: 'Vídeo UGC com Kling AI',       cost: 3 },
-  { type: 'render',  icon: <Film size={18} />,        label: 'Vídeo Final',  desc: 'Merge vídeo + voz em MP4',     cost: 1 },
-  { type: 'animate', icon: <Sparkles size={18} />,   label: 'Animar Modelo', desc: 'Seu rosto → persona via LivePortrait', cost: 3 },
-  { type: 'compose', icon: <Layers size={18} />,     label: 'Compor Cena',   desc: 'Produto real + modelo pixel-perfect', cost: 1 },
-  { type: 'lipsync', icon: <Wand2 size={18} />,     label: 'Lip Sync',      desc: 'Lábios sincronizados com áudio via SyncLabs', cost: 3 },
+  { type: 'model',   icon: <User size={18} />,        label: 'Modelo UGC',   desc: 'Persona visual realista com IA',    cost: 1 },
+  { type: 'script',  icon: <FileText size={18} />,    label: 'Script UGC',   desc: 'Texto viral otimizado pra conversão',       cost: 1 },
+  { type: 'image',   icon: <Image size={18} />,       label: 'Imagem',       desc: 'Foto premium de produto com IA', cost: 1 },
+  { type: 'voice',   icon: <Mic size={18} />,         label: 'Voz',          desc: 'Locução humana hiper-realista',       cost: 1 },
+  { type: 'caption', icon: <Captions size={18} />,    label: 'Legenda',      desc: 'Legendas dinâmicas sincronizadas',     cost: 1 },
+  { type: 'upscale', icon: <ZoomIn size={18} />,      label: 'Upscale',      desc: 'Restaurar foto para Ultra HD',   cost: 1 },
+  { type: 'video',   icon: <Video size={18} />,       label: 'Vídeo',        desc: 'Animador fluido de imagem para vídeo',       cost: 3 },
+  { type: 'render',  icon: <Film size={18} />,        label: 'Vídeo Final',  desc: 'Finalização cinematográfica',     cost: 1 },
+  { type: 'animate', icon: <Sparkles size={18} />,   label: 'Animar Modelo', desc: 'Transferir expressões faciais em tempo real', cost: 3 },
+  { type: 'compose', icon: <Layers size={18} />,     label: 'Compor Cena',   desc: 'Merge inteligente de modelo e produto', cost: 1 },
+  { type: 'lipsync', icon: <Wand2 size={18} />,     label: 'Lip Sync',      desc: 'Sincronia labial perfeita com áudio', cost: 3 },
 ]
 
 interface Props {
