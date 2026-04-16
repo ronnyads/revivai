@@ -151,11 +151,12 @@ export async function POST(req: NextRequest) {
         input_params.continuation_frame ?? input_params.source_image_url ?? ''
       )
 
-      // Valida que source_image_url é realmente uma imagem (não áudio/vídeo)
-      const AUDIO_VIDEO_EXTS = /\.(mp3|mp4|wav|ogg|m4a|aac|webm|mov|avi)$/i
-      if (!sourceImageUrl || AUDIO_VIDEO_EXTS.test(sourceImageUrl)) {
-        await admin.from('studio_assets').update({ status: 'error', error_msg: 'Conecte uma imagem no campo Vídeo/Rosto — o arquivo de áudio não é válido aqui.' }).eq('id', asset.id)
-        return NextResponse.json({ error: 'source_image_url deve ser uma imagem (jpg/png/webp)', asset: { ...asset, status: 'error' } }, { status: 422 })
+      // Rejeita apenas arquivos de ÁUDIO puro (mp3/wav/ogg/m4a/aac)
+      // MP4/MOV/WEBM são válidos para continuação video→video
+      const PURE_AUDIO_EXTS = /\.(mp3|wav|ogg|m4a|aac)$/i
+      if (sourceImageUrl && PURE_AUDIO_EXTS.test(sourceImageUrl)) {
+        await admin.from('studio_assets').update({ status: 'error', error_msg: 'Conecte uma imagem ou vídeo no campo Imagem/Continuar — não um áudio.' }).eq('id', asset.id)
+        return NextResponse.json({ error: 'source_image_url deve ser imagem ou vídeo, não áudio', asset: { ...asset, status: 'error' } }, { status: 422 })
       }
 
       await startVideoGeneration({
