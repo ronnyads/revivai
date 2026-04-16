@@ -642,43 +642,36 @@ export async function composeProductScene(params: {
       .toBuffer()
 
   } else {
-    // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON (Native Fetch) ----
-    
-    // Mapeia categorias do nosso UI (tops, bottoms, one-pieces) para as suportadas pelo IDM-VTON
-    let idmCategory = 'upper_body'
-    if (params.vton_category === 'bottoms') idmCategory = 'lower_body'
-    // ATENÇÃO: Nunca usar 'dresses' para ternos masculinos! O IDM-VTON força decotes femininos no VAE quando a categoria é dresses.
-    // Manteremos 'upper_body' mesmo para conjuntos, e o modelo vai usar a parte de cima principal, deixando o prompt cuidar da parte de baixo.
+    // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando OOT_Diffusion via Replicate ----
+    const replicateKey = process.env.REPLICATE_API_TOKEN
+    if (!replicateKey) throw new Error('REPLICATE_API_TOKEN não configurado')
 
-    // O prompt robusto foca em neutralidade de gênero e fechamento da roupa
-    const description = `virtual try on, formal ${params.vton_category || 'wear'}, fully covered chest, high buttoned up, no cleavage, masculine or gender-neutral cut, realistic fabric, complete clothing.`
+    const Replicate = (await import('replicate')).default
+    const replicate = new Replicate({ auth: replicateKey })
 
-    const vtonRes = await fetch('https://fal.run/fal-ai/idm-vton', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${falKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        human_image_url: params.portrait_url,
-        garment_image_url: params.product_url,
-        description: description,
-        category: idmCategory,
-      })
-    })
+    let ootCategory = 'Upper-body'
+    if (params.vton_category === 'bottoms') ootCategory = 'Lower-body'
+    if (params.vton_category === 'one-pieces') ootCategory = 'Dress'
 
-    if (!vtonRes.ok) {
-      const err = await vtonRes.text()
-      const status = vtonRes.status
-      throw new Error(`IDM-VTON falhou (Status ${status}): ${err.slice(0, 400)}`)
-    }
+    // OOTDiffusion lida com "open jackets" de forma muito mais decente e não cria decotes vazados.
+    const output: any = await replicate.run(
+      "viktorfa/oot_diffusion:9f8fa4af3c2e17637dbfbd0ccdc06584cddbbdaedfa8b0934cc2d1c68fce5649",
+      {
+        input: {
+          model_image: params.portrait_url,
+          garment_image: params.product_url,
+          category: ootCategory,
+          steps: 25,
+          guidance_scale: 2
+        }
+      }
+    )
 
-    const data = await vtonRes.json()
-    const vtonImageUrl = data.image?.url || data.images?.[0]?.url
-    if (!vtonImageUrl) throw new Error('IDM-VTON não retornou imagem válida.')
+    if (!output || !output[0]) throw new Error('OOTDiffusion não retornou imagem.')
+    const vtonImageUrl = typeof output[0] === 'string' ? output[0] : (output[0].url || output)
 
     const imgRes = await fetch(vtonImageUrl)
-    if (!imgRes.ok) throw new Error('Falha ao baixar imagem do IDM-VTON.')
+    if (!imgRes.ok) throw new Error('Falha ao baixar imagem do OOTDiffusion.')
     resultBuffer = Buffer.from(await imgRes.arrayBuffer())
   }
 
