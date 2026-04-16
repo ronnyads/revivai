@@ -322,36 +322,36 @@ export async function generateCaption(params: {
   return { url: publicUrl, srt }
 }
 
-// ── Upscale — Real-ESRGAN (inline polling) ────────────────────────────────
+// ── Upscale — Fal AI ESRGAN (synchronous) ────────────────────────────────
 export async function generateUpscale(params: {
   source_url: string
   scale: number
 }) {
-  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
-  const { getModelVersion } = await import('@/lib/replicate')
+  const falKey = process.env.FAL_KEY
+  if (!falKey) throw new Error('FAL_KEY não configurada')
 
-  const version = await getModelVersion(replicate, 'nightmareai/real-esrgan')
-  const prediction = await replicate.predictions.create({
-    version,
-    input: { image: params.source_url, scale: params.scale ?? 4, face_enhance: false },
+  const res = await fetch('https://fal.run/fal-ai/esrgan', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${falKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      image_url: params.source_url,
+      scale: params.scale ?? 4,
+    }),
   })
 
-  let result = prediction
-  const start = Date.now()
-  while (result.status !== 'succeeded' && result.status !== 'failed' && result.status !== 'canceled') {
-    if (Date.now() - start > 120_000) throw new Error('Timeout no upscale')
-    await new Promise(r => setTimeout(r, 2000))
-    result = await replicate.predictions.get(result.id)
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`ESRGAN (Fal AI) falhou: ${err}`)
   }
 
-  if (result.status !== 'succeeded' || !result.output) {
-    throw new Error(result.error ? String(result.error) : 'Real-ESRGAN falhou')
-  }
+  const data = await res.json()
+  const resultUrl = data.image?.url ?? data.images?.[0]?.url
+  if (!resultUrl) throw new Error('ESRGAN não retornou URL válida')
 
-  const output = result.output
-  const url = typeof output === 'string' ? output : Array.isArray(output) ? output[0] : null
-  if (!url) throw new Error('Real-ESRGAN retornou saída inválida')
-  return url as string
+  return resultUrl as string
 }
 
 // ── Model — GPT-4o gera descrição visual única para UGC ───────────────────
