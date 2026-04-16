@@ -41,6 +41,35 @@ export async function POST(
     return NextResponse.json({ status: asset.status, message: 'prediction_id não encontrado — aguarde o webhook' })
   }
 
+  if (asset.type === 'lipsync') {
+    const falKey = process.env.FAL_KEY
+    if (!falKey) return NextResponse.json({ status: 'error', error: 'FAL_KEY não configurada' })
+
+    const res = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predictionId}`, {
+      headers: { 'Authorization': `Key ${falKey}` }
+    })
+    const prediction = await res.json()
+
+    if (prediction.status === 'COMPLETED' || prediction.status === 'OK') {
+      const videoUrl = prediction.payload?.video?.url || prediction.output?.[0]
+      await admin.from('studio_assets').update({
+        status: 'done',
+        result_url: videoUrl,
+        last_frame_url: videoUrl,
+      }).eq('id', id)
+      return NextResponse.json({ status: 'done', result_url: videoUrl })
+    }
+
+    if (prediction.status === 'ERROR' || prediction.status === 'FAILED') {
+      const errorMsg = prediction.error ? String(prediction.error) : 'Geração falhou no Fal AI'
+      await admin.from('studio_assets').update({ status: 'error', error_msg: errorMsg }).eq('id', id)
+      return NextResponse.json({ status: 'error', error: errorMsg })
+    }
+
+    return NextResponse.json({ status: prediction.status || 'processing' })
+  }
+
+  // Fallback: Replicate logic for other assets
   const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
   const prediction = await replicate.predictions.get(predictionId)
 
@@ -66,6 +95,5 @@ export async function POST(
     return NextResponse.json({ status: 'error', error: errorMsg })
   }
 
-  // Ainda processando
   return NextResponse.json({ status: prediction.status })
 }
