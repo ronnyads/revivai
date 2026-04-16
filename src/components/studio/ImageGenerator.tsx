@@ -70,11 +70,19 @@ export default function ImageGenerator({ initial, onGenerate }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      {!!initial.model_prompt && (
-        <div className="flex items-center gap-1.5 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 px-2.5 py-1.5 rounded-xl">
-          <User size={11} /> Modelo conectado
-        </div>
-      )}
+      {/* Indicadores de conexão */}
+      <div className="flex flex-wrap gap-2">
+        {!!initial.model_prompt && (
+          <div className="flex items-center gap-1.5 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 px-2.5 py-1.5 rounded-xl">
+            <User size={11} /> Modelo conectado
+          </div>
+        )}
+        {!!initial.source_face_url && (
+          <div className="flex items-center gap-1.5 text-[11px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 px-2.5 py-1.5 rounded-xl">
+            <User size={11} /> Rosto Real conectado
+          </div>
+        )}
+      </div>
 
       {/* Preset selector */}
       <div>

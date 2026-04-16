@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2 } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2, User } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from './ImageGenerator'
 import ScriptGenerator from './ScriptGenerator'
@@ -9,8 +9,10 @@ import VoiceGenerator from './VoiceGenerator'
 import VideoGenerator from './VideoGenerator'
 import CaptionGenerator from './CaptionGenerator'
 import UpscaleCard from './UpscaleCard'
+import FaceGenerator from './FaceGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string }> = {
+  face:    { icon: <User size={15} />,     label: 'Rosto Real',  color: 'text-indigo-400' },
   model:   { icon: <FileText size={15} />, label: 'Modelo UGC',  color: 'text-indigo-400' },
   render:  { icon: <Video size={15} />,    label: 'Vídeo Final', color: 'text-rose-400'   },
   image:   { icon: <Image size={15} />,    label: 'Imagem',      color: 'text-violet-400' },
@@ -26,6 +28,9 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
 
 // Mapeamento: tipo de origem → ações "Usar em..."
 const USE_AS_ACTIONS: Partial<Record<AssetType, Array<{ targetType: AssetType; label: string; getParams: (asset: StudioAsset) => Record<string, unknown> }>>> = {
+  face: [
+    { targetType: 'image',   label: 'Usar Rosto na Cena', getParams: a => ({ model_prompt: '', source_face_url: a.result_url }) },
+  ],
   image: [
     { targetType: 'video',   label: 'Usar no Vídeo',   getParams: a => ({ source_image_url: a.result_url, motion_prompt: '', duration: 5 }) },
     { targetType: 'upscale', label: 'Fazer Upscale',   getParams: a => ({ source_url: a.result_url, scale: 4 }) },
@@ -176,7 +181,7 @@ export default function AssetCard({ asset, stepNumber, onDelete, onRetry, onGene
 
 // ── Result preview by type ─────────────────────────────────────────────────
 function ResultPreview({ type, url, params }: { type: AssetType; url: string; params: Record<string, unknown> }) {
-  if (type === 'image' || type === 'upscale') {
+  if (type === 'image' || type === 'upscale' || type === 'face') {
     return <img src={url} alt="Resultado" className="w-full rounded-xl object-cover max-h-64" />
   }
   if (type === 'video') {
@@ -250,6 +255,7 @@ function FormForType({ type, initialParams, onGenerate }: {
   initialParams: Record<string, unknown>
   onGenerate: (params: Record<string, unknown>) => void
 }) {
+  if (type === 'face')    return <FaceGenerator    initial={initialParams} onGenerate={onGenerate} />
   if (type === 'image')   return <ImageGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'script')  return <ScriptGenerator  initial={initialParams} onGenerate={onGenerate} />
   if (type === 'voice')   return <VoiceGenerator   initial={initialParams} onGenerate={onGenerate} />

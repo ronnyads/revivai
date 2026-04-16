@@ -93,6 +93,7 @@ export async function POST(req: NextRequest) {
         style: String(input_params.style ?? 'ugc'),
         aspect_ratio: String(input_params.aspect_ratio ?? '1:1'),
         model_prompt: input_params.model_prompt ? String(input_params.model_prompt) : undefined,
+        source_face_url: input_params.source_face_url ? String(input_params.source_face_url) : undefined,
         assetId: asset.id,
         userId: user.id,
       })
@@ -215,6 +216,8 @@ export async function POST(req: NextRequest) {
         assetId: asset.id,
         userId: user.id,
       })
+    } else if (type === 'face') {
+      resultUrl = String(input_params.face_image_url ?? '')
     }
 
     // Operações síncronas — atualiza resultado e debita custo real

@@ -17,6 +17,7 @@ import ComposeCard from '../ComposeCard'
 import LipsyncGenerator from '../LipsyncGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string; hint: string; output: string }> = {
+  face:    { icon: <User size={14} />,     label: 'Rosto Real (Upload)', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Faça upload de uma foto', output: 'Foto salva →' },
   model:   { icon: <User size={14} />,     label: 'Modelo UGC',  color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Gera foto do modelo', output: 'Foto do modelo →' },
   image:   { icon: <Image size={14} />,    label: 'Imagem',      color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30', hint: 'Gera imagem com IA', output: 'Imagem gerada →' },
   video:   { icon: <Video size={14} />,    label: 'Vídeo',       color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/30',   hint: '← Conecte imagem + áudio', output: 'Vídeo animado →' },
@@ -30,9 +31,11 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   lipsync: { icon: <Wand2 size={14} />,    label: 'Lip Sync',    color: 'text-cyan-400',    bg: 'bg-cyan-500/10 border-cyan-500/30',        hint: '← Conecte Vídeo + Voz', output: 'Vídeo sincronizado →' },
 }
 
-// Handles de entrada por tipo de nó
 const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string }>>> = {
-  image:   [{ id: 'model_prompt',      label: 'Modelo'    }],
+  image:   [
+    { id: 'model_prompt',      label: 'Modelo'    },
+    { id: 'source_face_url',   label: 'Rosto'     }
+  ],
   video:   [
     { id: 'source_image_url',   label: 'Imagem'    },
     { id: 'continuation_frame', label: 'Continuar' },

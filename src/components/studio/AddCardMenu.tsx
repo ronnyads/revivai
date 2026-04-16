@@ -10,6 +10,7 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
   {
     label: 'CRIAR',
     items: [
+      { type: 'face',    icon: <User size={18} />,     label: 'Rosto Real (Upload)',desc: 'Traga um rosto real ou personagem',        cost: 0 },
       { type: 'model',   icon: <User size={18} />,     label: 'Modelo UGC',        desc: 'Persona visual realista com IA',           cost: 1 },
       { type: 'script',  icon: <FileText size={18} />, label: 'Script UGC',         desc: 'Texto viral otimizado pra conversão',      cost: 1 },
       { type: 'image',   icon: <Image size={18} />,    label: 'Imagem',             desc: 'Foto premium de produto com IA',          cost: 1 },

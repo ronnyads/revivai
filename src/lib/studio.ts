@@ -15,6 +15,7 @@ export const CREDIT_COST: Record<AssetType, number> = {
   animate: 3,
   compose: 1,
   lipsync: 3,
+  face:    0,
 }
 
 // ── Prompt helper — lê da tabela studio_prompts, usa fallback hardcoded ─────
@@ -41,6 +42,7 @@ export async function generateImage(params: {
   style: string
   aspect_ratio: string
   model_prompt?: string
+  source_face_url?: string
   assetId: string
   userId: string
 }) {
@@ -68,28 +70,67 @@ export async function generateImage(params: {
     ? `${params.model_prompt}. ${stylePrefix}${params.prompt}`
     : stylePrefix + params.prompt
 
-  const res = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: 'dall-e-3',
-      prompt: finalPrompt,
-      size,
-      quality: 'standard',
-      n: 1,
-    }),
-  })
+  let tempUrl = ''
 
-  if (!res.ok) {
-    const err = await res.json()
-    throw new Error(`DALL-E erro: ${err.error?.message ?? res.status}`)
+  if (params.source_face_url) {
+    const falKey = process.env.FAL_KEY
+    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+
+    const sizeMap: Record<string, string> = {
+      '1:1':  'square_hd',
+      '16:9': 'landscape_16_9',
+      '9:16': 'portrait_16_9',
+    }
+    const image_size = sizeMap[params.aspect_ratio] ?? 'square_hd'
+
+    const res = await fetch('https://fal.run/fal-ai/flux-pulid', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: finalPrompt,
+        reference_images: [{ image_url: params.source_face_url }],
+        image_size: image_size,
+        num_images: 1,
+        enable_safety_checker: true,
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Fal AI erro (PuLID): ${err}`)
+    }
+
+    const data = await res.json()
+    tempUrl = data.images?.[0]?.url
+    if (!tempUrl) throw new Error('Fal AI não retornou URL')
+  } else {
+    // Fallback normal — DALL-E 3
+    const res = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'dall-e-3',
+        prompt: finalPrompt,
+        size,
+        quality: 'standard',
+        n: 1,
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(`DALL-E erro: ${err.error?.message ?? res.status}`)
+    }
+
+    const data = await res.json()
+    tempUrl = data.data?.[0]?.url
+    if (!tempUrl) throw new Error('DALL-E não retornou URL')
   }
 
-  const data = await res.json()
-  const tempUrl = data.data?.[0]?.url
-  if (!tempUrl) throw new Error('DALL-E não retornou URL')
-
-  // Re-upload para bucket studio (URLs OpenAI expiram em 1h)
+  // Re-upload para bucket studio (URLs OpenAI/Fal expiram)
   const imgRes = await fetch(tempUrl)
   const buffer = Buffer.from(await imgRes.arrayBuffer())
   const path = `${params.userId}/${params.assetId}.jpg`
