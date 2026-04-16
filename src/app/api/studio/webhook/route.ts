@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/studio/webhook?assetId=&userId=
-   Replicate callback para vídeo Kling AI
+   Callback do Replicate (vídeo Kling) — idempotente
 ───────────────────────────────────────────────────────────────────────────── */
 export async function POST(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'assetId e userId obrigatórios' }, { status: 400 })
   }
 
-  let body: any
+  let body: Record<string, unknown>
   try {
     body = await req.json()
   } catch {
@@ -24,12 +24,24 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const { status, output, error: reqError, payload } = body
 
-  // Replicate diz 'succeeded', Fal diz 'OK'
-  if ((status === 'succeeded' || status === 'OK') && (output || payload)) {
-    // Fal AI retorna a URL dentro do payload.video.url
-    const videoUrl = payload?.video?.url ?? (Array.isArray(output) ? output[0] : output)
+  // ── Idempotência: se já está 'done', ignora retry do provider ──
+  const { data: current } = await admin
+    .from('studio_assets')
+    .select('status, credits_cost')
+    .eq('id', assetId)
+    .single()
+
+  if (current?.status === 'done') {
+    console.log(`[studio/webhook] Asset ${assetId} já concluído — ignorando retry`)
+    return NextResponse.json({ ok: true })
+  }
+
+  const { status, output, error: reqError } = body
+
+  // Replicate: status 'succeeded'
+  if (status === 'succeeded' && output) {
+    const videoUrl = Array.isArray(output) ? (output as string[])[0] : output as string
 
     await admin.from('studio_assets').update({
       status: 'done',
@@ -37,23 +49,20 @@ export async function POST(req: NextRequest) {
       last_frame_url: videoUrl,
     }).eq('id', assetId)
 
-    // Debita créditos dinamicamente usando credits_cost do asset
-    const { data: assetData } = await admin
-      .from('studio_assets')
-      .select('credits_cost')
-      .eq('id', assetId)
-      .single()
-    const cost = assetData?.credits_cost ?? 3
+    // Debita créditos apenas uma vez (idempotência garantida acima)
+    const cost = current?.credits_cost ?? 3
     for (let i = 0; i < cost; i++) {
       await admin.rpc('debit_credit', { user_id_param: userId })
     }
 
-    console.log(`[studio/webhook] Vídeo ${assetId} concluído: ${videoUrl}`)
-  } else if (status === 'failed' || status === 'canceled' || status === 'ERROR') {
+    console.log(`[studio/webhook] ✅ Vídeo ${assetId} concluído: ${videoUrl}`)
+  } else if (status === 'failed' || status === 'canceled') {
     await admin.from('studio_assets').update({
       status: 'error',
-      error_msg: reqError ? String(reqError) : 'Geração de ativo falhou',
+      error_msg: reqError ? String(reqError) : 'Geração falhou no provedor',
     }).eq('id', assetId)
+
+    console.log(`[studio/webhook] ❌ Asset ${assetId} falhou: ${reqError}`)
   }
 
   return NextResponse.json({ ok: true })

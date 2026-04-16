@@ -167,14 +167,14 @@ export async function POST(req: NextRequest) {
       const appUrl    = origin
         ? (origin.startsWith('http') ? origin : `https://${origin}`)
         : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
-      await startAnimateGeneration({
+      // startAnimateGeneration agora é síncrono (Fal AI) — retorna URL diretamente
+      resultUrl = await startAnimateGeneration({
         portrait_image_url: String(input_params.portrait_image_url ?? ''),
         driving_video_url:  String(input_params.driving_video_url  ?? ''),
         assetId: asset.id,
         userId: user.id,
         appUrl,
       })
-      return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
     } else if (type === 'lipsync') {
       const origin    = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
       const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null

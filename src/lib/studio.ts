@@ -613,7 +613,7 @@ export async function startLipsyncGeneration(params: {
   return videoUrl
 }
 
-// ── Animate — LivePortrait via Replicate (async — usa webhook) ────────────
+// ── Animate — Fal AI live-portrait (síncrono — mesma estratégia do Lip Sync) ─
 export async function startAnimateGeneration(params: {
   portrait_image_url: string
   driving_video_url: string
@@ -621,20 +621,72 @@ export async function startAnimateGeneration(params: {
   appUrl: string
   userId: string
 }) {
-  const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
+  const falKey = process.env.FAL_KEY
+  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
 
-  const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
+  const admin = createAdminClient()
 
-  // svjack/live-portrait é o modelo ativo que substitui fofr/live-portrait (removido)
-  await replicate.predictions.create({
-    model: 'fofr/live-portrait',
-    version: 'a63d25e17e4d684e4f5af21e5fa6a20a1d6af26543154bda9e97aa80c6c7eb22',
-    input: {
-      image:         params.portrait_image_url,
-      video:         params.driving_video_url,
-      output_format: 'mp4',
+  // 1. Envia o job para a Fal AI
+  const queueRes = await fetch('https://queue.fal.run/fal-ai/live-portrait', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${falKey}`,
+      'Content-Type': 'application/json',
     },
-    webhook: webhookUrl,
-    webhook_events_filter: ['completed'],
+    body: JSON.stringify({
+      image_url:  params.portrait_image_url,
+      video_url:  params.driving_video_url,
+    })
   })
+
+  if (!queueRes.ok) {
+    const err = await queueRes.text()
+    throw new Error(`Fal AI (animate) erro: ${err}`)
+  }
+
+  const { request_id } = await queueRes.json()
+  if (!request_id) throw new Error('Fal AI não retornou request_id para animate')
+
+  // 2. Polling síncrono — até 240s
+  const statusUrl = `https://queue.fal.run/fal-ai/live-portrait/requests/${request_id}`
+  const deadline = Date.now() + 240_000
+  let videoUrl: string | null = null
+
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 5000))
+
+    const statusRes = await fetch(statusUrl, {
+      headers: { 'Authorization': `Key ${falKey}` }
+    })
+    const status = await statusRes.json()
+
+    if (status.status === 'COMPLETED') {
+      const resultRes = await fetch(`${statusUrl}/output`, {
+        headers: { 'Authorization': `Key ${falKey}` }
+      })
+      const result = await resultRes.json()
+      videoUrl = result.video?.url ?? result.output?.[0] ?? null
+      break
+    }
+
+    if (status.status === 'ERROR' || status.status === 'FAILED') {
+      throw new Error(`Fal AI (animate) falhou: ${status.error ?? 'erro desconhecido'}`)
+    }
+  }
+
+  if (!videoUrl) throw new Error('Fal AI (animate): timeout aguardando resultado')
+
+  // 3. Salva resultado
+  await admin.from('studio_assets').update({
+    status: 'done',
+    result_url: videoUrl,
+    last_frame_url: videoUrl,
+  }).eq('id', params.assetId)
+
+  for (let i = 0; i < 3; i++) {
+    await admin.rpc('debit_credit', { user_id_param: params.userId })
+  }
+
+  return videoUrl
 }
+

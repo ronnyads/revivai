@@ -105,24 +105,38 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
   const startPolling = useCallback((assetId: string) => {
     if (pollingRef.current.has(assetId)) return
-    const stopPolling = () => {
-      clearInterval(pollingRef.current.get(assetId))
-      pollingRef.current.delete(assetId)
-    }
-    const interval = setInterval(async () => {
+
+    // Marca como em polling com um sentinel value
+    pollingRef.current.set(assetId, undefined as unknown as ReturnType<typeof setInterval>)
+
+    const stopPolling = () => { pollingRef.current.delete(assetId) }
+
+    // Fibonacci backoff: 3s → 5s → 8s → 13s → 21s → 30s (max)
+    const fibonacci = [3000, 5000, 8000, 13000, 21000, 30000]
+
+    const poll = async (attempt: number) => {
+      if (!pollingRef.current.has(assetId)) return // foi parado externamente
       try {
         const res = await fetch(`/api/studio/assets/${assetId}`)
-        // 404 = asset foi deletado/substituído — para de fazer poll
-        if (!res.ok) { stopPolling(); return }
+        if (!res.ok) { stopPolling(); return } // 404 = asset deletado
         const { asset } = await res.json()
         if (!asset) { stopPolling(); return }
         if (asset.status === 'done' || asset.status === 'error') {
           stopPolling()
           setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...asset } : a))
+          return
         }
-      } catch { /* rede — tenta de novo no próximo tick */ }
-    }, 3000)
-    pollingRef.current.set(assetId, interval)
+      } catch { /* rede — tenta de novo */ }
+
+      // Agenda próxima tentativa com backoff
+      const delay = fibonacci[Math.min(attempt, fibonacci.length - 1)]
+      const timer = setTimeout(() => poll(attempt + 1), delay)
+      pollingRef.current.set(assetId, timer as unknown as ReturnType<typeof setInterval>)
+    }
+
+    // Primeira tentativa após 3s
+    const timer = setTimeout(() => poll(0), 3000)
+    pollingRef.current.set(assetId, timer as unknown as ReturnType<typeof setInterval>)
   }, [])
 
   const handleGenerate = useCallback(async (type: AssetType, params: Record<string, unknown>, existingId: string) => {
