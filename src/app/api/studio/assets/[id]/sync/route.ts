@@ -51,7 +51,14 @@ export async function POST(
     const prediction = await res.json()
 
     if (prediction.status === 'COMPLETED' || prediction.status === 'OK') {
-      const videoUrl = prediction.payload?.video?.url || prediction.output?.[0]
+      let videoUrl = prediction.payload?.video?.url || prediction.output?.[0]
+      if (!videoUrl && prediction.response_url) {
+        // Fal queue retorna response_url
+        const resultRes = await fetch(prediction.response_url, { headers: { 'Authorization': `Key ${falKey}` } })
+        const resultPayload = await resultRes.json()
+        videoUrl = resultPayload.video?.url || resultPayload.output?.[0]
+      }
+      
       await admin.from('studio_assets').update({
         status: 'done',
         result_url: videoUrl,
