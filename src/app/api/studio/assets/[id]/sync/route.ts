@@ -45,52 +45,50 @@ export async function POST(
     const falKey = process.env.FAL_KEY
     if (!falKey) return NextResponse.json({ status: 'error', error: 'FAL_KEY não configurada' })
 
-    const res = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predictionId}`, {
+    const res = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predictionId}/status`, {
       headers: { 'Authorization': `Key ${falKey}` }
     })
-    const prediction = await res.json()
+    const statusJson = await res.json()
 
-    if (prediction.status === 'COMPLETED' || prediction.status === 'OK') {
-      // output pode vir em diferentes campos dependendo da versão da API
-      let videoUrl: string | null =
-        prediction.output?.video?.url
-        ?? prediction.output?.video_url
-        ?? prediction.output?.[0]
-        ?? prediction.payload?.video?.url
-        ?? null
+    if (statusJson.status === 'COMPLETED' || statusJson.status === 'OK') {
+      let videoUrl: string | null = null
+      
+      const outRes = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predictionId}`, {
+        headers: { 'Authorization': `Key ${falKey}` }
+      })
+      if (outRes.ok) {
+        const out = await outRes.json()
+        videoUrl = out.video?.url ?? out.video_url ?? out.output?.[0] ?? out.payload?.video?.url ?? null
+      }
 
-      if (!videoUrl) {
-        // Fal queue: busca via /output endpoint
-        const outRes = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predictionId}/output`, {
-          headers: { 'Authorization': `Key ${falKey}` }
-        })
-        if (outRes.ok) {
-          const out = await outRes.json()
-          videoUrl = out.video?.url ?? out.video_url ?? out.output?.[0] ?? null
+      if (!videoUrl && statusJson.response_url) {
+        const resultRes = await fetch(statusJson.response_url, { headers: { 'Authorization': `Key ${falKey}` } })
+        if (resultRes.ok) {
+          const resultPayload = await resultRes.json()
+          videoUrl = resultPayload.video?.url ?? resultPayload.video_url ?? resultPayload.output?.[0] ?? resultPayload.payload?.video?.url ?? null
         }
       }
-
-      if (!videoUrl && prediction.response_url) {
-        const resultRes = await fetch(prediction.response_url, { headers: { 'Authorization': `Key ${falKey}` } })
-        const resultPayload = await resultRes.json()
-        videoUrl = resultPayload.video?.url ?? resultPayload.video_url ?? resultPayload.output?.[0] ?? null
-      }
       
+      if (!videoUrl) {
+         return NextResponse.json({ status: 'processing', message: 'Video URL pending in payload' })
+      }
+
       await admin.from('studio_assets').update({
         status: 'done',
         result_url: videoUrl,
         last_frame_url: videoUrl,
+        error_msg: null
       }).eq('id', id)
       return NextResponse.json({ status: 'done', result_url: videoUrl })
     }
 
-    if (prediction.status === 'ERROR' || prediction.status === 'FAILED') {
-      const errorMsg = prediction.error ? String(prediction.error) : 'Geração falhou no Fal AI'
+    if (statusJson.status === 'ERROR' || statusJson.status === 'FAILED') {
+      const errorMsg = statusJson.error ? String(statusJson.error) : 'Geração falhou no Fal AI'
       await admin.from('studio_assets').update({ status: 'error', error_msg: errorMsg }).eq('id', id)
       return NextResponse.json({ status: 'error', error: errorMsg })
     }
 
-    return NextResponse.json({ status: prediction.status || 'processing' })
+    return NextResponse.json({ status: statusJson.status || 'processing' })
   }
 
   // Fallback: Replicate logic for other assets

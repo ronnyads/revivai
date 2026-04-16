@@ -26,18 +26,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (asset.status === 'processing' && asset.type === 'lipsync' && (asset.input_params as Record<string, any>)?.prediction_id) {
     try {
       const predId = (asset.input_params as Record<string, any>).prediction_id
-      const res = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predId}`, {
+      const res = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predId}/status`, {
         headers: { 'Authorization': `Key ${process.env.FAL_KEY}` }
       })
       if (res.ok) {
-        const prediction = await res.json()
-        if (prediction.status === 'COMPLETED' || prediction.status === 'OK') {
-           let videoUrl = prediction.output?.video?.url ?? prediction.output?.video_url ?? prediction.output?.[0] ?? prediction.payload?.video?.url
-           if (!videoUrl && prediction.response_url) {
-              const outRes = await fetch(prediction.response_url, { headers: { 'Authorization': `Key ${process.env.FAL_KEY}` } })
-              if (outRes.ok) {
-                const outJson = await outRes.json()
-                videoUrl = outJson.video?.url ?? outJson.video_url ?? outJson.output?.[0]
+        const statusJson = await res.json()
+        if (statusJson.status === 'COMPLETED' || statusJson.status === 'OK') {
+           let videoUrl: string | null = null
+           
+           const outRes = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predId}`, {
+             headers: { 'Authorization': `Key ${process.env.FAL_KEY}` }
+           })
+           if (outRes.ok) {
+             const out = await outRes.json()
+             videoUrl = out.video?.url ?? out.video_url ?? out.output?.[0] ?? out.payload?.video?.url ?? null
+           }
+
+           if (!videoUrl && statusJson.response_url) {
+              const resURL = await fetch(statusJson.response_url, { headers: { 'Authorization': `Key ${process.env.FAL_KEY}` } })
+              if (resURL.ok) {
+                const outJson = await resURL.json()
+                videoUrl = outJson.video?.url ?? outJson.video_url ?? outJson.output?.[0] ?? outJson.payload?.video?.url ?? null
               }
            }
            if (videoUrl) {
@@ -57,8 +66,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
                await admin.rpc('debit_credit', { user_id_param: user.id })
              }
            }
-        } else if (prediction.status === 'ERROR' || prediction.status === 'FAILED') {
-           const errReason = prediction.error ? String(prediction.error) : 'Falhou no provedor'
+        } else if (statusJson.status === 'ERROR' || statusJson.status === 'FAILED') {
+           const errReason = statusJson.error ? String(statusJson.error) : 'Falhou no provedor'
            const admin = createAdminClient()
            await admin.from('studio_assets').update({ status: 'error', error_msg: errReason }).eq('id', asset.id)
            asset.status = 'error'
