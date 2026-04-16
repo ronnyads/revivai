@@ -32,11 +32,11 @@ export interface WorkflowTemplate {
 }
 
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
-  // ── Template 1: Short de 60 Segundos ──────────────────────────────────────
+  // ── Template 1: Short de 30 Segundos ──────────────────────────────────────
   {
-    id: 'story_60s',
-    label: 'Série de 60 Segundos',
-    description: 'Workflow completo com Rosto + 3 Cenas + Voz + Edição final. Preencha os prompts e clique em Gerar tudo.',
+    id: 'story_30s',
+    label: 'Série Viral (30s)',
+    description: 'Workflow completo: Rosto + 3 Cenas (10s cada) + Voz + Edição Final. Costura tudo no automático.',
     icon: <Film size={20} />,
     badge: '🎬 Mais popular',
     badgeColor: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
@@ -53,9 +53,11 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { type: 'image',  x: 860,  y: 560, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 2: Perto do produto, expressão de surpresa...' } },
       { type: 'image',  x: 860,  y: 1020, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 3: Fechamento, sorriso, chama para ação...' } },
       // Coluna 3 — 3 Vídeos (um por cena)
-      { type: 'video',  x: 1260, y: 100,  params: { source_image_url: '', motion_prompt: 'câmera suave e natural, expressão animada', duration: 5 } },
-      { type: 'video',  x: 1260, y: 560,  params: { source_image_url: '', motion_prompt: 'zoom suave no produto, iluminação dramática', duration: 5 } },
-      { type: 'video',  x: 1260, y: 1020, params: { source_image_url: '', motion_prompt: 'personagem gesticula, aponta para câmera', duration: 5 } },
+      { type: 'video',  x: 1260, y: 100,  params: { source_image_url: '', motion_prompt: 'câmera suave e natural, expressão animada', duration: 10 } },
+      { type: 'video',  x: 1260, y: 560,  params: { source_image_url: '', motion_prompt: 'zoom suave no produto, iluminação dramática', duration: 10 } },
+      { type: 'video',  x: 1260, y: 1020, params: { source_image_url: '', motion_prompt: 'personagem gesticula, aponta para câmera', duration: 10 } },
+      // Coluna 4 — Costura (Join)
+      { type: 'join',   x: 1660, y: 560,  params: { video_urls: [] } },
     ],
     edges: [
       // Face → 3 imagens
@@ -68,6 +70,10 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { source: 3, target: 6, sourceHandle: 'output', targetHandle: 'source_image_url' },
       { source: 4, target: 7, sourceHandle: 'output', targetHandle: 'source_image_url' },
       { source: 5, target: 8, sourceHandle: 'output', targetHandle: 'source_image_url' },
+      // Vídeos → Join
+      { source: 6, target: 9, sourceHandle: 'output', targetHandle: 'video_0' },
+      { source: 7, target: 9, sourceHandle: 'output', targetHandle: 'video_1' },
+      { source: 8, target: 9, sourceHandle: 'output', targetHandle: 'video_2' },
     ],
   },
 
