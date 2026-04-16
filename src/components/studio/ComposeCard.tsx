@@ -19,9 +19,9 @@ const POSITIONS = [
 ]
 
 const TRYON_CATEGORIES = [
-  { value: 'tops',    label: 'Camisas, Jaquetas (Tops)' },
-  { value: 'bottoms', label: 'Calças, Saias (Bottoms)' },
-  { value: 'dresses', label: 'Vestidos, Macacões (Dresses)' },
+  { value: 'tops',       label: 'Peça de Cima (Camisas, Jaquetas)' },
+  { value: 'bottoms',    label: 'Peça de Baixo (Calças, Saias)' },
+  { value: 'one-pieces', label: 'Corpo Inteiro (Ternos, Conjuntos, Vestidos)' },
 ]
 
 export default function ComposeCard({ initial, onGenerate }: Props) {

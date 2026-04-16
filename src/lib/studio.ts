@@ -608,11 +608,12 @@ export async function composeProductScene(params: {
     // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando Fashn V1.6 via subscribe ----
     const { subscribe } = await import('@fal-ai/serverless-client')
     
-    // Fashn NÃO usa category livre no schema raiz. O schema pede model_image e garment_image.
+    // Fashn V1.6 suporta category: tops, bottoms, one-pieces
     const result = await subscribe('fal-ai/fashn/tryon', {
       input: {
         model_image: params.portrait_url,
         garment_image: params.product_url,
+        category: params.vton_category || 'tops',
       }
     }) as any
 
