@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Sparkles, User, Info } from 'lucide-react'
 import WebcamRecorder from './WebcamRecorder'
+import ImageUpload from './ImageUpload'
 
 interface Props {
   initial: Record<string, unknown>
@@ -41,18 +42,15 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
         {isConnected ? 'Modelo conectado' : hasPortrait ? 'Retrato definido' : 'Aguardando retrato...'}
       </div>
 
-      {/* Manual portrait input (if not connected and no url) */}
+      {/* Manual portrait input (if not connected) */}
       {!hasPortrait && (
-        <div>
-          <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">URL da foto da persona</label>
-          <input
-            value={portraitUrl}
-            onChange={e => setPortraitUrl(e.target.value)}
-            placeholder="https://..."
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent"
-          />
-          <p className="text-[10px] text-zinc-600 mt-1">Ou conecte um card Modelo UGC ou Imagem</p>
-        </div>
+        <ImageUpload
+          value={portraitUrl}
+          onChange={setPortraitUrl}
+          label="Foto da Persona"
+          accept="image/*"
+          preview
+        />
       )}
 
       {/* Preview side-by-side */}
