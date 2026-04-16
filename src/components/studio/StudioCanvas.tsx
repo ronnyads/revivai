@@ -15,6 +15,7 @@ import AssetNode, { AssetNodeData } from './nodes/AssetNode'
 import LightEdge from './edges/LightEdge'
 import AddCardMenu from './AddCardMenu'
 import CampaignWizard, { WizardResult } from './CampaignWizard'
+import TemplateGallery, { WorkflowTemplate } from './TemplateGallery'
 
 const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
@@ -89,7 +90,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [credits,     setCredits]     = useState(userCredits)
   const [title,       setTitle]       = useState(project.title)
   const [editing,     setEditing]     = useState(false)
-  const [showWizard, setShowWizard] = useState(false)
+  const [showWizard,  setShowWizard]  = useState(false)
+  const [showGallery, setShowGallery] = useState(initialAssets.length === 0)
   const pollingRef        = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
   const startPollingRef   = useRef<(id: string) => void>(() => {})
   
@@ -737,6 +739,43 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     setEdges(tempEdges)
   }
 
+  // ── Template Gallery → injeta workflow pré-fabricado ─────────────────────
+  function buildFromTemplate(tpl: WorkflowTemplate) {
+    setShowGallery(false)
+    const now = Date.now()
+    const idMap: string[] = []
+
+    // Cria um ID temporário para cada nó do template
+    tpl.nodes.forEach((_, i) => idMap.push(`temp-${now}-${i}`))
+
+    const newAssets: StudioAsset[] = tpl.nodes.map((n, i) => ({
+      id: idMap[i],
+      project_id: project.id,
+      user_id: project.user_id,
+      type: n.type as AssetType,
+      status: 'idle',
+      input_params: { ...n.params },
+      credits_cost: CREDIT_COST[n.type as AssetType] ?? 0,
+      board_order: i,
+      position_x: n.x,
+      position_y: n.y,
+      created_at: new Date().toISOString(),
+    }))
+
+    const newEdges: Edge[] = tpl.edges.map((e, i) => ({
+      id: `temp-edge-${now}-${i}`,
+      source: idMap[e.source],
+      target: idMap[e.target],
+      sourceHandle: e.sourceHandle,
+      targetHandle: e.targetHandle,
+      type: 'lightEdge',
+      markerEnd: { type: MarkerType.ArrowClosed, color: '#f97316', width: 16, height: 16 },
+    }))
+
+    setAssets(newAssets)
+    setEdges(newEdges)
+  }
+
   // ── Título ───────────────────────────────────────────────────────────────
   async function saveTitle() {
     setEditing(false)
@@ -778,14 +817,12 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-zinc-500 bg-zinc-800 px-3 py-1.5 rounded-xl">{credits} cr</span>
-          {assets.length === 0 && (
-            <button
-              onClick={() => setShowWizard(true)}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-3 py-1.5 rounded-xl transition-all"
-            >
-              <Wand2 size={13} /> Campaign Builder
-            </button>
-          )}
+          <button
+            onClick={() => setShowGallery(true)}
+            className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-white border border-zinc-700 hover:border-accent/50 px-3 py-1.5 rounded-xl transition-all"
+          >
+            <Plus size={13} /> Templates
+          </button>
           <AddCardMenu onAdd={addCard} />
         </div>
       </div>
@@ -823,31 +860,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           {/* Empty state */}
           {assets.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center space-y-4">
-                <p className="text-zinc-500 text-sm font-medium">Canvas vazio — como quer começar?</p>
-                <div className="flex items-center gap-3 pointer-events-auto">
-                  <button
-                    onClick={() => setShowWizard(true)}
-                    className="flex flex-col items-center gap-2 px-5 py-4 rounded-2xl border border-fuchsia-500/30 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 transition-all group cursor-pointer"
-                  >
-                    <Wand2 size={20} className="text-fuchsia-400" />
-                    <div className="text-center">
-                      <p className="text-xs font-semibold text-fuchsia-400">Campaign Builder</p>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">Guiado · recomendado</p>
-                    </div>
-                  </button>
-                  <span className="text-zinc-700 text-xs">ou</span>
-                  <button
-                    onClick={() => addCard('model')}
-                    className="flex flex-col items-center gap-2 px-5 py-4 rounded-2xl border border-zinc-700 bg-zinc-800/50 hover:border-zinc-600 transition-all cursor-pointer"
-                  >
-                    <LayoutGrid size={20} className="text-zinc-400" />
-                    <div className="text-center">
-                      <p className="text-xs font-semibold text-zinc-400">Modo livre</p>
-                      <p className="text-[10px] text-zinc-600 mt-0.5">Monte card a card</p>
-                    </div>
-                  </button>
-                </div>
+              <div className="text-center">
+                <p className="text-zinc-600 text-xs">Canvas vazio — clique em <span className="text-accent">Templates</span> para começar</p>
               </div>
             </div>
           )}
@@ -872,7 +886,17 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         />
       )}
 
+      {/* Template Gallery overlay */}
+      {showGallery && (
+        <TemplateGallery
+          onSelect={buildFromTemplate}
+          onFree={() => setShowGallery(false)}
+          onWizard={() => { setShowGallery(false); setShowWizard(true) }}
+        />
+      )}
+
       {/* Undo toast — aparece 8s após deletar um card */}
+
       {undoToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-800 border border-zinc-600 text-white text-sm px-4 py-3 rounded-2xl shadow-2xl shadow-black/60 animate-in slide-in-from-bottom-4 duration-300">
           <span className="text-zinc-300">Card excluído</span>
