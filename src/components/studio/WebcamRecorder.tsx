@@ -196,12 +196,29 @@ export default function WebcamRecorder({ value, onChange }: Props) {
                   return
                 }
                 setPhase('uploading')
-                const form = new FormData()
-                form.append('file', file)
-                const res = await fetch('/api/studio/upload', { method: 'POST', body: form })
-                const data = await res.json()
-                if (data.url) onChange(data.url)
-                else { setError(data.error ?? 'Erro ao enviar'); setPhase('idle') }
+                try {
+                  // 1. Pede URL assinada (não passa o arquivo pelo Vercel)
+                  const signRes = await fetch('/api/studio/upload/sign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: file.name, contentType: file.type }),
+                  })
+                  const signData = await signRes.json()
+                  if (!signData.signedUrl) throw new Error(signData.error ?? 'Erro ao obter URL')
+
+                  // 2. Upload direto para o Supabase (bypassa Vercel)
+                  const putRes = await fetch(signData.signedUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': file.type },
+                    body: file,
+                  })
+                  if (!putRes.ok) throw new Error(`Upload falhou: ${putRes.status}`)
+
+                  onChange(signData.publicUrl)
+                } catch (err: any) {
+                  setError(err.message ?? 'Erro ao enviar')
+                  setPhase('idle')
+                }
               }}
             />
           </label>
