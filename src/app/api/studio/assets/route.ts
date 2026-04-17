@@ -4,7 +4,7 @@ export const maxDuration = 300
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos } from '@/lib/studio'
+import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos } from '@/lib/studio'
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
 
@@ -46,8 +46,10 @@ export async function POST(req: NextRequest) {
 
   // Verifica créditos
   const cost = CREDIT_COST[type] ?? 1
+  // Veo3 usa créditos do plano — custo fixo de 15cr (igual ao CREDIT_COST['video'])
+  const effectiveCost = cost
   const { data: profile } = await supabase.from('users').select('credits').eq('id', user.id).single()
-  if (!profile || profile.credits < cost) {
+  if (!profile || profile.credits < effectiveCost) {
     return NextResponse.json({ error: 'Sem créditos suficientes.' }, { status: 402 })
   }
 
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
   if (existing_id) {
     const { data: updated, error: updateErr } = await admin
       .from('studio_assets')
-      .update({ type, status: 'processing', input_params, credits_cost: cost, result_url: null, error_msg: null })
+      .update({ type, status: 'processing', input_params, credits_cost: effectiveCost, result_url: null, error_msg: null })
       .eq('id', existing_id)
       .eq('user_id', user.id)
       .select()
@@ -75,7 +77,7 @@ export async function POST(req: NextRequest) {
     const board_order = (count ?? 0)
     const { data: inserted, error: insertErr } = await admin
       .from('studio_assets')
-      .insert({ project_id, user_id: user.id, type, status: 'processing', input_params, credits_cost: cost, board_order })
+      .insert({ project_id, user_id: user.id, type, status: 'processing', input_params, credits_cost: effectiveCost, board_order })
       .select()
       .single()
     if (insertErr || !inserted) return NextResponse.json({ error: insertErr?.message ?? 'Erro ao criar asset' }, { status: 500 })
@@ -158,15 +160,26 @@ export async function POST(req: NextRequest) {
         ? continuationFrame
         : String(input_params.source_image_url ?? '')
 
-      await startVideoGeneration({
-        source_image_url: sourceImageUrl,
-        motion_prompt: String(input_params.motion_prompt ?? ''),
-        duration: Number(input_params.duration ?? 5),
-        model_prompt: input_params.model_prompt ? String(input_params.model_prompt) : undefined,
-        assetId: asset.id,
-        userId: user.id,
-        appUrl,
-      })
+      if (input_params.engine === 'veo') {
+        // Veo3 — direto com Google Generative AI (sem Fal AI)
+        await startVeo3DirectGoogle({
+          source_image_url: sourceImageUrl,
+          motion_prompt: String(input_params.motion_prompt ?? ''),
+          assetId: asset.id,
+          userId: user.id,
+        })
+      } else {
+        // Kling — via Fal AI (padrão)
+        await startVideoGeneration({
+          source_image_url: sourceImageUrl,
+          motion_prompt: String(input_params.motion_prompt ?? ''),
+          duration: Number(input_params.duration ?? 5),
+          model_prompt: input_params.model_prompt ? String(input_params.model_prompt) : undefined,
+          assetId: asset.id,
+          userId: user.id,
+          appUrl,
+        })
+      }
       return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
 
     } else if (type === 'animate') {
@@ -175,14 +188,17 @@ export async function POST(req: NextRequest) {
       const appUrl    = origin
         ? (origin.startsWith('http') ? origin : `https://${origin}`)
         : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
-      // startAnimateGeneration agora é síncrono (Fal AI) — retorna URL diretamente
-      resultUrl = await startAnimateGeneration({
+      // startAnimateGeneration é síncrono: faz polling, salva no DB e debita créditos internamente
+      // Early return para evitar double-debit (função já debitou 3 créditos)
+      const animateUrl = await startAnimateGeneration({
         portrait_image_url: String(input_params.portrait_image_url ?? ''),
         driving_video_url:  String(input_params.driving_video_url  ?? ''),
         assetId: asset.id,
         userId: user.id,
         appUrl,
       })
+      return NextResponse.json({ asset: { ...asset, status: 'done', result_url: animateUrl } }, { status: 201 })
+
     } else if (type === 'lipsync') {
       const origin    = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
       const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
@@ -236,8 +252,8 @@ export async function POST(req: NextRequest) {
       input_params: { ...input_params, ...extraData },
     }).eq('id', asset.id)
 
-    // Debita o custo real do asset (não sempre 1)
-    for (let i = 0; i < cost; i++) {
+    // Debita o custo real do asset
+    for (let i = 0; i < effectiveCost; i++) {
       await admin.rpc('debit_credit', { user_id_param: user.id })
     }
 

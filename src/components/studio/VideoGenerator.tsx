@@ -23,7 +23,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
   const [imageUrl, setImageUrl] = useState(resolveImageUrl(initial))
   const [motion,   setMotion]   = useState(String(initial.motion_prompt ?? ''))
   const [duration, setDuration] = useState(Number(initial.duration      ?? 5))
-  const [engine,   setEngine]   = useState(String(initial.engine        ?? 'kling'))
+  const [engine,   setEngine]   = useState(String(initial.engine        ?? 'veo'))
 
   // Sync quando conexão do canvas preenche source_image_url ou continuation_frame
   useEffect(() => {
@@ -53,30 +53,9 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
         </div>
       )}
       <div>
-        <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">
-          Motor de Renderização
-        </label>
-        <div className="grid grid-cols-2 gap-1.5 mb-3">
-          <button
-            onClick={() => setEngine('kling')}
-            className={`py-2 rounded-xl border text-[11px] font-medium transition-all ${
-              engine === 'kling'
-                ? 'border-blue-500/50 bg-blue-500/15 text-blue-400'
-                : 'border-zinc-700 text-zinc-500 hover:border-zinc-600'
-            }`}
-          >
-            Kling 3.0 Pro
-          </button>
-          <button
-            onClick={() => setEngine('veo')}
-            className={`py-2 rounded-xl border text-[11px] font-medium transition-all ${
-              engine === 'veo'
-                ? 'border-blue-500/50 bg-blue-500/15 text-blue-400'
-                : 'border-zinc-700 text-zinc-500 hover:border-zinc-600'
-            }`}
-          >
-            Google Veo 3.1
-          </button>
+        <div className="flex items-center gap-2 mb-3 bg-blue-500/10 border border-blue-500/30 rounded-xl px-3 py-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-blue-400 shrink-0"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18a8 8 0 100-16 8 8 0 000 16zm-1-5h2v2h-2v-2zm0-8h2v6h-2V7z" fill="currentColor"/></svg>
+          <span className="text-[11px] text-blue-300 font-medium">Google Veo 3.1 — Motor ativo</span>
         </div>
 
         <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">
@@ -102,8 +81,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
         />
       </div>
       <div className="bg-zinc-800/60 rounded-xl p-3 text-xs text-zinc-500">
-        Processamento Neural: <span className="text-white font-medium">{engine === 'kling' ? 'Kling 3.0 Omni Pro' : 'Google Veo 3.1'}</span> — 
-        {engine === 'kling' ? ' Foco em movimento humano.' : ' Realismo fílmico puro.'} Geração leva 2–5 min.
+        Motor: <span className="text-white font-medium">Google Veo 3.1</span> — Realismo fílmico puro. Geração leva 2–5 min.
       </div>
       <button
         onClick={() => onGenerate({
@@ -116,7 +94,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
         disabled={!imageUrl.trim()}
         className="flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-all disabled:opacity-40 w-full"
       >
-        <Video size={15} /> {isContinuation ? 'Gerar segmento' : 'Gerar vídeo'} — {engine === 'veo' ? '5' : '3'} créditos
+        <Video size={15} /> {isContinuation ? 'Gerar segmento' : 'Gerar vídeo'} — 5 créditos
       </button>
     </div>
   )

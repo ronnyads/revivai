@@ -33,7 +33,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
 }
 
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3, compose: 1, lipsync: 3, face: 0, join: 0,
+  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0,
 }
 
 export default function BoardClient({ project, initialAssets, userCredits }: Props) {
