@@ -98,10 +98,9 @@ export async function POST(
         if (statusJson) modelPath = altModelPath // usa o path que funcionou
       }
       if (!statusJson) {
-        return NextResponse.json({
-          status: 'not_found',
-          message: 'Resultado não encontrado no Fal AI — o job pode ter expirado. Gere novamente.'
-        })
+        const errMsg = 'Job expirado ou não encontrado. Clique em "Tentar novamente" para gerar novamente.'
+        await admin.from('studio_assets').update({ status: 'error', error_msg: errMsg }).eq('id', id)
+        return NextResponse.json({ status: 'error', error: errMsg })
       }
 
       if (statusJson.status === 'COMPLETED' || statusJson.status === 'OK') {
