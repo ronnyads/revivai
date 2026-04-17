@@ -9,90 +9,90 @@ const PROMPT_GROUPS: {
   items: { key: string; label: string; description: string; rows?: number; type?: 'boolean' | 'text'; vars?: string; placeholder?: string }[]
 }[] = [
   {
-    label: 'Modelo UGC',
+    label: 'Configurações de Modelo UGC (Atores)',
     card: 'model',
     color: 'border-blue-500/30 bg-blue-500/5',
     items: [
       {
         key: 'model_engine_google_active',
         label: '🌐 Motor Google Imagen 3 — Ativar?',
-        description: 'Se desligado, a opção Google não aparecerá para o cliente.',
+        description: 'Ferramenta: Google AI. O que faz: Ativa a IA do Google para criar as modelos. É excelente para rostos limpos e naturais.',
         type: 'boolean'
       },
       {
         key: 'model_engine_flux_active',
         label: '🚀 Motor FLUX Pro Ultra — Ativar?',
-        description: 'Se desligado, a opção FLUX não aparecerá para o cliente.',
+        description: 'Ferramenta: FLUX (Fal AI). O que faz: Ativa a IA mais avançada do mundo para realismo cinematográfico. Use para um visual de alta produção.',
         type: 'boolean'
       },
       {
         key: 'model_generation_system',
-        label: '🧠 System GPT-4o — Descrição visual',
-        description: 'Instrução do GPT-4o para gerar a descrição textual única do modelo. O seed de unicidade e os atributos do usuário (gênero, tom de pele etc.) são injetados automaticamente.',
+        label: '🧠 Cérebro do Ator (GPT-4o)',
+        description: 'Ferramenta: OpenAI GPT-4o. O que faz: Aqui você escreve a "personalidade" do modelo. O GPT vai ler isso para decidir como descrever as roupas, o cenário e a vibe da modelo antes de gerar a foto.',
         rows: 7,
       },
     ],
   },
   {
-    label: 'Imagem (FLUX Pro Ultra)',
+    label: 'Configurações de Imagem (Produto e Cena)',
     card: 'image',
     color: 'border-violet-500/30 bg-violet-500/5',
     items: [
       {
         key: 'image_ugc_prefix',
-        label: '📱 Prefixo estilo UGC',
-        description: 'Prompt para FLUX Pro 1.1 Ultra quando o preset é "UGC / Influencer".',
+        label: '📱 Estilo UGC / Vida Real',
+        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Adiciona comandos automáticos para as fotos parecerem tiradas de um celular (Stories/TikTok). Dica: use palavras como "amador", "iluminação natural".',
         rows: 4,
       },
       {
         key: 'image_cinematic_prefix',
-        label: '🎬 Prefixo estilo Cinematic',
-        description: 'Prompt para fotos de alta produção e estúdio.',
+        label: '🎬 Estilo Cinematic / Estúdio',
+        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Força a imagem a parecer profissional, com iluminação de estúdio e qualidade de cinema. Dica: use "8k", "lighting professional".',
         rows: 4,
       },
     ],
   },
   {
-    label: 'Voz (ElevenLabs)',
+    label: 'Configurações de Voz (Locução)',
     card: 'voice',
     color: 'border-emerald-500/30 bg-emerald-500/5',
     items: [
       {
         key: 'audio_elevenlabs_config',
-        label: '🎙️ Configuração de Voz',
-        description: 'Parâmetros JSON para a API do ElevenLabs (voz default, estabilidade, etc).',
+        label: '🎙️ Parametrizador de Voz',
+        description: 'Ferramenta: ElevenLabs. O que faz: Controla a "emoção" da voz. Você pode definir a estabilidade (se a voz é mais reta ou expressiva) e a clareza. Use o formato { "stability": 0.5 }.',
         rows: 5,
       },
     ],
   },
   {
-    label: 'Vídeo (Kling / Veo)',
+    label: 'Configurações de Vídeo (Movimento)',
     card: 'video',
     color: 'border-blue-500/30 bg-blue-500/5',
     items: [
       {
         key: 'video_kling_config',
-        label: '📹 Kling AI — Configurações',
-        description: 'Configurações de câmera e movimento para o motor de vídeo principal.',
+        label: '📹 Diretor de Cena',
+        description: 'Ferramenta: Kling / Google Veo. O que faz: Diz para a IA como a câmera deve se mexer. Ex: "Câmera se aproximando lentamente do rosto", "Modelo sorrindo e mexendo a cabeça".',
         rows: 4,
       },
     ],
   },
   {
-    label: 'Pós-Produção',
+    label: 'Pós-Produção (Acabamento)',
     card: 'post',
     color: 'border-emerald-500/30 bg-emerald-500/5',
     items: [
       {
         key: 'upscale_esrgan_config',
-        label: '🔍 Upscale — Parâmetros',
-        description: 'Parâmetros para o motor ESRGAN (Realismo Extremo).',
+        label: '🔍 Super Resolução (4K)',
+        description: 'Ferramenta: ESRGAN / CodeFormer. O que faz: Pega a imagem gerada e "estica" sem perder qualidade, removendo borrões e deixando tudo ultra nítido.',
         rows: 3,
       },
       {
         key: 'subtitle_whisper_config',
-        label: '📄 Whisper — Legendas',
-        description: 'Configurações de transcrição via OpenAI Whisper.',
+        label: '📄 Gerador de Legendas',
+        description: 'Ferramenta: OpenAI Whisper. O que faz: Ouve o áudio gerado e transcreve palavra por palavra com o tempo exato para as legendas que aparecem no vídeo.',
         rows: 3,
       },
     ],
