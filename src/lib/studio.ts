@@ -58,17 +58,22 @@ export async function generateImage(params: {
   const size = sizeMap[params.aspect_ratio] ?? '1024x1024'
 
   const STYLE_FALLBACKS: Record<string, string> = {
-    ugc:       'UGC style ad photo, authentic, shot on phone, candid, real person, ',
-    product:   'professional product photography, clean background, studio lighting, ',
-    logo:      'professional logo design, clean vector style, transparent background, ',
-    lifestyle: 'lifestyle photography, natural light, aspirational, ',
+    ugc:       'UGC style ad photo, authentic, shot on phone, candid, real person, photorealistic, 8k, highly detailed, ',
+    product:   'professional product photography, clean background, studio lighting, hyper-realistic, 8k resolution, ',
+    logo:      'professional logo design, clean vector style, transparent background, minimalist, ',
+    lifestyle: 'lifestyle photography, natural light, aspirational, photorealism, cinematic lighting, ',
   }
   const styleKey = `image_style_${params.style}`
   const stylePrefix = await getStudioPrompt(admin, styleKey, STYLE_FALLBACKS[params.style] ?? STYLE_FALLBACKS.lifestyle)
 
-  const finalPrompt = params.model_prompt
+  // O prompt principal
+  const basePrompt = params.model_prompt
     ? `${params.model_prompt}. ${stylePrefix}${params.prompt}`
     : stylePrefix + params.prompt
+
+  // Sulfixo de realismo forçado
+  const realismSuffix = "RAW photo, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, not illustrated, not cartoon, real photography."
+  const finalPrompt = `${basePrompt}. ${realismSuffix}`
 
   let tempUrl = ''
 
@@ -111,10 +116,6 @@ export async function generateImage(params: {
     const falKey = process.env.FAL_KEY
     if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
 
-    // Append a realism suffix to prevent any cartoonish generation from plain prompts
-    const realismSuffix = "RAW photo, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, not illustrated, not cartoon, real photography."
-    const finalFluxPrompt = `${finalPrompt}. ${realismSuffix}`
-
     const res = await fetch('https://fal.run/fal-ai/flux-pro/v1.1-ultra', {
       method: 'POST',
       headers: {
@@ -122,7 +123,7 @@ export async function generateImage(params: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: finalFluxPrompt,
+        prompt: finalPrompt,
         aspect_ratio: params.aspect_ratio || '9:16',
         output_format: 'jpeg',
         safety_tolerance: '3',
@@ -396,9 +397,9 @@ export async function generateModel(params: {
     admin,
     'model_generation_system',
     `You are a UGC creative director specializing in AI image generation for ads.
-Generate a UNIQUE, vivid, photorealistic visual description of a model for DALL-E 3.
+Generate a UNIQUE, vivid, photorealistic visual description of a model for FLUX PRO Ultra API.
 Vary vocabulary, hair details, facial features, and scene context every response — never repeat.
-Output: one dense English paragraph (3-5 sentences). No names. Pure visual description.`,
+Output: one dense English paragraph (3-5 sentences). No names. Pure visual description.`
   )
   const system = `${systemBase}\nSeed for uniqueness: ${seed}.`
 
