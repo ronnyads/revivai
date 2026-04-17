@@ -10,18 +10,18 @@ const PROMPT_GROUPS: {
   {
     label: 'Modelo UGC',
     card: 'model',
-    color: 'border-indigo-500/30 bg-indigo-500/5',
+    color: 'border-blue-500/30 bg-blue-500/5',
     items: [
       {
         key: 'model_generation_system',
         label: '🧠 System GPT-4o — Descrição visual',
-        description: 'Instrução do GPT-4o para gerar a descrição textual única do modelo. O seed de unicidade e os atributos do usuário (gênero, tom de pele etc.) são injetados automaticamente após este prompt.',
+        description: 'Instrução do GPT-4o para gerar a descrição textual única do modelo. O seed de unicidade e os atributos do usuário (gênero, tom de pele etc.) são injetados automaticamente.',
         rows: 7,
       },
       {
         key: 'model_flux_suffix',
-        label: '📸 Sufixo FLUX — Estilo fotográfico',
-        description: 'Texto adicionado após a descrição do modelo para guiar o FLUX na geração da foto. Controla o estilo de câmera, iluminação e autenticidade UGC.',
+        label: '📸 Sufixo Google Imagen 3 — Estilo fotográfico',
+        description: 'Texto adicionado após a descrição do modelo para guiar o motor da Google na geração da foto. Controla o estilo de câmera e autenticidade.',
         rows: 3,
       },
     ],
@@ -34,26 +34,26 @@ const PROMPT_GROUPS: {
       {
         key: 'script_generation_system',
         label: '✍️ System GPT-4o — Copywriter UGC',
-        description: 'Instrução base do copywriter. O formato (Reels/Stories/Feed) é concatenado automaticamente. Use para ajustar tom de voz, estilo de linguagem e estrutura do script.',
+        description: 'Instrução base do copywriter. O formato (Reels/Stories/Feed) é concatenado automaticamente.',
         rows: 6,
       },
     ],
   },
   {
-    label: 'Imagem (DALL-E)',
+    label: 'Imagem (FLUX Pro Ultra)',
     card: 'image',
-    color: 'border-violet-500/30 bg-violet-500/5',
+    color: 'border-purple-500/30 bg-purple-500/5',
     items: [
       {
         key: 'image_style_ugc',
         label: '🤳 Prefixo estilo UGC',
-        description: 'Adicionado antes do prompt do usuário quando o preset é "UGC / Influencer".',
+        description: 'Prompt para FLUX Pro 1.1 Ultra quando o preset é "UGC / Influencer".',
         rows: 2,
       },
       {
         key: 'image_style_product',
         label: '📦 Prefixo estilo Produto',
-        description: 'Adicionado antes do prompt do usuário quando o preset é "Produto Realista".',
+        description: 'Prompt para FLUX Pro 1.1 Ultra quando o preset é "Produto Realista".',
         rows: 2,
       },
     ],
@@ -65,21 +65,21 @@ const PROMPT_GROUPS: {
     items: [
       {
         key: 'video_kling_config',
-        label: '🎬 Kling AI — Configuração JSON',
-        description: 'Configurações de geração de vídeo como neg_prompt, cfg_scale e duração. Deve ser um objeto JSON.',
+        label: '🎬 Kling / Veo — Configuração JSON',
+        description: 'Parâmetros de geração de vídeo do Fal AI. Suporta Kling e Google Veo 3.1. Se vazio, o sistema usa as durações padrão.',
         rows: 4,
-        placeholder: '{ "cfg_scale": 0.5, "mode": "std" }'
+        placeholder: '{ "cfg_scale": 0.5, "duration": "5", "veo_duration": "8s" }'
       },
       {
         key: 'video_liveportrait_config',
         label: '✨ LivePortrait — Sensibilidade',
-        description: 'Ajustes finos para a animação facial. Ex: { "expression_intensity": 1.0 }',
+        description: 'Ajustes finos para a animação facial no motor LivePortrait (Fal AI).',
         rows: 3,
       },
       {
         key: 'video_latentsync_config',
         label: '💋 LatentSync — Lip Sync',
-        description: 'Ajustes de sincronia labial. Ex: { "audio_bias": 0.8 }',
+        description: 'Ajustes de sincronia labial no motor LatentSync (Fal AI).',
         rows: 3,
       },
     ],
@@ -92,14 +92,14 @@ const PROMPT_GROUPS: {
       {
         key: 'audio_elevenlabs_config',
         label: '🎙️ ElevenLabs — Configuração',
-        description: 'Instruções de estabilidade e similaridade da voz clonada.',
+        description: 'Instruções de estabilidade e similaridade da voz clonada via ElevenLabs.',
         rows: 3,
         placeholder: '{ "stability": 0.5, "similarity": 0.8 }'
       },
       {
         key: 'compose_gpt_prompt',
         label: '🖼️ Prompt GPT Compose — Composição',
-        description: 'Controla como o produto é inserido na cena com a modelo. Manter em inglês.',
+        description: 'Controla como o produto é inserido na cena com a modelo via GPT-4o Vision.',
         rows: 8,
       },
     ],
@@ -112,13 +112,13 @@ const PROMPT_GROUPS: {
       {
         key: 'upscale_esrgan_config',
         label: '🔍 Upscale — Parâmetros',
-        description: 'Ex: { "face_enhance": true, "scale": 2 }',
+        description: 'Parâmetros para o motor ESRGAN (Realismo Extremo). Ex: { "face_enhance": true, "scale": 2 }',
         rows: 3,
       },
       {
         key: 'subtitle_whisper_config',
         label: '📄 Whisper — Legendas',
-        description: 'Configurações de transcrição e tradução.',
+        description: 'Configurações de transcrição via OpenAI Whisper.',
         rows: 3,
       },
     ],
