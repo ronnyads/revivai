@@ -14,7 +14,23 @@ interface ModelParams {
   body_type: string
   style: string
   extra_details?: string
+  engine: 'google' | 'flux'
 }
+
+const ENGINE_OPTIONS = [
+  { 
+    value: 'google', 
+    label: 'Realismo Limpo (Google)', 
+    subtitle: 'Ideal para peles suaves e cenários de dia a dia.',
+    icon: <Sparkles className="text-blue-400" /> 
+  },
+  { 
+    value: 'flux',   
+    label: 'Realismo Cinematic (FLUX)', 
+    subtitle: 'Máximo detalhe, texturas de pele reais e luz de cinema.',
+    icon: <Zap className="text-purple-400" /> 
+  },
+]
 
 const STEPS = [
   {
@@ -56,14 +72,14 @@ const STEPS = [
       { 
         value: '40-55', 
         label: '40 – 55 anos', 
-        femaleImage: 'https://plus.unsplash.com/premium_photo-1770616817226-c2ac031db9fd?auto=format&fit=crop&q=80&w=1000', // Audited Middle Age
+        femaleImage: 'https://plus.unsplash.com/premium_photo-1770616817226-c2ac031db9fd?auto=format&fit=crop&q=80&w=1000',
         maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=1000' 
       },
       { 
         value: '55+',   
         label: 'Mais de 55', 
-        femaleImage: 'https://images.pexels.com/photos/2050994/pexels-photo-2050994.jpeg?auto=compress&cs=tinysrgb&width=1000', // Audited Senior Woman
-        maleImage: 'https://images.pexels.com/photos/3831645/pexels-photo-3831645.jpeg?auto=compress&cs=tinysrgb&width=1000' // Audited Senior Man
+        femaleImage: 'https://images.pexels.com/photos/2050994/pexels-photo-2050994.jpeg?auto=compress&cs=tinysrgb&width=1000',
+        maleImage: 'https://images.pexels.com/photos/3831645/pexels-photo-3831645.jpeg?auto=compress&cs=tinysrgb&width=1000'
       },
     ],
   },
@@ -90,14 +106,14 @@ const STEPS = [
       { 
         value: 'magro',     
         label: 'Magro',    
-        femaleImage: 'https://images.pexels.com/photos/18516750/pexels-photo-18516750.jpeg?auto=compress&cs=tinysrgb&width=1000', // Audited Skinny Woman
+        femaleImage: 'https://images.pexels.com/photos/18516750/pexels-photo-18516750.jpeg?auto=compress&cs=tinysrgb&width=1000',
         maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=1000'
       },
       { 
         value: 'atletico',  
         label: 'Atlético', 
-        femaleImage: 'https://images.unsplash.com/photo-1548690312-e3b507d8c110?auto=format&fit=crop&q=80&w=1000', // Audited Athletic Woman
-        maleImage: 'https://images.unsplash.com/photo-1754475096386-b7a2a45a91fb?auto=format&fit=crop&q=80&w=1000' // Audited Athletic Man
+        femaleImage: 'https://images.unsplash.com/photo-1548690312-e3b507d8c110?auto=format&fit=crop&q=80&w=1000',
+        maleImage: 'https://images.unsplash.com/photo-1754475096386-b7a2a45a91fb?auto=format&fit=crop&q=80&w=1000'
       },
       { 
         value: 'normal',    
@@ -108,8 +124,8 @@ const STEPS = [
       { 
         value: 'plus_size', 
         label: 'Plus Size',
-        femaleImage: 'https://images.unsplash.com/photo-1562887077-e086f7da6870?auto=format&fit=crop&q=80&w=1000', // Audited Plus Size Woman
-        maleImage: 'https://images.unsplash.com/photo-1677543167033-af3c688aa4df?auto=format&fit=crop&q=80&w=1000' // Audited Plus Size Man
+        femaleImage: 'https://images.unsplash.com/photo-1562887077-e086f7da6870?auto=format&fit=crop&q=80&w=1000',
+        maleImage: 'https://images.unsplash.com/photo-1677543167033-af3c688aa4df?auto=format&fit=crop&q=80&w=1000'
       },
     ],
   },
@@ -128,8 +144,8 @@ const STEPS = [
       { 
         value: 'profissional', 
         label: 'Formal',       
-        femaleImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=1000&auto=format&fit=crop', // Audited Business Woman
-        maleImage: 'https://images.pexels.com/photos/3778876/pexels-photo-3778876.jpeg?auto=compress&cs=tinysrgb&width=1000' // Audited Business Man
+        femaleImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=1000&auto=format&fit=crop',
+        maleImage: 'https://images.pexels.com/photos/3778876/pexels-photo-3778876.jpeg?auto=compress&cs=tinysrgb&width=1000'
       },
       { 
         value: 'esportivo',    
@@ -145,6 +161,13 @@ const STEPS = [
       },
     ],
   },
+  {
+    id: 'engine',
+    title: 'Motor de Realismo',
+    subtitle: 'Escolha a tecnologia de geração',
+    layout: 'engine' as const,
+    options: ENGINE_OPTIONS,
+  },
 ]
 
 interface Props {
@@ -154,13 +177,28 @@ interface Props {
 
 export default function ModelGenerator({ initial, onGenerate }: Props) {
   const [step, setStep] = useState(0)
+  const [activeConfig, setActiveConfig] = useState({ google: true, flux: true })
   const [params, setParams] = useState<Partial<ModelParams>>({
     gender:    (initial.gender    as string) || '',
     age_range: (initial.age_range as string) || '',
     skin_tone: (initial.skin_tone as string) || '',
     body_type: (initial.body_type as string) || '',
     style:     (initial.style     as string) || '',
+    engine:    (initial.engine    as 'google' | 'flux') || 'google',
   })
+
+  // Busca configurações do Admin no mount
+  useEffect(() => {
+    fetch('/api/studio/config')
+      .then(r => r.json())
+      .then(config => {
+        setActiveConfig(config)
+        // Se só um estiver ativo, já pré-seleciona
+        if (config.google && !config.flux) setParams(p => ({ ...p, engine: 'google' }))
+        if (!config.google && config.flux) setParams(p => ({ ...p, engine: 'flux' }))
+      })
+      .catch(() => {}) // ignora erro, fica no default
+  }, [])
   const [extra, setExtra]       = useState((initial.extra_details as string) || '')
   const [loading, setLoading]   = useState(false)
   const [result, setResult]     = useState<string | null>(
@@ -170,10 +208,16 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
   const [savedPrompt, setSavedPrompt] = useState<string | null>(null)
   const [loadingSaved, setLoadingSaved] = useState(false)
 
-  const currentStep = STEPS[step]
+  // Filtra os passos baseado no que está ativo
+  const filteredSteps = STEPS.filter(s => {
+    if (s.id === 'engine') return activeConfig.google && activeConfig.flux
+    return true
+  })
+
+  const currentStep = filteredSteps[step]
   const field = currentStep?.id as keyof ModelParams
-  const hasSelection = step < STEPS.length ? !!params[field] : true
-  const isReview = step >= STEPS.length
+  const hasSelection = step < filteredSteps.length ? !!params[field] : true
+  const isReview = step >= filteredSteps.length
 
   function select(value: string) {
     setParams(prev => ({ ...prev, [field]: value }))
@@ -183,7 +227,13 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
     setLoading(true)
     setSaved(false)
     try {
-      onGenerate({ ...params, extra_details: extra || undefined })
+      // Se apenas um motor estiver ativo e não passamos pelo passo de escolha, 
+      // garante que o motor correto seja enviado
+      let engineToUse = params.engine
+      if (!activeConfig.google && activeConfig.flux) engineToUse = 'flux'
+      if (activeConfig.google && !activeConfig.flux) engineToUse = 'google'
+
+      onGenerate({ ...params, engine: engineToUse, extra_details: extra || undefined })
     } finally {
       setLoading(false)
     }
@@ -212,7 +262,7 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
     setLoadingSaved(false)
   }
 
-  const progress = Math.round((Math.min(step, STEPS.length) / STEPS.length) * 100)
+  const progress = Math.round((Math.min(step, filteredSteps.length) / filteredSteps.length) * 100)
 
   // ── Result view ──────────────────────────────────────────────────────────
   const modelText = result || (initial.model_text as string | undefined)
@@ -225,7 +275,7 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => { setResult(null); setStep(STEPS.length) }}
+            onClick={() => { setResult(null); setStep(filteredSteps.length) }}
             className="flex items-center justify-center gap-1.5 flex-1 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 py-2 rounded-xl transition-colors"
           >
             <RefreshCw size={11} /> Regenerar
@@ -254,7 +304,7 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
       {/* Carregar modelo salvo */}
       <div className="flex items-center justify-between">
         <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-medium">
-          Passo {Math.min(step + 1, STEPS.length)} de {STEPS.length}
+          Passo {Math.min(step + 1, filteredSteps.length)} de {filteredSteps.length}
         </p>
         <button
           onClick={handleLoadSaved}
@@ -378,6 +428,36 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
             </div>
           )}
 
+          {/* Layout de Motores de IA */}
+          {currentStep.layout === 'engine' && (
+            <div className="flex flex-col gap-2">
+              {currentStep.options.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => select(opt.value)}
+                  className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all text-left ${
+                    params[field] === opt.value
+                      ? 'border-indigo-500 bg-indigo-500/10'
+                      : 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700'
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${params[field] === opt.value ? 'bg-indigo-500/20' : 'bg-zinc-800'}`}>
+                    {(opt as any).icon}
+                  </div>
+                  <div className="flex-1">
+                    <span className="block text-[11px] font-bold text-white leading-tight">{opt.label}</span>
+                    <span className="block text-[9px] text-zinc-500 mt-0.5">{(opt as any).subtitle}</span>
+                  </div>
+                  {params[field] === opt.value && (
+                    <div className="bg-indigo-500 rounded-full p-1 shadow-lg">
+                      <Check size={10} className="text-white" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Navegação */}
           <div className="flex items-center justify-between pt-2">
             {step > 0 ? (
@@ -400,7 +480,7 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
                   : 'bg-zinc-900 border border-zinc-800 text-zinc-700 cursor-not-allowed'
               }`}
             >
-              {step === STEPS.length - 1 ? 'Revisar Detalhes' : 'Próxima Etapa'}
+              {step === filteredSteps.length - 1 ? 'Revisar Detalhes' : 'Próxima Etapa'}
               <ChevronRight size={14} />
             </button>
           </div>
@@ -415,12 +495,22 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
 
           {/* Chips de resumo mais premium */}
           <div className="grid grid-cols-2 gap-2">
-            {Object.entries(params).filter(([, v]) => v).map(([k, v]) => (
+            {Object.entries(params).filter(([k, v]) => v && k !== 'engine').map(([k, v]) => (
               <div key={k} className="bg-zinc-900/50 border border-zinc-800 p-2 rounded-lg">
                 <p className="text-[9px] text-zinc-600 uppercase font-bold tracking-widest">{STEPS.find(s => s.id === k)?.title}</p>
                 <p className="text-[11px] text-zinc-300 font-medium capitalize">{String(v).replace('_', ' ')}</p>
               </div>
             ))}
+            {/* Chip de Engine em destaque na revisão */}
+            <div className="col-span-2 bg-indigo-500/5 border border-indigo-500/20 p-2 rounded-lg flex items-center gap-2">
+              <div className="p-1.5 bg-indigo-500/10 rounded-lg">
+                {params.engine === 'flux' ? <Zap size={12} className="text-purple-400" /> : <Sparkles size={12} className="text-blue-400" />}
+              </div>
+              <div>
+                <p className="text-[9px] text-indigo-400/60 uppercase font-bold tracking-widest leading-none">Tecnologia de Realismo</p>
+                <p className="text-[10px] text-indigo-300 font-bold mt-0.5">{params.engine === 'flux' ? 'FLUX Pro Cinematic' : 'Google Imagen HQ'}</p>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">

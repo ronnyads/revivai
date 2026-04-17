@@ -13,6 +13,20 @@ const PROMPT_GROUPS: {
     color: 'border-blue-500/30 bg-blue-500/5',
     items: [
       {
+        key: 'model_engine_google_active',
+        label: '🌐 Motor Google Imagen 3 — Ativar?',
+        description: 'Se desligado (false), a opção Google não aparecerá para o cliente.',
+        rows: 1,
+        placeholder: 'true ou false'
+      },
+      {
+        key: 'model_engine_flux_active',
+        label: '🚀 Motor FLUX Pro Ultra — Ativar?',
+        description: 'Se desligado (false), a opção FLUX não aparecerá para o cliente.',
+        rows: 1,
+        placeholder: 'true ou false'
+      },
+      {
         key: 'model_generation_system',
         label: '🧠 System GPT-4o — Descrição visual',
         description: 'Instrução do GPT-4o para gerar a descrição textual única do modelo. O seed de unicidade e os atributos do usuário (gênero, tom de pele etc.) são injetados automaticamente.',

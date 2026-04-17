@@ -440,6 +440,7 @@ export async function generateModel(params: {
   body_type: string
   style: string
   extra_details?: string
+  engine?: 'google' | 'flux'
   assetId: string
   userId: string
 }) {
@@ -503,33 +504,70 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
     'model_flux_suffix',
     'Shot on a cinematic phone camera, authentic UGC style. Skin pores and natural imperfections visible. Real human face, authentic lighting, not a studio shoot, not retouched, not illustrated.',
   )
-  const fluxPrompt = `Candid portrait photo of a real person: ${text} ${fluxSuffix}`
+  const finalPrompt = `Candid portrait photo of a real person: ${text} ${fluxSuffix}`
 
-  const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${googleApiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      instances: [{ prompt: fluxPrompt }],
-      parameters: {
-        sampleCount: 1,
-        aspectRatio: '9:16',
-        personGeneration: 'ALLOW_ADULT' // Permite geração de pessoas reais
-      }
+  let photoBuffer: Buffer
+
+  if (params.engine === 'flux') {
+    // ---- MOTOR FLUX PRO 1.1 ULTRA ----
+    const falKey = process.env.FAL_KEY
+    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+
+    const res = await fetch('https://fal.run/fal-ai/flux-pro/v1.1-ultra', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: finalPrompt,
+        aspect_ratio: '9:16',
+        output_format: 'jpeg',
+        safety_tolerance: '3',
+      }),
     })
-  })
 
-  // Log error text se Google falhar
-  if (!imgRes.ok) {
-    const errText = await imgRes.text()
-    throw new Error(`Imagen 3 (Google) Error: ${errText}`)
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Flux Ultra (Model) erro: ${err}`)
+    }
+
+    const data = await res.json()
+    const tempUrl = data.images?.[0]?.url
+    if (!tempUrl) throw new Error('Flux Ultra não retornou URL')
+
+    const imgRes = await fetch(tempUrl)
+    photoBuffer = Buffer.from(await imgRes.arrayBuffer())
+
+  } else {
+    // ---- MOTOR GOOGLE IMAGEN 3 (Padrão) ----
+    const googleApiKey = process.env.GOOGLE_API_KEY
+    if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+
+    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${googleApiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{ prompt: finalPrompt }],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: '9:16',
+          personGeneration: 'ALLOW_ADULT' 
+        }
+      })
+    })
+
+    if (!imgRes.ok) {
+      const errText = await imgRes.text()
+      throw new Error(`Imagen 3 (Google) Error: ${errText}`)
+    }
+
+    const imgData = await imgRes.json()
+    const base64Str = imgData.predictions?.[0]?.bytesBase64Encoded
+    if (!base64Str) throw new Error('Imagen 3 não retornou dados da imagem da Google')
+    photoBuffer = Buffer.from(base64Str, 'base64')
   }
 
-  const imgData = await imgRes.json()
-  const base64Str = imgData.predictions?.[0]?.bytesBase64Encoded
-  if (!base64Str) throw new Error('Imagen 3 não retornou dados da imagem da Google')
-
-  // Upload direto do buffer em vez de buscar da URL temporária
-  const photoBuffer = Buffer.from(base64Str, 'base64')
   const path = `${params.userId}/${params.assetId}-model.jpg`
   const { error } = await admin.storage
     .from('studio')
