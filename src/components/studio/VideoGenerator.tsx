@@ -55,13 +55,14 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
         <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">
           {isContinuation ? 'Movimento deste segmento' : 'Descrição do movimento'}
         </label>
-        <input
+        <textarea
           value={motion}
           onChange={e => setMotion(e.target.value)}
           placeholder={isContinuation
             ? 'Descreva a continuação do movimento...'
             : 'Ex: câmera suave girando ao redor do produto...'}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-accent"
+          rows={4}
+          className="w-full bg-zinc-800 border border-zinc-700/60 rounded-xl px-3.5 py-3 text-[13px] text-white placeholder-zinc-500 resize-y focus:outline-none focus:border-zinc-500 transition-colors"
         />
       </div>
       <div>

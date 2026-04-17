@@ -62,6 +62,7 @@ export async function generateImage(params: {
     product:   'professional product photography, clean background, studio lighting, hyper-realistic, 8k resolution, ',
     logo:      'professional logo design, clean vector style, transparent background, minimalist, ',
     mascote:   '3D animated mascot, anthropomorphic character, cinematic lighting, highly detailed 3D render, Pixar style, ',
+    personagem_cartoon: 'Cartoon Network style, 2D flat animation, vibrant colors, bold outlines, stylized character design, solid color background, ',
     lifestyle: 'lifestyle photography, natural light, aspirational, photorealism, cinematic lighting, ',
   }
   const styleKey = `image_style_${params.style}`
@@ -72,16 +73,21 @@ export async function generateImage(params: {
     ? `${params.model_prompt}. ${stylePrefix}${params.prompt}`
     : stylePrefix + params.prompt
 
-  // Sulfixo varia se for mascote (não usar 'real person' em mascote)
-  const isMascot = params.style === 'mascote'
-  const realismSuffix = isMascot 
-    ? "hyper-detailed 3D render, perfectly consistent character, 8k resolution, cinematic lighting, vibrant colors."
-    : "RAW photo, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, not illustrated, not cartoon, real photography."
+  // Sulfixo varia se for mascote/cartoon (não usar 'real person' em desenhos)
+  const isMascotOrCartoon = ['mascote', 'personagem_cartoon'].includes(params.style)
+  
+  let realismSuffix = "RAW photo, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, not illustrated, not cartoon, real photography."
+  if (params.style === 'mascote') {
+    realismSuffix = "hyper-detailed 3D render, perfectly consistent character, 8k resolution, cinematic lighting, vibrant colors."
+  } else if (params.style === 'personagem_cartoon') {
+    realismSuffix = "2D flat cartoon illustration, no 3d elements, vector art, smooth lines, clean colors, cartoon aesthetics."
+  }
+  
   const finalPrompt = `${basePrompt}. ${realismSuffix}`
 
   let tempUrl = ''
 
-  if (params.source_face_url && !isMascot) {
+  if (params.source_face_url && !isMascotOrCartoon) {
     // PuLID - Exclusivo para Humanos
     const falKey = process.env.FAL_KEY
     if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
@@ -130,7 +136,7 @@ export async function generateImage(params: {
     }
 
     // Se for mascote conectado a uma imagem de rosto
-    if (isMascot && params.source_face_url) {
+    if (isMascotOrCartoon && params.source_face_url) {
       const payload: any = {
         prompt: finalPrompt,
         image_url: params.source_face_url,

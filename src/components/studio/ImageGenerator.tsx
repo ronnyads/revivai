@@ -51,6 +51,12 @@ const PRESETS = [
     style: 'mascote',
     hint: 'Ex: O golfinho bebendo café, cena 3d, iluminação de cinema...',
   },
+  {
+    value: 'personagem_cartoon',
+    label: 'Personagem 2D (Cartoon)',
+    style: 'personagem_cartoon',
+    hint: 'Ex: Personagem estilo Cartoon Network de fone de ouvido colorido e traços fortes...',
+  },
 ]
 
 const RATIOS = [
@@ -128,8 +134,8 @@ export default function ImageGenerator({ initial, onGenerate }: Props) {
         value={prompt}
         onChange={e => setPrompt(e.target.value)}
         placeholder={selected.hint}
-        rows={3}
-        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-zinc-500 resize-none focus:outline-none focus:border-accent"
+        rows={5}
+        className="w-full bg-zinc-800 border border-zinc-700/60 rounded-xl px-3.5 py-3 text-[13px] text-white placeholder-zinc-500 resize-y focus:outline-none focus:border-zinc-500 transition-colors"
       />
 
       {/* Proporção */}
