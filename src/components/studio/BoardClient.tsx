@@ -147,25 +147,51 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
   // ── Gerar ────────────────────────────────────────────────────────────────
   async function handleGenerate(type: AssetType, params: Record<string, unknown>, existingId: string) {
     const isTemp = existingId.startsWith('temp-')
-    if (!isTemp) {
-      await fetch(`/api/studio/assets/${existingId}`, { method: 'DELETE' })
-    }
-    setAssets(prev => prev.filter(a => a.id !== existingId))
 
-    const res = await fetch('/api/studio/assets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project_id: project.id, type, input_params: params }),
-    })
+    // Marca o card como "processing" visualmente enquanto aguarda o POST
+    // NÃO deleta antes — só remove/atualiza após confirmar sucesso
+    setAssets(prev => prev.map(a =>
+      a.id === existingId ? { ...a, status: 'processing' as const } : a
+    ))
 
-    const { asset, error } = await res.json()
-    if (error || !asset) {
-      alert(error ?? 'Erro ao gerar')
-      addIdleCard(type, params)
+    let res: Response
+    try {
+      res = await fetch('/api/studio/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project_id: project.id, type, input_params: params }),
+      })
+    } catch (networkErr) {
+      // Erro de rede — restaura o card para idle
+      setAssets(prev => prev.map(a =>
+        a.id === existingId ? { ...a, status: 'idle' as const } : a
+      ))
+      alert('Erro de conexão. Verifique sua internet e tente novamente.')
       return
     }
 
-    setAssets(prev => [...prev, asset])
+    const body = await res.json()
+    const { asset, error } = body
+
+    if (!res.ok || error || !asset) {
+      // Falhou — restaura o card para idle com mensagem de erro visível
+      setAssets(prev => prev.map(a =>
+        a.id === existingId
+          ? { ...a, status: 'idle' as const, error_msg: error ?? `Erro ${res.status}` }
+          : a
+      ))
+      alert(`Erro ao gerar: ${error ?? `HTTP ${res.status}`}`)
+      return
+    }
+
+    // Sucesso — agora sim remove o card antigo (se existia no DB) e adiciona o novo
+    if (!isTemp) {
+      fetch(`/api/studio/assets/${existingId}`, { method: 'DELETE' }).catch(() => {})
+    }
+    setAssets(prev => [
+      ...prev.filter(a => a.id !== existingId),
+      asset,
+    ])
     setCredits(c => c - asset.credits_cost)
     if (asset.status === 'processing') startPolling(asset.id)
   }
