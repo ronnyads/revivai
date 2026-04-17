@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const adminClient = createAdminClient()
 
   const { userId, amount } = await req.json()
-  if (!userId || !amount || amount < 1) return NextResponse.json({ error: 'Params inválidos' }, { status: 400 })
+  if (!userId || amount === 0) return NextResponse.json({ error: 'Parâmetros inválidos' }, { status: 400 })
 
   const { data: target, error: fetchErr } = await adminClient
     .from('users').select('credits').eq('id', userId).single()
@@ -24,11 +24,13 @@ export async function POST(req: NextRequest) {
   if (fetchErr || !target) return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 })
 
   const { error: updateErr } = await adminClient
-    .from('users').update({ credits: target.credits + amount }).eq('id', userId)
+    .from('users').update({ credits: Math.max(0, target.credits + amount) }).eq('id', userId)
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
 
-  console.log(`[admin] +${amount} credits → ${userId} (total: ${target.credits + amount})`)
+  console.log(`[admin] ${amount > 0 ? '+' : ''}${amount} credits para ${userId} (total: ${Math.max(0, target.credits + amount)})`)
+  
   revalidatePath('/dashboard', 'layout')
-  return NextResponse.json({ ok: true, newTotal: target.credits + amount })
+  revalidatePath('/admin/users')
+  return NextResponse.json({ ok: true, newTotal: Math.max(0, target.credits + amount) })
 }
