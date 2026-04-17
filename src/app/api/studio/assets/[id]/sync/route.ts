@@ -57,11 +57,18 @@ async function persistToStorage(admin: ReturnType<typeof createAdminClient>, url
     return NextResponse.json({ status: asset.status, message: 'prediction_id não encontrado — aguarde o webhook' })
   }
 
-  if (asset.type === 'lipsync') {
+  if (asset.type === 'lipsync' || asset.type === 'video') {
     const falKey = process.env.FAL_KEY
     if (!falKey) return NextResponse.json({ status: 'error', error: 'FAL_KEY não configurada' })
 
-    const res = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predictionId}/status`, {
+    let modelPath = 'fal-ai/latentsync'
+    if (asset.type === 'video') {
+      const engine = (asset.input_params as any)?.engine
+      if (engine === 'veo') modelPath = 'fal-ai/veo3.1/image-to-video'
+      else modelPath = 'fal-ai/kling-video/o3/pro/image-to-video'
+    }
+
+    const res = await fetch(`https://queue.fal.run/${modelPath}/requests/${predictionId}/status`, {
       headers: { 'Authorization': `Key ${falKey}` }
     })
     const statusJson = await res.json()
@@ -69,19 +76,23 @@ async function persistToStorage(admin: ReturnType<typeof createAdminClient>, url
     if (statusJson.status === 'COMPLETED' || statusJson.status === 'OK') {
       let videoUrl: string | null = null
       
-      const outRes = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predictionId}`, {
+      const outRes = await fetch(`https://queue.fal.run/${modelPath}/requests/${predictionId}`, {
         headers: { 'Authorization': `Key ${falKey}` }
       })
       if (outRes.ok) {
         const out = await outRes.json()
-        videoUrl = out.video?.url ?? out.video_url ?? out.output?.[0] ?? out.payload?.video?.url ?? null
+        const v = out.video
+        const firstVidUrl = Array.isArray(v) ? v[0]?.url : v?.url
+        videoUrl = firstVidUrl ?? out.video?.url ?? out.video_url ?? out.url ?? out.output?.[0] ?? out.payload?.video?.url ?? null
       }
 
       if (!videoUrl && statusJson.response_url) {
         const resultRes = await fetch(statusJson.response_url, { headers: { 'Authorization': `Key ${falKey}` } })
         if (resultRes.ok) {
           const resultPayload = await resultRes.json()
-          videoUrl = resultPayload.video?.url ?? resultPayload.video_url ?? resultPayload.output?.[0] ?? resultPayload.payload?.video?.url ?? null
+          const v = resultPayload.video
+          const firstVidUrl = Array.isArray(v) ? v[0]?.url : v?.url
+          videoUrl = firstVidUrl ?? resultPayload.video?.url ?? resultPayload.video_url ?? resultPayload.url ?? resultPayload.output?.[0] ?? resultPayload.payload?.video?.url ?? null
         }
       }
       

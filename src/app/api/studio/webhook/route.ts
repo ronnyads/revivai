@@ -84,7 +84,9 @@ export async function POST(req: NextRequest) {
       rawUrl = Array.isArray(output) ? (output as string[])[0] : output as string
     } else if (payload) { // Fal AI
       const falPayload = payload as Record<string, any>
-      rawUrl = falPayload.video?.url ?? falPayload.output?.[0] ?? ''
+      const v = falPayload.video
+      const firstVidUrl = Array.isArray(v) ? v[0]?.url : v?.url
+      rawUrl = firstVidUrl ?? falPayload.video?.url ?? falPayload.video_url ?? falPayload.url ?? falPayload.result?.video?.url ?? falPayload.output?.[0] ?? ''
     }
 
     if (!rawUrl) {
