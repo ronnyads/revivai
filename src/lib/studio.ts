@@ -305,6 +305,10 @@ export async function generateVoice(params: {
   const apiKey = process.env.ELEVENLABS_API_KEY
   if (!apiKey) throw new Error('ELEVENLABS_API_KEY não configurada')
 
+  const configStr = await getStudioPrompt(admin, 'audio_elevenlabs_config', '{}')
+  let config: any = {}
+  try { config = JSON.parse(configStr) } catch { /* ignore */ }
+
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${params.voice_id}`, {
     method: 'POST',
     headers: {
@@ -315,8 +319,10 @@ export async function generateVoice(params: {
       text: params.script,
       model_id: 'eleven_multilingual_v2',
       voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75,
+        stability: config.stability ?? 0.5,
+        similarity_boost: config.similarity ?? 0.75,
+        style: config.style ?? 0.0,
+        use_speaker_boost: config.use_speaker_boost ?? true,
         speed: params.speed ?? 1.0,
       },
     }),
@@ -353,12 +359,17 @@ export async function generateCaption(params: {
   if (!audioRes.ok) throw new Error('Não foi possível baixar o áudio')
   const buffer = Buffer.from(await audioRes.arrayBuffer())
 
+  const configStr = await getStudioPrompt(admin, 'subtitle_whisper_config', '{}')
+  let config: any = {}
+  try { config = JSON.parse(configStr) } catch { /* ignore */ }
+
   const ext = params.audio_url.split('.').pop()?.toLowerCase() ?? 'mp3'
   const formData = new FormData()
   formData.append('file', new Blob([buffer], { type: `audio/${ext}` }), `audio.${ext}`)
-  formData.append('model', 'whisper-1')
-  formData.append('language', 'pt')
+  formData.append('model', config.model || 'whisper-1')
+  formData.append('language', config.language || 'pt')
   formData.append('response_format', 'srt')
+  if (config.prompt) formData.append('prompt', config.prompt)
 
   const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
@@ -391,6 +402,11 @@ export async function generateUpscale(params: {
   const falKey = process.env.FAL_KEY
   if (!falKey) throw new Error('FAL_KEY não configurada')
 
+  const admin = createAdminClient()
+  const configStr = await getStudioPrompt(admin, 'upscale_esrgan_config', '{}')
+  let config: any = {}
+  try { config = JSON.parse(configStr) } catch { /* ignore */ }
+
   const res = await fetch('https://fal.run/fal-ai/esrgan', {
     method: 'POST',
     headers: {
@@ -399,7 +415,8 @@ export async function generateUpscale(params: {
     },
     body: JSON.stringify({
       image_url: params.source_url,
-      scale: params.scale ?? 4,
+      scale: params.scale ?? config.scale ?? 4,
+      face_enhance: config.face_enhance ?? true,
     }),
   })
 
@@ -539,6 +556,11 @@ export async function startVideoGeneration(params: {
 
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
 
+  const admin = createAdminClient()
+  const configStr = await getStudioPrompt(admin, 'video_kling_config', '{}')
+  let config: any = {}
+  try { config = JSON.parse(configStr) } catch { /* ignore */ }
+
   // Injeta contexto do modelo UGC no prompt de movimento
   const modelContext = params.model_prompt
     ? `Person: ${params.model_prompt.slice(0, 200)}. `
@@ -549,9 +571,10 @@ export async function startVideoGeneration(params: {
   let payload: any = {
     image_url: params.source_image_url,
     prompt: finalMotion,
-    duration: '5',
+    duration: config.duration || '5',
     aspect_ratio: '9:16',
     webhook_url: webhookUrl,
+    ...config // Permite sobrescrever qualquer parâmetro via JSON Admin
   }
 
   // Se o usuário selecionou o motor do Google Veo 3
@@ -560,9 +583,10 @@ export async function startVideoGeneration(params: {
     payload = {
       image_url: params.source_image_url,
       prompt: finalMotion,
-      duration: '8s', // Veo prefere duracoes fixas como 4s e 8s
+      duration: config.veo_duration || '8s', 
       aspect_ratio: '9:16',
       webhook_url: webhookUrl,
+      ...config
     }
   }
 
@@ -842,6 +866,10 @@ export async function startLipsyncGeneration(params: {
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}&provider=fal`
 
   // 1. Envia o job para a fila da Fal AI (usando SyncLabs 2.0 Pro API)
+  const configStr = await getStudioPrompt(admin, 'video_latentsync_config', '{}')
+  let config: any = {}
+  try { config = JSON.parse(configStr) } catch { /* ignore */ }
+
   const queueRes = await fetch('https://queue.fal.run/fal-ai/sync-lipsync/v2/pro', {
     method: 'POST',
     headers: {
@@ -852,6 +880,7 @@ export async function startLipsyncGeneration(params: {
       video_url: params.face_url,
       audio_url: params.audio_url,
       webhook_url: webhookUrl,
+      ...config
     }),
   })
 
@@ -882,6 +911,10 @@ export async function startAnimateGeneration(params: {
 
   const admin = createAdminClient()
 
+  const configStr = await getStudioPrompt(admin, 'video_liveportrait_config', '{}')
+  let config: any = {}
+  try { config = JSON.parse(configStr) } catch { /* ignore */ }
+
   // 1. Envia o job para a Fal AI
   const queueRes = await fetch('https://queue.fal.run/fal-ai/live-portrait', {
     method: 'POST',
@@ -892,6 +925,7 @@ export async function startAnimateGeneration(params: {
     body: JSON.stringify({
       image_url:  params.portrait_image_url,
       video_url:  params.driving_video_url,
+      ...config
     })
   })
 
