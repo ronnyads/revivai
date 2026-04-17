@@ -1057,7 +1057,7 @@ export async function startVeo3DirectGoogle(params: {
   const mimeType = imgRes.headers.get('content-type') ?? 'image/jpeg'
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-exp-01:predictLongRunning?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning?key=${apiKey}`,
     {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
