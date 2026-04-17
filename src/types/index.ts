@@ -57,6 +57,7 @@ export interface StudioProject {
 
 export interface StudioAsset {
   id: string
+  isLocal?: boolean // Marcação para itens gerados e contidos unicamente no estado React local
   project_id: string
   user_id: string
   type: AssetType
