@@ -57,7 +57,7 @@ async function persistToStorage(admin: ReturnType<typeof createAdminClient>, url
     return NextResponse.json({ status: asset.status, message: 'prediction_id não encontrado — aguarde o webhook' })
   }
 
-  if (asset.type === 'lipsync' || asset.type === 'video') {
+  if (asset.type === 'lipsync' || asset.type === 'video' || asset.type === 'animate') {
     const falKey = process.env.FAL_KEY
     if (!falKey) return NextResponse.json({ status: 'error', error: 'FAL_KEY não configurada' })
 
@@ -66,6 +66,8 @@ async function persistToStorage(admin: ReturnType<typeof createAdminClient>, url
       const engine = (asset.input_params as any)?.engine
       if (engine === 'veo') modelPath = 'fal-ai/veo3.1/image-to-video'
       else modelPath = 'fal-ai/kling-video/o3/pro/image-to-video'
+    } else if (asset.type === 'animate') {
+      modelPath = 'fal-ai/live-portrait'
     }
 
     const res = await fetch(`https://queue.fal.run/${modelPath}/requests/${predictionId}/status`, {

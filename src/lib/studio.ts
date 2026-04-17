@@ -587,7 +587,7 @@ export async function startVideoGeneration(params: {
   // Salva prediction_id para permitir sync manual e rastreamento
   const admin = createAdminClient()
   await admin.from('studio_assets')
-    .update({ input_params: { prediction_id: request_id, provider: 'fal', source_image_url: params.source_image_url, motion_prompt: params.motion_prompt, duration: params.duration } })
+    .update({ input_params: { prediction_id: request_id, provider: 'fal', engine: params.engine ?? 'kling', source_image_url: params.source_image_url, motion_prompt: params.motion_prompt, duration: params.duration } })
     .eq('id', params.assetId)
 }
 
@@ -903,6 +903,11 @@ export async function startAnimateGeneration(params: {
 
   const { request_id } = await queueRes.json()
   if (!request_id) throw new Error('Fal AI não retornou request_id para animate')
+
+  // Salva prediction_id para permitir sync manual caso o polling expire
+  await admin.from('studio_assets')
+    .update({ input_params: { prediction_id: request_id, portrait_image_url: params.portrait_image_url, driving_video_url: params.driving_video_url } })
+    .eq('id', params.assetId)
 
   // 2. Polling síncrono — até 240s
   const statusUrl = `https://queue.fal.run/fal-ai/live-portrait/requests/${request_id}`
