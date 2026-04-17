@@ -90,24 +90,37 @@ export async function POST(
         return NextResponse.json({ status: 'error', error: errMsg })
       }
 
-      // Extrai URL ou base64 do vídeo gerado
-      const prediction = op.response?.predictions?.[0]
-      let finalUrl: string | null = prediction?.videoUrl ?? prediction?.gcsUri ?? null
+      // Extrai URL do vídeo gerado na nova estrutura do Veo 3.1
+      const sample = op.response?.generateVideoResponse?.generatedSamples?.[0]
+      let finalUrl: string | null = sample?.video?.uri ?? null
 
-      if (!finalUrl && prediction?.bytesBase64Encoded) {
-        // Vídeo veio em base64 — faz upload para Supabase
-        const buffer = Buffer.from(prediction.bytesBase64Encoded, 'base64')
-        const path = `${user.id}/${id}-veo3.mp4`
-        const { error: upErr } = await admin.storage.from('studio').upload(path, buffer, { contentType: 'video/mp4', upsert: true })
-        if (!upErr) {
-          const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
-          finalUrl = publicUrl
-        }
+      if (!finalUrl && op.response?.generatedVideos?.[0]?.video) {
+        // Fallback p/ GenAI struct if happens
+        finalUrl = op.response.generatedVideos[0].video.uri || op.response.generatedVideos[0].video
       }
 
       if (!finalUrl) return NextResponse.json({ status: 'processing', message: 'Finalizando vídeo Veo3...' })
 
-      finalUrl = await persistToStorage(admin, finalUrl, user.id, id)
+      // Para baixar o vídeo da API do Google, precisamos passar a API Key no header (ou via curl)
+      try {
+        const vidReq = await fetch(finalUrl, {
+          headers: { 'x-goog-api-key': apiKey }
+        })
+        if (vidReq.ok) {
+          const buffer = Buffer.from(await vidReq.arrayBuffer())
+          const path = `${user.id}/${id}-veo3.mp4`
+          const { error: upErr } = await admin.storage.from('studio').upload(path, buffer, { contentType: 'video/mp4', upsert: true })
+          if (!upErr) {
+            const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+            finalUrl = publicUrl
+          }
+        } else {
+          // fallback se não conseguir baixar (mas o front talvez não consiga tocar)
+          finalUrl = finalUrl // keeps the google URL
+        }
+      } catch (e) {
+        console.error("Falha ao transpor vídeo", e)
+      }
       
       // DEBITA O CRÉDITO DO GOOGLE VEO AQUI! (Pois a geração foi assíncrona)
       // Como o Veo3 custa 100 créditos e não debitamos na criação, debitamos ao finalizar
