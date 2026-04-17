@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { project_id, type, input_params, existing_id } = body as {
+  const { project_id, type, input_params, existing_id, frontend_id } = body as {
     project_id: string
     type: AssetType
     input_params: Record<string, unknown>
