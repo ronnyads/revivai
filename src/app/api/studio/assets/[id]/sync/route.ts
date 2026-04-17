@@ -77,17 +77,32 @@ export async function POST(
       modelPath = 'fal-ai/latentsync'
     }
 
+    // Para video sem engine salvo, tenta os dois endpoints como fallback
+    const altModelPath = asset.type === 'video'
+      ? (modelPath.includes('veo') ? 'fal-ai/kling-video/o3/pro/image-to-video' : 'fal-ai/veo3.1/image-to-video')
+      : null
+
+    async function fetchFalStatus(path: string) {
+      const r = await fetch(`https://queue.fal.run/${path}/requests/${predictionId}/status`, {
+        headers: { 'Authorization': `Key ${falKey}` }
+      })
+      if (!r.ok) return null
+      return r.json()
+    }
+
     try {
-      // 1. Checa status
-      const statusRes = await fetch(
-        `https://queue.fal.run/${modelPath}/requests/${predictionId}/status`,
-        { headers: { 'Authorization': `Key ${falKey}` } }
-      )
-      if (!statusRes.ok) {
-        const txt = await statusRes.text()
-        return NextResponse.json({ status: 'error', error: `Fal AI status error: ${txt}` }, { status: 500 })
+      // 1. Checa status (tenta path principal, depois alternativo se disponível)
+      let statusJson = await fetchFalStatus(modelPath)
+      if (!statusJson && altModelPath) {
+        statusJson = await fetchFalStatus(altModelPath)
+        if (statusJson) modelPath = altModelPath // usa o path que funcionou
       }
-      const statusJson = await statusRes.json()
+      if (!statusJson) {
+        return NextResponse.json({
+          status: 'not_found',
+          message: 'Resultado não encontrado no Fal AI — o job pode ter expirado. Gere novamente.'
+        })
+      }
 
       if (statusJson.status === 'COMPLETED' || statusJson.status === 'OK') {
         let videoUrl: string | null = null
