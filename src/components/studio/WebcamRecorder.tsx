@@ -10,202 +10,54 @@ interface Props {
   onChange: (url: string) => void
 }
 
-const MAX_SECONDS = 30
-
-export default function WebcamRecorder({ value, onChange }: Props) {
-  const [phase,       setPhase]       = useState<Phase>('idle')
-  const [countdown,   setCountdown]   = useState(3)
-  const [elapsed,     setElapsed]     = useState(0)
-  const [recordedUrl, setRecordedUrl] = useState('')
-  const [error,       setError]       = useState('')
-  const [showUpload,  setShowUpload]  = useState(false)
-
-  const videoRef    = useRef<HTMLVideoElement>(null)
-  const streamRef   = useRef<MediaStream | null>(null)
-  const recorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef   = useRef<Blob[]>([])
-  const blobRef     = useRef<Blob | null>(null)
-  const timerRef    = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopStream()
-      if (timerRef.current) clearInterval(timerRef.current)
-      if (recordedUrl) URL.revokeObjectURL(recordedUrl)
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  function stopStream() {
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    streamRef.current = null
-  }
-
-  // Quando o vídeo monta (após setPhase), aplica o stream
-  useEffect(() => {
-    if ((phase === 'preview' || phase === 'countdown' || phase === 'recording') && videoRef.current && streamRef.current) {
-      videoRef.current.srcObject = streamRef.current
-      videoRef.current.muted = true
-    }
-  }, [phase])
-
-  async function openCamera() {
-    setError('')
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      streamRef.current = stream
-      setPhase('preview')
-    } catch {
-      setError('Câmera não encontrada ou acesso negado.')
-    }
-  }
-
-  function startCountdown() {
-    setCountdown(3)
-    setPhase('countdown')
-    let c = 3
-    const id = setInterval(() => {
-      c -= 1
-      setCountdown(c)
-      if (c === 0) {
-        clearInterval(id)
-        startRecording()
-      }
-    }, 1000)
-  }
-
-  function startRecording() {
-    if (!streamRef.current) return
-    chunksRef.current = []
-    setElapsed(0)
-    setPhase('recording')
-
-    const recorder = new MediaRecorder(streamRef.current, { mimeType: 'video/webm' })
-    recorderRef.current = recorder
-
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data)
-    }
-
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' })
-      blobRef.current = blob
-      const url = URL.createObjectURL(blob)
-      setRecordedUrl(url)
-      setPhase('recorded')
-    }
-
-    recorder.start(100)
-
-    // Timer + auto-stop at MAX_SECONDS
-    let secs = 0
-    timerRef.current = setInterval(() => {
-      secs += 1
-      setElapsed(secs)
-      if (secs >= MAX_SECONDS) stopRecording()
-    }, 1000)
-  }
-
-  function stopRecording() {
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
-    recorderRef.current?.stop()
-    stopStream()
-  }
-
-  function reRecord() {
-    if (recordedUrl) URL.revokeObjectURL(recordedUrl)
-    setRecordedUrl('')
-    blobRef.current = null
-    setElapsed(0)
-    openCamera()
-  }
-
-  const uploadVideo = useCallback(async () => {
-    if (!blobRef.current) return
-    setPhase('uploading')
-    setError('')
-    try {
-      const form = new FormData()
-      form.append('file', blobRef.current, `webcam-${Date.now()}.webm`)
-      const res  = await fetch('/api/studio/upload', { method: 'POST', body: form })
-      const data = await res.json()
-      if (data.url) {
-        onChange(data.url)
-      } else {
-        throw new Error(data.error ?? 'Erro no upload')
-      }
-    } catch (e: any) {
-      setError(e.message ?? 'Erro ao enviar vídeo')
-      setPhase('recorded')
-    }
-  }, [onChange])
-
-  function cancel() {
-    stopStream()
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
-    if (recordedUrl) URL.revokeObjectURL(recordedUrl)
-    setRecordedUrl('')
-    setPhase('idle')
-    setError('')
-  }
-
-  const pct = Math.min((elapsed / MAX_SECONDS) * 100, 100)
-  const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-
-  // Already has a recorded URL
-  if (value) {
-    return (
-      <div className="flex flex-col gap-2">
-        <video src={value} controls className="w-full rounded-xl max-h-40" playsInline />
-        <button
-          onClick={() => { onChange(''); setPhase('idle') }}
-          className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 hover:text-red-400 border border-zinc-700 py-1.5 rounded-xl transition-colors"
-        >
-          <X size={11} /> Regravar
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <label className="text-[10px] text-zinc-500 uppercase tracking-wide">Seu vídeo (driving)</label>
+const MAX_SECONDS = 60
 
       {/* ── IDLE ── */}
       {phase === 'idle' && (
         <div className="flex flex-col gap-2">
+          {/* Webcam mode */}
           <button
             onClick={openCamera}
             className="w-full flex flex-col items-center gap-2 border-2 border-dashed border-fuchsia-500/40 hover:border-fuchsia-500/70 bg-fuchsia-500/5 rounded-xl py-5 transition-colors group"
           >
             <Camera size={24} className="text-fuchsia-400 group-hover:scale-110 transition-transform" />
-            <p className="text-xs text-zinc-300 font-medium">Abrir câmera</p>
-            <p className="text-[10px] text-zinc-500">Grave até 30s do seu rosto</p>
+            <p className="text-xs text-zinc-300 font-medium">Gravar na Webcam</p>
+            <p className="text-[10px] text-zinc-500">Grave até 60s do seu rosto usando a câmera</p>
           </button>
-          {!showUpload ? (
-            <button onClick={() => setShowUpload(true)} className="text-[10px] text-zinc-600 hover:text-zinc-400 text-center transition-colors">
-              ou envie um arquivo de vídeo
-            </button>
-          ) : (
-            <div>
-              <input
-                type="file"
-                accept="video/*"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0]
-                  if (!file) return
-                  setPhase('uploading')
-                  const form = new FormData()
-                  form.append('file', file)
-                  const res = await fetch('/api/studio/upload', { method: 'POST', body: form })
-                  const data = await res.json()
-                  if (data.url) onChange(data.url)
-                  else { setError(data.error ?? 'Erro'); setPhase('idle') }
-                }}
-                className="w-full text-xs text-zinc-400 file:mr-2 file:bg-zinc-800 file:border-0 file:text-zinc-300 file:px-3 file:py-1 file:rounded-lg file:text-xs cursor-pointer"
-              />
-            </div>
-          )}
+          
+          <div className="relative flex items-center py-1">
+            <div className="flex-grow border-t border-zinc-800"></div>
+            <span className="flex-shrink-0 mx-2 text-[10px] text-zinc-600 uppercase tracking-widest">ou upload</span>
+            <div className="flex-grow border-t border-zinc-800"></div>
+          </div>
+
+          {/* Upload mode */}
+          <label className="w-full flex flex-col items-center gap-2 border-2 border-dashed border-zinc-700/60 hover:border-zinc-500 bg-zinc-800/30 rounded-xl py-4 transition-colors group cursor-pointer">
+            <Upload size={20} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+            <p className="text-xs text-zinc-400 font-medium text-center">Enviar Vídeo do PC / Galeria</p>
+            <p className="text-[10px] text-zinc-500 text-center">MP4, MOV, WebM — <span className="text-zinc-400 font-medium">máx. 100 MB</span></p>
+            <input
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const MAX_MB = 100
+                if (file.size > MAX_MB * 1024 * 1024) {
+                  setError(`Arquivo muito grande. Máximo: ${MAX_MB} MB`)
+                  return
+                }
+                setPhase('uploading')
+                const form = new FormData()
+                form.append('file', file)
+                const res = await fetch('/api/studio/upload', { method: 'POST', body: form })
+                const data = await res.json()
+                if (data.url) onChange(data.url)
+                else { setError(data.error ?? 'Erro ao enviar'); setPhase('idle') }
+              }}
+            />
+          </label>
         </div>
       )}
 
