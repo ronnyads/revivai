@@ -608,7 +608,6 @@ export async function startVideoGeneration(params: {
   if (!request_id) throw new Error('Fal AI não retornou request_id para video')
 
   // Salva prediction_id para permitir sync manual e rastreamento
-  const admin = createAdminClient()
   await admin.from('studio_assets')
     .update({ input_params: { prediction_id: request_id, provider: 'fal', engine: params.engine ?? 'kling', source_image_url: params.source_image_url, motion_prompt: params.motion_prompt, duration: params.duration } })
     .eq('id', params.assetId)
