@@ -129,29 +129,60 @@ export async function generateImage(params: {
       safety_tolerance: '3',
     }
 
-    // Se for mascote conectado a uma imagem de rosto, injeta condicional de caráter
+    // Se for mascote conectado a uma imagem de rosto
     if (isMascot && params.source_face_url) {
-      payload.image_url = params.source_face_url
-      payload.image_prompt_strength = 0.85
+      const payload: any = {
+        prompt: finalPrompt,
+        image_url: params.source_face_url,
+        strength: 0.85,  // Mantém a estrutura principal do mascote recriando o contexto
+        num_inference_steps: 40,
+        guidance_scale: 3.5,
+      }
+
+      const res = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${falKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const err = await res.text()
+        throw new Error(`Flux Image-to-Image erro: ${err}`)
+      }
+
+      const data = await res.json()
+      tempUrl = data.images?.[0]?.url
+      if (!tempUrl) throw new Error('Flux Image-to-Image não retornou URL')
+    } else {
+      // Geração Pura (Ultra)
+      const payload: any = {
+        prompt: finalPrompt,
+        aspect_ratio: params.aspect_ratio || '9:16',
+        output_format: 'jpeg',
+        safety_tolerance: '3',
+      }
+
+      const res = await fetch('https://fal.run/fal-ai/flux-pro/v1.1-ultra', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${falKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const err = await res.text()
+        throw new Error(`Flux Ultra erro: ${err}`)
+      }
+
+      const data = await res.json()
+      tempUrl = data.images?.[0]?.url
+      if (!tempUrl) throw new Error('Flux Ultra não retornou URL')
     }
-
-    const res = await fetch('https://fal.run/fal-ai/flux-pro/v1.1-ultra', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${falKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
-
-    if (!res.ok) {
-      const err = await res.text()
-      throw new Error(`Flux Ultra erro: ${err}`)
-    }
-
-    const data = await res.json()
-    tempUrl = data.images?.[0]?.url
-    if (!tempUrl) throw new Error('Flux Ultra não retornou URL')
   }
 
   // Re-upload para bucket studio (URLs OpenAI/Fal expiram)
