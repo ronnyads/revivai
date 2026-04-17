@@ -107,27 +107,36 @@ export async function generateImage(params: {
     tempUrl = data.images?.[0]?.url
     if (!tempUrl) throw new Error('Fal AI não retornou URL')
   } else {
-    // Fallback normal — DALL-E 3
-    const res = await fetch('https://api.openai.com/v1/images/generations', {
+    // Fallback normal — Flux Pro 1.1 Ultra (substituindo DALL-E 3 para garantir fotorealismo total)
+    const falKey = process.env.FAL_KEY
+    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+
+    // Append a realism suffix to prevent any cartoonish generation from plain prompts
+    const realismSuffix = "RAW photo, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, not illustrated, not cartoon, real photography."
+    const finalFluxPrompt = `${finalPrompt}. ${realismSuffix}`
+
+    const res = await fetch('https://fal.run/fal-ai/flux-pro/v1.1-ultra', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      headers: {
+        'Authorization': `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
-        model: 'dall-e-3',
-        prompt: finalPrompt,
-        size,
-        quality: 'standard',
-        n: 1,
+        prompt: finalFluxPrompt,
+        aspect_ratio: params.aspect_ratio || '9:16',
+        output_format: 'jpeg',
+        safety_tolerance: '3',
       }),
     })
 
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(`DALL-E erro: ${err.error?.message ?? res.status}`)
+      const err = await res.text()
+      throw new Error(`Flux Ultra erro: ${err}`)
     }
 
     const data = await res.json()
-    tempUrl = data.data?.[0]?.url
-    if (!tempUrl) throw new Error('DALL-E não retornou URL')
+    tempUrl = data.images?.[0]?.url
+    if (!tempUrl) throw new Error('Flux Ultra não retornou URL')
   }
 
   // Re-upload para bucket studio (URLs OpenAI/Fal expiram)
