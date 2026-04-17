@@ -20,29 +20,57 @@ const STEPS = [
   {
     id: 'gender',
     title: 'Gênero',
-    subtitle: 'Qual é o gênero do modelo?',
+    subtitle: 'Determine a base do modelo',
     layout: 'two-col' as const,
     options: [
-      { value: 'feminino',  label: 'Feminino',  icon: <User size={20} /> },
-      { value: 'masculino', label: 'Masculino', icon: <UserRound size={20} /> },
+      { 
+        value: 'feminino',  
+        label: 'Feminino',  
+        image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&h=500&auto=format&fit=crop' 
+      },
+      { 
+        value: 'masculino', 
+        label: 'Masculino', 
+        image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=400&h=500&auto=format&fit=crop' 
+      },
     ],
   },
   {
     id: 'age_range',
     title: 'Faixa Etária',
-    subtitle: 'Qual a faixa de idade do modelo?',
+    subtitle: 'A idade influencia o tom de voz e maturidade',
     layout: 'grid' as const,
     options: [
-      { value: '20-30', label: '20 – 30', icon: <Sparkles size={16} /> },
-      { value: '30-40', label: '30 – 40', icon: <Briefcase size={16} /> },
-      { value: '40-55', label: '40 – 55', icon: <Star size={16} /> },
-      { value: '55+',   label: '55+',      icon: <Target size={16} /> },
+      { 
+        value: '20-30', 
+        label: '20 – 30 anos', 
+        femaleImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300&h=400&auto=format&fit=crop'
+      },
+      { 
+        value: '30-40', 
+        label: '30 – 40 anos', 
+        femaleImage: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=300&h=400&auto=format&fit=crop'
+      },
+      { 
+        value: '40-55', 
+        label: '40 – 55 anos', 
+        femaleImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300&h=400&auto=format&fit=crop'
+      },
+      { 
+        value: '55+',   
+        label: 'Mais de 55', 
+        femaleImage: 'https://images.unsplash.com/photo-1552699611-e2c208d5d9cf?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1542178243-bc20204b7694?q=80&w=300&h=400&auto=format&fit=crop'
+      },
     ],
   },
   {
     id: 'skin_tone',
-    title: 'Cor da Pele',
-    subtitle: 'Selecione o tom de pele mais próximo',
+    title: 'Tom de Pele',
+    subtitle: 'Base para o realismo da fotografia',
     layout: 'swatch' as const,
     options: [
       { value: 'muito_clara', label: 'Alva',     color: 'linear-gradient(135deg, #FDF4E3, #F5DCB4)' },
@@ -56,27 +84,65 @@ const STEPS = [
   {
     id: 'body_type',
     title: 'Tipo Físico',
-    subtitle: 'Qual é o tipo físico do modelo?',
+    subtitle: 'Estrutura corporal para enquadramento',
     layout: 'grid' as const,
     options: [
-      { value: 'magro',     label: 'Magro',    icon: <PersonStanding size={18} strokeWidth={1.5} /> },
-      { value: 'atletico',  label: 'Atlético', icon: <Dumbbell size={18} /> },
-      { value: 'normal',    label: 'Normal',   icon: <User size={18} /> },
-      { value: 'robusto',   label: 'Robusto',  icon: <Move size={18} /> },
-      { value: 'plus_size', label: 'Plus Size',icon: <PersonStanding size={22} strokeWidth={2.5} /> },
+      { 
+        value: 'magro',     
+        label: 'Magro',    
+        femaleImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=300&h=400&auto=format&fit=crop'
+      },
+      { 
+        value: 'atletico',  
+        label: 'Atlético', 
+        femaleImage: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=300&h=400&auto=format&fit=crop'
+      },
+      { 
+        value: 'normal',    
+        label: 'Normal',   
+        femaleImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=300&h=400&auto=format&fit=crop'
+      },
+      { 
+        value: 'plus_size', 
+        label: 'Plus Size',
+        femaleImage: 'https://images.unsplash.com/photo-1589156280159-27698a70f29e?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300&h=400&auto=format&fit=crop'
+      },
     ],
   },
   {
     id: 'style',
     title: 'Estilo',
-    subtitle: 'Como o modelo está vestido?',
+    subtitle: 'Vibe visual e vestimentas do modelo',
     layout: 'grid' as const,
     options: [
-      { value: 'casual',       label: 'Casual',       icon: <Shirt size={18} /> },
-      { value: 'profissional', label: 'Formal',       icon: <Briefcase size={18} /> },
-      { value: 'esportivo',    label: 'Esportivo',    icon: <Zap size={18} /> },
-      { value: 'elegante',     label: 'Elegante',     icon: <Crown size={18} /> },
-      { value: 'alternativo',  label: 'Estiloso',     icon: <Fingerprint size={18} /> },
+      { 
+        value: 'casual',       
+        label: 'Casual',       
+        femaleImage: 'https://images.unsplash.com/photo-1529139513075-1231282c65cc?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1488161628813-04466f872be2?q=80&w=300&h=400&auto=format&fit=crop'
+      },
+      { 
+        value: 'profissional', 
+        label: 'Formal',       
+        femaleImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=300&h=400&auto=format&fit=crop'
+      },
+      { 
+        value: 'esportivo',    
+        label: 'Sporty',    
+        femaleImage: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1483721310020-03333e577078?q=80&w=300&h=400&auto=format&fit=crop'
+      },
+      { 
+        value: 'elegante',     
+        label: 'High-End',     
+        femaleImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300&h=400&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=300&h=400&auto=format&fit=crop'
+      },
     ],
   },
 ]
@@ -229,21 +295,27 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
             <p className="text-[11px] text-zinc-500">{currentStep.subtitle}</p>
           </div>
 
-          {/* Layout dois colunas */}
+          {/* Layout dois colunas (Gênero) */}
           {currentStep.layout === 'two-col' && (
             <div className="grid grid-cols-2 gap-2">
               {currentStep.options.map(opt => (
                 <button
                   key={opt.value}
                   onClick={() => select(opt.value)}
-                  className={`flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border transition-all ${
+                  className={`group relative flex flex-col items-center justify-end h-44 p-4 rounded-2xl border-2 transition-all overflow-hidden ${
                     params[field] === opt.value
-                      ? 'border-indigo-500 bg-indigo-500/10 text-white ring-1 ring-indigo-500/20'
-                      : 'border-zinc-800 bg-zinc-900/50 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-800/80 shadow-sm'
+                      ? 'border-indigo-500 ring-4 ring-indigo-500/20'
+                      : 'border-zinc-800 hover:border-zinc-700'
                   }`}
                 >
-                  {'icon' in opt && <div className={params[field] === opt.value ? 'text-indigo-400' : 'text-zinc-600'}>{(opt as any).icon}</div>}
-                  <span className="text-[11px] font-medium tracking-wide uppercase">{opt.label}</span>
+                  <img src={(opt as any).image} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt="" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                  <span className="relative text-xs font-black tracking-widest uppercase text-white shadow-sm z-10">{opt.label}</span>
+                  {params[field] === opt.value && (
+                    <div className="absolute top-2 right-2 bg-indigo-500 rounded-full p-1 z-20">
+                      <Check size={12} className="text-white" />
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
@@ -272,23 +344,33 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
             </div>
           )}
 
-          {/* Layout grid colunas variadas */}
+          {/* Layout grid com fotos dinâmicas (Age, Body, Style) */}
           {currentStep.layout === 'grid' && (
             <div className="grid grid-cols-2 gap-2">
-              {currentStep.options.map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => select(opt.value)}
-                  className={`flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border transition-all ${
-                    params[field] === opt.value
-                      ? 'border-indigo-500 bg-indigo-500/10 text-white ring-1 ring-indigo-500/20'
-                      : 'border-zinc-800 bg-zinc-900/50 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-800/80'
-                  }`}
-                >
-                  {'icon' in opt && <div className={params[field] === opt.value ? 'text-indigo-400' : 'text-zinc-600'}>{(opt as any).icon}</div>}
-                  <span className="text-[11px] font-medium tracking-wide uppercase">{opt.label}</span>
-                </button>
-              ))}
+              {currentStep.options.map(opt => {
+                const isFemale = params.gender === 'feminino'
+                const displayImg = isFemale ? (opt as any).femaleImage : (opt as any).maleImage
+                
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => select(opt.value)}
+                    className={`group relative flex flex-col items-center justify-end h-32 p-3 rounded-xl border transition-all overflow-hidden ${
+                      params[field] === opt.value
+                        ? 'border-indigo-500 ring-2 ring-indigo-500/30'
+                        : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/50'
+                    }`}
+                  >
+                    {displayImg && (
+                      <>
+                        <img src={displayImg} className="absolute inset-0 w-full h-full object-cover opacity-60 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-100" alt="" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                      </>
+                    )}
+                    <span className={`relative text-[10px] font-bold tracking-wider uppercase z-10 ${params[field] === opt.value ? 'text-white' : 'text-zinc-300'}`}>{opt.label}</span>
+                  </button>
+                )
+              })}
             </div>
           )}
 
