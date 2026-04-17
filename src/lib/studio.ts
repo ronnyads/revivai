@@ -1056,11 +1056,9 @@ export async function startVeo3DirectGoogle(params: {
   const base64Image = imgBuffer.toString('base64')
   const mimeType = imgRes.headers.get('content-type') ?? 'image/jpeg'
 
-  // 2. Envia para Google Veo3 — retorna operação de longa duração
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-generate-preview:predictLongRunning?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-exp-01:predictLongRunning?key=${apiKey}`,
     {
-      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         instances: [{
