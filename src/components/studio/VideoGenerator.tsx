@@ -23,6 +23,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
   const [imageUrl, setImageUrl] = useState(resolveImageUrl(initial))
   const [motion,   setMotion]   = useState(String(initial.motion_prompt ?? ''))
   const [duration, setDuration] = useState(Number(initial.duration      ?? 5))
+  const [engine,   setEngine]   = useState(String(initial.engine        ?? 'kling'))
 
   // Sync quando conexão do canvas preenche source_image_url ou continuation_frame
   useEffect(() => {
@@ -53,6 +54,32 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
       )}
       <div>
         <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">
+          Motor de Renderização
+        </label>
+        <div className="grid grid-cols-2 gap-1.5 mb-3">
+          <button
+            onClick={() => setEngine('kling')}
+            className={`py-2 rounded-xl border text-[11px] font-medium transition-all ${
+              engine === 'kling'
+                ? 'border-blue-500/50 bg-blue-500/15 text-blue-400'
+                : 'border-zinc-700 text-zinc-500 hover:border-zinc-600'
+            }`}
+          >
+            Kling 3.0 Pro
+          </button>
+          <button
+            onClick={() => setEngine('veo')}
+            className={`py-2 rounded-xl border text-[11px] font-medium transition-all ${
+              engine === 'veo'
+                ? 'border-blue-500/50 bg-blue-500/15 text-blue-400'
+                : 'border-zinc-700 text-zinc-500 hover:border-zinc-600'
+            }`}
+          >
+            Google Veo 3.1
+          </button>
+        </div>
+
+        <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">
           {isContinuation ? 'Movimento deste segmento' : 'Descrição do movimento'}
         </label>
         <textarea
@@ -75,8 +102,8 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
         />
       </div>
       <div className="bg-zinc-800/60 rounded-xl p-3 text-xs text-zinc-500">
-        Processamento Neural: <span className="text-white font-medium">Animador Max 2.5</span> — O melhor gerador de movimento do mercado.
-        Geração leva 2–5 minutos.
+        Processamento Neural: <span className="text-white font-medium">{engine === 'kling' ? 'Kling 3.0 Omni Pro' : 'Google Veo 3.1'}</span> — 
+        {engine === 'kling' ? ' Foco em movimento humano.' : ' Realismo fílmico puro.'} Geração leva 2–5 min.
       </div>
       <button
         onClick={() => onGenerate({
@@ -84,11 +111,12 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
           continuation_frame: isContinuation ? imageUrl : undefined,
           motion_prompt: motion,
           duration,
+          engine,
         })}
         disabled={!imageUrl.trim()}
         className="flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-all disabled:opacity-40 w-full"
       >
-        <Video size={15} /> {isContinuation ? 'Gerar segmento' : 'Gerar vídeo'} — 3 créditos
+        <Video size={15} /> {isContinuation ? 'Gerar segmento' : 'Gerar vídeo'} — {engine === 'veo' ? '5' : '3'} créditos
       </button>
     </div>
   )

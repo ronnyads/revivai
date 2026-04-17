@@ -530,6 +530,7 @@ export async function startVideoGeneration(params: {
   motion_prompt: string
   duration: number
   model_prompt?: string
+  engine?: string
   assetId: string
   appUrl: string
   userId: string
@@ -545,19 +546,34 @@ export async function startVideoGeneration(params: {
     : ''
   const finalMotion = modelContext + (params.motion_prompt || 'smooth product showcase motion')
 
-  const queueRes = await fetch('https://queue.fal.run/fal-ai/kling-video/o3/pro/image-to-video', {
+  let endpoint = 'https://queue.fal.run/fal-ai/kling-video/o3/pro/image-to-video'
+  let payload: any = {
+    image_url: params.source_image_url,
+    prompt: finalMotion,
+    duration: '5',
+    aspect_ratio: '9:16',
+    webhook_url: webhookUrl,
+  }
+
+  // Se o usuário selecionou o motor do Google Veo 3
+  if (params.engine === 'veo') {
+    endpoint = 'https://queue.fal.run/fal-ai/veo3.1/image-to-video'
+    payload = {
+      image_url: params.source_image_url,
+      prompt: finalMotion,
+      duration: '8s', // Veo prefere duracoes fixas como 4s e 8s
+      aspect_ratio: '9:16',
+      webhook_url: webhookUrl,
+    }
+  }
+
+  const queueRes = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Authorization': `Key ${falKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      image_url: params.source_image_url,
-      prompt: finalMotion,
-      duration: '5',
-      aspect_ratio: '9:16',
-      webhook_url: webhookUrl,
-    }),
+    body: JSON.stringify(payload),
   })
 
   if (!queueRes.ok) {
