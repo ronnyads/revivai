@@ -255,8 +255,8 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
       )}
     </div>
   )
-  if (type === 'image' || type === 'upscale' || type === 'compose' || type === 'face') return <img src={url} alt="" className="w-full rounded-xl object-contain h-48 bg-zinc-900/50 p-2" />
-  if (type === 'video' || type === 'render' || type === 'animate' || type === 'lipsync' || type === 'join') return <video src={url} controls className="w-full rounded-xl object-contain h-48 bg-zinc-900/50 p-2" playsInline />
+  if (type === 'image' || type === 'upscale' || type === 'compose' || type === 'face') return <img src={url} alt="" className="w-full rounded-xl object-contain bg-black/20" />
+  if (type === 'video' || type === 'render' || type === 'animate' || type === 'lipsync' || type === 'join') return <video src={url} controls className="w-full rounded-xl object-contain bg-black/20" playsInline />
   if (type === 'voice') return <audio src={url} controls className="w-full" />
   if (type === 'script') return <ScriptPreview text={String(params.script_text ?? '')} url={url} />
   if (type === 'caption') return <CaptionPreview url={url} />

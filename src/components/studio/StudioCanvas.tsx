@@ -653,8 +653,33 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       if (!e.id.startsWith('temp-')) {
         await fetch(`/api/studio/connections/${e.id}`, { method: 'DELETE' })
       }
+
+      // Limpa o parâmetro injetado no nó alvo quando a linha é removida
+      if (e.target && e.targetHandle) {
+        const targetAsset = assets.find(a => a.id === e.target)
+        if (targetAsset) {
+          let finalParams: Record<string, unknown> = {}
+          if (e.targetHandle.startsWith('video_')) {
+            const idx = parseInt(e.targetHandle.split('_')[1])
+            const currentArray = [...(targetAsset.input_params.video_urls as string[] ?? [])]
+            currentArray[idx] = ''
+            finalParams = { video_urls: currentArray }
+          } else {
+            const field = HANDLE_TO_FIELD[e.targetHandle] ?? e.targetHandle
+            finalParams = { [field]: '' }
+          }
+          handleUpdateParams(e.target, finalParams)
+          if (!e.target.startsWith('temp-')) {
+            await fetch(`/api/studio/assets/${e.target}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ input_params: finalParams }),
+            })
+          }
+        }
+      }
     })
-  }, [connections])
+  }, [connections, assets, handleUpdateParams])
 
   // ── Adicionar card ───────────────────────────────────────────────────────
   function addCard(type: AssetType) {
