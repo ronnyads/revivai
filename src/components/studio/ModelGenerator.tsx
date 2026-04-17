@@ -44,26 +44,26 @@ const STEPS = [
       { 
         value: '20-30', 
         label: '20 – 30 anos', 
-        femaleImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400&h=500&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=400&h=500&auto=format&fit=crop'
       },
       { 
         value: '30-40', 
         label: '30 – 40 anos', 
-        femaleImage: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?q=80&w=400&h=500&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=400&h=500&auto=format&fit=crop'
       },
       { 
         value: '40-55', 
         label: '40 – 55 anos', 
-        femaleImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1563178290-f9260c679268?q=80&w=400&h=500&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400&h=500&auto=format&fit=crop'
       },
       { 
         value: '55+',   
         label: 'Mais de 55', 
-        femaleImage: 'https://images.unsplash.com/photo-1552699611-e2c208d5d9cf?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1542178243-bc20204b7694?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1552699611-e2c208d5d9cf?q=80&w=400&h=500&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1542178243-bc20204b7694?q=80&w=400&h=500&auto=format&fit=crop'
       },
     ],
   },
@@ -73,12 +73,12 @@ const STEPS = [
     subtitle: 'Base para o realismo da fotografia',
     layout: 'swatch' as const,
     options: [
-      { value: 'muito_clara', label: 'Alva',     color: 'linear-gradient(135deg, #FDF4E3, #F5DCB4)' },
-      { value: 'clara',       label: 'Clara',    color: 'linear-gradient(135deg, #F9D9B2, #E8C89C)' },
-      { value: 'media',       label: 'Média',    color: 'linear-gradient(135deg, #E0B084, #C8956C)' },
+      { value: 'muito_clara', label: 'Alva',     color: 'linear-gradient(135deg, #FFF5E6, #F5DCB4)' },
+      { value: 'clara',       label: 'Clara',    color: 'linear-gradient(135deg, #FFDFB0, #E8C89C)' },
+      { value: 'media',       label: 'Média',    color: 'linear-gradient(135deg, #EBC090, #C8956C)' },
       { value: 'oliva',       label: 'Oliva',    color: 'linear-gradient(135deg, #B98A66, #A0714F)' },
       { value: 'morena',      label: 'Morena',   color: 'linear-gradient(135deg, #8E5D3A, #7D4E2D)' },
-      { value: 'negra',       label: 'Negra',    color: 'linear-gradient(135deg, #5C3A24, #361E11)' },
+      { value: 'negra',       label: 'Negra',    color: 'linear-gradient(135deg, #3B1E12, #26140D)' },
     ],
   },
   {
@@ -90,26 +90,26 @@ const STEPS = [
       { 
         value: 'magro',     
         label: 'Magro',    
-        femaleImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400&h=500&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=400&h=500&auto=format&fit=crop'
       },
       { 
         value: 'atletico',  
         label: 'Atlético', 
-        femaleImage: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=400&h=500&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=400&h=500&auto=format&fit=crop'
       },
       { 
         value: 'normal',    
         label: 'Normal',   
-        femaleImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&h=500&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=500&auto=format&fit=crop'
       },
       { 
         value: 'plus_size', 
         label: 'Plus Size',
-        femaleImage: 'https://images.unsplash.com/photo-1589156280159-27698a70f29e?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1589156226687-4485eb04a3ba?q=80&w=400&h=500&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?q=80&w=400&h=500&auto=format&fit=crop'
       },
     ],
   },
@@ -363,11 +363,15 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
                   >
                     {displayImg && (
                       <>
-                        <img src={displayImg} className="absolute inset-0 w-full h-full object-cover opacity-60 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-100" alt="" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                        <img 
+                          src={displayImg} 
+                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                          alt="" 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       </>
                     )}
-                    <span className={`relative text-[10px] font-bold tracking-wider uppercase z-10 ${params[field] === opt.value ? 'text-white' : 'text-zinc-300'}`}>{opt.label}</span>
+                    <span className={`relative text-[10px] font-bold tracking-wider uppercase z-10 ${params[field] === opt.value ? 'text-white' : 'text-white/80'}`}>{opt.label}</span>
                   </button>
                 )
               })}
