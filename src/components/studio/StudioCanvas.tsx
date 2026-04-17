@@ -137,7 +137,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           const lastConn = trashRef.current.connections.pop()
           if (lastConn) {
             setConnections(prev => [...prev, lastConn])
-            if (!lastConn.isLocalConn) {
+            if (!(lastConn as any).isLocalConn) {
               fetch('/api/studio/connections', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
