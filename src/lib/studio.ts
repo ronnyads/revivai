@@ -1059,6 +1059,7 @@ export async function startVeo3DirectGoogle(params: {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning?key=${apiKey}`,
     {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         instances: [{
