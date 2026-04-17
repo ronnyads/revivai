@@ -23,20 +23,20 @@ export default function Navbar() {
       style={{
         backgroundColor: scrolled ? 'rgba(14,14,14,0.95)' : 'rgba(14,14,14,0.8)',
         backdropFilter: 'blur(12px)',
-        borderBottom: scrolled ? '1px solid rgba(89,65,59,0.2)' : '1px solid transparent',
+        borderBottom: scrolled ? '1px solid rgba(45,126,255,0.15)' : '1px solid transparent',
       }}
     >
       <Link
         href="/"
         style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', fontSize: '1.25rem', color: '#e5e2e1' }}
       >
-        reviv<span style={{ color: '#D94F2E' }}>.</span>ai
+        reviv<span style={{ color: '#2D7EFF' }}>.</span>ai
       </Link>
 
       <ul className="hidden md:flex gap-9 list-none">
         {[
           ['#como-funciona', 'Como funciona'],
-          ['#modelos', 'Tecnologia'],
+          ['/dashboard/studio', 'Studio'],
           ['#pricing', 'Preços'],
           ['#depoimentos', 'Depoimentos'],
         ].map(([href, label]) => (
@@ -45,7 +45,7 @@ export default function Navbar() {
               href={href}
               className="text-sm transition-colors duration-200"
               style={{ color: 'rgba(229,226,225,0.6)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#D94F2E')}
+              onMouseEnter={e => (e.currentTarget.style.color = '#2D7EFF')}
               onMouseLeave={e => (e.currentTarget.style.color = 'rgba(229,226,225,0.6)')}
             >
               {label}
@@ -59,7 +59,7 @@ export default function Navbar() {
           <Link
             href="/dashboard"
             className="text-sm font-medium px-6 py-2.5 transition-all duration-200"
-            style={{ backgroundColor: '#D94F2E', color: '#fff' }}
+            style={{ backgroundColor: '#2D7EFF', color: '#fff' }}
           >
             Dashboard →
           </Link>
@@ -75,7 +75,7 @@ export default function Navbar() {
             <Link
               href="/#pricing"
               className="text-sm font-medium px-6 py-2.5 transition-all duration-200"
-              style={{ backgroundColor: '#D94F2E', color: '#fff' }}
+              style={{ backgroundColor: '#2D7EFF', color: '#fff' }}
             >
               Restaurar agora →
             </Link>
@@ -90,7 +90,7 @@ export default function Navbar() {
       {menuOpen && (
         <div
           className="absolute top-full left-0 right-0 p-6 flex flex-col gap-4 md:hidden"
-          style={{ backgroundColor: '#0e0e0e', borderBottom: '1px solid rgba(89,65,59,0.2)' }}
+          style={{ backgroundColor: '#0e0e0e', borderBottom: '1px solid rgba(45,126,255,0.15)' }}
         >
           {[
             ['#como-funciona', 'Como funciona'],
@@ -112,7 +112,7 @@ export default function Navbar() {
           <Link
             href="/#pricing"
             className="text-sm text-center font-medium px-6 py-3"
-            style={{ backgroundColor: '#D94F2E', color: '#fff' }}
+            style={{ backgroundColor: '#2D7EFF', color: '#fff' }}
           >
             Restaurar agora →
           </Link>

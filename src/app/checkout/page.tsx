@@ -10,6 +10,10 @@ const PLANS_META: Record<string, { period: string; features: string[] }> = {
   perPhoto:     { period: 'por foto',    features: ['1 foto restaurada', 'Download em alta resolução', 'Resultado em segundos', 'PIX, cartão ou boleto'] },
   subscription: { period: 'por mês',    features: ['10 fotos por mês', 'Histórico completo', 'Download em 4K', 'Suporte prioritário'] },
   package:      { period: '10 créditos', features: ['10 créditos permanentes', 'Sem expiração', 'Download em alta resolução', 'Histórico salvo'] },
+  starter:      { period: '600 créditos', features: ['500 créditos + 100 bônus', 'Gera imagens, vídeos e áudios', 'Sem expiração', 'PIX, cartão ou boleto'] },
+  popular:      { period: '1.100 créditos', features: ['1.000 créditos + 100 bônus', 'Gera imagens, vídeos e áudios', 'Sem expiração', 'PIX, cartão ou boleto'] },
+  pro:          { period: '2.100 créditos', features: ['2.000 créditos + 100 bônus', 'Gera imagens, vídeos e áudios', 'Sem expiração', 'PIX, cartão ou boleto'] },
+  agency:       { period: '5.100 créditos', features: ['5.000 créditos + 100 bônus', 'Gera imagens, vídeos e áudios', 'Suporte exclusivo no WhatsApp', 'PIX, cartão ou boleto'] },
 }
 type PlanId = keyof typeof PLANS_META
 

@@ -37,9 +37,33 @@ export const PLANS_DEFAULT = {
     credits: 10,
     description: '10 créditos sem expiração, use quando quiser',
   },
+  starter: {
+    name: 'Starter',
+    price: 47.00,
+    credits: 600,
+    description: '500 créditos + 100 bônus — Gera imagens, vídeos e áudios.',
+  },
+  popular: {
+    name: 'Popular',
+    price: 79.00,
+    credits: 1100,
+    description: '1.000 créditos + 100 bônus — Equilíbrio entre imagens e vídeos.',
+  },
+  pro: {
+    name: 'Pro',
+    price: 149.00,
+    credits: 2100,
+    description: '2.000 créditos + 100 bônus — Produção intensa sem se preocupar.',
+  },
+  agency: {
+    name: 'Agency',
+    price: 397.00,
+    credits: 5100,
+    description: '5.000 créditos + 100 bônus — Volume máximo para produção profissional.',
+  },
 } as const
 
-export type PlanType = 'perPhoto' | 'subscription' | 'package'
+export type PlanType = 'perPhoto' | 'subscription' | 'package' | 'starter' | 'popular' | 'pro' | 'agency'
 
 export type PlanData = {
   name: string

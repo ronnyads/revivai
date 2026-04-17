@@ -27,7 +27,7 @@ export default function HowItWorks() {
   ]
 
   return (
-    <section id="como-funciona" className="py-32 px-8 max-w-screen-2xl mx-auto relative" style={{ backgroundColor: '#0C0C0C' }}>
+    <section id="como-funciona" className="py-32 px-8 max-w-screen-2xl mx-auto relative" style={{ backgroundColor: '#06070F' }}>
       {/* Background glow */}
       <div
         className="absolute top-1/2 left-1/2 pointer-events-none"
@@ -35,7 +35,7 @@ export default function HowItWorks() {
           transform: 'translate(-50%, -50%)',
           width: '800px',
           height: '400px',
-          backgroundColor: 'rgba(217,79,46,0.05)',
+          backgroundColor: 'rgba(45,126,255,0.05)',
           filter: 'blur(120px)',
           borderRadius: '9999px',
         }}
@@ -43,12 +43,12 @@ export default function HowItWorks() {
 
       {/* Section header */}
       <div className="relative z-10 text-center mb-24">
-        <p className="text-xs uppercase tracking-[0.3em] font-medium mb-4" style={{ color: '#D94F2E' }}>
+        <p className="text-xs uppercase tracking-[0.3em] font-medium mb-4" style={{ color: '#2D7EFF' }}>
           Como funciona
         </p>
         <h2 className="text-5xl md:text-6xl leading-tight" style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', color: '#e5e2e1' }}>
           A arte da preservação<br />
-          <span style={{ color: '#D94F2E' }}>através da IA</span>
+          <span style={{ color: '#2D7EFF' }}>através da IA</span>
         </h2>
       </div>
 
@@ -81,7 +81,7 @@ export default function HowItWorks() {
                 <span
                   className="material-symbols-outlined"
                   style={{
-                    color: '#D94F2E',
+                    color: '#2D7EFF',
                     fontSize: '2.25rem',
                     fontVariationSettings: "'FILL' 0, 'wght' 200, 'GRAD' 0, 'opsz' 24",
                   }}
@@ -95,7 +95,7 @@ export default function HowItWorks() {
                     right: '-16px',
                     width: '48px',
                     height: '48px',
-                    backgroundColor: '#D94F2E',
+                    backgroundColor: '#2D7EFF',
                     color: '#fff',
                   }}
                 >

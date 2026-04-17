@@ -5,6 +5,10 @@ const DEFAULTS = {
   perPhoto:     { price: 19.00 },
   subscription: { price: 59.00 },
   package:      { price: 129.00 },
+  starter:      { price: 47.00 },
+  popular:      { price: 79.00 },
+  pro:          { price: 149.00 },
+  agency:       { price: 397.00 },
 }
 
 export default async function Pricing() {
