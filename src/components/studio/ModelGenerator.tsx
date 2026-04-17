@@ -1,7 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronRight, ChevronLeft, RefreshCw, Save, Check, Loader2, User } from 'lucide-react'
+import { 
+  ChevronRight, ChevronLeft, RefreshCw, Save, Check, Loader2, User, 
+  Sparkles, Briefcase, Star, Target, UserRound, GraduationCap, 
+  Dumbbell, PersonStanding, Move, Shirt, Zap, Crown, Fingerprint 
+} from 'lucide-react'
 
 interface ModelParams {
   gender: string
@@ -19,20 +23,20 @@ const STEPS = [
     subtitle: 'Qual é o gênero do modelo?',
     layout: 'two-col' as const,
     options: [
-      { value: 'feminino',  label: 'Feminino',  emoji: '👩' },
-      { value: 'masculino', label: 'Masculino', emoji: '👨' },
+      { value: 'feminino',  label: 'Feminino',  icon: <User size={20} /> },
+      { value: 'masculino', label: 'Masculino', icon: <UserRound size={20} /> },
     ],
   },
   {
     id: 'age_range',
     title: 'Faixa Etária',
     subtitle: 'Qual a faixa de idade do modelo?',
-    layout: 'two-col' as const,
+    layout: 'grid' as const,
     options: [
-      { value: '20-30', label: '20 – 30 anos', emoji: '✨' },
-      { value: '30-40', label: '30 – 40 anos', emoji: '💼' },
-      { value: '40-55', label: '40 – 55 anos', emoji: '🌟' },
-      { value: '55+',   label: '55+ anos',     emoji: '🎯' },
+      { value: '20-30', label: '20 – 30', icon: <Sparkles size={16} /> },
+      { value: '30-40', label: '30 – 40', icon: <Briefcase size={16} /> },
+      { value: '40-55', label: '40 – 55', icon: <Star size={16} /> },
+      { value: '55+',   label: '55+',      icon: <Target size={16} /> },
     ],
   },
   {
@@ -41,12 +45,12 @@ const STEPS = [
     subtitle: 'Selecione o tom de pele mais próximo',
     layout: 'swatch' as const,
     options: [
-      { value: 'muito_clara', label: 'Muito Clara', color: '#F5DCB4' },
-      { value: 'clara',       label: 'Clara',       color: '#E8C89C' },
-      { value: 'media',       label: 'Média',       color: '#C8956C' },
-      { value: 'oliva',       label: 'Oliva',       color: '#A0714F' },
-      { value: 'morena',      label: 'Morena',      color: '#7D4E2D' },
-      { value: 'negra',       label: 'Negra',       color: '#4A2C17' },
+      { value: 'muito_clara', label: 'Alva',     color: 'linear-gradient(135deg, #FDF4E3, #F5DCB4)' },
+      { value: 'clara',       label: 'Clara',    color: 'linear-gradient(135deg, #F9D9B2, #E8C89C)' },
+      { value: 'media',       label: 'Média',    color: 'linear-gradient(135deg, #E0B084, #C8956C)' },
+      { value: 'oliva',       label: 'Oliva',    color: 'linear-gradient(135deg, #B98A66, #A0714F)' },
+      { value: 'morena',      label: 'Morena',   color: 'linear-gradient(135deg, #8E5D3A, #7D4E2D)' },
+      { value: 'negra',       label: 'Negra',    color: 'linear-gradient(135deg, #5C3A24, #361E11)' },
     ],
   },
   {
@@ -55,11 +59,11 @@ const STEPS = [
     subtitle: 'Qual é o tipo físico do modelo?',
     layout: 'grid' as const,
     options: [
-      { value: 'magro',     label: 'Magro/a',    emoji: '🪶' },
-      { value: 'atletico',  label: 'Atlético/a', emoji: '💪' },
-      { value: 'normal',    label: 'Normal',     emoji: '🧍' },
-      { value: 'robusto',   label: 'Robusto/a',  emoji: '🏋️' },
-      { value: 'plus_size', label: 'Plus Size',  emoji: '🌸' },
+      { value: 'magro',     label: 'Magro',    icon: <PersonStanding size={18} strokeWidth={1.5} /> },
+      { value: 'atletico',  label: 'Atlético', icon: <Dumbbell size={18} /> },
+      { value: 'normal',    label: 'Normal',   icon: <User size={18} /> },
+      { value: 'robusto',   label: 'Robusto',  icon: <Move size={18} /> },
+      { value: 'plus_size', label: 'Plus Size',icon: <PersonStanding size={22} strokeWidth={2.5} /> },
     ],
   },
   {
@@ -68,11 +72,11 @@ const STEPS = [
     subtitle: 'Como o modelo está vestido?',
     layout: 'grid' as const,
     options: [
-      { value: 'casual',       label: 'Casual',       emoji: '👕' },
-      { value: 'profissional', label: 'Profissional', emoji: '👔' },
-      { value: 'esportivo',    label: 'Esportivo',    emoji: '🏃' },
-      { value: 'elegante',     label: 'Elegante',     emoji: '✨' },
-      { value: 'alternativo',  label: 'Alternativo',  emoji: '🎨' },
+      { value: 'casual',       label: 'Casual',       icon: <Shirt size={18} /> },
+      { value: 'profissional', label: 'Formal',       icon: <Briefcase size={18} /> },
+      { value: 'esportivo',    label: 'Esportivo',    icon: <Zap size={18} /> },
+      { value: 'elegante',     label: 'Elegante',     icon: <Crown size={18} /> },
+      { value: 'alternativo',  label: 'Estiloso',     icon: <Fingerprint size={18} /> },
     ],
   },
 ]
@@ -232,14 +236,14 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
                 <button
                   key={opt.value}
                   onClick={() => select(opt.value)}
-                  className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border-2 text-xs font-medium transition-all ${
+                  className={`flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border transition-all ${
                     params[field] === opt.value
-                      ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300'
-                      : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600'
+                      ? 'border-indigo-500 bg-indigo-500/10 text-white ring-1 ring-indigo-500/20'
+                      : 'border-zinc-800 bg-zinc-900/50 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-800/80 shadow-sm'
                   }`}
                 >
-                  {'emoji' in opt && <span className="text-xl">{(opt as { emoji: string }).emoji}</span>}
-                  {opt.label}
+                  {'icon' in opt && <div className={params[field] === opt.value ? 'text-indigo-400' : 'text-zinc-600'}>{(opt as any).icon}</div>}
+                  <span className="text-[11px] font-medium tracking-wide uppercase">{opt.label}</span>
                 </button>
               ))}
             </div>
@@ -252,37 +256,37 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
                 <button
                   key={opt.value}
                   onClick={() => select(opt.value)}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all ${
+                  className={`flex flex-col items-center gap-2 p-2.5 rounded-xl border transition-all ${
                     params[field] === opt.value
-                      ? 'border-indigo-500 ring-2 ring-indigo-500/30'
-                      : 'border-zinc-700 hover:border-zinc-600'
+                      ? 'border-indigo-500 bg-indigo-500/5 shadow-inner'
+                      : 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700 shadow-sm'
                   }`}
                 >
                   <div
-                    className="w-7 h-7 rounded-full border border-zinc-600"
-                    style={{ backgroundColor: (opt as { color: string }).color }}
+                    className={`w-9 h-9 rounded-full border shadow-lg transform transition-transform ${params[field] === opt.value ? 'scale-110 border-white/40 ring-2 ring-indigo-500/40' : 'border-black/20 hover:scale-105'}`}
+                    style={{ background: (opt as { color: string }).color }}
                   />
-                  <span className="text-[10px] text-zinc-400">{opt.label}</span>
+                  <span className={`text-[10px] font-medium ${params[field] === opt.value ? 'text-indigo-400' : 'text-zinc-500'}`}>{opt.label}</span>
                 </button>
               ))}
             </div>
           )}
 
-          {/* Layout grid 3col */}
+          {/* Layout grid colunas variadas */}
           {currentStep.layout === 'grid' && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {currentStep.options.map(opt => (
                 <button
                   key={opt.value}
                   onClick={() => select(opt.value)}
-                  className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 text-[11px] font-medium text-center transition-all ${
+                  className={`flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border transition-all ${
                     params[field] === opt.value
-                      ? 'border-indigo-500 bg-indigo-500/10 text-indigo-300'
-                      : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600'
+                      ? 'border-indigo-500 bg-indigo-500/10 text-white ring-1 ring-indigo-500/20'
+                      : 'border-zinc-800 bg-zinc-900/50 text-zinc-500 hover:border-zinc-700 hover:bg-zinc-800/80'
                   }`}
                 >
-                  {'emoji' in opt && <span className="text-base">{(opt as { emoji: string }).emoji}</span>}
-                  {opt.label}
+                  {'icon' in opt && <div className={params[field] === opt.value ? 'text-indigo-400' : 'text-zinc-600'}>{(opt as any).icon}</div>}
+                  <span className="text-[11px] font-medium tracking-wide uppercase">{opt.label}</span>
                 </button>
               ))}
             </div>
