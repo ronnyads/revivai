@@ -56,14 +56,14 @@ const STEPS = [
       { 
         value: '40-55', 
         label: '40 – 55 anos', 
-        femaleImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400&h=800&auto=format&fit=crop', // Audited Middle Age
-        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=800&auto=format&fit=crop' 
+        femaleImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400&h=600&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=600&auto=format&fit=crop'
       },
       { 
         value: '55+',   
         label: 'Mais de 55', 
-        femaleImage: 'https://images.unsplash.com/photo-1544717305-27a734ef1904?q=80&w=400&h=800&auto=format&fit=crop', // Audited Senior
-        maleImage: 'https://images.unsplash.com/photo-1552058544-35104446a13e?q=80&w=400&h=800&auto=format&fit=crop' // Audited Senior
+        femaleImage: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?q=80&w=400&h=600&auto=format&fit=crop', // Real Senior Woman
+        maleImage: 'https://images.unsplash.com/photo-1472417583565-62e7bdeda490?q=80&w=400&h=600&auto=format&fit=crop' // Real Senior Man
       },
     ],
   },
@@ -90,26 +90,26 @@ const STEPS = [
       { 
         value: 'magro',     
         label: 'Magro',    
-        femaleImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400&h=600&auto=format&fit=crop',
+        femaleImage: 'https://images.unsplash.com/photo-1529139513075-1231282c65cc?q=80&w=400&h=600&auto=format&fit=crop',
         maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=400&h=600&auto=format&fit=crop'
       },
       { 
         value: 'atletico',  
         label: 'Atlético', 
-        femaleImage: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=400&h=800&auto=format&fit=crop', // Audited Athletic
-        maleImage: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&h=800&auto=format&fit=crop' // Audited Athletic
+        femaleImage: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?q=80&w=400&h=600&auto=format&fit=crop', // Athletic Woman
+        maleImage: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&h=600&auto=format&fit=crop' // Athletic Man
       },
       { 
         value: 'normal',    
         label: 'Normal',   
-        femaleImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&h=800&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=800&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&h=600&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=600&auto=format&fit=crop'
       },
       { 
         value: 'plus_size', 
         label: 'Plus Size',
-        femaleImage: 'https://images.unsplash.com/photo-1594911772125-07fc7a2d8d9f?q=80&w=400&h=800&auto=format&fit=crop', // Audited Plus Size
-        maleImage: 'https://images.unsplash.com/photo-1537511446984-935f663eb1f4?q=80&w=400&h=800&auto=format&fit=crop' // Audited Plus Size
+        femaleImage: 'https://images.unsplash.com/photo-1598133894008-61f7fdb8cc3a?q=80&w=400&h=600&auto=format&fit=crop', // Real Plus Size Woman
+        maleImage: 'https://images.unsplash.com/photo-1537511446984-935f663eb1f4?q=80&w=400&h=600&auto=format&fit=crop' // Real Plus Size Man
       },
     ],
   },
@@ -122,14 +122,14 @@ const STEPS = [
       { 
         value: 'casual',       
         label: 'Casual',       
-        femaleImage: 'https://images.unsplash.com/photo-1529139513075-1231282c65cc?q=80&w=400&h=600&auto=format&fit=crop',
+        femaleImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400&h=600&auto=format&fit=crop',
         maleImage: 'https://images.unsplash.com/photo-1488161628813-04466f872be2?q=80&w=400&h=600&auto=format&fit=crop'
       },
       { 
         value: 'profissional', 
         label: 'Formal',       
-        femaleImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400&h=600&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=600&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1629745124015-cb78ec869910?q=80&w=400&h=600&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=400&h=600&auto=format&fit=crop'
       },
       { 
         value: 'esportivo',    
@@ -365,10 +365,10 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
                       <>
                         <img 
                           src={displayImg} 
-                          className="absolute inset-0 w-full h-full object-cover object-[center_20%] transition-transform duration-700 group-hover:scale-105" 
+                          className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" 
                           alt="" 
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-90" />
                       </>
                     )}
                     <div className="relative z-10 w-full text-center">
