@@ -293,71 +293,81 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
           )}
 
           {/* Navegação */}
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center justify-between pt-2">
             {step > 0 ? (
               <button
                 onClick={() => setStep(s => s - 1)}
-                className="flex items-center gap-1 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 hover:text-white transition-all group"
               >
-                <ChevronLeft size={13} /> Voltar
+                <div className="w-6 h-6 rounded-full border border-zinc-800 flex items-center justify-center group-hover:bg-zinc-800 transition-colors">
+                  <ChevronLeft size={14} />
+                </div>
+                Voltar
               </button>
             ) : <div />}
             <button
               onClick={() => setStep(s => s + 1)}
               disabled={!hasSelection}
-              className={`flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center gap-2 text-[11px] font-bold px-4 py-2 rounded-xl transition-all ${
                 hasSelection
-                  ? 'bg-indigo-500 text-white hover:bg-indigo-400'
-                  : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-500/10'
+                  : 'bg-zinc-900 border border-zinc-800 text-zinc-700 cursor-not-allowed'
               }`}
             >
-              {step === STEPS.length - 1 ? 'Revisar' : 'Próximo'}
-              <ChevronRight size={13} />
+              {step === STEPS.length - 1 ? 'Revisar Detalhes' : 'Próxima Etapa'}
+              <ChevronRight size={14} />
             </button>
           </div>
         </div>
       ) : (
         /* Revisão + gerar */
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <div>
-            <p className="text-sm font-semibold text-white">Pronto para gerar!</p>
-            <p className="text-[11px] text-zinc-500">Adicione detalhes extras se quiser</p>
+            <h3 className="text-sm font-bold text-white tracking-tight">O perfil está pronto</h3>
+            <p className="text-[11px] text-zinc-500">Revise as características selecionadas abaixo</p>
           </div>
 
-          {/* Chips de resumo */}
-          <div className="flex flex-wrap gap-1.5">
+          {/* Chips de resumo mais premium */}
+          <div className="grid grid-cols-2 gap-2">
             {Object.entries(params).filter(([, v]) => v).map(([k, v]) => (
-              <span key={k} className="bg-zinc-800 text-zinc-400 text-[10px] px-2 py-0.5 rounded-full border border-zinc-700">
-                {String(v)}
-              </span>
+              <div key={k} className="bg-zinc-900/50 border border-zinc-800 p-2 rounded-lg">
+                <p className="text-[9px] text-zinc-600 uppercase font-bold tracking-widest">{STEPS.find(s => s.id === k)?.title}</p>
+                <p className="text-[11px] text-zinc-300 font-medium capitalize">{String(v).replace('_', ' ')}</p>
+              </div>
             ))}
           </div>
 
-          <textarea
-            value={extra}
-            onChange={e => setExtra(e.target.value)}
-            placeholder="Ex: cabelo loiro cacheado, óculos redondos, sorriso aberto..."
-            rows={2}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-600 resize-none focus:outline-none focus:border-indigo-500"
-          />
+          <div className="space-y-2">
+            <p className="text-[10px] text-zinc-500 font-medium px-1">Instruções Adicionais (Opcional)</p>
+            <textarea
+              value={extra}
+              onChange={e => setExtra(e.target.value)}
+              placeholder="Ex: cabelo loiro cacheado, tatuagens vazadas, óculos redondos..."
+              rows={3}
+              className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
 
-          <button
-            onClick={handleGenerate}
-            disabled={loading}
-            className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold py-2.5 rounded-xl transition-all disabled:opacity-50"
-          >
-            {loading
-              ? <><Loader2 size={15} className="animate-spin" /> Gerando...</>
-              : <><User size={15} /> Gerar Modelo — 1 crédito</>
-            }
-          </button>
+          <div className="flex flex-col gap-2 pt-1">
+            <button
+              onClick={handleGenerate}
+              disabled={loading}
+              className="group relative flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-3.5 rounded-xl transition-all disabled:opacity-50 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+              {loading
+                ? <><Loader2 size={16} className="animate-spin" /> Criando Persona...</>
+                : <><Sparkles size={16} className="text-indigo-200" /> GERAR FOTO DO MODELO</>
+              }
+            </button>
 
-          <button
-            onClick={() => setStep(s => s - 1)}
-            className="text-[11px] text-zinc-600 hover:text-zinc-400 text-center transition-colors"
-          >
-            ← Voltar e editar
-          </button>
+            <button
+              onClick={() => setStep(s => s - 1)}
+              className="text-[10px] text-zinc-600 hover:text-zinc-400 font-medium py-1 transition-colors"
+            >
+              Deseja alterar algo? Clique aqui para editar
+            </button>
+          </div>
         </div>
       )}
     </div>
