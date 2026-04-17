@@ -622,7 +622,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         type: 'lightEdge',
         markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
         isLocalConn: true,
-      }, prev))
+      } as any, prev))
     }
 
     // Auto-preenche o campo no nó destino com a URL do nó fonte (sempre)
@@ -736,7 +736,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         type: 'lightEdge',
         markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
         isLocalConn: true,
-      }
+      } as any
     }
 
     // 1. Card Modelo UGC — coluna esquerda
