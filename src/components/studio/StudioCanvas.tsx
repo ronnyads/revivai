@@ -22,7 +22,7 @@ const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
 
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 1, script: 1, voice: 1, caption: 1, upscale: 1, video: 3, model: 1, render: 1, animate: 3, compose: 1, lipsync: 3, face: 0, join: 0,
+  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0,
 }
 
 const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
@@ -692,7 +692,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       project_id: project.id, user_id: project.user_id,
       type: 'model', status: 'idle',
       input_params: { ...result.modelConfig },
-      credits_cost: 1, board_order: idx++,
+      credits_cost: 8, board_order: idx++,
       position_x: 60, position_y: 440,
       created_at: new Date().toISOString(),
     })
@@ -706,7 +706,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         project_id: project.id, user_id: project.user_id,
         type: 'compose', status: 'idle',
         input_params: { portrait_url: '', product_url: result.productUrl, position: 'southeast', product_scale: 0.35 },
-        credits_cost: 1, board_order: idx++,
+        credits_cost: 12, board_order: idx++,
         position_x: 440, position_y: 440,
         created_at: new Date().toISOString(),
       })
@@ -729,7 +729,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         project_id: project.id, user_id: project.user_id,
         type: 'script', status: 'idle',
         input_params: { product: '', audience: '', format: 'reels', script_text: seg.script },
-        credits_cost: 1, board_order: idx++,
+        credits_cost: 3, board_order: idx++,
         position_x: colX, position_y: 60,
         created_at: new Date().toISOString(),
       })
@@ -738,7 +738,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         project_id: project.id, user_id: project.user_id,
         type: 'voice', status: 'idle',
         input_params: { script: seg.script, voice_id: result.voiceId, speed: 1.0 },
-        credits_cost: 1, board_order: idx++,
+        credits_cost: 8, board_order: idx++,
         position_x: colX, position_y: 340,
         created_at: new Date().toISOString(),
       })
@@ -747,7 +747,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         project_id: project.id, user_id: project.user_id,
         type: 'video', status: 'idle',
         input_params: { source_image_url: '', continuation_frame: '', motion_prompt: seg.script.slice(0, 100), duration: result.duration },
-        credits_cost: 3, board_order: idx++,
+        credits_cost: 15, board_order: idx++,
         position_x: colX, position_y: 600,
         created_at: new Date().toISOString(),
       })
@@ -756,7 +756,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         project_id: project.id, user_id: project.user_id,
         type: 'lipsync', status: 'idle',
         input_params: { face_url: '', audio_url: '' },
-        credits_cost: 3, board_order: idx++,
+        credits_cost: 20, board_order: idx++,
         position_x: colX, position_y: 860,
         created_at: new Date().toISOString(),
       })
