@@ -61,6 +61,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
+  if (id.startsWith('temp-')) {
+    return NextResponse.json({ error: 'ID temporário não deve ser persistido via API' }, { status: 400 })
+  }
   const body = await req.json()
 
   const updates: Record<string, unknown> = {}

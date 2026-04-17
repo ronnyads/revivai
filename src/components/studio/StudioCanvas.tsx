@@ -851,8 +851,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     const now = Date.now()
     const idMap: string[] = []
 
-    // Cria um ID temporário para cada nó do template
-    tpl.nodes.forEach((_, i) => idMap.push(`temp-${now}-${i}`))
+    // Cria um ID temporário estável para cada nó do template
+    tpl.nodes.forEach((_, i) => idMap.push(crypto.randomUUID()))
 
     const newAssets: StudioAsset[] = tpl.nodes.map((n, i) => ({
       id: idMap[i],
@@ -866,16 +866,18 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       position_x: n.x,
       position_y: n.y,
       created_at: new Date().toISOString(),
+      isLocal: true,
     }))
 
     const newEdges: Edge[] = tpl.edges.map((e, i) => ({
-      id: `temp-edge-${now}-${i}`,
+      id: crypto.randomUUID(),
       source: idMap[e.source],
       target: idMap[e.target],
       sourceHandle: e.sourceHandle,
       targetHandle: e.targetHandle,
       type: 'lightEdge',
       markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
+      isLocalConn: true,
     }))
 
     setAssets(newAssets)
