@@ -3,19 +3,19 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { AssetType } from '@/types'
 
 export const CREDIT_COST: Record<AssetType, number> = {
-  image:   1,
-  script:  1,
-  voice:   1,
-  caption: 1,
-  upscale: 1,
-  video:   3,
-  model:   1,
-  render:  1,
-  animate: 3,
-  compose: 1,
-  lipsync: 3,
-  face:    0,
-  join:    0,
+  face:    0,   // upload, sem API
+  join:    0,   // FFmpeg local
+  render:  1,   // FFmpeg merge, quase grátis
+  caption: 2,   // Whisper ~$0,003
+  upscale: 3,   // ESRGAN ~$0,003
+  script:  3,   // GPT-4o ~$0,015
+  voice:   8,   // ElevenLabs ~$0,10
+  model:   8,   // Flux Pro + GPT-4o ~$0,07
+  image:   8,   // Flux Pro Ultra ~$0,06
+  compose: 12,  // IDM-VTON/overlay ~$0,20
+  animate: 20,  // live-portrait ~$0,12
+  lipsync: 20,  // SyncLabs Pro ~$0,15
+  video:   15,  // Google Veo 3.1 via Google AI direto (Kling/Fal AI descontinuado)
 }
 
 // ── Prompt helper — lê da tabela studio_prompts, usa fallback hardcoded ─────
@@ -1035,4 +1035,66 @@ export async function joinVideos(params: {
     // Limpa arquivos temporários
     try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ignora */ }
   }
+}
+
+// ── Veo3 — Google Generative AI direto (sem Fal AI) ──────────────────────────
+export async function startVeo3DirectGoogle(params: {
+  source_image_url: string
+  motion_prompt:    string
+  assetId:          string
+  userId:           string
+}) {
+  const apiKey = process.env.GOOGLE_AI_API_KEY
+  if (!apiKey) throw new Error('GOOGLE_AI_API_KEY não configurada no servidor')
+
+  const admin = createAdminClient()
+
+  // 1. Baixa imagem e converte para base64 (Google API não aceita URLs externas)
+  const imgRes = await fetch(params.source_image_url)
+  if (!imgRes.ok) throw new Error('Falha ao baixar imagem fonte para Veo3 Google')
+  const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
+  const base64Image = imgBuffer.toString('base64')
+  const mimeType = imgRes.headers.get('content-type') ?? 'image/jpeg'
+
+  // 2. Envia para Google Veo3 — retorna operação de longa duração
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-generate-preview:predictLongRunning?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{
+          prompt: params.motion_prompt || 'smooth cinematic product motion',
+          image: { bytesBase64Encoded: base64Image, mimeType },
+        }],
+        parameters: {
+          aspectRatio: '9:16',
+          durationSeconds: 8,
+          sampleCount: 1,
+        },
+      }),
+    }
+  )
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Google Veo3 erro (${res.status}): ${err.slice(0, 400)}`)
+  }
+
+  const body = await res.json()
+  const operationName = body.name
+  if (!operationName) throw new Error('Google Veo3 não retornou operationName')
+
+  // 3. Salva operationName para polling manual via botão "Forçar atualização"
+  await admin.from('studio_assets')
+    .update({
+      input_params: {
+        prediction_id: operationName,
+        provider: 'google',
+        engine: 'veo',
+        source_image_url: params.source_image_url,
+        motion_prompt: params.motion_prompt,
+      }
+    })
+    .eq('id', params.assetId)
 }
