@@ -31,7 +31,7 @@ const STEPS = [
       { 
         value: 'masculino', 
         label: 'Masculino', 
-        image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=400&h=500&auto=format&fit=crop' 
+        image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=400&h=600&auto=format&fit=crop' 
       },
     ],
   },
@@ -44,26 +44,26 @@ const STEPS = [
       { 
         value: '20-30', 
         label: '20 – 30 anos', 
-        femaleImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400&h=500&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=400&h=500&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400&h=600&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=400&h=600&auto=format&fit=crop'
       },
       { 
         value: '30-40', 
         label: '30 – 40 anos', 
-        femaleImage: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?q=80&w=400&h=500&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=400&h=500&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?q=80&w=400&h=600&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=400&h=600&auto=format&fit=crop'
       },
       { 
         value: '40-55', 
         label: '40 – 55 anos', 
-        femaleImage: 'https://images.unsplash.com/photo-1563178290-f9260c679268?q=80&w=400&h=500&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=400&h=500&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400&h=800&auto=format&fit=crop', // Audited Middle Age
+        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=800&auto=format&fit=crop' 
       },
       { 
         value: '55+',   
         label: 'Mais de 55', 
-        femaleImage: 'https://images.unsplash.com/photo-1552699611-e2c208d5d9cf?q=80&w=400&h=500&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1542178243-bc20204b7694?q=80&w=400&h=500&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1544717305-27a734ef1904?q=80&w=400&h=800&auto=format&fit=crop', // Audited Senior
+        maleImage: 'https://images.unsplash.com/photo-1552058544-35104446a13e?q=80&w=400&h=800&auto=format&fit=crop' // Audited Senior
       },
     ],
   },
@@ -90,26 +90,26 @@ const STEPS = [
       { 
         value: 'magro',     
         label: 'Magro',    
-        femaleImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400&h=500&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=400&h=500&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400&h=600&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=400&h=600&auto=format&fit=crop'
       },
       { 
         value: 'atletico',  
         label: 'Atlético', 
-        femaleImage: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=400&h=500&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=400&h=500&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=400&h=800&auto=format&fit=crop', // Audited Athletic
+        maleImage: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&h=800&auto=format&fit=crop' // Audited Athletic
       },
       { 
         value: 'normal',    
         label: 'Normal',   
-        femaleImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&h=500&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=500&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&h=800&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=800&auto=format&fit=crop'
       },
       { 
         value: 'plus_size', 
         label: 'Plus Size',
-        femaleImage: 'https://images.unsplash.com/photo-1589156226687-4485eb04a3ba?q=80&w=400&h=500&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?q=80&w=400&h=500&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1594911772125-07fc7a2d8d9f?q=80&w=400&h=800&auto=format&fit=crop', // Audited Plus Size
+        maleImage: 'https://images.unsplash.com/photo-1537511446984-935f663eb1f4?q=80&w=400&h=800&auto=format&fit=crop' // Audited Plus Size
       },
     ],
   },
@@ -122,26 +122,26 @@ const STEPS = [
       { 
         value: 'casual',       
         label: 'Casual',       
-        femaleImage: 'https://images.unsplash.com/photo-1529139513075-1231282c65cc?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1488161628813-04466f872be2?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1529139513075-1231282c65cc?q=80&w=400&h=600&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1488161628813-04466f872be2?q=80&w=400&h=600&auto=format&fit=crop'
       },
       { 
         value: 'profissional', 
         label: 'Formal',       
-        femaleImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400&h=600&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=600&auto=format&fit=crop'
       },
       { 
         value: 'esportivo',    
         label: 'Sporty',    
-        femaleImage: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1483721310020-03333e577078?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?q=80&w=400&h=600&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1483721310020-03333e577078?q=80&w=400&h=600&auto=format&fit=crop'
       },
       { 
         value: 'elegante',     
         label: 'High-End',     
-        femaleImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=300&h=400&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=300&h=400&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=400&h=600&auto=format&fit=crop',
+        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=400&h=600&auto=format&fit=crop'
       },
     ],
   },
@@ -355,23 +355,25 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
                   <button
                     key={opt.value}
                     onClick={() => select(opt.value)}
-                    className={`group relative flex flex-col items-center justify-end h-32 p-3 rounded-xl border transition-all overflow-hidden ${
+                    className={`group relative flex flex-col items-center justify-end h-48 p-3.5 rounded-2xl border transition-all overflow-hidden ${
                       params[field] === opt.value
                         ? 'border-indigo-500 ring-2 ring-indigo-500/30'
-                        : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/50'
+                        : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900 shadow-xl'
                     }`}
                   >
                     {displayImg && (
                       <>
                         <img 
                           src={displayImg} 
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                          className="absolute inset-0 w-full h-full object-cover object-[center_20%] transition-transform duration-700 group-hover:scale-105" 
                           alt="" 
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80" />
                       </>
                     )}
-                    <span className={`relative text-[10px] font-bold tracking-wider uppercase z-10 ${params[field] === opt.value ? 'text-white' : 'text-white/80'}`}>{opt.label}</span>
+                    <div className="relative z-10 w-full text-center">
+                      <span className={`text-[11px] font-black tracking-widest uppercase ${params[field] === opt.value ? 'text-white' : 'text-zinc-100'}`}>{opt.label}</span>
+                    </div>
                   </button>
                 )
               })}
