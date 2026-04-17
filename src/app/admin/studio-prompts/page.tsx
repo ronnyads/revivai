@@ -1,11 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { upsertStudioPrompt, upsertAllPromptsJSON } from './actions'
+import BooleanSwitch from '@/components/admin/BooleanSwitch'
 
 const PROMPT_GROUPS: {
   label: string
   card: string
   color: string
-  items: { key: string; label: string; description: string; rows: number; vars?: string; placeholder?: string }[]
+  items: { key: string; label: string; description: string; rows?: number; type?: 'boolean' | 'text'; vars?: string; placeholder?: string }[]
 }[] = [
   {
     label: 'Modelo UGC',
@@ -15,16 +16,14 @@ const PROMPT_GROUPS: {
       {
         key: 'model_engine_google_active',
         label: '🌐 Motor Google Imagen 3 — Ativar?',
-        description: 'Se desligado (false), a opção Google não aparecerá para o cliente.',
-        rows: 1,
-        placeholder: 'true ou false'
+        description: 'Se desligado, a opção Google não aparecerá para o cliente.',
+        type: 'boolean'
       },
       {
         key: 'model_engine_flux_active',
         label: '🚀 Motor FLUX Pro Ultra — Ativar?',
-        description: 'Se desligado (false), a opção FLUX não aparecerá para o cliente.',
-        rows: 1,
-        placeholder: 'true ou false'
+        description: 'Se desligado, a opção FLUX não aparecerá para o cliente.',
+        type: 'boolean'
       },
       {
         key: 'model_generation_system',
@@ -185,15 +184,25 @@ export default async function StudioPromptsPage() {
                     )}
                   </div>
 
-                  <form action={upsertStudioPrompt} className="flex flex-col gap-3">
+                   <form action={upsertStudioPrompt} className="flex flex-col gap-3">
                     <input type="hidden" name="key" value={def.key} />
-                    <textarea
-                      name="value"
-                      rows={def.rows}
-                      defaultValue={promptMap[def.key] ?? ''}
-                      className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono leading-relaxed"
-                      placeholder={def.placeholder || `Padrão do sistema...`}
-                    />
+                    
+                    {def.type === 'boolean' ? (
+                      <BooleanSwitch 
+                        name="value" 
+                        defaultValue={promptMap[def.key] ?? 'false'} 
+                        label={def.label}
+                      />
+                    ) : (
+                      <textarea
+                        name="value"
+                        rows={def.rows}
+                        defaultValue={promptMap[def.key] ?? ''}
+                        className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono leading-relaxed"
+                        placeholder={def.placeholder || `Padrão do sistema...`}
+                      />
+                    )}
+
                     <div className="flex items-center justify-between">
                       <p className="text-[10px] text-white/20">
                         {promptMap[def.key] ? '✅ Ativo' : '⚙️ Padrão'}
