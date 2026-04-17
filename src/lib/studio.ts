@@ -1064,12 +1064,13 @@ export async function startVeo3DirectGoogle(params: {
       body: JSON.stringify({
         instances: [{
           prompt: params.motion_prompt || 'smooth cinematic product motion',
-          image: { bytesBase64Encoded: base64Image, mimeType },
+          referenceImages: [{
+            image: { bytesBase64Encoded: base64Image }
+          }],
         }],
         parameters: {
           aspectRatio: '9:16',
-          durationSeconds: 8,
-          sampleCount: 1,
+          personGeneration: 'ALLOW_ADULT'
         },
       }),
     }
