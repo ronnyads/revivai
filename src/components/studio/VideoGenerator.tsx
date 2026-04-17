@@ -94,7 +94,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
         disabled={!imageUrl.trim()}
         className="flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-all disabled:opacity-40 w-full"
       >
-        <Video size={15} /> {isContinuation ? 'Gerar segmento' : 'Gerar vídeo'} — 15 créditos
+        <Video size={15} /> {isContinuation ? 'Gerar segmento' : 'Gerar vídeo'} — {engine === 'veo' ? '100' : '15'} créditos
       </button>
     </div>
   )
