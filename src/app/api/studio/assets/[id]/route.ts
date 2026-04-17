@@ -21,6 +21,32 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .single()
 
   if (error || !asset) return NextResponse.json({ error: 'Asset não encontrado' }, { status: 404 })
+  // Se estiver processing e tiver prediction_id, tenta fazer um sync automático p/ front-end não ficar cego
+  if (asset.status === 'processing' && typeof asset.input_params === 'object' && asset.input_params !== null) {
+    const params = asset.input_params as Record<string, unknown>
+    if (params.prediction_id) {
+      try {
+        // Usa a própria NextRequest URL host para dar um POST /sync interno
+        const syncUrl = new URL(`/api/studio/assets/${asset.id}/sync`, req.url)
+        const syncReq = await fetch(syncUrl.toString(), {
+          method: 'POST',
+          headers: { 'cookie': req.headers.get('cookie') || '' } // repassa cookie se precisar
+        })
+        if (syncReq.ok) {
+          const syncData = await syncReq.json()
+          if (syncData.status === 'done' || syncData.status === 'error') {
+            // Se completou, busca o asset atualizado do banco
+            const { data: updatedAsset } = await supabase.from('studio_assets').select('id, status, result_url, last_frame_url, error_msg, input_params, type, credits_cost').eq('id', id).single()
+            if (updatedAsset) {
+              return NextResponse.json({ asset: updatedAsset })
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[GET asset] falha no auto-sync background:', e)
+      }
+    }
+  }
 
   return NextResponse.json({ asset })
 }

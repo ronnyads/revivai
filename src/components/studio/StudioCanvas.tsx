@@ -243,11 +243,34 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         if (!res.ok) { stopPolling(); return } // 404 = asset deletado
         const { asset } = await res.json()
         if (!asset) { stopPolling(); return }
+
+        // Se completou pelo webhook/route
         if (asset.status === 'done' || asset.status === 'error') {
           stopPolling()
           setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...asset } : a))
           return
         }
+
+        // Se ainda está em processamento e é um tipo que aceita /sync (Google Veo não tem webhook)
+        if (asset.status === 'processing' && typeof asset.input_params === 'object' && asset.input_params?.prediction_id) {
+          try {
+            const syncRes = await fetch(`/api/studio/assets/${assetId}/sync`, { method: 'POST' })
+            if (syncRes.ok) {
+              const syncData = await syncRes.json()
+              if (syncData.status === 'done' || syncData.status === 'error') {
+                // Recupera asset atualizado com as urls convertidas
+                const updatedRes = await fetch(`/api/studio/assets/${assetId}`)
+                const { asset: updatedAsset } = await updatedRes.json()
+                if (updatedAsset) {
+                  stopPolling()
+                  setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...updatedAsset } : a))
+                  return
+                }
+              }
+            }
+          } catch { /* ignora erro silencioso no sync */ }
+        }
+
       } catch { /* rede — tenta de novo */ }
 
       // Agenda próxima tentativa com backoff
