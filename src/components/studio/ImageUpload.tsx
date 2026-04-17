@@ -94,11 +94,14 @@ export default function ImageUpload({ value, onChange, label = 'Imagem', accept 
   // Se já tem URL e é imagem com preview
   if (value && preview && accept.startsWith('image')) {
     return (
-      <div className="relative bg-zinc-900/50 rounded-xl overflow-hidden border border-zinc-700 flex items-center justify-center p-2 h-48">
-        <img src={value} alt="Preview" className="w-full h-full rounded-lg object-contain" />
+      <div className="relative rounded-xl overflow-hidden group shadow-md border border-zinc-800/50">
+        <img src={value} alt="Preview" className="w-full h-auto rounded-xl" />
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-2 pointer-events-none">
+          {/* Fundo escuro sutil on hover */}
+        </div>
         <button
           onClick={() => onChange('')}
-          className="absolute top-2 right-2 bg-zinc-900/80 hover:bg-red-900/80 text-white rounded-full p-1 transition-colors"
+          className="absolute top-2 right-2 bg-zinc-900/80 hover:bg-red-500 text-white rounded-full p-1.5 transition-colors opacity-0 group-hover:opacity-100 pointer-events-auto shadow-lg backdrop-blur-sm"
         >
           <X size={14} />
         </button>
