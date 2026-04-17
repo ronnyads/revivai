@@ -15,87 +15,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
   const { data: asset, error } = await supabase
     .from('studio_assets')
-    .select('id, status, result_url, error_msg, input_params, type, credits_cost')
+    .select('id, status, result_url, last_frame_url, error_msg, input_params, type, credits_cost')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
 
   if (error || !asset) return NextResponse.json({ error: 'Asset não encontrado' }, { status: 404 })
-
-// Baixa url temporária e salva no Supabase Storage
-async function persistToStorage(admin: ReturnType<typeof createAdminClient>, url: string, userId: string, assetId: string): Promise<string> {
-  try {
-    const res = await fetch(url)
-    if (!res.ok) return url
-    const buffer = Buffer.from(await res.arrayBuffer())
-    const path = `${userId}/${assetId}-result.mp4`
-    const { error } = await admin.storage.from('studio').upload(path, buffer, { contentType: 'video/mp4', upsert: true })
-    if (error) return url
-    const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
-    return publicUrl
-  } catch {
-    return url
-  }
-}
-
-  // Polling dinâmico: se estiver travado em processamento de lipsync, verificamos o provedor diretamente!
-  if (asset.status === 'processing' && asset.type === 'lipsync' && (asset.input_params as Record<string, any>)?.prediction_id) {
-    try {
-      const predId = (asset.input_params as Record<string, any>).prediction_id
-      const res = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predId}/status`, {
-        headers: { 'Authorization': `Key ${process.env.FAL_KEY}` }
-      })
-      if (res.ok) {
-        const statusJson = await res.json()
-        if (statusJson.status === 'COMPLETED' || statusJson.status === 'OK') {
-           let videoUrl: string | null = null
-           
-           const outRes = await fetch(`https://queue.fal.run/fal-ai/latentsync/requests/${predId}`, {
-             headers: { 'Authorization': `Key ${process.env.FAL_KEY}` }
-           })
-           if (outRes.ok) {
-             const out = await outRes.json()
-             videoUrl = out.video?.url ?? out.video_url ?? out.output?.[0] ?? out.payload?.video?.url ?? null
-           }
-
-           if (!videoUrl && statusJson.response_url) {
-              const resURL = await fetch(statusJson.response_url, { headers: { 'Authorization': `Key ${process.env.FAL_KEY}` } })
-              if (resURL.ok) {
-                const outJson = await resURL.json()
-                videoUrl = outJson.video?.url ?? outJson.video_url ?? outJson.output?.[0] ?? outJson.payload?.video?.url ?? null
-              }
-           }
-           if (videoUrl) {
-             const admin = createAdminClient()
-             videoUrl = await persistToStorage(admin, videoUrl, user.id, asset.id)
-
-             await admin.from('studio_assets').update({
-               status: 'done',
-               result_url: videoUrl,
-               last_frame_url: videoUrl,
-               error_msg: null
-             }).eq('id', asset.id)
-             asset.status = 'done'
-             asset.result_url = videoUrl
-
-             // Importante: debitamos os créditos uma vez que foi entregue via fallback polling
-             const cost = asset.credits_cost ?? 3
-             for (let i = 0; i < cost; i++) {
-               await admin.rpc('debit_credit', { user_id_param: user.id })
-             }
-           }
-        } else if (statusJson.status === 'ERROR' || statusJson.status === 'FAILED') {
-           const errReason = statusJson.error ? String(statusJson.error) : 'Falhou no provedor'
-           const admin = createAdminClient()
-           await admin.from('studio_assets').update({ status: 'error', error_msg: errReason }).eq('id', asset.id)
-           asset.status = 'error'
-           asset.error_msg = errReason
-        }
-      }
-    } catch (err) {
-      console.warn(`[assets/id] Falha ao consultar fallback do Fal AI:`, err)
-    }
-  }
 
   return NextResponse.json({ asset })
 }
