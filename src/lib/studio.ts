@@ -478,42 +478,41 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   const data = await res.json()
   const text: string = data.choices?.[0]?.message?.content?.trim() ?? ''
 
-  const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+  const googleApiKey = process.env.GOOGLE_API_KEY
+  if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
   const fluxSuffix = await getStudioPrompt(
     admin,
     'model_flux_suffix',
-    'Shot on iPhone 15 Pro, natural daylight, authentic UGC style. Skin pores and natural imperfections visible. Real human face, photojournalism style, not a studio shoot, not retouched, not illustrated.',
+    'Shot on a cinematic phone camera, authentic UGC style. Skin pores and natural imperfections visible. Real human face, authentic lighting, not a studio shoot, not retouched, not illustrated.',
   )
   const fluxPrompt = `Candid portrait photo of a real person: ${text} ${fluxSuffix}`
 
-  const imgRes = await fetch('https://fal.run/fal-ai/flux-pro/v1.1-ultra', {
+  const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${googleApiKey}`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Key ${falKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      prompt: fluxPrompt,
-      aspect_ratio: '9:16',
-      output_format: 'jpeg',
-      safety_tolerance: '3',
-    }),
+      instances: [{ prompt: fluxPrompt }],
+      parameters: {
+        sampleCount: 1,
+        aspectRatio: '9:16',
+        personGeneration: 'ALLOW_ADULT' // Permite geração de pessoas reais
+      }
+    })
   })
 
-  // Log error text se Fal falhar
+  // Log error text se Google falhar
   if (!imgRes.ok) {
     const errText = await imgRes.text()
-    throw new Error(`FLUX 1.1 Pro (Fal AI) Error: ${errText}`)
+    throw new Error(`Imagen 3 (Google) Error: ${errText}`)
   }
 
   const imgData = await imgRes.json()
-  const tempUrl = imgData.images?.[0]?.url
-  if (!tempUrl) throw new Error('FLUX não retornou URL para o modelo na Fal AI')
+  const base64Str = imgData.predictions?.[0]?.bytesBase64Encoded
+  if (!base64Str) throw new Error('Imagen 3 não retornou dados da imagem da Google')
 
-  // Re-upload para bucket studio
-  const photoBuffer = Buffer.from(await (await fetch(tempUrl)).arrayBuffer())
+  // Upload direto do buffer em vez de buscar da URL temporária
+  const photoBuffer = Buffer.from(base64Str, 'base64')
   const path = `${params.userId}/${params.assetId}-model.jpg`
   const { error } = await admin.storage
     .from('studio')
