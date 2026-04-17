@@ -1044,8 +1044,8 @@ export async function startVeo3DirectGoogle(params: {
   assetId:          string
   userId:           string
 }) {
-  const apiKey = process.env.GOOGLE_AI_API_KEY
-  if (!apiKey) throw new Error('GOOGLE_AI_API_KEY não configurada no servidor')
+  const apiKey = process.env.GOOGLE_API_KEY
+  if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
   const admin = createAdminClient()
 

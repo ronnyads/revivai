@@ -46,8 +46,10 @@ export async function POST(req: NextRequest) {
 
   // Verifica créditos
   const cost = CREDIT_COST[type] ?? 1
-  // Veo3 usa créditos do plano — custo fixo de 15cr (igual ao CREDIT_COST['video'])
-  const effectiveCost = cost
+  // Veo3 custa 100cr (custo premium Google) — Kling/outros usam custo padrão
+  const effectiveCost = (type === 'video' && String(input_params?.engine ?? '') === 'veo')
+    ? 100
+    : cost
   const { data: profile } = await supabase.from('users').select('credits').eq('id', user.id).single()
   if (!profile || profile.credits < effectiveCost) {
     return NextResponse.json({ error: 'Sem créditos suficientes.' }, { status: 402 })
