@@ -8,9 +8,10 @@ interface Props {
   template?: string
   variant?: 'default' | 'card'
   children?: React.ReactNode
+  className?: string
 }
 
-export default function NewProjectButton({ template = 'blank', variant = 'default', children }: Props) {
+export default function NewProjectButton({ template = 'blank', variant = 'default', children, className = '' }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
@@ -31,7 +32,7 @@ export default function NewProjectButton({ template = 'blank', variant = 'defaul
 
   if (variant === 'card' && children) {
     return (
-      <button onClick={create} disabled={loading} className="text-left w-full disabled:opacity-60">
+      <button onClick={create} disabled={loading} className={`text-left w-full disabled:opacity-60 ${className}`}>
         {loading ? (
           <div className="bg-zinc-800 border border-zinc-700 rounded-2xl p-4 flex items-center justify-center h-full min-h-[88px]">
             <Loader2 size={20} className="animate-spin text-accent" />
@@ -45,7 +46,7 @@ export default function NewProjectButton({ template = 'blank', variant = 'defaul
     <button
       onClick={create}
       disabled={loading}
-      className="flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-all disabled:opacity-60 shadow-lg shadow-accent/20"
+      className={`flex items-center gap-2 bg-accent hover:bg-accent/90 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-all disabled:opacity-60 shadow-lg shadow-accent/20 ${className}`}
     >
       {loading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
       Novo Projeto
