@@ -425,7 +425,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     setEdges(prev => {
       const dbEdges = buildEdges(connections)
       const tempEdges = prev.filter(e => {
-        if (!e.isLocalConn) return false
+        if (!(e as any).isLocalConn) return false
         // Remove temp edge se já existe uma DB edge cobrindo a mesma conexão
         return !dbEdges.some(de =>
           de.source === e.source &&
