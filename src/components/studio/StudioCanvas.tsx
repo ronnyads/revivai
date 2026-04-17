@@ -664,7 +664,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       
       setConnections(prev => prev.filter(c => c.id !== e.id))
       // Tenta excluir do DB toda Edge não-local (já salva). Edge do DB == Edge sem isLocalConn.
-      if (!e.isLocalConn) {
+      if (!(e as any).isLocalConn) {
         await fetch(`/api/studio/connections/${e.id}`, { method: 'DELETE' })
       }
 
