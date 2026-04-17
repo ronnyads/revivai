@@ -44,26 +44,26 @@ const STEPS = [
       { 
         value: '20-30', 
         label: '20 – 30 anos', 
-        femaleImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=400&h=600&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=400&h=600&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=1000',
+        maleImage: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=1000'
       },
       { 
         value: '30-40', 
         label: '30 – 40 anos', 
-        femaleImage: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?q=80&w=400&h=600&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=400&h=600&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&q=80&w=1000',
+        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&q=80&w=1000'
       },
       { 
         value: '40-55', 
         label: '40 – 55 anos', 
-        femaleImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400&h=600&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=600&auto=format&fit=crop'
+        femaleImage: 'https://plus.unsplash.com/premium_photo-1770616817226-c2ac031db9fd?auto=format&fit=crop&q=80&w=1000', // Audited Middle Age
+        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=1000' 
       },
       { 
         value: '55+',   
         label: 'Mais de 55', 
-        femaleImage: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?q=80&w=400&h=600&auto=format&fit=crop', // Real Senior Woman
-        maleImage: 'https://images.unsplash.com/photo-1472417583565-62e7bdeda490?q=80&w=400&h=600&auto=format&fit=crop' // Real Senior Man
+        femaleImage: 'https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?auto=format&fit=crop&q=80&w=1000', // Audited Senior Woman
+        maleImage: 'https://images.unsplash.com/photo-1472417583565-62e9b9c533a6?auto=format&fit=crop&q=80&w=1000' // Audited Senior Man
       },
     ],
   },
@@ -90,26 +90,26 @@ const STEPS = [
       { 
         value: 'magro',     
         label: 'Magro',    
-        femaleImage: 'https://images.unsplash.com/photo-1529139513075-1231282c65cc?q=80&w=400&h=600&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=400&h=600&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1529139513075-1231282c65cc?auto=format&fit=crop&q=80&w=1000',
+        maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=1000'
       },
       { 
         value: 'atletico',  
         label: 'Atlético', 
-        femaleImage: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?q=80&w=400&h=600&auto=format&fit=crop', // Athletic Woman
-        maleImage: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=400&h=600&auto=format&fit=crop' // Athletic Man
+        femaleImage: 'https://images.unsplash.com/photo-1548690312-e3b507d8c110?auto=format&fit=crop&q=80&w=1000', // Audited Athletic Woman
+        maleImage: 'https://images.unsplash.com/photo-1754475096386-b7a2a45a91fb?auto=format&fit=crop&q=80&w=1000' // Audited Athletic Man
       },
       { 
         value: 'normal',    
         label: 'Normal',   
-        femaleImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400&h=600&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=400&h=600&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=1000',
+        maleImage: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=1000'
       },
       { 
         value: 'plus_size', 
         label: 'Plus Size',
-        femaleImage: 'https://images.unsplash.com/photo-1598133894008-61f7fdb8cc3a?q=80&w=400&h=600&auto=format&fit=crop', // Real Plus Size Woman
-        maleImage: 'https://images.unsplash.com/photo-1537511446984-935f663eb1f4?q=80&w=400&h=600&auto=format&fit=crop' // Real Plus Size Man
+        femaleImage: 'https://images.unsplash.com/photo-1562887077-e086f7da6870?auto=format&fit=crop&q=80&w=1000', // Audited Plus Size Woman
+        maleImage: 'https://images.unsplash.com/photo-1677543167033-af3c688aa4df?auto=format&fit=crop&q=80&w=1000' // Audited Plus Size Man
       },
     ],
   },
@@ -122,26 +122,26 @@ const STEPS = [
       { 
         value: 'casual',       
         label: 'Casual',       
-        femaleImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=400&h=600&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1488161628813-04466f872be2?q=80&w=400&h=600&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80&w=1000',
+        maleImage: 'https://images.unsplash.com/photo-1488161628813-04466f872be2?auto=format&fit=crop&q=80&w=1000'
       },
       { 
         value: 'profissional', 
         label: 'Formal',       
-        femaleImage: 'https://images.unsplash.com/photo-1629745124015-cb78ec869910?q=80&w=400&h=600&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?q=80&w=400&h=600&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1629745124015-cb78ec869910?auto=format&fit=crop&q=80&w=1000',
+        maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=1000'
       },
       { 
         value: 'esportivo',    
         label: 'Sporty',    
-        femaleImage: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?q=80&w=400&h=600&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1483721310020-03333e577078?q=80&w=400&h=600&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&q=80&w=1000',
+        maleImage: 'https://images.unsplash.com/photo-1483721310020-03333e577078?auto=format&fit=crop&q=80&w=1000'
       },
       { 
         value: 'elegante',     
         label: 'High-End',     
-        femaleImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=400&h=600&auto=format&fit=crop',
-        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?q=80&w=400&h=600&auto=format&fit=crop'
+        femaleImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=1000',
+        maleImage: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&q=80&w=1000'
       },
     ],
   },
@@ -355,22 +355,20 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
                   <button
                     key={opt.value}
                     onClick={() => select(opt.value)}
-                    className={`group relative flex flex-col items-center justify-end h-48 p-3.5 rounded-2xl border transition-all overflow-hidden ${
+                    className={`group relative flex flex-col items-center justify-end h-56 p-4 rounded-2xl border transition-all overflow-hidden ${
                       params[field] === opt.value
                         ? 'border-indigo-500 ring-2 ring-indigo-500/30'
                         : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900 shadow-xl'
                     }`}
                   >
                     {displayImg && (
-                      <>
-                        <img 
-                          src={displayImg} 
-                          className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" 
-                          alt="" 
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-90" />
-                      </>
+                      <img 
+                        src={displayImg} 
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                        alt="" 
+                      />
                     )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                     <div className="relative z-10 w-full text-center">
                       <span className={`text-[11px] font-black tracking-widest uppercase ${params[field] === opt.value ? 'text-white' : 'text-zinc-100'}`}>{opt.label}</span>
                     </div>
