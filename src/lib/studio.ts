@@ -61,6 +61,7 @@ export async function generateImage(params: {
     ugc:       'UGC style ad photo, authentic, shot on phone, candid, real person, photorealistic, 8k, highly detailed, ',
     product:   'professional product photography, clean background, studio lighting, hyper-realistic, 8k resolution, ',
     logo:      'professional logo design, clean vector style, transparent background, minimalist, ',
+    mascote:   '3D animated mascot, anthropomorphic character, cinematic lighting, highly detailed 3D render, Pixar style, ',
     lifestyle: 'lifestyle photography, natural light, aspirational, photorealism, cinematic lighting, ',
   }
   const styleKey = `image_style_${params.style}`
@@ -71,13 +72,17 @@ export async function generateImage(params: {
     ? `${params.model_prompt}. ${stylePrefix}${params.prompt}`
     : stylePrefix + params.prompt
 
-  // Sulfixo de realismo forçado
-  const realismSuffix = "RAW photo, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, not illustrated, not cartoon, real photography."
+  // Sulfixo varia se for mascote (não usar 'real person' em mascote)
+  const isMascot = params.style === 'mascote'
+  const realismSuffix = isMascot 
+    ? "hyper-detailed 3D render, perfectly consistent character, 8k resolution, cinematic lighting, vibrant colors."
+    : "RAW photo, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, not illustrated, not cartoon, real photography."
   const finalPrompt = `${basePrompt}. ${realismSuffix}`
 
   let tempUrl = ''
 
-  if (params.source_face_url) {
+  if (params.source_face_url && !isMascot) {
+    // PuLID - Exclusivo para Humanos
     const falKey = process.env.FAL_KEY
     if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
 
@@ -111,10 +116,24 @@ export async function generateImage(params: {
     const data = await res.json()
     tempUrl = data.images?.[0]?.url
     if (!tempUrl) throw new Error('Fal AI não retornou URL')
+    
   } else {
-    // Fallback normal — Flux Pro 1.1 Ultra (substituindo DALL-E 3 para garantir fotorealismo total)
+    // Fallback ou Mascote — Flux Pro 1.1 Ultra
     const falKey = process.env.FAL_KEY
     if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+
+    const payload: any = {
+      prompt: finalPrompt,
+      aspect_ratio: params.aspect_ratio || '9:16',
+      output_format: 'jpeg',
+      safety_tolerance: '3',
+    }
+
+    // Se for mascote conectado a uma imagem de rosto, injeta condicional de caráter
+    if (isMascot && params.source_face_url) {
+      payload.image_url = params.source_face_url
+      payload.image_prompt_strength = 0.85
+    }
 
     const res = await fetch('https://fal.run/fal-ai/flux-pro/v1.1-ultra', {
       method: 'POST',
@@ -122,12 +141,7 @@ export async function generateImage(params: {
         'Authorization': `Key ${falKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        prompt: finalPrompt,
-        aspect_ratio: params.aspect_ratio || '9:16',
-        output_format: 'jpeg',
-        safety_tolerance: '3',
-      }),
+      body: JSON.stringify(payload),
     })
 
     if (!res.ok) {

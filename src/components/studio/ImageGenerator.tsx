@@ -45,6 +45,12 @@ const PRESETS = [
     style: 'lifestyle',
     hint: 'Ex: cena lifestyle, luz natural, composição equilibrada, cores vibrantes...',
   },
+  {
+    value: 'mascote',
+    label: 'Mascote / Avatar 3D (Clone)',
+    style: 'mascote',
+    hint: 'Ex: O golfinho bebendo café, cena 3d, iluminação de cinema...',
+  },
 ]
 
 const RATIOS = [
