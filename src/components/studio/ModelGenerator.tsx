@@ -62,8 +62,8 @@ const STEPS = [
       { 
         value: '55+',   
         label: 'Mais de 55', 
-        femaleImage: 'https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?auto=format&fit=crop&q=80&w=1000', // Audited Senior Woman
-        maleImage: 'https://images.unsplash.com/photo-1472417583565-62e9b9c533a6?auto=format&fit=crop&q=80&w=1000' // Audited Senior Man
+        femaleImage: 'https://images.pexels.com/photos/2050994/pexels-photo-2050994.jpeg?auto=compress&cs=tinysrgb&width=1000', // Audited Senior Woman
+        maleImage: 'https://images.pexels.com/photos/3831645/pexels-photo-3831645.jpeg?auto=compress&cs=tinysrgb&width=1000' // Audited Senior Man
       },
     ],
   },
@@ -90,7 +90,7 @@ const STEPS = [
       { 
         value: 'magro',     
         label: 'Magro',    
-        femaleImage: 'https://images.unsplash.com/photo-1529139513075-1231282c65cc?auto=format&fit=crop&q=80&w=1000',
+        femaleImage: 'https://images.pexels.com/photos/18516750/pexels-photo-18516750.jpeg?auto=compress&cs=tinysrgb&width=1000', // Audited Skinny Woman
         maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=1000'
       },
       { 
@@ -128,8 +128,8 @@ const STEPS = [
       { 
         value: 'profissional', 
         label: 'Formal',       
-        femaleImage: 'https://images.unsplash.com/photo-1629745124015-cb78ec869910?auto=format&fit=crop&q=80&w=1000',
-        maleImage: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=1000'
+        femaleImage: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=1000&auto=format&fit=crop', // Audited Business Woman
+        maleImage: 'https://images.pexels.com/photos/3778876/pexels-photo-3778876.jpeg?auto=compress&cs=tinysrgb&width=1000' // Audited Business Man
       },
       { 
         value: 'esportivo',    
