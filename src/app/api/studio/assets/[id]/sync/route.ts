@@ -60,7 +60,71 @@ export async function POST(
     return NextResponse.json({ status: asset.status, message: 'prediction_id não encontrado' })
   }
 
-  // ── Fal AI: video (Kling/Veo3), animate (live-portrait), lipsync (latentsync)
+  // ── Google Veo3 direto (provider === 'google')
+  const provider = (asset.input_params as any)?.provider as string | undefined
+  const engine = (asset.input_params as any)?.engine as string | undefined
+  
+  if (asset.type === 'video' && (provider === 'google' || engine === 'veo')) {
+    const apiKey = process.env.GOOGLE_API_KEY
+    if (!apiKey) {
+      return NextResponse.json({ status: 'error', error: 'GOOGLE_API_KEY não configurada no servidor (Veo3)' }, { status: 500 })
+    }
+
+    try {
+      const opRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/${predictionId}?key=${apiKey}`
+      )
+      if (!opRes.ok) {
+        const errMsg = 'Veo3: operação não encontrada no Google ou job bloqueado. Tente gerar novamente.'
+        await admin.from('studio_assets').update({ status: 'error', error_msg: errMsg }).eq('id', id)
+        return NextResponse.json({ status: 'error', error: errMsg })
+      }
+
+      const op = await opRes.json()
+
+      if (!op.done) return NextResponse.json({ status: 'processing', message: 'Google Veo3 ainda processando...' })
+
+      if (op.error) {
+        const errMsg = op.error.message ?? 'Falha na geração do Veo3'
+        await admin.from('studio_assets').update({ status: 'error', error_msg: errMsg }).eq('id', id)
+        return NextResponse.json({ status: 'error', error: errMsg })
+      }
+
+      // Extrai URL ou base64 do vídeo gerado
+      const prediction = op.response?.predictions?.[0]
+      let finalUrl: string | null = prediction?.videoUrl ?? prediction?.gcsUri ?? null
+
+      if (!finalUrl && prediction?.bytesBase64Encoded) {
+        // Vídeo veio em base64 — faz upload para Supabase
+        const buffer = Buffer.from(prediction.bytesBase64Encoded, 'base64')
+        const path = `${user.id}/${id}-veo3.mp4`
+        const { error: upErr } = await admin.storage.from('studio').upload(path, buffer, { contentType: 'video/mp4', upsert: true })
+        if (!upErr) {
+          const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+          finalUrl = publicUrl
+        }
+      }
+
+      if (!finalUrl) return NextResponse.json({ status: 'processing', message: 'Finalizando vídeo Veo3...' })
+
+      finalUrl = await persistToStorage(admin, finalUrl, user.id, id)
+      
+      // DEBITA O CRÉDITO DO GOOGLE VEO AQUI! (Pois a geração foi assíncrona)
+      // Como o Veo3 custa 100 créditos e não debitamos na criação, debitamos ao finalizar
+      for(let i = 0; i < (asset.credits_cost ?? 100); i++) {
+        await admin.rpc('debit_credit', { user_id_param: user.id })
+      }
+
+      await admin.from('studio_assets').update({ status: 'done', result_url: finalUrl, last_frame_url: finalUrl, error_msg: null }).eq('id', id)
+      return NextResponse.json({ status: 'done', result_url: finalUrl })
+
+    } catch (err: any) {
+      console.error(`[sync] Google Veo3 check failed for ${id}:`, err.message)
+      return NextResponse.json({ status: 'error', error: err.message }, { status: 500 })
+    }
+  }
+
+  // ── Fal AI: video (Kling), animate (live-portrait), lipsync (latentsync)
   if (asset.type === 'video' || asset.type === 'animate' || asset.type === 'lipsync') {
     const falKey = process.env.FAL_KEY
     if (!falKey) return NextResponse.json({ status: 'error', error: 'FAL_KEY não configurada' }, { status: 500 })
