@@ -220,18 +220,22 @@ export async function generateScript(params: {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
 
-  const formatGuide: Record<string, string> = {
+  const formatGuideStr = await getStudioPrompt(admin, 'script_format_guide', JSON.stringify({
     reels: 'Reels/TikTok (15-30 segundos, hook nos primeiros 3s)',
     story: 'Stories (até 15 segundos por slide, 3 slides)',
     feed:  'Feed/anúncio (30-60 segundos, mais elaborado)',
-  }
-
-  const hookGuide: Record<string, string> = {
+  }))
+  const hookGuideStr = await getStudioPrompt(admin, 'script_hook_guide', JSON.stringify({
     problema: 'começe identificando um problema real do público',
     resultado: 'começe mostrando o resultado incrível primeiro',
     pergunta:  'começe com uma pergunta provocadora',
     historia:  'começe com uma mini história pessoal',
-  }
+  }))
+
+  let formatGuide: any = {}
+  let hookGuide: any = {}
+  try { formatGuide = JSON.parse(formatGuideStr) } catch { /* ignore */ }
+  try { hookGuide = JSON.parse(hookGuideStr) } catch { /* ignore */ }
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -754,7 +758,14 @@ export async function composeProductScene(params: {
 
   if (params.compose_mode === 'prompt') {
     // ---- MODO VESTIR VIA PROMPT (FLUX-PULID) ----
+    const promptTemplate = await getStudioPrompt(
+      admin,
+      'compose_pulid_prompt',
+      'A beautiful portrait of the person, {prompt}, perfectly fitted, hyperrealistic photography, 8k resolution, raw photo'
+    )
     const promptValue = params.costume_prompt || 'wearing beautiful clothes'
+    const finalPrompt = promptTemplate.replace('{prompt}', promptValue)
+
     const pulidRes = await fetch('https://fal.run/fal-ai/flux-pulid', {
       method: 'POST',
       headers: {
@@ -762,7 +773,7 @@ export async function composeProductScene(params: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: `A beautiful portrait of the person, ${promptValue}, perfectly fitted, hyperrealistic photography, 8k resolution, raw photo`,
+        prompt: finalPrompt,
         reference_images: [
           {
             image_url: params.portrait_url,
@@ -845,10 +856,12 @@ export async function composeProductScene(params: {
 
     // Evita rigorosamente que o IDM-VTON ache que 'dresses' é um vestido de mulher com decote.
     // Força o entendimento de que é um "Conjunto/Terno Masculino Fechado"
-    let description = `Virtual try-on garment, ${params.vton_category || 'tops'}`
-    if (params.vton_category === 'one-pieces') {
-      description = `A fully closed masculine outfit, formal suit with pants, completely buttoned coat, chest fully covered by fabric, formal menswear, highly masculine tailoring, strictly male outfit, no cleavage, no skin visible on chest.`
-    }
+    const femaleDesc = await getStudioPrompt(admin, 'compose_vton_description_female', 'Virtual try-on garment, {category}')
+    const maleDesc = await getStudioPrompt(admin, 'compose_vton_description_male', 'A fully closed masculine outfit, formal suit with pants, completely buttoned coat, chest fully covered by fabric, formal menswear, highly masculine tailoring, strictly male outfit, no cleavage, no skin visible on chest.')
+
+    description = (params.vton_category === 'one-pieces') 
+      ? maleDesc 
+      : femaleDesc.replace('{category}', params.vton_category || 'tops')
 
     const vtonRes = await fetch('https://fal.run/fal-ai/idm-vton', {
       method: 'POST',
@@ -1135,7 +1148,7 @@ export async function startVeo3DirectGoogle(params: {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         instances: [{
-          prompt: params.motion_prompt || 'smooth cinematic product motion',
+          prompt: params.motion_prompt || (await getStudioPrompt(admin, 'video_veo_default_prompt', 'smooth cinematic product motion')),
           referenceImages: [{
             image: { bytesBase64Encoded: base64Image, mimeType }
           }],

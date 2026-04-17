@@ -34,6 +34,31 @@ const PROMPT_GROUPS: {
     ],
   },
   {
+    label: 'Configurações de Roteiro (Copywriting)',
+    card: 'script',
+    color: 'border-amber-500/30 bg-amber-500/5',
+    items: [
+      {
+        key: 'script_generation_system',
+        label: '🧠 Cérebro do Roteirista (GPT-4o)',
+        description: 'Ferramenta: OpenAI GPT-4o. O que faz: Define o estilo de escrita, gírias e a "voz" da marca nos scripts UGC.',
+        rows: 5,
+      },
+      {
+        key: 'script_format_guide',
+        label: '📏 Guia de Formatos (JSON)',
+        description: 'Ferramenta: GPT-4o. O que faz: Regras de tempo e estrutura para Reels, Stories e Feed.',
+        rows: 5,
+      },
+      {
+        key: 'script_hook_guide',
+        label: '🎣 Guia de Hooks/Ganchos (JSON)',
+        description: 'Ferramenta: GPT-4o. O que faz: Define como a IA deve começar o vídeo (Problema, Resultado, Pergunta).',
+        rows: 5,
+      },
+    ],
+  },
+  {
     label: 'Configurações de Imagem (Produto e Cena)',
     card: 'image',
     color: 'border-violet-500/30 bg-violet-500/5',
@@ -41,31 +66,31 @@ const PROMPT_GROUPS: {
       {
         key: 'image_style_realista',
         label: '🎬 Estilo Influencer Realista',
-        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Define o visual de alta produção e nitidez extrema para influenciadores.',
+        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Visual de alta produção para influenciadores.',
         rows: 3,
       },
       {
         key: 'image_style_ugc',
         label: '📱 Estilo Influencer UGC',
-        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Estilo "foto de celular" (Stories/TikTok) para modelos vida real.',
+        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Estilo de "foto de celular" autêntica.',
         rows: 3,
       },
       {
         key: 'image_style_clonado',
         label: '👥 Estilo Clonar Rosto',
-        description: 'Ferramenta: FLUX-PuLID. O que faz: Mantém a identidade visual da modelo conectada enquanto gera a nova cena.',
+        description: 'Ferramenta: FLUX-PuLID. O que faz: Mantém o rosto da modelo ao gerar novas cenas.',
         rows: 3,
       },
       {
         key: 'image_style_produto',
         label: '📦 Estilo Produto Realista',
-        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Otimiza a IA para fotos de produtos físicos (e-commerce).',
+        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Foco em produtos (e-commerce).',
         rows: 3,
       },
       {
         key: 'image_style_logo',
         label: '💎 Estilo Logo Profissional',
-        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Instrução para criação de logos e ícones minimalistas.',
+        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Criação de marcas e ícones.',
         rows: 3,
       },
       {
@@ -77,13 +102,38 @@ const PROMPT_GROUPS: {
       {
         key: 'image_style_mascote',
         label: '🧸 Estilo Mascote / Avatar 3D',
-        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Cria personagens com estilo 3D (Disney/Pixar).',
+        description: 'Ferramenta: FLUX Pro 1.1. O que faz: Personagens estilo Disney/Pixar.',
         rows: 3,
       },
       {
         key: 'image_style_cartoon',
         label: '🎨 Estilo Personagem 2D',
         description: 'Ferramenta: FLUX Pro 1.1. O que faz: Cria ilustrações estilo desenho animado ou anime.',
+        rows: 3,
+      },
+    ],
+  },
+  {
+    label: 'Configurações de Composição (Fusão e Roupas)',
+    card: 'compose',
+    color: 'border-pink-500/30 bg-pink-500/5',
+    items: [
+      {
+        key: 'compose_pulid_prompt',
+        label: '🧩 Prompt de Fusão Facial',
+        description: 'Ferramenta: PuLID. O que faz: Instrução usada ao "colar" o rosto da modelo em um novo corpo. Dica: use {prompt} para onde entra a ação.',
+        rows: 3,
+      },
+      {
+        key: 'compose_vton_description_male',
+        label: '👔 Regras de Roupa Masculina',
+        description: 'Ferramenta: IDM-VTON. O que faz: Instrução técnica para garantir que roupas masculinas fiquem bem ajustadas e sem decotes.',
+        rows: 4,
+      },
+      {
+        key: 'compose_vton_description_female',
+        label: '👗 Regras de Roupa Feminina',
+        description: 'Ferramenta: IDM-VTON. O que faz: Instrução técnica para o caimento de peças femininas.',
         rows: 3,
       },
     ],
@@ -96,7 +146,7 @@ const PROMPT_GROUPS: {
       {
         key: 'audio_elevenlabs_config',
         label: '🎙️ Parametrizador de Voz',
-        description: 'Ferramenta: ElevenLabs. O que faz: Controla a "emoção" da voz. Você pode definir a estabilidade (se a voz é mais reta ou expressiva) e a clareza. Use o formato { "stability": 0.5 }.',
+        description: 'Ferramenta: ElevenLabs. O que faz: JSON para Estabilidade e Clareza da voz.',
         rows: 5,
       },
     ],
@@ -108,9 +158,27 @@ const PROMPT_GROUPS: {
     items: [
       {
         key: 'video_kling_config',
-        label: '📹 Diretor de Cena',
-        description: 'Ferramenta: Kling / Google Veo. O que faz: Diz para a IA como a câmera deve se mexer. Ex: "Câmera se aproximando lentamente do rosto", "Modelo sorrindo e mexendo a cabeça".',
-        rows: 4,
+        label: '📹 Diretor de Cena (Kling)',
+        description: 'Ferramenta: Kling. O que faz: Comandos de movimento para o motor chinês.',
+        rows: 3,
+      },
+      {
+        key: 'video_veo_default_prompt',
+        label: '🎬 Movimento Padrão (Google Veo)',
+        description: 'Ferramenta: Google Veo. O que faz: Comando de movimento usado quando você não escreve nada no card de vídeo.',
+        rows: 3,
+      },
+      {
+        key: 'video_latentsync_config',
+        label: '👄 Sincronia Labial (Lipsync)',
+        description: 'Ferramenta: SyncLabs. O que faz: Parâmetros de precisão para bater os lábios com o som.',
+        rows: 3,
+      },
+      {
+        key: 'video_liveportrait_config',
+        label: '🎭 Animação Facial (Animate)',
+        description: 'Ferramenta: LivePortrait. O que faz: Parâmetros de sensibilidade para expressões dos olhos e boca.',
+        rows: 3,
       },
     ],
   },
