@@ -1,13 +1,11 @@
-export const dynamic = 'force-dynamic'
-
 import { createAdminClient } from '@/lib/supabase/admin'
-import { upsertStudioPrompt } from './actions'
+import { upsertStudioPrompt, upsertAllPromptsJSON } from './actions'
 
 const PROMPT_GROUPS: {
   label: string
   card: string
   color: string
-  items: { key: string; label: string; description: string; rows: number; vars?: string }[]
+  items: { key: string; label: string; description: string; rows: number; vars?: string; placeholder?: string }[]
 }[] = [
   {
     label: 'Modelo UGC',
@@ -42,14 +40,14 @@ const PROMPT_GROUPS: {
     ],
   },
   {
-    label: 'Imagem',
+    label: 'Imagem (DALL-E)',
     card: 'image',
     color: 'border-violet-500/30 bg-violet-500/5',
     items: [
       {
         key: 'image_style_ugc',
         label: '🤳 Prefixo estilo UGC',
-        description: 'Adicionado antes do prompt do usuário quando o preset é "UGC / Influencer". Defina o tom fotográfico da geração DALL-E.',
+        description: 'Adicionado antes do prompt do usuário quando o preset é "UGC / Influencer".',
         rows: 2,
       },
       {
@@ -58,30 +56,70 @@ const PROMPT_GROUPS: {
         description: 'Adicionado antes do prompt do usuário quando o preset é "Produto Realista".',
         rows: 2,
       },
+    ],
+  },
+  {
+    label: 'Vídeo & Movimento',
+    card: 'video',
+    color: 'border-cyan-500/30 bg-cyan-500/5',
+    items: [
       {
-        key: 'image_style_logo',
-        label: '🎨 Prefixo estilo Logo',
-        description: 'Adicionado antes do prompt do usuário quando o preset é "Logo Profissional".',
-        rows: 2,
+        key: 'video_kling_config',
+        label: '🎬 Kling AI — Configuração JSON',
+        description: 'Configurações de geração de vídeo como neg_prompt, cfg_scale e duração. Deve ser um objeto JSON.',
+        rows: 4,
+        placeholder: '{ "cfg_scale": 0.5, "mode": "std" }'
       },
       {
-        key: 'image_style_lifestyle',
-        label: '🌿 Prefixo estilo Lifestyle',
-        description: 'Adicionado antes do prompt do usuário quando o preset é "Imagem Aleatória / Lifestyle".',
-        rows: 2,
+        key: 'video_liveportrait_config',
+        label: '✨ LivePortrait — Sensibilidade',
+        description: 'Ajustes finos para a animação facial. Ex: { "expression_intensity": 1.0 }',
+        rows: 3,
+      },
+      {
+        key: 'video_latentsync_config',
+        label: '💋 LatentSync — Lip Sync',
+        description: 'Ajustes de sincronia labial. Ex: { "audio_bias": 0.8 }',
+        rows: 3,
       },
     ],
   },
   {
-    label: 'Fusão UGC (Compose)',
-    card: 'compose',
+    label: 'Áudio & Fusão',
+    card: 'audio_compose',
     color: 'border-orange-500/30 bg-orange-500/5',
     items: [
       {
+        key: 'audio_elevenlabs_config',
+        label: '🎙️ ElevenLabs — Configuração',
+        description: 'Instruções de estabilidade e similaridade da voz clonada.',
+        rows: 3,
+        placeholder: '{ "stability": 0.5, "similarity": 0.8 }'
+      },
+      {
         key: 'compose_gpt_prompt',
-        label: '🖼️ Prompt GPT Image 1 — Composição com produto',
-        description: 'Enviado ao GPT Image 1 junto com a foto da modelo e a foto do produto. Controla como o produto é inserido na cena (na mão, sobre a bancada etc.). Manter em inglês para melhores resultados.',
+        label: '🖼️ Prompt GPT Compose — Composição',
+        description: 'Controla como o produto é inserido na cena com a modelo. Manter em inglês.',
         rows: 8,
+      },
+    ],
+  },
+  {
+    label: 'Pós-Produção',
+    card: 'post',
+    color: 'border-emerald-500/30 bg-emerald-500/5',
+    items: [
+      {
+        key: 'upscale_esrgan_config',
+        label: '🔍 Upscale — Parâmetros',
+        description: 'Ex: { "face_enhance": true, "scale": 2 }',
+        rows: 3,
+      },
+      {
+        key: 'subtitle_whisper_config',
+        label: '📄 Whisper — Legendas',
+        description: 'Configurações de transcrição e tradução.',
+        rows: 3,
       },
     ],
   },
@@ -100,13 +138,16 @@ export default async function StudioPromptsPage() {
     updatedMap[row.key] = row.updated_at
   }
 
+  // Objeto JSON completo para o editor mestre
+  const masterJSON = JSON.stringify(promptMap, null, 2)
+
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto pb-20">
       <div className="mb-8">
         <h1 className="font-display text-4xl font-normal tracking-tight mb-1">Prompts do Studio IA</h1>
-        <p className="text-white/40 text-sm">
-          Configure os prompts usados na geração de cada card. Alterações entram em vigor imediatamente — sem redeploy.
-          Se o campo estiver vazio, o sistema usa o prompt padrão do código.
+        <p className="text-white/40 text-sm leading-relaxed">
+          Configure as instruções de cada motor do RevivAI. Alterações entram em vigor imediatamente.<br/>
+          Use campos vazios para reverter ao padrão do sistema.
         </p>
       </div>
 
@@ -117,18 +158,15 @@ export default async function StudioPromptsPage() {
               {group.label}
             </div>
 
-            <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-1 gap-6">
               {group.items.map(def => (
                 <div key={def.key} className="bg-white/5 border border-white/10 rounded-xl p-6">
                   <div className="mb-4">
                     <h2 className="text-base font-semibold text-white mb-1">{def.label}</h2>
                     <p className="text-xs text-white/40 leading-relaxed">{def.description}</p>
-                    {def.vars && (
-                      <p className="text-[10px] text-amber-400/60 mt-1.5 font-mono">Variáveis: {def.vars}</p>
-                    )}
                     {updatedMap[def.key] && (
                       <p className="text-[10px] text-white/20 mt-1">
-                        Última edição: {new Date(updatedMap[def.key]).toLocaleString('pt-BR')}
+                        Editado em: {new Date(updatedMap[def.key]).toLocaleString('pt-BR')}
                       </p>
                     )}
                   </div>
@@ -140,23 +178,15 @@ export default async function StudioPromptsPage() {
                       rows={def.rows}
                       defaultValue={promptMap[def.key] ?? ''}
                       className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono leading-relaxed"
-                      placeholder={`Deixe vazio para usar o padrão do código...`}
+                      placeholder={def.placeholder || `Padrão do sistema...`}
                     />
                     <div className="flex items-center justify-between">
                       <p className="text-[10px] text-white/20">
-                        {promptMap[def.key] ? '✅ Prompt customizado ativo' : '⚙️ Usando prompt padrão do código'}
+                        {promptMap[def.key] ? '✅ Ativo' : '⚙️ Padrão'}
                       </p>
-                      <div className="flex items-center gap-3">
-                        {promptMap[def.key] && (
-                          <span className="text-[10px] text-white/30">{promptMap[def.key].length} chars</span>
-                        )}
-                        <button
-                          type="submit"
-                          className="bg-accent hover:bg-accent-dark text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          Salvar
-                        </button>
-                      </div>
+                      <button type="submit" className="bg-white/10 hover:bg-white/20 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
+                        Salvar
+                      </button>
                     </div>
                   </form>
                 </div>
@@ -166,21 +196,32 @@ export default async function StudioPromptsPage() {
         ))}
       </div>
 
-      <div className="mt-10 p-4 bg-zinc-800/60 border border-white/10 rounded-xl">
-        <p className="text-xs text-white/50 font-medium mb-3">📋 Mapa de cards do Studio</p>
-        <div className="grid grid-cols-2 gap-2 text-[11px] text-white/30">
-          <span>🧑 <strong className="text-white/50">Modelo UGC</strong> — GPT-4o + FLUX</span>
-          <span>📝 <strong className="text-white/50">Script UGC</strong> — GPT-4o copywriter</span>
-          <span>🖼️ <strong className="text-white/50">Imagem</strong> — DALL-E 3</span>
-          <span>🎙️ <strong className="text-white/50">Voz</strong> — ElevenLabs (sem prompt)</span>
-          <span>🎬 <strong className="text-white/50">Vídeo</strong> — Kling AI via Replicate</span>
-          <span>✨ <strong className="text-white/50">Imitar Movimentos</strong> — Fal AI LivePortrait</span>
-          <span>💋 <strong className="text-white/50">Lip Sync</strong> — Fal AI LatentSync</span>
-          <span>🧩 <strong className="text-white/50">Fusão UGC</strong> — GPT Image 1</span>
-          <span>🔍 <strong className="text-white/50">Upscale</strong> — Real-ESRGAN (sem prompt)</span>
-          <span>📄 <strong className="text-white/50">Legenda</strong> — Whisper (sem prompt)</span>
-          <span>🎞️ <strong className="text-white/50">Vídeo Final</strong> — merge áudio+vídeo (sem prompt)</span>
-          <span>🔗 <strong className="text-white/50">Continuação</strong> — entrada do card Vídeo (last_frame_url)</span>
+      {/* EDITOR MESTRE JSON */}
+      <div id="json-master" className="mt-20 border-t border-white/10 pt-10">
+        <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-8">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-white mb-2">💎 Editor Mestra JSON (Modo God)</h2>
+            <p className="text-sm text-indigo-300/60">Edite todos os prompts de uma vez ou faça backup da configuração completa.</p>
+          </div>
+          
+          <form action={upsertAllPromptsJSON} className="flex flex-col gap-4">
+            <textarea
+              name="json"
+              rows={15}
+              defaultValue={masterJSON}
+              className="w-full bg-black/50 border border-indigo-500/20 rounded-xl px-5 py-4 text-indigo-300 text-xs font-mono focus:outline-none focus:border-indigo-500/50 resize-y overflow-auto"
+              spellCheck={false}
+            />
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] text-indigo-400/50 italic">Cuidado: Salvar aqui sobrescreverá todas as chaves existentes no objeto.</p>
+              <button 
+                type="submit" 
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+              >
+                Salvar Configuração Completa
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
