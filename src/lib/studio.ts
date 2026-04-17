@@ -58,12 +58,14 @@ export async function generateImage(params: {
   const size = sizeMap[params.aspect_ratio] ?? '1024x1024'
 
   const STYLE_FALLBACKS: Record<string, string> = {
-    ugc:       'UGC style ad photo, authentic, shot on phone, candid, real person, photorealistic, 8k, highly detailed, ',
-    product:   'professional product photography, clean background, studio lighting, hyper-realistic, 8k resolution, ',
-    logo:      'professional logo design, clean vector style, transparent background, minimalist, ',
-    mascote:   '3D animated mascot, anthropomorphic character, cinematic lighting, highly detailed 3D render, Pixar style, ',
-    personagem_cartoon: 'Cartoon Network style, 2D flat animation, vibrant colors, bold outlines, stylized character design, solid color background, ',
-    lifestyle: 'lifestyle photography, natural light, aspirational, photorealism, cinematic lighting, ',
+    realista:   'UGC style ad photo, cinematic lighting, hyper-realistic, 8k, highly detailed, ',
+    ugc:        'UGC style ad photo, authentic, shot on phone, candid, real person, photorealistic, 8k, ',
+    clonado:    'UGC style ad photo, authentic, real person face, photorealistic, 8k, ',
+    produto:    'professional product photography, clean background, studio lighting, hyper-realistic, 8k resolution, ',
+    logo:       'professional logo design, clean vector style, transparent background, minimalist, ',
+    mascote:    '3D animated mascot, anthropomorphic character, cinematic lighting, highly detailed 3D render, Pixar style, ',
+    cartoon:    'Cartoon Network style, 2D flat animation, vibrant colors, bold outlines, stylized character design, solid color background, ',
+    aleatoria:  'lifestyle photography, natural light, aspirational, photorealism, cinematic lighting, ',
   }
   const styleKey = `image_style_${params.style}`
   const stylePrefix = await getStudioPrompt(admin, styleKey, STYLE_FALLBACKS[params.style] ?? STYLE_FALLBACKS.lifestyle)

@@ -12,7 +12,7 @@ const PRESETS = [
   {
     value: 'influencer_realista',
     label: 'Influencer Realista',
-    style: 'ugc',
+    style: 'realista',
     hint: 'Ex: influencer feminina sorridente, iluminação natural, fundo desfocado, câmera frontal...',
   },
   {
@@ -24,13 +24,13 @@ const PRESETS = [
   {
     value: 'clone',
     label: 'Clonar Rosto do Modelo',
-    style: 'ugc',
+    style: 'clonado',
     hint: 'Conecte um card Modelo UGC para manter a mesma persona na cena',
   },
   {
     value: 'produto_realista',
     label: 'Produto Realista',
-    style: 'product',
+    style: 'produto',
     hint: 'Ex: foto profissional do produto em fundo branco, iluminação de estúdio, alta definição...',
   },
   {
@@ -42,7 +42,7 @@ const PRESETS = [
   {
     value: 'aleatoria',
     label: 'Imagem Aleatória',
-    style: 'lifestyle',
+    style: 'aleatoria',
     hint: 'Ex: cena lifestyle, luz natural, composição equilibrada, cores vibrantes...',
   },
   {
@@ -54,7 +54,7 @@ const PRESETS = [
   {
     value: 'personagem_cartoon',
     label: 'Personagem 2D (Cartoon)',
-    style: 'personagem_cartoon',
+    style: 'cartoon',
     hint: 'Ex: Personagem estilo Cartoon Network de fone de ouvido colorido e traços fortes...',
   },
 ]
