@@ -409,9 +409,15 @@ function ProcessingCard({ type, createdAt, assetId }: { type: AssetType; created
     try {
       const res = await fetch(`/api/studio/assets/${assetId}/sync`, { method: 'POST' })
       const data = await res.json()
-      if (data.status === 'done') setSyncMsg('✅ Pronto! Atualizando...')
-      else if (data.status === 'error') setSyncMsg(`❌ ${data.error}`)
-      else setSyncMsg(`⏳ Status: ${data.status}`)
+      if (data.status === 'done') {
+        setSyncMsg('✅ Pronto! Recarregando...')
+        setTimeout(() => window.location.reload(), 1500)
+      } else if (data.status === 'error') {
+        setSyncMsg(`❌ ${data.error}`)
+        setTimeout(() => window.location.reload(), 2500)
+      } else {
+        setSyncMsg(`⏳ Status: ${data.status}`)
+      }
     } catch {
       setSyncMsg('Erro ao verificar')
     } finally {
