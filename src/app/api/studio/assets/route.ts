@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
     type: AssetType
     input_params: Record<string, unknown>
     existing_id?: string
+    frontend_id?: string // UUID pré-gerado pelo frontend para novos assets
   }
 
   if (!project_id || !type) return NextResponse.json({ error: 'project_id e type obrigatórios' }, { status: 400 })
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
   const admin = createAdminClient()
 
   // Reutiliza existing_id se fornecido (mantém o ID estável → conexões no canvas preservadas)
-  // Caso contrário, cria novo registro
+  // Caso contrário, cria novo registro (usando frontend_id se enviado para manter consistência no ReactFlow)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let asset: any
   if (existing_id) {
@@ -77,9 +78,14 @@ export async function POST(req: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('project_id', project_id)
     const board_order = (count ?? 0)
+    
+    // Se frontend_id foi enviado, injeta ele no insert
+    const insertData: any = { project_id, user_id: user.id, type, status: 'processing', input_params, credits_cost: effectiveCost, board_order }
+    if (frontend_id) insertData.id = frontend_id
+
     const { data: inserted, error: insertErr } = await admin
       .from('studio_assets')
-      .insert({ project_id, user_id: user.id, type, status: 'processing', input_params, credits_cost: effectiveCost, board_order })
+      .insert(insertData)
       .select()
       .single()
     if (insertErr || !inserted) return NextResponse.json({ error: insertErr?.message ?? 'Erro ao criar asset' }, { status: 500 })

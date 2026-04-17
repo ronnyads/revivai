@@ -137,7 +137,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           const lastConn = trashRef.current.connections.pop()
           if (lastConn) {
             setConnections(prev => [...prev, lastConn])
-            if (!lastConn.id.startsWith('temp-')) {
+            if (!lastConn.isLocalConn) {
               fetch('/api/studio/connections', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -170,7 +170,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
     // Se o card estava processando, re-busca o status atual do DB:
     // o webhook pode ter completado durante os 8s de soft-delete.
-    if (pending.asset.status === 'processing' && !pending.asset.id.startsWith('temp-')) {
+    if (pending.asset.status === 'processing' && !pending.asset.isLocal) {
       try {
         const res = await fetch(`/api/studio/assets/${pending.asset.id}`)
         if (res.ok) {
@@ -200,7 +200,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     const prev = pendingDeleteRef.current
     if (prev) {
       clearTimeout(prev.timer)
-      if (!prev.asset.id.startsWith('temp-')) {
+      if (!prev.asset.isLocal) {
         fetch(`/api/studio/assets/${prev.asset.id}`, { method: 'DELETE' })
       }
     }
@@ -212,7 +212,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     const timer = setTimeout(() => {
       pendingDeleteRef.current = null
       setUndoToast(null)
-      if (!id.startsWith('temp-')) {
+      if (!asset.isLocal) {
         fetch(`/api/studio/assets/${id}`, { method: 'DELETE' })
       }
     }, 8000)
@@ -288,10 +288,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   startPollingRef.current = startPolling
 
   const handleGenerate = useCallback(async (type: AssetType, params: Record<string, unknown>, existingId: string) => {
-    const isTemp = existingId.startsWith('temp-')
-
     // Salva posição antes de qualquer mudança de estado
     const currentAsset = assets.find(a => a.id === existingId)
+    const isTemp = !!currentAsset?.isLocal
+
     const pos = currentAsset
       ? { x: currentAsset.position_x, y: currentAsset.position_y }
       : { x: 100 + (assets.length % 3) * 380, y: 100 + Math.floor(assets.length / 3) * 440 }
@@ -314,6 +314,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           type,
           input_params: mergedParams,
           existing_id: isTemp ? undefined : existingId,
+          frontend_id: isTemp ? existingId : undefined, // Injete o ID pra persistir consistente
         }),
       })
 
@@ -339,33 +340,12 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         body: JSON.stringify({ position_x: pos.x, position_y: pos.y }),
       })
 
-      // Atualiza o card in-place (o ID pode mudar se era temp → substitui em assets, edges e connections)
-      const newId = asset.id
-      const oldId = existingId
-
+      // Atualiza o card in-place sem mudar o ID!
       setAssets(prev => prev.map(a =>
-        a.id === oldId
-          ? { ...asset, position_x: pos.x, position_y: pos.y }
+        a.id === existingId
+          ? { ...asset, position_x: pos.x, position_y: pos.y } // Sem `isLocal` = virou real
           : a
       ))
-
-      // Re-mapeia edges para o novo ID (evita conexões órfãs quando temp- vira UUID real)
-      if (newId !== oldId) {
-        setEdges(prev => prev.map(e => ({
-          ...e,
-          source: e.source === oldId ? newId : e.source,
-          target: e.target === oldId ? newId : e.target,
-        })))
-        // Só remapeia connections se o ID antigo existe nelas
-        const hasOldId = connections.some(c => c.source_id === oldId || c.target_id === oldId)
-        if (hasOldId) {
-          setConnections(prev => prev.map(c => ({
-            ...c,
-            source_id: c.source_id === oldId ? newId : c.source_id,
-            target_id: c.target_id === oldId ? newId : c.target_id,
-          })))
-        }
-      }
 
       setCredits(c => c - asset.credits_cost)
       if (asset.status === 'processing') startPolling(asset.id)
@@ -382,7 +362,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     if (!original) return
     const copy: StudioAsset = {
       ...original,
-      id: `temp-${Date.now()}`,
+      id: crypto.randomUUID(),
       status: 'idle',
       result_url: null,
       last_frame_url: null,
@@ -390,16 +370,17 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       position_x: (original.position_x ?? 100) + 40,
       position_y: (original.position_y ?? 100) + 40,
       created_at: new Date().toISOString(),
+      isLocal: true,
     }
     setAssets(prev => [...prev, copy])
   }, [assets])
 
-  const nodeCallbacks: Omit<AssetNodeData, 'asset'> = {
+  const nodeCallbacks = useMemo<Omit<AssetNodeData, 'asset'>>(() => ({
     onDelete: handleDelete,
     onGenerate: handleGenerate,
     onUpdateParams: handleUpdateParams,
     onDuplicate: handleDuplicate,
-  }
+  }), [handleDelete, handleGenerate, handleUpdateParams, handleDuplicate])
 
   // ── React Flow state ─────────────────────────────────────────────────────
   const [nodes, setNodes, onNodesChange] = useNodesState(buildNodes(assets, nodeCallbacks))
@@ -416,7 +397,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         .filter(n => assetMap.has(n.id))
         .map(n => ({
           ...n,
-          data: { ...n.data, asset: assetMap.get(n.id)! },
+          data: { ...n.data, asset: assetMap.get(n.id)!, ...nodeCallbacks },
           style: { overflow: 'visible', width: 360 },
         }))
 
@@ -436,7 +417,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
       return [...updated, ...newNodes]
     })
-  }, [assets]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [assets, nodeCallbacks]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Merge: mantém edges temp visuais + sincroniza as do banco
@@ -444,7 +425,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     setEdges(prev => {
       const dbEdges = buildEdges(connections)
       const tempEdges = prev.filter(e => {
-        if (!e.id.startsWith('temp-')) return false
+        if (!e.isLocalConn) return false
         // Remove temp edge se já existe uma DB edge cobrindo a mesma conexão
         return !dbEdges.some(de =>
           de.source === e.source &&
@@ -515,13 +496,19 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
   // ── Drag end — salva posição ─────────────────────────────────────────────
   const onNodeDragStop = useCallback((_: React.MouseEvent, node: Node) => {
-    if (node.id.startsWith('temp-')) return
+    // Atualiza coordenada local
+    setAssets(prev => prev.map(a => a.id === node.id ? { ...a, position_x: Math.round(node.position.x), position_y: Math.round(node.position.y) } : a))
+
+    // Se estiver no BD, manda pra nuvem
+    const isTemp = !!assets.find(a => a.id === node.id)?.isLocal
+    if (isTemp) return
+
     fetch(`/api/studio/assets/${node.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ position_x: node.position.x, position_y: node.position.y }),
     })
-  }, [])
+  }, [assets])
 
   // ── Conectar dois nós ────────────────────────────────────────────────────
   const onConnect = useCallback(async (connection: Connection) => {
@@ -603,8 +590,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     const targetHandle = inferTarget() ?? connection.targetHandle
     if (!targetHandle) return
 
-    const isSourceTemp = source.startsWith('temp-')
-    const isTargetTemp = target.startsWith('temp-')
+    const srcAsset = assets.find(a => a.id === source)
+    const tgtAsset = assets.find(a => a.id === target)
+    const isSourceTemp = !!srcAsset?.isLocal
+    const isTargetTemp = !!tgtAsset?.isLocal
 
     if (!isSourceTemp && !isTargetTemp) {
       // Ambos têm UUIDs reais — persiste no DB
@@ -623,7 +612,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       if (conn) setConnections(prev => [...prev, conn])
     } else {
       // Pelo menos um card ainda é temporário — adiciona aresta visual localmente
-      const tempConnId = `temp-conn-${Date.now()}`
+      const tempConnId = crypto.randomUUID()
       setEdges(prev => addEdge({
         id: tempConnId,
         source,
@@ -632,6 +621,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         targetHandle,
         type: 'lightEdge',
         markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
+        isLocalConn: true,
       }, prev))
     }
 
@@ -673,7 +663,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       if (connToDelete) trashRef.current.connections.push(connToDelete) // Salva para Ctrl+Z
       
       setConnections(prev => prev.filter(c => c.id !== e.id))
-      if (!e.id.startsWith('temp-')) {
+      // Tenta excluir do DB toda Edge não-local (já salva). Edge do DB == Edge sem isLocalConn.
+      if (!e.isLocalConn) {
         await fetch(`/api/studio/connections/${e.id}`, { method: 'DELETE' })
       }
 
@@ -692,7 +683,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
             finalParams = { [field]: '' }
           }
           handleUpdateParams(e.target, finalParams)
-          if (!e.target.startsWith('temp-')) {
+          if (!assets.find(a => a.id === e.target)?.isLocal) {
             await fetch(`/api/studio/assets/${e.target}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
@@ -711,7 +702,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       return
     }
     const i = assets.length
-    const tempId = `temp-${Date.now()}`
+    const tempId = crypto.randomUUID()
     const newAsset: StudioAsset = {
       id: tempId,
       project_id: project.id,
@@ -724,6 +715,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       position_x: 100 + (i % 3) * 380,
       position_y: 100 + Math.floor(i / 3) * 440,
       created_at: new Date().toISOString(),
+      isLocal: true,
     }
     setAssets(prev => [...prev, newAsset])
   }
@@ -739,15 +731,16 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
     function mkEdge(source: string, target: string, sh: string, th: string): Edge {
       return {
-        id: `temp-edge-${now}-${edgeIdx++}`,
+        id: crypto.randomUUID(),
         source, target, sourceHandle: sh, targetHandle: th,
         type: 'lightEdge',
         markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
+        isLocalConn: true,
       }
     }
 
     // 1. Card Modelo UGC — coluna esquerda
-    const modelId = `temp-${now}-model`
+    const modelId = crypto.randomUUID()
     newAssets.push({
       id: modelId,
       project_id: project.id, user_id: project.user_id,
@@ -756,12 +749,13 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       credits_cost: 8, board_order: idx++,
       position_x: 60, position_y: 440,
       created_at: new Date().toISOString(),
+      isLocal: true,
     })
 
     // 2. Card Compose — se tiver produto
     let composeId: string | null = null
     if (result.productUrl) {
-      composeId = `temp-${now}-compose`
+      composeId = crypto.randomUUID()
       newAssets.push({
         id: composeId,
         project_id: project.id, user_id: project.user_id,
@@ -770,6 +764,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         credits_cost: 12, board_order: idx++,
         position_x: 440, position_y: 440,
         created_at: new Date().toISOString(),
+        isLocal: true,
       })
       tempEdges.push(mkEdge(modelId, composeId, 'output', 'portrait_url'))
     }
@@ -780,10 +775,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
     result.segments.forEach((seg, i) => {
       const colX      = baseX + i * 380
-      const scriptId  = `temp-${now}-script-${i}`
-      const voiceId   = `temp-${now}-voice-${i}`
-      const videoId   = `temp-${now}-video-${i}`
-      const lipsyncId = `temp-${now}-lipsync-${i}`
+      const scriptId  = crypto.randomUUID()
+      const voiceId   = crypto.randomUUID()
+      const videoId   = crypto.randomUUID()
+      const lipsyncId = crypto.randomUUID()
 
       newAssets.push({
         id: scriptId,
@@ -793,6 +788,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         credits_cost: 3, board_order: idx++,
         position_x: colX, position_y: 60,
         created_at: new Date().toISOString(),
+        isLocal: true,
       })
       newAssets.push({
         id: voiceId,
@@ -802,6 +798,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         credits_cost: 8, board_order: idx++,
         position_x: colX, position_y: 340,
         created_at: new Date().toISOString(),
+        isLocal: true,
       })
       newAssets.push({
         id: videoId,
@@ -811,6 +808,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         credits_cost: 15, board_order: idx++,
         position_x: colX, position_y: 600,
         created_at: new Date().toISOString(),
+        isLocal: true,
       })
       newAssets.push({
         id: lipsyncId,
@@ -820,6 +818,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         credits_cost: 20, board_order: idx++,
         position_x: colX, position_y: 860,
         created_at: new Date().toISOString(),
+        isLocal: true,
       })
 
       // Script → Voz
