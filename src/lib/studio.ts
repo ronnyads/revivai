@@ -1065,7 +1065,7 @@ export async function startVeo3DirectGoogle(params: {
         instances: [{
           prompt: params.motion_prompt || 'smooth cinematic product motion',
           referenceImages: [{
-            image: { bytesBase64Encoded: base64Image }
+            image: { bytesBase64Encoded: base64Image, mimeType }
           }],
         }],
         parameters: {
