@@ -75,10 +75,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </nav>
 
         {/* Premium Profile Footer */}
-        <div className="p-6 border-t border-zinc-900 bg-zinc-950/80">
-          <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="p-6 border-t border-zinc-900 bg-zinc-950/80 group/footer">
+          <div className="flex items-center justify-between gap-3 transition-all duration-500">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center font-bold text-white shadow-lg">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center font-bold text-white shadow-lg group-hover/footer:shadow-indigo-500/20 transition-all">
                 {user.email?.[0].toUpperCase()}
               </div>
               <div className="min-w-0">
@@ -87,7 +87,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
               </div>
             </div>
           </div>
-          <LogoutButton />
+          
+          <div className="mt-0 max-h-0 opacity-0 overflow-hidden group-hover/footer:mt-4 group-hover/footer:max-h-20 group-hover/footer:opacity-100 transition-all duration-500 ease-in-out">
+            <LogoutButton />
+          </div>
         </div>
       </aside>
 
