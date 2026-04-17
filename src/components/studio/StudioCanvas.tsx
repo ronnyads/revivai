@@ -14,6 +14,7 @@ import { StudioAsset, StudioConnection, StudioProject, AssetType } from '@/types
 import AssetNode, { AssetNodeData } from './nodes/AssetNode'
 import LightEdge from './edges/LightEdge'
 import AddCardMenu from './AddCardMenu'
+import CanvasQuickAdd from './CanvasQuickAdd'
 import CampaignWizard, { WizardResult } from './CampaignWizard'
 import TemplateGallery, { WorkflowTemplate } from './TemplateGallery'
 
@@ -111,7 +112,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     asset: StudioAsset
     timer: ReturnType<typeof setTimeout>
   } | null>(null)
-  const [undoToast, setUndoToast] = useState<{ label: string } | null>(null)
+  const [undoToast,    setUndoToast]    = useState<{ label: string } | null>(null)
+  const [quickAddMenu, setQuickAddMenu] = useState<{ x: number; y: number } | null>(null)
 
   // ── Atalhos de Teclado (Ctrl+Z e Ctrl+S) ────────────────────────────────
   useEffect(() => {
@@ -881,6 +883,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           onEdgesDelete={onEdgesDelete}
+          onPaneClick={e => setQuickAddMenu({ x: e.clientX, y: e.clientY })}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
@@ -939,8 +942,17 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         />
       )}
 
-      {/* Undo toast — aparece 8s após deletar um card */}
+      {/* Quick add — abre ao clicar no canvas vazio */}
+      {quickAddMenu && (
+        <CanvasQuickAdd
+          x={quickAddMenu.x}
+          y={quickAddMenu.y}
+          onAdd={addCard}
+          onClose={() => setQuickAddMenu(null)}
+        />
+      )}
 
+      {/* Undo toast — aparece 8s após deletar um card */}
       {undoToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-800 border border-zinc-600 text-white text-sm px-4 py-3 rounded-2xl shadow-2xl shadow-black/60 animate-in slide-in-from-bottom-4 duration-300">
           <span className="text-zinc-300">Card excluído</span>
