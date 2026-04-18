@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2, CopyPlus } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2, CopyPlus, Camera } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import FaceGenerator from '../FaceGenerator'
 import JoinGenerator from '../JoinGenerator'
@@ -17,6 +17,7 @@ import RenderCard from '../RenderCard'
 import AnimateGenerator from '../AnimateGenerator'
 import ComposeCard from '../ComposeCard'
 import LipsyncGenerator from '../LipsyncGenerator'
+import AngleGenerator from '../AngleGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string; hint: string; output: string }> = {
   face:    { icon: <User size={14} />,     label: 'Rosto Real (Upload)', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Faça upload de uma foto', output: 'Foto salva →' },
@@ -32,6 +33,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   animate: { icon: <Sparkles size={14} />, label: 'Imitar Movimentos', color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10 border-fuchsia-500/30', hint: '← Envie foto do modelo + vídeo de referência', output: 'Vídeo animado →' },
   compose: { icon: <Layers size={14} />,   label: 'Fusão UGC',   color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',   hint: '← Conecte Modelo + foto do produto → IA gera cena integrada', output: 'Cena gerada →' },
   lipsync: { icon: <Wand2 size={14} />,    label: 'Lip Sync',    color: 'text-cyan-400',    bg: 'bg-cyan-500/10 border-cyan-500/30',        hint: '← Conecte Vídeo + Voz', output: 'Vídeo sincronizado →' },
+  angles:  { icon: <Camera size={14} />,   label: 'Ângulos (Trocar Posição)', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', hint: '← Conecte a Modelo ou Fusão', output: 'Novo Ângulo →' },
 }
 
 const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string }>>> = {
@@ -70,6 +72,7 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
     { id: 'video_4', label: 'Cena 5' },
     { id: 'video_5', label: 'Cena 6' },
   ],
+  angles:  [{ id: 'source_url', label: 'Imagem/Modelo' }],
 }
 
 export interface AssetNodeData {
@@ -202,7 +205,8 @@ function AssetNode({ data }: NodeProps) {
                 onRegenerate={() => onGenerate(asset.type, asset.input_params, asset.id)}
               />
             )}
-            {asset.type !== 'script' && asset.type !== 'caption' && asset.type !== 'model' && (
+            {asset.type === 'lipsync' && <LipsyncGenerator initial={asset.input_params} onGenerate={(p: any) => { onUpdateParams(asset.id, p); onGenerate(asset.type, p, asset.id) }} />}
+            {asset.type !== 'script' && asset.type !== 'caption' && asset.type !== 'model' && asset.type !== 'lipsync' && (
               <button
                 onClick={handleDownload}
                 className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-3 py-1.5 rounded-xl transition-colors w-full"
@@ -364,6 +368,7 @@ function FormForType({ type, initialParams, onGenerate }: { type: AssetType; ini
   if (type === 'animate') return <AnimateGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'compose') return <ComposeCard      initial={initialParams} onGenerate={onGenerate} />
   if (type === 'lipsync') return <LipsyncGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'angles')  return <AngleGenerator   initial={initialParams} onGenerate={onGenerate} />
   return null
 }
 // ── Processing card com barra de progresso e timer ──────────────────────────────
