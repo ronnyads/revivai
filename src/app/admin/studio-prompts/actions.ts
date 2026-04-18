@@ -21,6 +21,25 @@ export async function upsertStudioPrompt(formData: FormData) {
   revalidatePath('/admin/studio-prompts')
 }
 
+export async function upsertGroupConfig(formData: FormData) {
+  const admin = createAdminClient()
+  const entries = Array.from(formData.entries())
+  
+  const rows = entries
+    .filter(([key]) => !key.startsWith('$') && key !== 'group_card')
+    .map(([key, value]) => ({
+      key,
+      value: String(value),
+      updated_at: new Date().toISOString()
+    }))
+
+  if (rows.length > 0) {
+    await admin.from('studio_prompts').upsert(rows, { onConflict: 'key' })
+  }
+
+  revalidatePath('/admin/studio-prompts')
+}
+
 export async function upsertAllPromptsJSON(formData: FormData) {
   const jsonStr = formData.get('json') as string
   if (!jsonStr) return

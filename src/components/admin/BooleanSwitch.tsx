@@ -12,25 +12,16 @@ export default function BooleanSwitch({ name, defaultValue, label }: Props) {
   const [active, setActive] = useState(defaultValue === 'true')
 
   return (
-    <label className="flex items-center justify-between cursor-pointer group py-2">
+    <div className="flex items-center justify-between py-2">
       <span className="text-sm font-medium text-white/80 group-hover:text-white transition-colors">
         {active ? '✅ Ativado' : '❌ Desativado'}
       </span>
       
       <div className="relative inline-flex items-center">
-        <input 
-          type="checkbox"
-          name={name}
-          value={active ? 'true' : 'false'}
-          checked={active}
-          onChange={(e) => setActive(e.target.checked)}
-          className="sr-only peer"
-        />
-        {/* Hidden input to ensure 'false' is sent when not checked if needed, 
-            but here we use the checkbox value directly */}
         <input type="hidden" name={name} value={active ? 'true' : 'false'} />
 
-        <div 
+        <button 
+          type="button"
           onClick={() => setActive(!active)}
           className={`w-14 h-7 rounded-full transition-all duration-300 relative ${
             active 
@@ -43,8 +34,8 @@ export default function BooleanSwitch({ name, defaultValue, label }: Props) {
               active ? 'translate-x-7' : 'translate-x-0'
             }`}
           />
-        </div>
+        </button>
       </div>
-    </label>
+    </div>
   )
 }
