@@ -1245,8 +1245,8 @@ export async function generateAngles(params: {
     const finalPrompt = `Mesma modelo ${detectedGender}, posição ${params.angle}, rosto idêntico, corpo igual, roupas similares, fundo estúdio profissional, iluminação cinematic, UGC style, fotografia de alta qualidade`
 
     try {
-      // ---- GOOGLE IMAGEN 3.0 (SUBJECT CUSTOMIZATION - GEMINI API STYLE) ----
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${googleApiKey}`, {
+      // ---- GOOGLE IMAGEN 4.0 (SUBJECT CUSTOMIZATION - GEMINI API STYLE) ----
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
