@@ -696,28 +696,52 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   }, [connections, assets, handleUpdateParams])
 
   // ── Adicionar card ───────────────────────────────────────────────────────
-  function addCard(type: AssetType) {
+  async function addCard(type: AssetType) {
     if (credits < CREDIT_COST[type]) {
       alert(`Você precisa de ${CREDIT_COST[type]} crédito(s).`)
       return
     }
     const i = assets.length
-    const tempId = crypto.randomUUID()
+    const frontend_id = crypto.randomUUID()
+    
+    // 1. Cria localmente para feedback instantâneo (otimista)
     const newAsset: StudioAsset = {
-      id: tempId,
+      id: frontend_id,
       project_id: project.id,
       user_id: project.user_id,
       type,
       status: 'idle',
       input_params: DEFAULT_PARAMS[type],
-      credits_cost: CREDIT_COST[type],
+      credits_cost: 0, // só cobra quando gerar
       board_order: i,
-      position_x: 100 + (i % 3) * 380,
-      position_y: 100 + Math.floor(i / 3) * 440,
+      position_x: 60 + (i % 3) * 380,
+      position_y: 450 + Math.floor(i / 3) * 440,
       created_at: new Date().toISOString(),
-      isLocal: true,
+      isLocal: true, // marca como local até o sinal do servidor
     }
     setAssets(prev => [...prev, newAsset])
+
+    // 2. Persiste no banco de dados como rascunho
+    try {
+      const res = await fetch('/api/studio/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: project.id,
+          type,
+          status: 'idle',
+          frontend_id,
+          input_params: DEFAULT_PARAMS[type]
+        })
+      })
+      if (res.ok) {
+        const { asset } = await res.json()
+        if (asset) {
+          // Remove a flag isLocal quando o server confirma
+          setAssets(prev => prev.map(a => a.id === frontend_id ? { ...asset, isLocal: false } : a))
+        }
+      }
+    } catch { /* se falhar, fica local e some no F5 — fallback seguro */ }
   }
 
   // ── Campaign Wizard → monta cards automaticamente ──────────────────────
@@ -841,8 +865,24 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       prevVideoId = videoId
     })
 
-    setAssets(newAssets)
-    setEdges(tempEdges)
+    // Adiciona ao estado e persiste (bulk persist via loop)
+    setAssets(prev => [...prev, ...newAssets])
+    
+    newAssets.forEach(asset => {
+      fetch('/api/studio/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: project.id,
+          type: asset.type,
+          status: 'idle',
+          frontend_id: asset.id,
+          input_params: asset.input_params
+        })
+      })
+    })
+
+    setEdges(prev => [...prev, ...tempEdges])
   }
 
   // ── Template Gallery → injeta workflow pré-fabricado ─────────────────────
@@ -880,8 +920,23 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       isLocalConn: true,
     }))
 
-    setAssets(newAssets)
-    setEdges(newEdges)
+    setAssets(prev => [...prev, ...newAssets])
+    
+    newAssets.forEach(asset => {
+      fetch('/api/studio/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: project.id,
+          type: asset.type,
+          status: 'idle',
+          frontend_id: asset.id,
+          input_params: asset.input_params
+        })
+      })
+    })
+
+    setEdges(prev => [...prev, ...newEdges])
   }
 
   // ── Título ───────────────────────────────────────────────────────────────

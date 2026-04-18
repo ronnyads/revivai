@@ -59,32 +59,41 @@ export default function AddCardMenu({ onAdd, disabled }: Props) {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 w-72 bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl z-20 overflow-hidden">
-            {GROUPS.map((group, gi) => (
-              <div key={group.label}>
-                {gi > 0 && <div className="h-px bg-zinc-800 mx-3" />}
-                <p className="text-[9px] text-zinc-600 uppercase tracking-widest px-4 pt-3 pb-1 font-semibold">
-                  {group.label}
-                </p>
-                {group.items.map(t => (
-                  <button
-                    key={t.type}
-                    onClick={() => { onAdd(t.type); setOpen(false) }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-800 transition-colors text-left group"
-                  >
-                    <span className="text-zinc-400 group-hover:text-accent transition-colors">{t.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">{t.label}</p>
-                      <p className="text-xs text-zinc-500">{t.desc}</p>
-                    </div>
-                    <span className="text-[10px] text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full shrink-0">
-                      {t.cost} cr
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ))}
-            <div className="h-2" />
+          <div className="absolute right-0 top-full mt-4 w-80 bg-black/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header decorativo */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent via-fuchsia-500 to-accent/50 opacity-50" />
+            
+            <div className="py-2">
+              {GROUPS.map((group, gi) => (
+                <div key={group.label} className="mb-2 last:mb-0">
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] px-6 pt-4 pb-2 font-bold opacity-60">
+                    {group.label}
+                  </p>
+                  <div className="px-2">
+                    {group.items.map(t => (
+                      <button
+                        key={t.type}
+                        onClick={() => { onAdd(t.type); setOpen(false) }}
+                        className="w-full flex items-center gap-4 px-4 py-3 hover:bg-white/5 rounded-2xl transition-all duration-300 text-left group relative outline-none focus:bg-white/10"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-zinc-800/50 flex items-center justify-center text-zinc-400 group-hover:bg-accent/20 group-hover:text-accent transition-all duration-500 border border-white/5">
+                          {t.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-zinc-100 group-hover:text-white transition-colors">{t.label}</p>
+                          <p className="text-[11px] text-zinc-500 group-hover:text-zinc-400 transition-colors line-clamp-1">{t.desc}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-[9px] font-bold text-accent bg-accent/10 border border-accent/20 px-2 py-0.5 rounded-full shrink-0 group-hover:bg-accent group-hover:text-white transition-all duration-500">
+                            {t.cost} CR
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </>
       )}

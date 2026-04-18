@@ -6,6 +6,7 @@ import {
   Sparkles, Briefcase, Star, Target, UserRound, GraduationCap, 
   Dumbbell, PersonStanding, Move, Shirt, Zap, Crown, Fingerprint 
 } from 'lucide-react'
+import { CREDIT_COST } from '@/constants/studio'
 
 interface ModelParams {
   gender: string
@@ -263,6 +264,7 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
   }
 
   const progress = Math.round((Math.min(step, filteredSteps.length) / filteredSteps.length) * 100)
+  const cost = CREDIT_COST['model']
 
   // ── Result view ──────────────────────────────────────────────────────────
   const modelText = result || (initial.model_text as string | undefined)
@@ -487,7 +489,20 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
         </div>
       ) : (
         /* Revisão + gerar */
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
+          {/* Cabeçalho de Explicação */}
+          <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 flex items-start gap-3">
+            <div className="p-2 bg-indigo-500/20 rounded-xl mt-0.5">
+              <UserRound size={18} className="text-indigo-400" />
+            </div>
+            <div>
+              <h4 className="text-[13px] font-bold text-white leading-tight">Criação de Personagem UGC</h4>
+              <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                Este card gera a <b>identidade visual</b> do seu ator. Após gerar, conecte-o ao card de "Imagem" para criar cenas completas com este personagem.
+              </p>
+            </div>
+          </div>
+
           <div>
             <h3 className="text-sm font-bold text-white tracking-tight">O perfil está pronto</h3>
             <p className="text-[11px] text-zinc-500">Revise as características selecionadas abaixo</p>
@@ -496,52 +511,58 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
           {/* Chips de resumo mais premium */}
           <div className="grid grid-cols-2 gap-2">
             {Object.entries(params).filter(([k, v]) => v && k !== 'engine').map(([k, v]) => (
-              <div key={k} className="bg-zinc-900/50 border border-zinc-800 p-2 rounded-lg">
+              <div key={k} className="bg-zinc-900/50 border border-zinc-800 p-2.5 rounded-xl">
                 <p className="text-[9px] text-zinc-600 uppercase font-bold tracking-widest">{STEPS.find(s => s.id === k)?.title}</p>
-                <p className="text-[11px] text-zinc-300 font-medium capitalize">{String(v).replace('_', ' ')}</p>
+                <p className="text-[11px] text-white font-medium capitalize mt-0.5">{String(v).replace('_', ' ')}</p>
               </div>
             ))}
             {/* Chip de Engine em destaque na revisão */}
-            <div className="col-span-2 bg-indigo-500/5 border border-indigo-500/20 p-2 rounded-lg flex items-center gap-2">
-              <div className="p-1.5 bg-indigo-500/10 rounded-lg">
-                {params.engine === 'flux' ? <Zap size={12} className="text-purple-400" /> : <Sparkles size={12} className="text-blue-400" />}
+            <div className="col-span-2 bg-indigo-500/5 border border-indigo-500/20 p-3 rounded-xl flex items-center gap-3">
+              <div className="p-2 bg-indigo-500/10 rounded-xl">
+                {params.engine === 'flux' ? <Zap size={14} className="text-purple-400" /> : <Sparkles size={14} className="text-blue-400" />}
               </div>
               <div>
                 <p className="text-[9px] text-indigo-400/60 uppercase font-bold tracking-widest leading-none">Tecnologia de Realismo</p>
-                <p className="text-[10px] text-indigo-300 font-bold mt-0.5">{params.engine === 'flux' ? 'FLUX Pro Cinematic' : 'Google Imagen HQ'}</p>
+                <p className="text-[11px] text-indigo-300 font-bold mt-1">{params.engine === 'flux' ? 'FLUX Pro Cinematic (Ultra Real)' : 'Google Imagen HQ (Nítido e Limpo)'}</p>
               </div>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-[10px] text-zinc-500 font-medium px-1">Instruções Adicionais (Opcional)</p>
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between px-1">
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Instruções Visuais Detalhadas</p>
+              <span className="text-[9px] text-zinc-600 font-medium italic">Opcional</span>
+            </div>
             <textarea
               value={extra}
               onChange={e => setExtra(e.target.value)}
-              placeholder="Ex: cabelo loiro cacheado, tatuagens vazadas, óculos redondos..."
-              rows={3}
-              className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl px-3 py-2.5 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-indigo-500 transition-colors"
+              placeholder="Descreva traços únicos: 'Cansada depois do trabalho', 'Tatuagens no braço', 'Cabelo ruivo bagunçado', 'Usando fone de ouvido branco', 'Jaqueta de couro estilo influencer', 'Sardas no rosto e olhos expressivos'..."
+              rows={5}
+              className="w-full bg-zinc-900/80 border border-zinc-800 rounded-2xl px-4 py-3 text-[13px] text-white placeholder-zinc-700 focus:outline-none focus:border-indigo-500/50 transition-all shadow-inner leading-relaxed"
             />
+            <p className="text-[9px] text-zinc-600 italic leading-relaxed px-1">
+              💡 <b>Dica:</b> Quanto mais detalhes sobre a aparência (cabelo, roupas, vibe), mais exclusivo será o seu modelo.
+            </p>
           </div>
 
-          <div className="flex flex-col gap-2 pt-1">
+          <div className="flex flex-col gap-2 pt-2">
             <button
               onClick={handleGenerate}
               disabled={loading}
-              className="group relative flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-3.5 rounded-xl transition-all disabled:opacity-50 overflow-hidden"
+              className="group relative flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-[13px] font-bold py-4 rounded-2xl transition-all disabled:opacity-50 overflow-hidden shadow-[0_10px_30px_-10px_rgba(79,70,229,0.5)] active:scale-[0.98]"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
               {loading
-                ? <><Loader2 size={16} className="animate-spin" /> Criando Persona...</>
-                : <><Sparkles size={16} className="text-indigo-200" /> GERAR FOTO DO MODELO</>
+                ? <><Loader2 size={16} className="animate-spin" /> Esculpindo Personagem...</>
+                : <><User size={16} className="group-hover:rotate-6 transition-transform" /> GERAR MODELO UGC — {cost} CRÉDITOS</>
               }
             </button>
 
             <button
               onClick={() => setStep(s => s - 1)}
-              className="text-[10px] text-zinc-600 hover:text-zinc-400 font-medium py-1 transition-colors"
+              className="text-[10px] text-zinc-600 hover:text-zinc-400 font-medium py-1 transition-colors text-center"
             >
-              Deseja alterar algo? Clique aqui para editar
+              ← Deseja alterar algo? Clique aqui para voltar
             </button>
           </div>
         </div>

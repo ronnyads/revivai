@@ -111,6 +111,24 @@ const PROMPT_GROUPS: {
         description: 'Ferramenta: FLUX Pro 1.1. O que faz: Cria ilustrações estilo desenho animado ou anime.',
         rows: 3,
       },
+      {
+        key: 'image_realism_realista',
+        label: '📷 Refinamento de Fotorealismo',
+        description: 'Sufixo usado em fotos humanas para garantir pele real, poros e iluminação natural.',
+        rows: 3,
+      },
+      {
+        key: 'image_realism_mascote',
+        label: '🧸 Refinamento de Mascotes (3D)',
+        description: 'Sufixo usado em mascotes para garantir visual estilo Pixar/Disney 3D.',
+        rows: 3,
+      },
+      {
+        key: 'image_realism_personagem_cartoon',
+        label: '🎨 Refinamento de Cartoons (2D)',
+        description: 'Sufixo usado em cartoons para garantir visual plano e artístico sem elementos 3D.',
+        rows: 3,
+      },
     ],
   },
   {

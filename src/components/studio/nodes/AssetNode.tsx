@@ -97,7 +97,7 @@ function AssetNode({ data }: NodeProps) {
   }
 
   return (
-    <div className={`w-[360px] bg-zinc-900 border ${asset.type === 'render' ? 'border-rose-500/30' : 'border-zinc-700'} rounded-2xl overflow-visible shadow-2xl shadow-black/40`}>
+    <div className={`w-[360px] bg-zinc-950/90 backdrop-blur-md border ${asset.type === 'render' ? 'border-rose-500/40' : 'border-white/5'} rounded-[1.5rem] overflow-visible shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] group/node hover:ring-2 hover:ring-accent/20 transition-all duration-300`}>
 
       {/* INPUT handles — esquerda com label visível */}
       {inputHandles.map((h, i) => (
@@ -109,10 +109,10 @@ function AssetNode({ data }: NodeProps) {
             type="target"
             position={Position.Left}
             id={h.id}
-            style={{ position: 'relative', left: 0, top: 0, transform: 'none', background: '#3b82f6', width: 14, height: 14, border: '2px solid #1e40af', cursor: 'crosshair', pointerEvents: 'auto' }}
+            style={{ position: 'relative', left: 0, top: 0, transform: 'none', background: '#8b5cf6', width: 12, height: 12, border: '2px solid rgba(255,255,255,0.2)', cursor: 'crosshair', pointerEvents: 'auto', boxShadow: '0 0 10px rgba(139, 92, 246, 0.4)' }}
             title={h.label}
           />
-          <span style={{ marginLeft: 6, fontSize: 9, color: '#6b7280', whiteSpace: 'nowrap', background: 'rgba(9,9,11,0.85)', padding: '1px 5px', borderRadius: 4, border: '1px solid #3f3f46', pointerEvents: 'none' }}>
+          <span className="ml-2 text-[10px] font-bold text-zinc-500 uppercase tracking-tighter bg-zinc-900/90 backdrop-blur px-2 py-0.5 rounded-md border border-white/5 pointer-events-none">
             {h.label}
           </span>
         </div>
@@ -120,37 +120,43 @@ function AssetNode({ data }: NodeProps) {
 
       {/* OUTPUT handle — direita */}
       <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', zIndex: 50, pointerEvents: 'none' }}>
-        <span style={{ marginRight: 6, fontSize: 9, color: '#f97316', whiteSpace: 'nowrap', background: 'rgba(9,9,11,0.85)', padding: '1px 5px', borderRadius: 4, border: '1px solid #431407', pointerEvents: 'none' }}>
+        <span className="mr-2 text-[10px] font-bold text-orange-500/80 uppercase tracking-tighter bg-zinc-900/90 backdrop-blur px-2 py-0.5 rounded-md border border-orange-500/20 pointer-events-none">
           {meta.output}
         </span>
         <Handle
           type="source"
           position={Position.Right}
           id="output"
-          style={{ position: 'relative', right: 0, top: 0, transform: 'none', background: '#f97316', width: 14, height: 14, border: '2px solid #c2410c', cursor: 'crosshair', pointerEvents: 'auto' }}
+          style={{ position: 'relative', right: 0, top: 0, transform: 'none', background: '#f97316', width: 12, height: 12, border: '2px solid rgba(255,255,255,0.2)', cursor: 'crosshair', pointerEvents: 'auto', boxShadow: '0 0 10px rgba(249, 115, 22, 0.4)' }}
           title={meta.output}
         />
       </div>
 
       {/* Header */}
-      <div className={`flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 rounded-t-2xl ${meta.bg}`}>
+      <div className={`relative flex items-center justify-between px-5 py-3 border-b border-white/5 rounded-t-[1.5rem] overflow-hidden`}>
+        {/* Background Glow */}
+        <div className={`absolute inset-0 opacity-20 bg-gradient-to-br from-zinc-800 via-transparent to-transparent`} />
+        
         <button
           onClick={() => setCollapsed(v => !v)}
-          className={`flex flex-col items-start text-left`}
+          className="relative flex flex-col items-start text-left z-10"
         >
-          <span className={`flex items-center gap-1.5 text-sm font-semibold ${meta.color}`}>
-            {meta.icon}{meta.label}
+          <span className={`flex items-center gap-2 text-[13px] font-bold tracking-tight ${meta.color}`}>
+            <div className={`p-1.5 rounded-lg bg-white/5 border border-white/10`}>{meta.icon}</div>
+            {meta.label}
           </span>
-          <span className="text-[9px] text-zinc-600 mt-0.5 leading-none">{meta.hint}</span>
+          <span className="text-[10px] text-zinc-500 font-medium mt-1 pl-9 opacity-70">{meta.hint}</span>
         </button>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded-full">{asset.credits_cost}cr</span>
-          <button onClick={() => onDuplicate(asset.id)} title="Duplicar card" className="text-zinc-600 hover:text-zinc-300 transition-colors">
-            <CopyPlus size={13} />
-          </button>
-          <button onClick={() => onDelete(asset.id)} title="Deletar card" className="text-zinc-600 hover:text-red-400 transition-colors">
-            <Trash2 size={13} />
-          </button>
+        <div className="relative flex items-center gap-3 z-10">
+          <span className="text-[10px] font-bold text-zinc-100 bg-white/5 border border-white/10 px-2 py-1 rounded-lg tabular-nums">{asset.credits_cost} CR</span>
+          <div className="flex items-center gap-1.5 ml-1">
+            <button onClick={() => onDuplicate(asset.id)} title="Duplicar card" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-zinc-500 hover:text-white transition-all">
+              <CopyPlus size={14} />
+            </button>
+            <button onClick={() => onDelete(asset.id)} title="Deletar card" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-zinc-500 hover:text-red-400 transition-all">
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
       </div>
 

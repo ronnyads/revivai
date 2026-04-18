@@ -2,21 +2,7 @@ import sharp from 'sharp'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AssetType } from '@/types'
 
-export const CREDIT_COST: Record<AssetType, number> = {
-  face:    0,   // upload, sem API
-  join:    0,   // FFmpeg local
-  render:  1,   // FFmpeg merge, quase grátis
-  caption: 2,   // Whisper ~$0,003
-  upscale: 3,   // ESRGAN ~$0,003
-  script:  3,   // GPT-4o ~$0,015
-  voice:   8,   // ElevenLabs ~$0,10
-  model:   8,   // Flux Pro + GPT-4o ~$0,07
-  image:   8,   // Flux Pro Ultra ~$0,06
-  compose: 12,  // IDM-VTON/overlay ~$0,20
-  animate: 20,  // live-portrait ~$0,12
-  lipsync: 20,  // SyncLabs Pro ~$0,15
-  video:   15,  // Google Veo 3.1 via Google AI direto (Kling/Fal AI descontinuado)
-}
+import { CREDIT_COST } from '@/constants/studio'
 
 // ── Prompt helper — lê da tabela studio_prompts, usa fallback hardcoded ─────
 async function getStudioPrompt(
@@ -78,13 +64,15 @@ export async function generateImage(params: {
   // Sulfixo varia se for mascote/cartoon (não usar 'real person' em desenhos)
   const isMascotOrCartoon = ['mascote', 'personagem_cartoon'].includes(params.style)
   
-  let realismSuffix = "RAW photo, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, not illustrated, not cartoon, real photography."
-  if (params.style === 'mascote') {
-    realismSuffix = "hyper-detailed 3D render, perfectly consistent character, 8k resolution, cinematic lighting, vibrant colors."
-  } else if (params.style === 'personagem_cartoon') {
-    realismSuffix = "2D flat cartoon illustration, no 3d elements, vector art, smooth lines, clean colors, cartoon aesthetics."
-  }
-  
+  // Suffixos de realismo via Admin
+  const realismKey = isMascotOrCartoon ? `image_realism_${params.style}` : 'image_realism_realista'
+  const realismFallback = params.style === 'mascote'
+    ? "hyper-detailed 3D render, perfectly consistent character, 8k resolution, cinematic lighting, vibrant colors."
+    : params.style === 'personagem_cartoon'
+      ? "2D flat cartoon illustration, no 3d elements, vector art, smooth lines, clean colors, cartoon aesthetics."
+      : "RAW photo, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, not illustrated, not cartoon, real photography."
+      
+  const realismSuffix = await getStudioPrompt(admin, realismKey, realismFallback)
   const finalPrompt = `${basePrompt}. ${realismSuffix}`
 
   let tempUrl = ''
@@ -550,7 +538,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
     const googleApiKey = process.env.GOOGLE_API_KEY
     if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
-    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${googleApiKey}`, {
+    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${googleApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -570,7 +558,10 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 
     const imgData = await imgRes.json()
     const base64Str = imgData.predictions?.[0]?.bytesBase64Encoded
-    if (!base64Str) throw new Error('Imagen 3 não retornou dados da imagem da Google')
+    if (!base64Str) {
+      console.error('Google Response:', JSON.stringify(imgData))
+      throw new Error('Imagen 3 não retornou dados da imagem da Google (predict)')
+    }
     photoBuffer = Buffer.from(base64Str, 'base64')
   }
 
@@ -611,7 +602,7 @@ export async function startVideoGeneration(params: {
     : ''
   const finalMotion = modelContext + (params.motion_prompt || 'smooth product showcase motion')
 
-  let endpoint = 'https://queue.fal.run/fal-ai/kling-video/o3/pro/image-to-video'
+  let endpoint = 'https://queue.fal.run/fal-ai/kling-video/v1.5/pro/image-to-video'
   let payload: any = {
     image_url: params.source_image_url,
     prompt: finalMotion,
@@ -859,6 +850,7 @@ export async function composeProductScene(params: {
     const femaleDesc = await getStudioPrompt(admin, 'compose_vton_description_female', 'Virtual try-on garment, {category}')
     const maleDesc = await getStudioPrompt(admin, 'compose_vton_description_male', 'A fully closed masculine outfit, formal suit with pants, completely buttoned coat, chest fully covered by fabric, formal menswear, highly masculine tailoring, strictly male outfit, no cleavage, no skin visible on chest.')
 
+    let description = ""
     description = (params.vton_category === 'one-pieces') 
       ? maleDesc 
       : femaleDesc.replace('{category}', params.vton_category || 'tops')
@@ -1141,9 +1133,9 @@ export async function startVeo3DirectGoogle(params: {
   const base64Image = imgBuffer.toString('base64')
   const mimeType = imgRes.headers.get('content-type') ?? 'image/jpeg'
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning?key=${apiKey}`,
-    {
+  const model = 'veo-1.1-generate-preview';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`;
+  const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
