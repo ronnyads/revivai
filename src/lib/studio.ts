@@ -1226,11 +1226,14 @@ export async function generateAngles(params: {
         body: JSON.stringify({
           instances: [{
             prompt,
-            referenceImages: [{
-              referenceId: 1,
-              referenceType: 'RAW',
-              image: { 
-                uri: params.source_url
+            reference_images: [{
+              reference_id: 1,
+              reference_type: 'RAW',
+              reference_image: {
+                image: { 
+                  mime_type: 'image/jpeg',
+                  bytes_base64_encoded: base64Image
+                }
               }
             }]
           }],
