@@ -1309,9 +1309,8 @@ export async function generateAngles(params: {
             }]
           }],
           parameters: {
-            sampleCount: 1,
-            aspectRatio: params.aspect_ratio || '9:16',
-            negativePrompt: 'different clothes, outfit change, wardrobe change, different face, distorted, blurry, extra limbs'
+            sample_count: 1,
+            aspect_ratio: params.aspect_ratio || '9:16'
           }
         })
       })
