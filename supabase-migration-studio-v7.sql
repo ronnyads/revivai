@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS public.studio_prompts (
 );
 
 -- 4. Função para débito em lote (bulk)
+DROP FUNCTION IF EXISTS public.debit_credits_bulk(UUID, INTEGER);
 CREATE OR REPLACE FUNCTION public.debit_credits_bulk(user_id_param UUID, amount_param INTEGER)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
