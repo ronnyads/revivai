@@ -1360,7 +1360,9 @@ export async function generateAngles(params: {
               }],
               // Parâmetros de força na instância
               reference_strength: 0.99,
-              negative_prompt: `man, male, boy, masculine, facial hair, different face, different person, new character, face transformation, cartoon, anime, illustration`
+              negative_prompt: detectedGender === 'woman' 
+                ? `man, male, boy, masculine, facial hair, different face, different person, new character, face transformation, cartoon, anime, illustration`
+                : `woman, female, girl, feminine, biological woman, different face, different person, new character, face transformation, cartoon, anime, illustration`
             }],
             parameters: {
               sampleCount: 1,
