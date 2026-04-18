@@ -1349,7 +1349,7 @@ export async function generateAngles(params: {
               prompt: finalPrompt,
               referenceImages: [{
                 referenceId: 1,
-                referenceType: 'SUBJECT',
+                referenceType: 'REFERENCE_TYPE_SUBJECT', // Formato canônico v1
                 image: {
                   bytesBase64Encoded: base64Image,
                   mimeType: 'image/jpeg'
@@ -1358,7 +1358,9 @@ export async function generateAngles(params: {
             }],
             parameters: {
               sampleCount: 1,
-              aspectRatio: params.aspect_ratio || '9:16',
+              aspectRatio: params.aspect_ratio === '9:16' ? '9:16' : 
+                          params.aspect_ratio === '1:1' ? '1:1' : 
+                          params.aspect_ratio === '16:9' ? '16:9' : '9:16',
               personGeneration: 'allow_adult'
             }
           })
@@ -1373,14 +1375,15 @@ export async function generateAngles(params: {
         const vertexData = await vertexRes.json()
         const base64 = vertexData.predictions?.[0]?.bytesBase64Encoded
         if (!base64) throw new Error('Imagem não retornada pelo Vertex')
-        photoBuffer = Buffer.from(base64, 'base64')
       } else {
-        throw new Error('GOOGLE_VERTEX_KEY não encontrada')
+        console.warn('[studio] GOOGLE_VERTEX_KEY não encontrada nas variáveis de ambiente.')
+        throw new Error('Sem Vertex Key')
       }
     } catch (vertexError: any) {
-      console.warn('[studio] Erro no Vertex AI (via JSON Key), tentando Gemini API simples...')
+      console.warn('[studio] FALHA CRÍTICA NO VERTEX AI:', vertexError.message)
       
       // ---- FALLBACK: GEMINI API SIMPLES (O que já tinhamos) ----
+      console.log('[studio] Tentando fallback para Gemini API simples...')
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1389,21 +1392,22 @@ export async function generateAngles(params: {
             prompt: finalPrompt,
           }],
           parameters: {
-            sample_count: 1,
-            aspect_ratio: ({ '9:16': '9:16', '1:1': '1:1', '16:9': '16:9', '3:4': '3:4', '4:3': '4:3', '4:5': '4:3' } as Record<string, string>)[params.aspect_ratio || '9:16'] ?? '9:16'
+            sampleCount: 1, // Corrigido para camelCase compatível com v1
+            aspectRatio: params.aspect_ratio === '9:16' ? '9:16' : 
+                         params.aspect_ratio === '1:1' ? '1:1' : '9:16'
           }
         })
       })
 
       if (!res.ok) {
         const errorBody = await res.text()
-        console.warn(`[studio] Gemini API falhou (${res.status}), tentando fallback:`, errorBody)
+        console.error(`[studio] Gemini API falhou feio (${res.status}):`, errorBody)
         throw new Error(`Google Error: ${errorBody}`)
       }
 
       const data = await res.json()
       const base64Fallback = data.predictions?.[0]?.bytesBase64Encoded
-      if (!base64Fallback) throw new Error('Imagem não retornada pelo Google')
+      if (!base64Fallback) throw new Error('Imagem não retornada pelo Google Gemini Fallback')
       photoBuffer = Buffer.from(base64Fallback, 'base64')
     }
 
@@ -1461,15 +1465,23 @@ async function getVertexAccessToken(keyJson?: string): Promise<string> {
   if (!keyJson) return ''
   try {
     const { GoogleAuth } = require('google-auth-library')
+    
+    // Tenta limpar possíveis erros de escape no JSON vindo de ENV
+    let credentials = keyJson
+    if (keyJson.startsWith('"') && keyJson.endsWith('"')) {
+      credentials = JSON.parse(keyJson)
+    }
+    const credsObj = typeof credentials === 'string' ? JSON.parse(credentials) : credentials
+
     const auth = new GoogleAuth({
-      credentials: JSON.parse(keyJson),
+      credentials: credsObj,
       scopes: ['https://www.googleapis.com/auth/cloud-platform']
     })
     const client = await auth.getClient()
     const token = await client.getAccessToken()
     return token.token || ''
   } catch (e) {
-    console.error('[studio] Erro ao obter Token Vertex:', e)
+    console.error('[studio] ERRO CRÍTICO NO TOKEN VERTEX:', e)
     return ''
   }
 }
