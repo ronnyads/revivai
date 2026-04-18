@@ -1,69 +1,47 @@
 import { createAdminClient } from './supabase/admin'
-import os from 'os'
-import path from 'path'
-import fs from 'fs'
 
 /**
- * Downloads a video and extracts its last frame as a Buffer.
- * Uses child_process.execFile for maximum stability in Vercel/Serverless.
+ * Extracts the last frame of a video using Fal AI FFmpeg API.
+ * This is robust and compatible with Vercel/Serverless as it moves
+ * the heavy lifting to external infrastructure.
  */
 export async function extractLastFrame(videoUrl: string): Promise<Buffer> {
-  const { execFile } = await import('node:child_process')
-  const { promisify } = await import('node:util')
-  const execFileAsync = promisify(execFile)
+  const falKey = process.env.FAL_KEY
+  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+
+  console.log(`[videoUtils] Chamando Fal AI para extrair frame de: ${videoUrl}`)
+
+  const res = await fetch('https://fal.run/fal-ai/ffmpeg-api/extract-frame', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${falKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      video_url: videoUrl,
+      frame_type: 'last', // Agora pegamos o último frame oficialmente via API
+    }),
+  })
+
+  if (!res.ok) {
+    const errText = await res.text()
+    console.error('[videoUtils] Erro na API da Fal AI:', errText)
+    throw new Error(`Fal AI failed to extract frame: ${errText.slice(0, 200)}`)
+  }
+
+  const data = await res.json()
+  const frameUrl = data.images?.[0]?.url || data.image?.url
+  if (!frameUrl) throw new Error('API da Fal AI não retornou URL da imagem')
+
+  // Baixa a imagem resultante para retornar como Buffer (para compatibilidade com storage local)
+  const imgRes = await fetch(frameUrl)
+  if (!imgRes.ok) throw new Error('Falha ao baixar imagem extraída da Fal AI')
   
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  let ffmpegPath = require('ffmpeg-static') as string
-  if (typeof ffmpegPath !== 'string' && (ffmpegPath as any).path) {
-    ffmpegPath = (ffmpegPath as any).path
-  }
-
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-frame-'))
-  const inputPath = path.join(tmpDir, 'input.mp4')
-  const outputPath = path.join(tmpDir, 'last_frame.jpg')
-
-  try {
-    const res = await fetch(videoUrl)
-    if (!res.ok) throw new Error(`Falha ao baixar vídeo: ${res.status}`)
-    const buf = Buffer.from(await res.arrayBuffer())
-    fs.writeFileSync(inputPath, buf)
-
-    // Comando FFmpeg robusto para pegar o último frame via execFile (passando args em Array)
-    try {
-      // Tenta seek do final (muito rápido)
-      await execFileAsync(ffmpegPath, [
-        '-y',
-        '-sseof', '-1',
-        '-i', inputPath,
-        '-update', '1',
-        '-frames:v', '1',
-        '-q:v', '2',
-        outputPath
-      ])
-    } catch (e) {
-      console.warn('[videoUtils] Seek do final falhou, tentando extração simples:', e)
-      // Fallback: se o vídeo for muito curto (< 1s), tenta pegar o primeiro frame
-      await execFileAsync(ffmpegPath, [
-        '-y',
-        '-i', inputPath,
-        '-frames:v', '1',
-        '-q:v', '2',
-        outputPath
-      ])
-    }
-
-    if (!fs.existsSync(outputPath)) {
-        throw new Error('arquivo de frame não foi criado pelo ffmpeg')
-    }
-
-    return fs.readFileSync(outputPath)
-  } finally {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ignore */ }
-  }
+  return Buffer.from(await imgRes.arrayBuffer())
 }
 
 /**
- * Extracts last frame and uploads it to Supabase Storage
+ * Extracts last frame using Fal AI and uploads it to Supabase Storage
  */
 export async function saveLastFrame(videoUrl: string, userId: string, assetId: string): Promise<string | null> {
   try {
