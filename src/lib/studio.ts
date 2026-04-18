@@ -2,7 +2,7 @@ import sharp from 'sharp'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AssetType } from '@/types'
 
-import { CREDIT_COST } from '@/constants/studio'
+export { CREDIT_COST } from '@/constants/studio'
 
 // ── Prompt helper — lê da tabela studio_prompts, usa fallback hardcoded ─────
 async function getStudioPrompt(
