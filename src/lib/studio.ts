@@ -1229,9 +1229,11 @@ export async function generateAngles(params: {
             referenceImages: [{
               referenceId: 1,
               referenceType: 'RAW',
-              image: { 
-                mimeType: 'image/jpeg',
-                bytesBase64Encoded: base64Image
+              referenceImage: {
+                image: { 
+                  mimeType: 'image/jpeg',
+                  bytesBase64Encoded: base64Image
+                }
               }
             }]
           }],
