@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2, User, Film, Camera } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, Music, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2, User, Film, Camera } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from './ImageGenerator'
 import ScriptGenerator from './ScriptGenerator'
@@ -12,6 +12,7 @@ import UpscaleCard from './UpscaleCard'
 import FaceGenerator from './FaceGenerator'
 import JoinGenerator from './JoinGenerator'
 import AngleGenerator from './AngleGenerator'
+import MusicGenerator from './MusicGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string }> = {
   face:    { icon: <User size={15} />,     label: 'Rosto Real',  color: 'text-indigo-400' },
@@ -28,6 +29,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   compose: { icon: <Layers size={15} />,   label: 'Compor Cena', color: 'text-orange-400'  },
   lipsync: { icon: <Wand2 size={15} />,    label: 'Lip Sync',    color: 'text-cyan-400'    },
   angles:  { icon: <Camera size={15} />,   label: 'Dir. de Cena',color: 'text-emerald-400' },
+  music:   { icon: <Music size={15} />,    label: 'Trilha Sonora', color: 'text-amber-400' },
 }
 
 // Mapeamento: tipo de origem → ações "Usar em..."
@@ -191,7 +193,7 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
   if (type === 'video' || type === 'join') {
     return <video src={url} controls className="w-full rounded-xl max-h-64" playsInline />
   }
-  if (type === 'voice') {
+  if (type === 'voice' || type === 'music') {
     return <audio src={url} controls className="w-full" />
   }
   if (type === 'script') {
@@ -268,5 +270,6 @@ function FormForType({ type, initialParams, onGenerate }: {
   if (type === 'caption') return <CaptionGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'upscale') return <UpscaleCard      initial={initialParams} onGenerate={onGenerate} />
   if (type === 'angles')  return <AngleGenerator   initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'music')   return <MusicGenerator   initial={initialParams} onGenerate={onGenerate} />
   return null
 }

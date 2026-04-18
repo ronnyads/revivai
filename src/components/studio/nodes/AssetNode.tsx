@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2, CopyPlus, Camera } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, Music, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2, CopyPlus, Camera } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import FaceGenerator from '../FaceGenerator'
 import JoinGenerator from '../JoinGenerator'
