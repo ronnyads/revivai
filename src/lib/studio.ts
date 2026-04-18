@@ -1,5 +1,6 @@
 // FORCE_REBUILD_ID: 2716873455033918919
 import sharp from 'sharp'
+import { VertexAI } from '@google-cloud/vertexai'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AssetType } from '@/types'
 
@@ -491,9 +492,6 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   const data = await res.json()
   const text: string = data.choices?.[0]?.message?.content?.trim() ?? ''
 
-  const googleApiKey = process.env.GOOGLE_API_KEY
-  if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
-
   const fluxSuffix = await getStudioPrompt(
     admin,
     'model_flux_suffix',
@@ -503,22 +501,64 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 
   let photoBuffer: Buffer
 
-  // O motor padrão volta a ser o GOOGLE (Agora usando o IMAGEN 4.0 ULTRA identificado no diagnóstico)
   if (params.engine === 'google' || !params.engine) {
-    // ---- MOTOR GOOGLE IMAGEN 4.0 ULTRA (Padrão) ----
-    const googleApiKey = process.env.GOOGLE_API_KEY
-    if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+    try {
+      const vertexKey = process.env.GOOGLE_VERTEX_KEY
+      const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
+      const location = process.env.VERTEX_LOCATION || 'us-central1'
 
-    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        instances: [{ prompt: finalPrompt }],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: '9:16',
-          personGeneration: 'ALLOW_ADULT' 
+      if (vertexKey) {
+        console.log(`[studio] Usando Vertex AI Enterprise (UGC Model) para asset ${params.assetId}...`)
+        const vertexToken = await getVertexAccessToken(vertexKey)
+        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
+
+        const vertexRes = await fetch(vertexUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${vertexToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            instances: [{ prompt: finalPrompt }],
+            parameters: {
+              sampleCount: 1,
+              aspectRatio: '9:16',
+              personGeneration: 'allow_adult'
+            }
+          })
+        })
+
+        if (vertexRes.ok) {
+          const vertexData = await vertexRes.json()
+          const base64 = vertexData.predictions?.[0]?.bytesBase64Encoded
+          if (base64) {
+            photoBuffer = Buffer.from(base64, 'base64')
+          } else {
+            throw new Error('Sem imagem no Vertex')
+          }
+        } else {
+          throw new Error(await vertexRes.text())
         }
+      } else {
+        throw new Error('Sem Vertex Key')
+      }
+    } catch (vertexError: any) {
+      console.warn('[studio] Vertex AI (Model) falhou ou não configurado, tentando Gemini API...', vertexError.message)
+      
+      // ---- FALLBACK: MOTOR GOOGLE IMAGEN 4.0 (Gemini API) ----
+      const googleApiKey = process.env.GOOGLE_API_KEY
+      if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+
+      const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instances: [{ prompt: finalPrompt }],
+          parameters: {
+            sample_count: 1,
+            aspect_ratio: '9:16',
+          }
+        })
       })
     })
 
@@ -1288,9 +1328,82 @@ export async function generateAngles(params: {
     ].filter(Boolean).join(' ')
 
     try {
-      // ---- GOOGLE IMAGEN 4.0 - text-to-image com prompt detalhado ----
-      // Nota: referenceImages/subject_references só funciona no Vertex AI.
-      // Com Gemini API key usamos prompt ultra-detalhado + descrição da roupa via Vision.
+      const vertexKey = process.env.GOOGLE_VERTEX_KEY
+      const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
+      const location = process.env.VERTEX_LOCATION || 'us-central1'
+
+      if (vertexKey) {
+        console.log(`[studio] Usando Vertex AI Enterprise para asset ${params.assetId}...`)
+        const credentials = JSON.parse(vertexKey)
+        const vertexAI = new VertexAI({ project: projectId, location: location, googleAuthOptions: { credentials } })
+        
+        // Modelo Imagen 3.0/4.0 no Vertex
+        // Nota: No Vertex a estrutura é via predictionServiceClient ou SDK generativo
+        const generativeModel = vertexAI.getGenerativeModel({
+          model: 'imagen-3.0-generate-001', // Imagen 3/4 no Vertex
+        })
+
+        const result = await generativeModel.generateContent({
+          contents: [{
+            role: 'user',
+            parts: [{
+              text: finalPrompt
+            }]
+          }]
+        })
+        // O SDK do Vertexai para node as vezes tem comportamentos diferentes para Image Generation.
+        // Se falhar o SDK generativo, usamos o REST que é garantido.
+      }
+
+      // ---- GOOGLE IMAGEN (Vertex AI REST API - O MAIS PODEROSO) ----
+      const vertex_token = await getVertexAccessToken(vertexKey)
+      const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
+
+      const vertexRes = await fetch(vertexUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${vertex_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          instances: [{
+            prompt: finalPrompt,
+            referenceImages: [{
+              referenceId: 1,
+              referenceType: 'REFERENCE_TYPE_SUBJECT',
+              image: {
+                bytesBase64Encoded: base64Image,
+                mimeType: 'image/jpeg'
+              },
+              subjectImageConfig: {
+                subjectDescription: appearanceDesc || `A ${detectedGender} model`,
+                subjectType: 'SUBJECT_TYPE_PERSON'
+              }
+            }]
+          }],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio: params.aspect_ratio || '9:16',
+            personGeneration: 'allow_adult'
+          }
+        })
+      })
+
+      if (!vertexRes.ok) {
+        const err = await vertexRes.text()
+        console.warn('[studio] Vertex AI falhou, tentando Gemini API simples...', err)
+        throw new Error(err)
+      }
+
+      const vertexData = await vertexRes.json()
+      const base64 = vertexData.predictions?.[0]?.bytesBase64Encoded
+      if (!base64) throw new Error('Imagem não retornada pelo Vertex')
+      photoBuffer = Buffer.from(base64, 'base64')
+
+    } catch (vertexError: any) {
+      console.warn('[studio] Erro no Vertex AI (via JSON Key), tentando Gemini API simples...')
+      
+      // ---- FALLBACK: GEMINI API SIMPLES (O que já tinhamos) ----
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1307,21 +1420,14 @@ export async function generateAngles(params: {
 
       if (!res.ok) {
         const errorBody = await res.text()
-        console.warn(`[studio] Google Imagen falhou (${res.status}), tentando fallback:`, errorBody)
+        console.warn(`[studio] Gemini API falhou (${res.status}), tentando fallback:`, errorBody)
         throw new Error(`Google Error: ${errorBody}`)
       }
 
       const data = await res.json()
-      const base64 = data.predictions?.[0]?.bytesBase64Encoded
-      if (!base64) throw new Error('Imagem não retornada pelo Google')
-      photoBuffer = Buffer.from(base64, 'base64')
-
-    } catch (googleError: any) {
-      if (!allowFallback) {
-        throw googleError
-      }
-      // Revertido: Não usamos Replicate a pedido do usuário
-      throw googleError
+      const base64Fallback = data.predictions?.[0]?.bytesBase64Encoded
+      if (!base64Fallback) throw new Error('Imagem não retornada pelo Google')
+      photoBuffer = Buffer.from(base64Fallback, 'base64')
     }
 
   } else {
@@ -1369,6 +1475,26 @@ export async function generateAngles(params: {
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(storagePath)
   return publicUrl
+}
+
+/**
+ * Auxiliar para obter Token de Acesso do Vertex AI
+ */
+async function getVertexAccessToken(keyJson?: string): Promise<string> {
+  if (!keyJson) return ''
+  try {
+    const { GoogleAuth } = require('google-auth-library')
+    const auth = new GoogleAuth({
+      credentials: JSON.parse(keyJson),
+      scopes: ['https://www.googleapis.com/auth/cloud-platform']
+    })
+    const client = await auth.getClient()
+    const token = await client.getAccessToken()
+    return token.token || ''
+  } catch (e) {
+    console.error('[studio] Erro ao obter Token Vertex:', e)
+    return ''
+  }
 }
 
 /**
