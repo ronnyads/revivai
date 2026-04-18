@@ -32,9 +32,10 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   join:    { video_urls: [] },
   angles:  { source_url: '', angle: 'frontal', pose: 'straight' },
   music:   { prompt: '', style: 'lofi' },
+  ugc_bundle: { source_url: '' },
 }
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10,
+  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60,
 }
 
 export default function BoardClient({ project, initialAssets, userCredits }: Props) {
