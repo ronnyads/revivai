@@ -1260,31 +1260,58 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    const finalPrompt = `Professional UGC photo of {subject_id: 1}. ONLY change the camera angle to ${params.angle} view. Keep ABSOLUTELY IDENTICAL: the exact same outfit and clothing (every garment, color, fabric, pattern), same hair color and texture, same face and makeup, same jewelry and accessories. Do NOT change or replace ANY clothing item. The person must look exactly the same as the reference image in every detail EXCEPT the camera perspective. Photorealistic, 8k, cinematic lighting.`
+    // Descreve a roupa atual via Gemini Vision para ancorar o prompt
+    let appearanceDesc = ''
+    try {
+      const descRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: 'Describe ONLY the clothing and outfit of the person in this image. Be specific: colors, fabric, garment names. Max 2 sentences.' },
+              { inline_data: { mime_type: 'image/jpeg', data: base64Image } }
+            ]
+          }]
+        })
+      })
+      const descData = await descRes.json()
+      appearanceDesc = descData.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    } catch { /* silent */ }
+
+    const finalPrompt = [
+      `Photo of {subject_id: 1}.`,
+      appearanceDesc ? `The person is wearing: ${appearanceDesc}.` : '',
+      `Change ONLY the camera angle to ${params.angle} view (${perspective}).`,
+      `Preserve EXACTLY: same face, same hair color and style, same outfit and every clothing item with exact colors and patterns.`,
+      `Photorealistic UGC photo, 8k, cinematic lighting.`,
+    ].filter(Boolean).join(' ')
 
     try {
-      // ---- GOOGLE IMAGEN 4.0 (GEMINI API - SUBJECT ID LOCK) ----
+      // ---- GOOGLE IMAGEN 4.0 - formato correto referenceImages ----
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           instances: [{
             prompt: finalPrompt,
-            subject_references: [{
-              subject_id: 1,
-              reference_image: {
-                image: {
-                  bytes_base_64_encoded: base64Image,
-                  mime_type: 'image/jpeg'
-                }
+            referenceImages: [{
+              referenceType: 'REFERENCE_TYPE_SUBJECT',
+              referenceId: 1,
+              referenceImage: {
+                bytesBase64Encoded: base64Image,
+                mimeType: 'image/jpeg'
+              },
+              subjectImageConfig: {
+                subjectDescription: appearanceDesc || `A ${detectedGender} model`,
+                subjectType: 'SUBJECT_TYPE_PERSON'
               }
             }]
           }],
           parameters: {
-            sample_count: 1,
-            aspect_ratio: params.aspect_ratio || '9:16',
-            reference_strength: 0.99,
-            negative_prompt: "different clothes, outfit change, different shirt, different jacket, different top, different pants, different dress, different color clothes, wardrobe change, costume change, different face, distorted face, extra limbs, blurry, low quality"
+            sampleCount: 1,
+            aspectRatio: params.aspect_ratio || '9:16',
+            negativePrompt: 'different clothes, outfit change, wardrobe change, different face, distorted, blurry, extra limbs'
           }
         })
       })
