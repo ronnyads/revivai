@@ -202,41 +202,22 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
       </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex flex-col gap-2 mt-2">
-        <button
-          disabled={!sourceUrl}
-          onClick={() => onGenerate({ source_url: sourceUrl, angle: selectedAngle, engine, aspect_ratio: aspectRatio })}
-          className={`relative w-full py-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all overflow-hidden group/btn ${
-            !sourceUrl
-              ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-              : 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)] active:scale-95'
-          }`}
-        >
-          <Sparkles size={14} />
-          GERAR NOVA PERSPECTIVA
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-shimmer" />
-        </button>
-
-        <button
-          disabled={!sourceUrl}
-          onClick={() => {
-            if (window.confirm('Gerar o pacote de 8 poses custa 60 créditos. O sistema criará um novo card de Bundle para você. Continuar?')) {
-               // Como o componente está dentro do React Flow, podemos tentar disparar um custom event
-               // ou simplesmente pedir para o usuário clicar no +
-               alert('Dica: Use o card "Pacote 8 Poses UGC" no menu ADICIONAR CARD (+) para gerar as 8 poses automáticas!')
-            }
-          }}
-          className={`relative w-full py-3 rounded-2xl font-bold text-[10px] flex items-center justify-center gap-2 transition-all overflow-hidden border ${
-            !sourceUrl
-              ? 'border-zinc-800 text-zinc-600 cursor-not-allowed'
-              : 'border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10'
-          }`}
-        >
-          <Layers size={14} />
-          GERAR PACOTE 8 POSES (60 CR)
-        </button>
-      </div>
+      {/* Action Button */}
+      <button
+        disabled={!sourceUrl}
+        onClick={() => onGenerate({ source_url: sourceUrl, angle: selectedAngle, engine, aspect_ratio: aspectRatio })}
+        className={`relative mt-2 w-full py-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all overflow-hidden group/btn ${
+          !sourceUrl
+            ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+            : 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)] active:scale-95'
+        }`}
+      >
+        <Sparkles size={14} />
+        GERAR NOVA PERSPECTIVA
+        
+        {/* Glow effect on hover */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-shimmer" />
+      </button>
       
       <p className="text-[9px] text-zinc-600 text-center font-medium">
         Preserva identidade, roupas e cenário em 100%
