@@ -1586,9 +1586,23 @@ export async function generateUGCPositions(params: {
   const base64 = buffer.toString('base64')
 
   const vertexKey = process.env.GOOGLE_VERTEX_KEY
-  const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
+  if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada nas variáveis de ambiente.')
+
+  // Tenta extrair o Project ID de dentro do JSON da chave se não houver ENV específica
+  let projectId = process.env.VERTEX_PROJECT_ID
+  if (!projectId) {
+     try {
+       const keyData = JSON.parse(vertexKey.startsWith('"') ? JSON.parse(vertexKey) : vertexKey)
+       projectId = keyData.project_id
+     } catch (e) {
+       console.warn('[studio] Não foi possível extrair ProjectID da chave JSON')
+     }
+  }
+  
+  // Fallback final inseguro removido por segunrança. Forçamos o erro se não achar.
+  if (!projectId) throw new Error('VERTEX_PROJECT_ID não configurado e não foi possível detectar pela chave JSON.')
+
   const location = process.env.VERTEX_LOCATION || 'us-central1'
-  if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada.')
   const vertexToken = await getVertexAccessToken(vertexKey)
 
   const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001:predict`

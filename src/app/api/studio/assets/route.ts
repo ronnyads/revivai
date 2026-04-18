@@ -232,13 +232,26 @@ export async function POST(req: NextRequest) {
         userId: user.id
       })
     } else if (type === 'ugc_bundle') {
-      const positions = await generateUGCPositions({
-        sourceUrl: String(input_params.source_url ?? ''),
-        assetId: asset.id,
-        userId: user.id,
-      })
-      resultUrl = positions[0]?.url || null
-      extraData = { ugc_bundle: positions }
+      try {
+        const sourceUrl = String(input_params.source_url ?? '')
+        if (!sourceUrl) throw new Error('Imagem de origem (source_url) é obrigatória para gerar o pacote.')
+
+        const positions = await generateUGCPositions({
+          sourceUrl,
+          assetId: asset.id,
+          userId: user.id,
+        })
+        
+        if (!positions || positions.length === 0) {
+          throw new Error('O Google Vertex AI não conseguiu gerar as fotos. Verifique se o Project ID e a Permissão da Service Account estão corretos no Vercel.')
+        }
+
+        resultUrl = positions[0].url
+        extraData = { ugc_bundle: positions }
+      } catch (bundleErr: any) {
+        console.error('[studio] Erro específico no bundle:', bundleErr)
+        throw new Error(`Falha no Bundle UGC: ${bundleErr.message}`)
+      }
     } else if (type === 'angles') {
       resultUrl = await generateAngles({
         source_url: String(input_params.source_url ?? ''),
