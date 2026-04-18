@@ -37,6 +37,39 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
   const showEngineBlock = activeConfig.anglesGoogle && activeConfig.anglesFlux
 
   const sourceUrl = initial.source_url as string
+  const resultUrl = initial.url as string // O resultado final fica aqui
+
+  // Se já tiver uma imagem gerada, mostra o resultado final
+  if (resultUrl) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="relative group">
+          <div className="absolute -top-2 -left-2 z-10 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-lg border border-emerald-400/50 flex items-center gap-1">
+            <Sparkles size={10} /> NOVA PERSPECTIVA
+          </div>
+          <div className="aspect-[9/16] w-full rounded-2xl overflow-hidden border-2 border-emerald-500/30 bg-zinc-900 shadow-2xl transition-all">
+            <img src={resultUrl} alt="Result" className="w-full h-full object-cover" />
+          </div>
+        </div>
+        
+        <a 
+          href={resultUrl} 
+          download 
+          target="_blank"
+          className="flex items-center justify-center gap-2 w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold border border-white/10 transition-all"
+        >
+          <Maximize size={14} /> ABRIR EM TELA CHEIA
+        </a>
+        
+        <button
+          onClick={() => onGenerate({ source_url: sourceUrl, angle: selectedAngle, engine })}
+          className="text-[10px] text-zinc-500 hover:text-emerald-400 font-bold transition-colors uppercase tracking-widest text-center"
+        >
+          🔄 Gerar outra variação
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-4">

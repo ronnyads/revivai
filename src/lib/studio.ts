@@ -1195,7 +1195,7 @@ export async function generateAngles(params: {
   }
 
   const perspective = angleMap[params.angle] || angleMap['frontal']
-  const prompt = `Same identical person, identical clothing, identical background environment. Photorealistic. ${perspective}. 8k resolution, cinematic lighting.`
+  const prompt = `Maintain EXACT identity, EXACT same clothes, hair color, and facial features. Switch camera to ${params.angle} view. Full consistency of the person is mandatory. Photorealistic. ${perspective}. 8k resolution, cinematic lighting.`
 
   console.log(`[studio] Gerando Angulo [${engine}] para asset ${params.assetId}. URL: ${params.source_url.slice(0, 50)}...`)
 
