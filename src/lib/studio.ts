@@ -538,7 +538,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
     const googleApiKey = process.env.GOOGLE_API_KEY
     if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
-    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${googleApiKey}`, {
+    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1/models/imagen-3.0-generate-002:predict?key=${googleApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1133,7 +1133,7 @@ export async function startVeo3DirectGoogle(params: {
   const base64Image = imgBuffer.toString('base64')
   const mimeType = imgRes.headers.get('content-type') ?? 'image/jpeg'
 
-  const model = 'veo-1.1-generate-preview';
+  const model = 'veo-3.1-generate-preview';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`;
   const res = await fetch(url, {
       method: 'POST',
