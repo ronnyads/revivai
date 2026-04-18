@@ -1260,10 +1260,10 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    const finalPrompt = `EXACT MODEL IDENTITY FROM REFERENCE. ${traits} Position: ${params.angle}. NO GLASSES, NO EARRINGS, NO JEWELRY. Maintain 100% face structure, hair color, and skin tone.`
+    const finalPrompt = `MODEL FACE DNA LOCK: ${traits} Same facial structure, same eyebrows, same eye shape, same hair texture from reference. Position: ${params.angle}. NO GLASSES, NO EARRINGS. High fidelity UGC photography.`
 
     try {
-      // ---- GOOGLE IMAGEN 4.0 (GEMINI API - API KEY SUPPORT) ----
+      // ---- GOOGLE IMAGEN 4.0 (GEMINI API - JSON OPTIMIZED) ----
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1284,7 +1284,7 @@ export async function generateAngles(params: {
             sample_count: 1,
             aspect_ratio: params.aspect_ratio || '9:16',
             reference_strength: 0.99,
-            negative_prompt: "glasses, earrings, jewelry, piercings, hats, different face, different hair color, blurry, distorted"
+            negative_prompt: "glasses, earrings, jewelry, piercings, hats, different face, distorted, blurry"
           }
         })
       })
@@ -1302,11 +1302,10 @@ export async function generateAngles(params: {
 
     } catch (googleError: any) {
       if (!allowFallback) {
-        throw googleError // Se a retentiva estiver desligada, joga o erro real do Google na tela
+        throw googleError
       }
 
       console.error("[studio] Erro Google Imagen, migrando para FLUX de segurança...", googleError.message)
-      // Se o Google der qualquer erro (400, 404, etc), usamos o motor FLUX pra não deixar o usuário na mão
       const falKey = process.env.FAL_KEY
       if (!falKey) throw new Error('FAL_KEY não configurada para fallback')
 
@@ -1319,10 +1318,10 @@ export async function generateAngles(params: {
         body: JSON.stringify({
           image_url: params.source_url,
           prompt: `EXACT SAME PERSON FROM THE REFERENCE: ${prompt}`,
-          strength: 0.6, 
+          strength: 0.45, // Reduced for 100% ID
           num_inference_steps: 30,
           guidance_scale: 3.5,
-          image_size: params.aspect_ratio === '9:16' ? 'landscape_16_9' : params.aspect_ratio === '1:1' ? 'square' : 'landscape_4_5', // Note: flux labels are different
+          image_size: params.aspect_ratio === '9:16' ? 'portrait_16_9' : params.aspect_ratio === '1:1' ? 'square_hd' : 'portrait_4_3',
           output_format: 'jpeg',
         }),
       })
@@ -1350,10 +1349,10 @@ export async function generateAngles(params: {
       body: JSON.stringify({
       image_url: params.source_url,
       prompt: `EXACT SAME PERSON FROM THE REFERENCE: ${prompt}`,
-      strength: 0.6, 
+      strength: 0.45, // Much stricter identity lock
       num_inference_steps: 30,
       guidance_scale: 3.5,
-      image_size: params.aspect_ratio === '1:1' ? 'square' : params.aspect_ratio === '4:5' ? 'portrait_4_5' : 'portrait_9_16',
+      image_size: params.aspect_ratio === '9:16' ? 'portrait_16_9' : params.aspect_ratio === '1:1' ? 'square_hd' : 'portrait_4_3',
       output_format: 'jpeg',
       }),
     })
