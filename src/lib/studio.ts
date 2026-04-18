@@ -1330,10 +1330,13 @@ export async function generateAngles(params: {
       `Photorealistic UGC photo, 8k, cinematic lighting.`,
     ].filter(Boolean).join(' ')
 
-      if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada. Vertex AI é obrigatório.')
+    if (engine === 'google') {
+      try {
+        const vertexKey = process.env.GOOGLE_VERTEX_KEY
+        const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
+        const location = process.env.VERTEX_LOCATION || 'us-central1'
 
-      const vertexToken = await getVertexAccessToken(vertexKey)
-      const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
+        if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada. Vertex AI é obrigatório.')
 
       console.log(`[studio] Chamando Vertex AI Enterprise (PURO) para asset ${params.assetId}...`)
       
