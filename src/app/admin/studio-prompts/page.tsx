@@ -275,12 +275,15 @@ export default async function StudioPromptsPage() {
 
             <form action={async (formData: FormData) => {
               'use server'
+              const { createAdminClient } = await import('@/lib/supabase/admin')
+              const { revalidatePath } = await import('next/cache')
               const admin = createAdminClient()
               const entries = Array.from(formData.entries())
               for (const [key, value] of entries) {
                 if (key.startsWith('$')) continue
                 await admin.from('studio_prompts').upsert({ key, value: String(value) }, { onConflict: 'key' })
               }
+              revalidatePath('/admin/studio-prompts')
             }} className="p-6 flex flex-col gap-8">
               <div className="grid grid-cols-1 gap-8">
                 {group.items.map(def => (
