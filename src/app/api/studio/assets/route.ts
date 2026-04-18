@@ -246,7 +246,7 @@ export async function POST(req: NextRequest) {
           throw new Error('O Google Vertex AI não conseguiu gerar as fotos. Verifique se o Project ID e a Permissão da Service Account estão corretos no Vercel.')
         }
 
-        resultUrl = positions[0].url
+        resultUrl = positions[0].url || null
         extraData = { ugc_bundle: positions }
       } catch (bundleErr: any) {
         console.error('[studio] Erro específico no bundle:', bundleErr)
