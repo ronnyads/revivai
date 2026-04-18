@@ -1074,6 +1074,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           minZoom={0.2}
           maxZoom={1.5}
           connectionMode={ConnectionMode.Loose}
+          connectionRadius={35}
           deleteKeyCode="Delete"
           proOptions={{ hideAttribution: true }}
         >

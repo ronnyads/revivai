@@ -138,11 +138,11 @@ function AssetNode({ data }: NodeProps) {
               left: 1, 
               top: 0, 
               transform: 'none', 
-              background: '#8b5cf6', 
-              width: 16, 
-              height: 16, 
-              border: '3px solid rgba(255,255,255,0.4)', 
-              cursor: 'pointer', 
+              background: '#3b82f6', 
+              width: 20, 
+              height: 20, 
+              border: '4px solid rgba(255,255,255,0.4)', 
+              cursor: 'crosshair', 
               pointerEvents: 'auto', 
               boxShadow: '0 0 15px rgba(139, 92, 246, 0.5)',
               transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -170,12 +170,12 @@ function AssetNode({ data }: NodeProps) {
             top: 0, 
             transform: 'none', 
             background: '#f97316', 
-            width: 16, 
-            height: 16, 
-            border: '3px solid rgba(255,255,255,0.4)', 
+            width: 20, 
+            height: 20, 
+            border: '4px solid rgba(255,255,255,0.5)', 
             cursor: 'pointer', 
             pointerEvents: 'auto', 
-            boxShadow: '0 0 15px rgba(249, 115, 22, 0.5)',
+            boxShadow: '0 0 20px rgba(249, 115, 22, 0.4)',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
           title={meta.output}
