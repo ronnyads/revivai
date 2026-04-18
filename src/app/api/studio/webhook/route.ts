@@ -107,11 +107,12 @@ export async function POST(req: NextRequest) {
       last_frame_url: videoUrl,
     }).eq('id', assetId)
 
-    // Debita créditos apenas uma vez (idempotência garantida acima)
+    // Debita créditos de forma atômica
     const cost = current?.credits_cost ?? 3
-    for (let i = 0; i < cost; i++) {
-      await admin.rpc('debit_credit', { user_id_param: userId })
-    }
+    await admin.rpc('debit_credits_bulk', { 
+      user_id_param: userId, 
+      amount_param: cost 
+    })
 
     console.log(`[studio/webhook] ✅ Asset ${assetId} concluído: ${videoUrl}`)
   } else if (

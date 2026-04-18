@@ -1263,7 +1263,6 @@ export async function generateAngles(params: {
           parameters: {
             sampleCount: 1,
             aspectRatio: '9:16',
-            seed: 42
           }
         })
       })
@@ -1366,7 +1365,7 @@ export async function generateMusic(params: {
   source_image_url?: string
 }) {
   const googleApiKey = process.env.GOOGLE_API_KEY
-  if (!googleApiKey) throw new Error('GOOGLE_API_KEY nao configurada no servidor')
+  if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
   const parts: any[] = [{ text: params.prompt }]
 
@@ -1408,7 +1407,7 @@ export async function generateMusic(params: {
     }
   }
 
-  if (!audioData) throw new Error('Lyria 3 nao retornou audio')
+  if (!audioData) throw new Error('Lyria 3 não retornou áudio')
 
   const path = `${params.userId}/${params.assetId}-audio.mp3`
   const admin = createAdminClient()
