@@ -560,18 +560,18 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
           }
         })
       })
-    })
 
-    if (!imgRes.ok) {
-      const err = await imgRes.text()
-      throw new Error(`Google Imagen 4.0 erro (${imgRes.status}): ${err}`)
+      if (!imgRes.ok) {
+        const err = await imgRes.text()
+        throw new Error(`Google Imagen 4.0 erro (${imgRes.status}): ${err}`)
+      }
+
+      const data = await imgRes.json()
+      const base64 = data.predictions?.[0]?.bytesBase64Encoded
+      if (!base64) throw new Error('Google Imagen 4.0 não retornou imagem. Verifique logs.')
+
+      photoBuffer = Buffer.from(base64, 'base64')
     }
-
-    const data = await imgRes.json()
-    const base64 = data.predictions?.[0]?.bytesBase64Encoded
-    if (!base64) throw new Error('Google Imagen 4.0 não retornou imagem. Verifique logs.')
-
-    photoBuffer = Buffer.from(base64, 'base64')
 
   } else {
     // ---- MOTOR FLUX PRO 1.1 ULTRA (Opcional/Alternativo) ----
