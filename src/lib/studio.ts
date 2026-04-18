@@ -1260,10 +1260,10 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    const finalPrompt = `MODEL FACE DNA LOCK: ${traits} Same facial structure, same eyebrows, same eye shape, same hair texture from reference. Position: ${params.angle}. NO GLASSES, NO EARRINGS. High fidelity UGC photography.`
+    const finalPrompt = `A professional UGC photograph of {subject_id: 1} in a ${params.angle} position. Maintain 100% same face, same hair texture, and same appearance. NO GLASSES, NO EARRINGS. High fidelity, cinematic lighting.`
 
     try {
-      // ---- GOOGLE IMAGEN 4.0 (GEMINI API - JSON OPTIMIZED) ----
+      // ---- GOOGLE IMAGEN 4.0 (GEMINI API - SUBJECT ID LOCK) ----
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1284,14 +1284,14 @@ export async function generateAngles(params: {
             sample_count: 1,
             aspect_ratio: params.aspect_ratio || '9:16',
             reference_strength: 0.99,
-            negative_prompt: "glasses, earrings, jewelry, piercings, hats, different face, distorted, blurry"
+            negative_prompt: "glasses, earrings, jewelry, different face, distorted, blurry, extra limbs"
           }
         })
       })
 
       if (!res.ok) {
         const errorBody = await res.text()
-        console.warn(`[studio] Google Imagen falhou (${res.status}), tentando fallback para FLUX:`, errorBody)
+        console.warn(`[studio] Google Imagen falhou (${res.status}), tentando fallback:`, errorBody)
         throw new Error(`Google Error: ${errorBody}`)
       }
 
@@ -1304,35 +1304,8 @@ export async function generateAngles(params: {
       if (!allowFallback) {
         throw googleError
       }
-
-      console.error("[studio] Erro Google Imagen, migrando para FLUX de segurança...", googleError.message)
-      const falKey = process.env.FAL_KEY
-      if (!falKey) throw new Error('FAL_KEY não configurada para fallback')
-
-      const res = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Key ${falKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image_url: params.source_url,
-          prompt: `EXACT SAME PERSON FROM THE REFERENCE: ${prompt}`,
-          strength: 0.45, // Reduced for 100% ID
-          num_inference_steps: 30,
-          guidance_scale: 3.5,
-          image_size: params.aspect_ratio === '9:16' ? 'portrait_16_9' : params.aspect_ratio === '1:1' ? 'square_hd' : 'portrait_4_3',
-          output_format: 'jpeg',
-        }),
-      })
-
-      if (!res.ok) throw new Error(`Falha total em ambos os motores: ${await res.text()}`)
-      const data = await res.json()
-      const imageUrl = data.images?.[0]?.url
-      if (!imageUrl) throw new Error('Nenhum motor conseguiu gerar a imagem')
-
-      const imgDl = await fetch(imageUrl)
-      photoBuffer = Buffer.from(await imgDl.arrayBuffer())
+      // Revertido: Não usamos Replicate a pedido do usuário
+      throw googleError
     }
 
   } else {
