@@ -1288,29 +1288,18 @@ export async function generateAngles(params: {
     ].filter(Boolean).join(' ')
 
     try {
-      // ---- GOOGLE IMAGEN 4.0 - formato correto referenceImages ----
+      // ---- GOOGLE IMAGEN 4.0 - text-to-image com prompt detalhado ----
+      // Nota: referenceImages/subject_references só funciona no Vertex AI.
+      // Com Gemini API key usamos prompt ultra-detalhado + descrição da roupa via Vision.
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           instances: [{
             prompt: finalPrompt,
-            referenceImages: [{
-              referenceType: 'REFERENCE_TYPE_SUBJECT',
-              referenceId: 1,
-              referenceImage: {
-                imageUri: params.source_url
-              },
-              subjectImageConfig: {
-                subjectDescription: appearanceDesc || `A ${detectedGender} model`,
-                subjectType: 'SUBJECT_TYPE_PERSON'
-              }
-            }]
           }],
           parameters: {
             sample_count: 1,
-            // Google Imagen só aceita: 1:1 | 9:16 | 16:9 | 3:4 | 4:3
-            // 4:5 (Feed) não existe na API → mapeamos para 4:3 (mais próximo)
             aspect_ratio: ({ '9:16': '9:16', '1:1': '1:1', '16:9': '16:9', '3:4': '3:4', '4:3': '4:3', '4:5': '4:3' } as Record<string, string>)[params.aspect_ratio || '9:16'] ?? '9:16'
           }
         })
