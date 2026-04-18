@@ -5,17 +5,12 @@ import fs from 'fs'
 
 /**
  * Downloads a video and extracts its last frame as a Buffer.
- * Useful for "continuation" features in video models.
+ * Uses child_process and raw ffmpeg binary to avoid ffprobe dependency.
  */
 export async function extractLastFrame(videoUrl: string): Promise<Buffer> {
-  const { default: ffmpeg } = await import('fluent-ffmpeg')
+  const { execSync } = await import('child_process')
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const ffmpegPath = require('ffmpeg-static') as string
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const ffprobePath = require('ffprobe-static').path as string
-  
-  ffmpeg.setFfmpegPath(ffmpegPath)
-  ffmpeg.setFfprobePath(ffprobePath)
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-frame-'))
   const inputPath = path.join(tmpDir, 'input.mp4')
@@ -27,30 +22,19 @@ export async function extractLastFrame(videoUrl: string): Promise<Buffer> {
     const buf = Buffer.from(await res.arrayBuffer())
     fs.writeFileSync(inputPath, buf)
 
-    // Extrai o último frame
-    // Usamos -sseof -1 para procurar perto do fim e capturar um frame
-    await new Promise<void>((resolve, reject) => {
-      ffmpeg(inputPath)
-        .seekInput('99:99:99') // Tenta ir para o fim extremo para forçar o último frame
-        .outputOptions(['-vframes', '1', '-q:v', '2'])
-        .output(outputPath)
-        .on('end', () => resolve())
-        .on('error', (err: any) => {
-          // Se falhou buscando o fim absoluto, tenta extrair o primeiro frame como fallback
-          ffmpeg(inputPath)
-            .screenshots({
-              timestamps: ['100%'],
-              filename: 'last_frame.jpg',
-              folder: tmpDir,
-            })
-            .on('end', () => resolve())
-            .on('error', (e: any) => reject(e))
-        })
-        .run()
-    })
+    // Comando FFmpeg robusto para pegar o último frame:
+    // -sseof -0.1 (procura perto do fim)
+    // -frames:v 1 (pega o primeiro frame após o seek)
+    // -update 1 (output como imagem única)
+    try {
+      execSync(`"${ffmpegPath}" -y -sseof -1 -i "${inputPath}" -frames:v 1 -q:v 2 "${outputPath}"`, { stdio: 'ignore' })
+    } catch {
+      // Fallback: se o vídeo for muito curto (< 1s), tenta pegar o primeiro frame
+      execSync(`"${ffmpegPath}" -y -i "${inputPath}" -frames:v 1 -q:v 2 "${outputPath}"`, { stdio: 'ignore' })
+    }
 
     if (!fs.existsSync(outputPath)) {
-        throw new Error('Falha ao gerar o arquivo de frame')
+        throw new Error('Falha ao gerar o arquivo de frame via FFmpeg CLI')
     }
 
     return fs.readFileSync(outputPath)
