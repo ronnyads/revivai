@@ -1348,17 +1348,12 @@ export async function generateAngles(params: {
           },
           body: JSON.stringify({
             instances: [{
-              prompt: finalPrompt,
-              // Estrutura ultra-rígida de referência sugerida para Imagen 4.0
-              referenceImages: [{
-                referenceId: 1,
-                referenceType: 'REFERENCE_TYPE_SUBJECT',
-                image: {
-                  bytesBase64Encoded: base64Image,
-                  mimeType: 'image/jpeg'
-                }
-              }],
-              // Parâmetros de força na instância
+              prompt: `A photorealistic UGC photo of the EXACT SAME PERSON from {reference_image}: ${prompt}`,
+              // Formato 'Fix Definitivo' (Singular e Direto)
+              reference_image: {
+                bytesBase64Encoded: base64Image,
+                mimeType: 'image/jpeg'
+              },
               reference_strength: 0.99,
               negative_prompt: detectedGender === 'woman' 
                 ? `man, male, boy, masculine, facial hair, different face, different person, new character, face transformation, cartoon, anime, illustration`
@@ -1368,7 +1363,7 @@ export async function generateAngles(params: {
               sampleCount: 1,
               aspectRatio: params.aspect_ratio === '9:16' ? '9:16' : 
                           params.aspect_ratio === '1:1' ? '1:1' : '9:16',
-              seed: 42, // Fixo para consistência absoluta entre ângulos
+              seed: 42,
               safetyFilterLevel: 'BLOCK_ONLY_HIGH',
               personGenerationConfig: {
                 allowAdultContent: true,
@@ -1495,10 +1490,11 @@ async function getVertexAccessToken(keyJson?: string): Promise<string> {
     })
     const client = await auth.getClient()
     const token = await client.getAccessToken()
-    return token.token || ''
-  } catch (e) {
+    if (!token.token) throw new Error('Token vindo do Google está vazio. Verifique permissões da IA.')
+    return token.token
+  } catch (e: any) {
     console.error('[studio] ERRO CRÍTICO NO TOKEN VERTEX:', e)
-    return ''
+    throw new Error(`Erro Autenticação Vertex: ${e.message}`)
   }
 }
 
