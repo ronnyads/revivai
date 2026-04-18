@@ -1321,9 +1321,9 @@ export async function generateAngles(params: {
       },
       body: JSON.stringify({
       image_url: params.source_url,
-      prompt: `EXACT SAME PERSON FROM THE REFERENCE: ${prompt}`,
-      strength: 0.45, // Much stricter identity lock
-      num_inference_steps: 30,
+      prompt: `${prompt} — camera angle change ONLY. Do NOT alter any clothing, outfit, hair color, face, or accessories. Preserve every visual detail from the source image.`,
+      strength: 0.28,
+      num_inference_steps: 35,
       guidance_scale: 3.5,
       image_size: params.aspect_ratio === '9:16' ? 'portrait_16_9' : params.aspect_ratio === '1:1' ? 'square_hd' : 'portrait_4_3',
       output_format: 'jpeg',

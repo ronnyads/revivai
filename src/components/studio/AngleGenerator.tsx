@@ -21,7 +21,7 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
   const [selectedAngle, setSelectedAngle] = useState(initial.angle as string || 'frontal')
   const [aspectRatio, setAspectRatio] = useState(initial.aspect_ratio as string || '9:16')
   const [engine, setEngine] = useState((initial.engine as string) || 'flux')
-  const [activeConfig, setActiveConfig] = useState({ anglesGoogle: true, anglesFlux: true })
+  const [activeConfig, setActiveConfig] = useState({ anglesGoogle: false, anglesFlux: true })
 
   // Busca configurações do Admin
   useEffect(() => {
@@ -29,8 +29,10 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
       .then(r => r.json())
       .then(config => {
         setActiveConfig(config)
-        if (config.anglesGoogle && !config.anglesFlux) setEngine('google')
+        // FLUX é sempre preferido pois preserva identidade/roupa melhor
         if (!config.anglesGoogle && config.anglesFlux) setEngine('flux')
+        if (config.anglesGoogle && !config.anglesFlux) setEngine('google')
+        if (config.anglesGoogle && config.anglesFlux) setEngine('flux') // ambos ativos → força FLUX
       })
       .catch(() => {})
   }, [])
