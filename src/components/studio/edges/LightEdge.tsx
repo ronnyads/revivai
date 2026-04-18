@@ -12,19 +12,48 @@ export default function LightEdge({
 
   return (
     <>
-      {/* Linha grossa e interativa invisível para facilitar o clique */}
-      <path d={edgePath} fill="none" stroke="transparent" strokeWidth={15} className="react-flow__edge-interaction" />
+      <style>{`
+        @keyframes dashdraw {
+          from { stroke-dashoffset: 20; }
+          to { stroke-dashoffset: 0; }
+        }
+        .light-ray {
+          animation: dashdraw 0.8s linear infinite;
+        }
+      `}</style>
+
+      {/* Linha de interação (invisível, mas grossa) */}
+      <path d={edgePath} fill="none" stroke="transparent" strokeWidth={20} className="react-flow__edge-interaction" />
       
-      {/* Estilo Miro: linha sólida, cinza/azulada, limpa */}
+      {/* Base da aresta (estática) */}
       <BaseEdge 
         id={id} 
         path={edgePath} 
-        markerEnd={markerEnd} 
         style={{ 
-          stroke: '#94a3b8', 
-          strokeWidth: 2,
+          stroke: '#3f3f46', 
+          strokeWidth: 2.5,
+          opacity: 0.4
         }} 
       />
+
+      {/* Raio de luz (Animado) */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="url(#ray-gradient)"
+        strokeWidth={3}
+        strokeDasharray="8, 12"
+        className="light-ray"
+        markerEnd={markerEnd}
+      />
+
+      <defs>
+        <linearGradient id="ray-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#f97316" stopOpacity="0.2" />
+          <stop offset="50%" stopColor="#fb923c" stopOpacity="1" />
+          <stop offset="100%" stopColor="#f97316" stopOpacity="0.2" />
+        </linearGradient>
+      </defs>
     </>
   )
 }

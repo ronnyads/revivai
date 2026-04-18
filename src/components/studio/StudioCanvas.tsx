@@ -521,6 +521,9 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     // Infere o handle alvo com base nos tipos — cobre todas as combinações relevantes
     // A inferência SEMPRE tem prioridade sobre o handle clicado manualmente,
     // para que o cliente não precise saber qual porta usar.
+    // Infere o handle alvo com base nos tipos — cobre todas as combinações relevantes
+    // A inferência SEMPRE tem prioridade sobre o handle clicado manualmente,
+    // para que o cliente não precise saber qual porta usar. Basta conectar no card.
     function inferTarget(): string | null {
       const src = assets.find(a => a.id === source)
       const tgt = assets.find(a => a.id === target)
@@ -530,19 +533,20 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       const t = tgt.type
 
       // Categorias de saída por tipo
-      const isImage = (x: AssetType) => ['model', 'image', 'compose', 'upscale'].includes(x)
-      const isVideo = (x: AssetType) => ['video', 'animate', 'lipsync'].includes(x)
-      const isAudio = (x: AssetType) => x === 'voice'
+      const isImage = (x: AssetType) => ['model', 'image', 'compose', 'upscale', 'angles', 'face'].includes(x)
+      const isVideo = (x: AssetType) => ['video', 'animate', 'lipsync', 'render', 'join'].includes(x)
+      const isAudio = (x: AssetType) => ['voice', 'music'].includes(x)
       const isText  = (x: AssetType) => x === 'script'
 
       switch (t) {
         case 'image':
+          if (isText(s))         return 'prompt'
           if (s === 'model')     return 'model_prompt'
           if (s === 'face')      return 'source_face_url'
           break
 
         case 'video':
-          if (s === 'model')     return 'model_prompt'    // descreve o personagem no prompt
+          if (s === 'model')     return 'model_prompt'
           if (isImage(s))        return 'source_image_url'
           if (isVideo(s))        return 'continuation_frame'
           if (isAudio(s))        return 'audio_url'
@@ -576,6 +580,14 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         case 'lipsync':
           if (isVideo(s) || isImage(s)) return 'face_url'
           if (isAudio(s))               return 'audio_url'
+          break
+
+        case 'angles':
+          if (isImage(s))        return 'source_url'
+          break
+
+        case 'music':
+          if (isImage(s))        return 'source_image_url'
           break
 
         case 'join':

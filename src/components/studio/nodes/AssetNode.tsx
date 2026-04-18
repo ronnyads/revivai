@@ -124,31 +124,58 @@ function AssetNode({ data }: NodeProps) {
       {inputHandles.map((h, i) => (
         <div
           key={h.id}
-          style={{ position: 'absolute', left: 0, top: `${48 + i * 28}px`, transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', zIndex: 50, pointerEvents: 'none' }}
+          className="group"
+          style={{ position: 'absolute', left: 0, top: `${48 + i * 28}px`, transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', zIndex: 60, pointerEvents: 'none' }}
         >
           <Handle
             type="target"
             position={Position.Left}
             id={h.id}
-            style={{ position: 'relative', left: 0, top: 0, transform: 'none', background: '#8b5cf6', width: 12, height: 12, border: '2px solid rgba(255,255,255,0.2)', cursor: 'crosshair', pointerEvents: 'auto', boxShadow: '0 0 10px rgba(139, 92, 246, 0.4)' }}
+            style={{ 
+              position: 'relative', 
+              left: 1, 
+              top: 0, 
+              transform: 'none', 
+              background: '#8b5cf6', 
+              width: 16, 
+              height: 16, 
+              border: '3px solid rgba(255,255,255,0.4)', 
+              cursor: 'pointer', 
+              pointerEvents: 'auto', 
+              boxShadow: '0 0 15px rgba(139, 92, 246, 0.5)',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}
             title={h.label}
           />
-          <span className="ml-2 text-[10px] font-bold text-zinc-500 uppercase tracking-tighter bg-zinc-900/90 backdrop-blur px-2 py-0.5 rounded-md border border-white/5 pointer-events-none">
+          <span className="ml-2.5 text-[10px] font-bold text-zinc-300 uppercase tracking-tight bg-zinc-900/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/5 opacity-60 group-hover:opacity-100 transition-opacity">
             {h.label}
           </span>
         </div>
       ))}
 
       {/* OUTPUT handle — direita */}
-      <div style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', zIndex: 50, pointerEvents: 'none' }}>
-        <span className="mr-2 text-[10px] font-bold text-orange-500/80 uppercase tracking-tighter bg-zinc-900/90 backdrop-blur px-2 py-0.5 rounded-md border border-orange-500/20 pointer-events-none">
+      <div className="group" style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', zIndex: 60, pointerEvents: 'none' }}>
+        <span className="mr-2.5 text-[10px] font-bold text-orange-400 uppercase tracking-tight bg-zinc-900/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-orange-500/20 opacity-60 group-hover:opacity-100 transition-opacity">
           {meta.output}
         </span>
         <Handle
           type="source"
           position={Position.Right}
           id="output"
-          style={{ position: 'relative', right: 0, top: 0, transform: 'none', background: '#f97316', width: 12, height: 12, border: '2px solid rgba(255,255,255,0.2)', cursor: 'crosshair', pointerEvents: 'auto', boxShadow: '0 0 10px rgba(249, 115, 22, 0.4)' }}
+          style={{ 
+            position: 'relative', 
+            right: 1, 
+            top: 0, 
+            transform: 'none', 
+            background: '#f97316', 
+            width: 16, 
+            height: 16, 
+            border: '3px solid rgba(255,255,255,0.4)', 
+            cursor: 'pointer', 
+            pointerEvents: 'auto', 
+            boxShadow: '0 0 15px rgba(249, 115, 22, 0.5)',
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+          }}
           title={meta.output}
         />
       </div>
