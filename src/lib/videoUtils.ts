@@ -11,33 +11,43 @@ export async function extractLastFrame(videoUrl: string): Promise<Buffer> {
 
   console.log(`[videoUtils] Chamando Fal AI para extrair frame de: ${videoUrl}`)
 
-  const res = await fetch('https://fal.run/fal-ai/ffmpeg-api/extract-frame', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Key ${falKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      video_url: videoUrl,
-      frame_type: 'last', // Agora pegamos o último frame oficialmente via API
-    }),
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 8000) // 8s timeout
 
-  if (!res.ok) {
-    const errText = await res.text()
-    console.error('[videoUtils] Erro na API da Fal AI:', errText)
-    throw new Error(`Fal AI failed to extract frame: ${errText.slice(0, 200)}`)
+  try {
+    const res = await fetch('https://fal.run/fal-ai/ffmpeg-api/extract-frame', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        video_url: videoUrl,
+        frame_type: 'last',
+      }),
+      signal: controller.signal
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!res.ok) {
+        const errText = await res.text()
+        console.error('[videoUtils] Erro na API da Fal AI:', errText)
+        throw new Error(`Fal AI failed to extract frame: ${errText.slice(0, 200)}`)
+    }
+
+    const data = await res.json()
+    const frameUrl = data.images?.[0]?.url || data.image?.url
+    if (!frameUrl) throw new Error('API da Fal AI não retornou URL da imagem')
+
+    const imgRes = await fetch(frameUrl)
+    if (!imgRes.ok) throw new Error('Falha ao baixar imagem extraída da Fal AI')
+    
+    return Buffer.from(await imgRes.arrayBuffer())
+  } catch (err: any) {
+    clearTimeout(timeoutId)
+    throw err
   }
-
-  const data = await res.json()
-  const frameUrl = data.images?.[0]?.url || data.image?.url
-  if (!frameUrl) throw new Error('API da Fal AI não retornou URL da imagem')
-
-  // Baixa a imagem resultante para retornar como Buffer (para compatibilidade com storage local)
-  const imgRes = await fetch(frameUrl)
-  if (!imgRes.ok) throw new Error('Falha ao baixar imagem extraída da Fal AI')
-  
-  return Buffer.from(await imgRes.arrayBuffer())
 }
 
 /**

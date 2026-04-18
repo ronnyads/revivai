@@ -121,17 +121,24 @@ export async function POST(
         console.error("[sync] Falha ao transpor vídeo Veo3 p/ Storage:", e)
       }
       
-      console.log(`[sync] Veo3 Success for ${id}. URL: ${finalUrl}`)
-
-      // Extrai e salva o último frame para facilitar a continuação
-      const lastFrameUrl = await saveLastFrame(finalUrl, user.id, id)
-
+      // Primeiro marcamos como done p/ liberar o vídeo no Board
       await admin.from('studio_assets').update({ 
         status: 'done', 
         result_url: finalUrl, 
-        last_frame_url: lastFrameUrl || finalUrl, 
         error_msg: null 
       }).eq('id', id)
+
+      console.log(`[sync] Veo3 Success for ${id}. URL: ${finalUrl}`)
+
+      // Frame extraction em segundo plano (dentro do fluxo do sync)
+      try {
+        const lastFrameUrl = await saveLastFrame(finalUrl!, user.id, id)
+        if (lastFrameUrl) {
+          await admin.from('studio_assets').update({ last_frame_url: lastFrameUrl }).eq('id', id)
+        }
+      } catch (e) {
+        console.error("[sync] Erro ao extrair frame (opcional):", e)
+      }
 
       return NextResponse.json({ status: 'done', result_url: finalUrl })
 
