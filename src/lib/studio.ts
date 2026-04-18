@@ -499,7 +499,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   )
   const finalPrompt = `Candid portrait photo of a real person: ${text} ${fluxSuffix}`
 
-  let photoBuffer: Buffer
+  let photoBuffer: Buffer | null = null
 
   if (params.engine === 'google' || !params.engine) {
     try {
@@ -604,6 +604,8 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
     const imgRes = await fetch(tempUrl)
     photoBuffer = Buffer.from(await imgRes.arrayBuffer())
   }
+
+  if (!photoBuffer) throw new Error('Falha ao gerar o buffer da foto do modelo.')
 
   const path = `${params.userId}/${params.assetId}-model.jpg`
   const { error } = await admin.storage
@@ -1294,7 +1296,7 @@ export async function generateAngles(params: {
 
   console.log(`[studio] Gerando Angulo [${engine}] para asset ${params.assetId}. URL: ${params.source_url.slice(0, 50)}...`)
 
-  let photoBuffer: Buffer
+  let photoBuffer: Buffer | null = null
 
   const { data: fallbackSet } = await admin.from('studio_prompts').select('value').eq('key', 'angles_fallback_active').single()
   const allowFallback = fallbackSet?.value === 'true'
@@ -1445,6 +1447,8 @@ export async function generateAngles(params: {
     const imgDl = await fetch(imageUrl)
     photoBuffer = Buffer.from(await imgDl.arrayBuffer())
   }
+
+  if (!photoBuffer) throw new Error('Falha ao gerar o buffer da foto do modelo.')
 
   // Define caminho e sobe pro Storage
   const storagePath = `${params.userId}/${params.assetId}-angle.jpg`
