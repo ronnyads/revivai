@@ -1363,7 +1363,7 @@ export async function generateAngles(params: {
           parameters: {
             sampleCount: 1,
             aspectRatio: params.aspect_ratio === '1:1' ? '1:1' : '9:16',
-            seed: 42,
+            addWatermark: false,
             safetyFilterLevel: 'BLOCK_ONLY_HIGH',
             personGenerationConfig: {
               allowAdultContent: true,
