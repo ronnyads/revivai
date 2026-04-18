@@ -1353,13 +1353,11 @@ export async function generateAngles(params: {
             referenceImages: [
               {
                 referenceId: 1,
-                referenceType: "REFERENCE_TYPE_SUBJECT",
+                referenceType: "REFERENCE_TYPE_RAW",
                 referenceImage: {
                   bytesBase64Encoded: base64Image,
                   mimeType: 'image/jpeg'
-                },
-                subjectDescription: sourceDescription || `A ${detectedGender}`,
-                subjectType: "SUBJECT_TYPE_PERSON"
+                }
               }
             ],
             negative_prompt: detectedGender === 'woman' 
@@ -1371,12 +1369,7 @@ export async function generateAngles(params: {
             aspectRatio: params.aspect_ratio === '1:1' ? '1:1' : '9:16',
             addWatermark: false,
             safetyFilterLevel: 'BLOCK_ONLY_HIGH',
-            personGenerationConfig: {
-              allowAdultContent: true,
-              preserveIdentity: true,
-              preserveFaceFeatures: true,
-              preserveBodyShape: true
-            }
+            personGeneration: 'ALLOW_ALL'
           }
         })
       })
