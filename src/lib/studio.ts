@@ -1201,6 +1201,9 @@ export async function generateAngles(params: {
 
   let photoBuffer: Buffer
 
+  const { data: fallbackSet } = await admin.from('studio_prompts').select('value').eq('key', 'angles_fallback_active').single()
+  const allowFallback = fallbackSet?.value === 'true'
+
   if (engine === 'google') {
     try {
       // ---- GOOGLE IMAGEN 4.0 (SUBJECT CONTROL) ----
@@ -1251,6 +1254,10 @@ export async function generateAngles(params: {
       photoBuffer = Buffer.from(base64, 'base64')
 
     } catch (googleError: any) {
+      if (!allowFallback) {
+        throw googleError // Se a retentiva estiver desligada, joga o erro real do Google na tela
+      }
+
       console.error("[studio] Erro Google Imagen, migrando para FLUX de segurança...", googleError.message)
       // Se o Google der qualquer erro (400, 404, etc), usamos o motor FLUX pra não deixar o usuário na mão
       const falKey = process.env.FAL_KEY

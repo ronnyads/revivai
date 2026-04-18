@@ -9,7 +9,8 @@ export async function GET() {
     .select('key, value')
     .in('key', [
       'model_engine_google_active', 'model_engine_flux_active',
-      'angles_engine_google_active', 'angles_engine_flux_active'
+      'angles_engine_google_active', 'angles_engine_flux_active',
+      'angles_fallback_active'
     ])
 
   const config = {
@@ -17,6 +18,7 @@ export async function GET() {
     flux:   prompts?.find(p => p.key === 'model_engine_flux_active')?.value === 'true',
     anglesGoogle: prompts?.find(p => p.key === 'angles_engine_google_active')?.value === 'true',
     anglesFlux:   prompts?.find(p => p.key === 'angles_engine_flux_active')?.value === 'true',
+    anglesFallback: prompts?.find(p => p.key === 'angles_fallback_active')?.value === 'true',
   }
 
   // Fallback: se nada estiver configurado no model, assume Google como padrão

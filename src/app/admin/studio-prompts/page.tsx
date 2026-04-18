@@ -50,6 +50,12 @@ const PROMPT_GROUPS: {
         description: 'Ferramenta: FLUX (Fal AI). Recomendado. Faz um Image-to-image cirúrgico controlando 85% de força.',
         type: 'boolean'
       },
+      {
+        key: 'angles_fallback_active',
+        label: '🛡️ Retentiva (Fallback Automático)',
+        description: 'Se o Google falhar, tenta o FLUX em silêncio. Desligue para ver os erros reais do Google.',
+        type: 'boolean'
+      },
     ],
   },
   {
