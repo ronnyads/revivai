@@ -1,6 +1,7 @@
 // FORCE_REBUILD_ID: 2716873455033918919
 import sharp from 'sharp'
 import { VertexAI } from '@google-cloud/vertexai'
+import { GoogleAuth } from 'google-auth-library'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AssetType } from '@/types'
 
@@ -1452,8 +1453,6 @@ export async function generateAngles(params: {
 async function getVertexAccessToken(keyJson?: string): Promise<string> {
   if (!keyJson) return ''
   try {
-    const { GoogleAuth } = require('google-auth-library')
-    
     // Tenta limpar possíveis erros de escape no JSON vindo de ENV
     let credentials = keyJson
     if (keyJson.startsWith('"') && keyJson.endsWith('"')) {
@@ -1594,6 +1593,9 @@ export async function generateUGCPositions(params: {
 
   const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001:predict`
 
+  console.log(`[studio] UGC BUNDLE: Target URL: ${vertexUrl}`)
+  console.log(`[studio] UGC BUNDLE: Using Project: ${projectId}`)
+
   console.log('[studio] Starting Parallel Generation of 8 UGC Positions using Vertex AI...')
   
   const positions = await Promise.all(
@@ -1615,10 +1617,7 @@ export async function generateUGCPositions(params: {
           }],
           parameters: {
             sampleCount: 1,
-            aspectRatio: '9:16',
-            addWatermark: false,
-            safetyFilterLevel: 'BLOCK_ONLY_HIGH',
-            personGeneration: 'ALLOW_ALL'
+            aspectRatio: '9:16'
           }
         }
 
