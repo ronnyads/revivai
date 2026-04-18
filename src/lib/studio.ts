@@ -1202,52 +1202,82 @@ export async function generateAngles(params: {
   let photoBuffer: Buffer
 
   if (engine === 'google') {
-    // ---- GOOGLE IMAGEN 4.0 (SUBJECT CONTROL) ----
-    const googleApiKey = process.env.GOOGLE_API_KEY
-    if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+    try {
+      // ---- GOOGLE IMAGEN 4.0 (SUBJECT CONTROL) ----
+      const googleApiKey = process.env.GOOGLE_API_KEY
+      if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
-    // 1. Download base image
-    if (!params.source_url || !params.source_url.startsWith('http')) {
-      throw new Error('A imagem de origem para a Direção de Cena (Google) deve ser uma URL pública válida.')
-    }
+      // 1. Download base image
+      if (!params.source_url || !params.source_url.startsWith('http')) {
+        throw new Error('URL da imagem fonte inválida para o Imagen')
+      }
 
-    const imgRes = await fetch(params.source_url)
-    if (!imgRes.ok) throw new Error(`Falha ao baixar imagem fonte para o Imagen: ${imgRes.status}`)
-    const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
-    const base64Image = imgBuffer.toString('base64')
+      const imgRes = await fetch(params.source_url)
+      if (!imgRes.ok) throw new Error(`Erro download: ${imgRes.status}`)
+      const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
+      const base64Image = imgBuffer.toString('base64')
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        instances: [{
-          prompt,
-          referenceImages: [{
-            referenceId: 1,
-            referenceType: 'SUBJECT',
-            image: { 
-              bytesBase64Encoded: base64Image, 
-              mimeType: 'image/jpeg' 
-            }
-          }]
-        }],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: '9:16',
-          personGeneration: 'ALLOW_ADULT'
-        }
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instances: [{
+            prompt,
+            referenceImages: [{
+              referenceId: 1,
+              referenceType: 'SUBJECT',
+              image: { 
+                bytesBase64Encoded: base64Image
+              }
+            }]
+          }],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio: '9:16',
+            personGeneration: 'ALLOW_ADULT'
+          }
+        })
       })
-    })
 
-    if (!res.ok) {
-      const err = await res.text()
-      throw new Error(`Google Imagen erro (${res.status}): ${err}`)
+      if (!res.ok) {
+        const errorBody = await res.text()
+        console.warn(`[studio] Google Imagen falhou (${res.status}), tentando fallback para FLUX:`, errorBody)
+        throw new Error(`Google Error: ${errorBody}`)
+      }
+
+      const data = await res.json()
+      const base64 = data.predictions?.[0]?.bytesBase64Encoded
+      if (!base64) throw new Error('Imagem não retornada pelo Google')
+      photoBuffer = Buffer.from(base64, 'base64')
+
+    } catch (googleError: any) {
+      console.error("[studio] Erro Google Imagen, migrando para FLUX de segurança...", googleError.message)
+      // Se o Google der qualquer erro (400, 404, etc), usamos o motor FLUX pra não deixar o usuário na mão
+      const falKey = process.env.FAL_KEY
+      if (!falKey) throw new Error('FAL_KEY não configurada para fallback')
+
+      const res = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Key ${falKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image_url: params.source_url,
+          prompt: prompt,
+          strength: 0.85, 
+          output_format: 'jpeg',
+        }),
+      })
+
+      if (!res.ok) throw new Error(`Falha total em ambos os motores: ${await res.text()}`)
+      const data = await res.json()
+      const imageUrl = data.images?.[0]?.url
+      if (!imageUrl) throw new Error('Nenhum motor conseguiu gerar a imagem')
+
+      const imgDl = await fetch(imageUrl)
+      photoBuffer = Buffer.from(await imgDl.arrayBuffer())
     }
-
-    const data = await res.json()
-    const base64 = data.predictions?.[0]?.bytesBase64Encoded
-    if (!base64) throw new Error('Google Imagen não retornou a nova perspectiva. Verifique logs.')
-    photoBuffer = Buffer.from(base64, 'base64')
 
   } else {
     // ---- FLUX DEV (IMAGE-TO-IMAGE) ----
