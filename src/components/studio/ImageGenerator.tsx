@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Sparkles, User, ChevronDown, Fingerprint, Check } from 'lucide-react'
+import { CREDIT_COST } from '@/constants/studio'
 
 interface Props {
   initial: Record<string, unknown>
