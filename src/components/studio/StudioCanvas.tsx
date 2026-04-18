@@ -534,7 +534,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       const t = tgt.type
 
       // Categorias de saída por tipo
-      const isImage = (x: AssetType) => ['model', 'image', 'compose', 'upscale', 'angles', 'face'].includes(x)
+      const isImage = (x: AssetType) => ['model', 'image', 'compose', 'upscale', 'angles', 'face', 'ugc_bundle'].includes(x)
       const isVideo = (x: AssetType) => ['video', 'animate', 'lipsync', 'render', 'join'].includes(x)
       const isAudio = (x: AssetType) => ['voice', 'music'].includes(x)
       const isText  = (x: AssetType) => x === 'script'
