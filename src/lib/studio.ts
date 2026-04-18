@@ -1245,8 +1245,8 @@ export async function generateAngles(params: {
     const finalPrompt = `Maintain 100% identity of the woman in the reference. Beautiful ${detectedGender} model UGC, identical face, identical long hair, professional studio, cinematic lighting, position: ${params.angle}`
 
     try {
-      // ---- GOOGLE IMAGEN 3.0 (STABLE FAST ENGINE) ----
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-fast-001:predict?key=${googleApiKey}`, {
+      // ---- GOOGLE IMAGEN 4.0 (SUBJECT CUSTOMIZATION - GEMINI API STYLE) ----
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
