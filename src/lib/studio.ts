@@ -502,9 +502,38 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 
   let photoBuffer: Buffer
 
-  // Agora o motor padrão é o FLUX PRO 1.1 ULTRA (Superior em realismo e estabilidade)
-  if (params.engine !== 'google') {
-    // ---- MOTOR FLUX PRO 1.1 ULTRA (Padrão) ----
+  // O motor padrão volta a ser o GOOGLE (Agora usando o IMAGEN 4.0 ULTRA identificado no diagnóstico)
+  if (params.engine === 'google' || !params.engine) {
+    // ---- MOTOR GOOGLE IMAGEN 4.0 ULTRA (Padrão) ----
+    const googleApiKey = process.env.GOOGLE_API_KEY
+    if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+
+    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{ prompt: finalPrompt }],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: '9:16',
+          personGeneration: 'ALLOW_ADULT' 
+        }
+      })
+    })
+
+    if (!imgRes.ok) {
+      const err = await imgRes.text()
+      throw new Error(`Google Imagen 4.0 erro (${imgRes.status}): ${err}`)
+    }
+
+    const data = await imgRes.json()
+    const base64 = data.predictions?.[0]?.bytesBase64Encoded
+    if (!base64) throw new Error('Google Imagen 4.0 não retornou imagem. Verifique logs.')
+
+    photoBuffer = Buffer.from(base64, 'base64')
+
+  } else {
+    // ---- MOTOR FLUX PRO 1.1 ULTRA (Opcional/Alternativo) ----
     const falKey = process.env.FAL_KEY
     if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
 
@@ -533,37 +562,6 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 
     const imgRes = await fetch(tempUrl)
     photoBuffer = Buffer.from(await imgRes.arrayBuffer())
-
-  } else {
-    // ---- MOTOR GOOGLE IMAGEN 3 (Opcional/Fallback) ----
-    const googleApiKey = process.env.GOOGLE_API_KEY
-    if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
-
-    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-fast-generate-001:predict?key=${googleApiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        instances: [{ prompt: finalPrompt }],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: '9:16',
-          personGeneration: 'ALLOW_ADULT' 
-        }
-      })
-    })
-
-    if (!imgRes.ok) {
-      const errText = await imgRes.text()
-      throw new Error(`Imagen 3 (Google) Error: ${errText}`)
-    }
-
-    const imgData = await imgRes.json()
-    const base64Str = imgData.predictions?.[0]?.bytesBase64Encoded
-    if (!base64Str) {
-      console.error('Google Response:', JSON.stringify(imgData))
-      throw new Error('Imagen 3 não retornou dados da imagem da Google (predict)')
-    }
-    photoBuffer = Buffer.from(base64Str, 'base64')
   }
 
   const path = `${params.userId}/${params.assetId}-model.jpg`
