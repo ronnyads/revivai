@@ -1188,11 +1188,11 @@ export async function generateAngles(params: {
   const engine = params.engine ?? 'flux'
   
   const angleMap: Record<string, string> = {
-    frontal: 'frontal shot, looking directly at the camera, symmetric composition',
-    profile: 'side profile shot, face turned 90 degrees away from the camera',
-    closeup: 'extreme close-up macro shot of the face details',
-    wide:    'extreme wide angle, full body shot showing the entire outfit and environment',
-    back:    'shot from behind, back facing the camera, turning away',
+    frontal: 'frontal shot, looking directly at the camera, symmetric composition, consistent facial identity',
+    profile: 'side profile shot, face turned 90 degrees away from the camera, consistent facial features',
+    closeup: 'extreme close-up macro shot of the face details, maintaining skin texture and eye color',
+    wide:    'extreme wide angle, full body shot, maintaining body proportions and clothing',
+    back:    'shot from behind, back facing the camera, turning away, but maintaining the same hair style, hair color and gender silhouette',
   }
 
   const perspective = angleMap[params.angle] || angleMap['frontal']
