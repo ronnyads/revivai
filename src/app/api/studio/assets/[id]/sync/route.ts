@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Replicate from 'replicate'
+import { saveLastFrame } from '@/lib/videoUtils'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/studio/assets/[id]/sync
@@ -121,10 +122,14 @@ export async function POST(
       }
       
       console.log(`[sync] Veo3 Success for ${id}. URL: ${finalUrl}`)
+
+      // Extrai e salva o último frame para facilitar a continuação
+      const lastFrameUrl = await saveLastFrame(finalUrl, user.id, id)
+
       await admin.from('studio_assets').update({ 
         status: 'done', 
         result_url: finalUrl, 
-        last_frame_url: finalUrl, 
+        last_frame_url: lastFrameUrl || finalUrl, 
         error_msg: null 
       }).eq('id', id)
 
@@ -210,11 +215,14 @@ export async function POST(
         }
 
         videoUrl = await persistToStorage(admin, videoUrl, user.id, id)
+        
+        // Extrai e salva o último frame para facilitar a continuação
+        const lastFrameUrl = await saveLastFrame(videoUrl, user.id, id)
 
         await admin.from('studio_assets').update({
           status: 'done',
           result_url: videoUrl,
-          last_frame_url: videoUrl,
+          last_frame_url: lastFrameUrl || videoUrl,
           error_msg: null,
         }).eq('id', id)
 

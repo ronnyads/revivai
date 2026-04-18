@@ -4,6 +4,7 @@ import { VertexAI } from '@google-cloud/vertexai'
 import { GoogleAuth } from 'google-auth-library'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AssetType } from '@/types'
+import { extractLastFrame as extractVideoFrame } from './videoUtils'
 
 export { CREDIT_COST } from '@/constants/studio'
 
@@ -1170,11 +1171,26 @@ export async function startVeo3DirectGoogle(params: {
   const admin = createAdminClient()
 
   // 1. Baixa imagem e converte para base64 (Google API não aceita URLs externas)
-  const imgRes = await fetch(params.source_image_url)
-  if (!imgRes.ok) throw new Error('Falha ao baixar imagem fonte para Veo3 Google')
-  const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
+  // Se for um vídeo (continuação), extraímos o frame agora mesmo
+  let finalSourceUrl = params.source_image_url
+  let imgBuffer: Buffer
+
+  if (finalSourceUrl.toLowerCase().includes('.mp4')) {
+    console.log(`[studio] Detectado vídeo como origem para Veo3. Extraindo último frame...`)
+    try {
+      imgBuffer = await extractVideoFrame(finalSourceUrl)
+    } catch (e) {
+      console.error(`[studio] Falha ao extrair frame on-the-fly:`, e)
+      throw new Error('Não foi possível processar a continuação: falha ao extrair frame do vídeo anterior.')
+    }
+  } else {
+    const imgRes = await fetch(finalSourceUrl)
+    if (!imgRes.ok) throw new Error('Falha ao baixar imagem fonte para Veo3 Google')
+    imgBuffer = Buffer.from(await imgRes.arrayBuffer())
+  }
+
   const base64Image = imgBuffer.toString('base64')
-  const mimeType = imgRes.headers.get('content-type') ?? 'image/jpeg'
+  const mimeType = 'image/jpeg'
 
   const model = 'veo-3.1-generate-preview';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`;

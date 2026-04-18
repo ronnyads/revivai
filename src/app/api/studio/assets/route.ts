@@ -157,9 +157,29 @@ export async function POST(req: NextRequest) {
 
       const AUDIO_EXTS = /\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i
       const continuationFrame = String(input_params.continuation_frame ?? '')
-      const sourceImageUrl = (continuationFrame && !AUDIO_EXTS.test(continuationFrame))
-        ? continuationFrame
-        : String(input_params.source_image_url ?? '')
+      let sourceImageUrl = String(input_params.source_image_url ?? '')
+
+      // Se houver frame de continuação, tentamos descobrir se ele tem um 'last_frame' (imagem) associado
+      if (continuationFrame) {
+        if (AUDIO_EXTS.test(continuationFrame)) {
+          // É áudio, ignora para source_image
+        } else {
+          // Tenta buscar no banco se esse frame é o result_url de algum asset, para pegar o 'last_frame_url'
+          const { data: linkedAsset } = await admin
+            .from('studio_assets')
+            .select('last_frame_url, type')
+            .eq('result_url', continuationFrame)
+            .maybeSingle()
+
+          if (linkedAsset?.last_frame_url && linkedAsset.last_frame_url !== continuationFrame) {
+            // Sucesso: pegamos a imagem do último frame em vez do .mp4
+            sourceImageUrl = linkedAsset.last_frame_url
+          } else {
+            // Fallback: se não achou no banco ou não tem imagem, usa o que veio (pode ser o mp4 direto)
+            sourceImageUrl = continuationFrame
+          }
+        }
+      }
 
       if (input_params.engine === 'veo') {
         await startVeo3DirectGoogle({
