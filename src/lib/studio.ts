@@ -1338,7 +1338,7 @@ export async function generateAngles(params: {
         if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada. Vertex AI é obrigatório.')
 
         const vertexToken = await getVertexAccessToken(vertexKey)
-        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-generate-002:predict`
+        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001:predict`
 
         console.log(`[studio] Chamando Vertex AI Enterprise (PURO) para asset ${params.assetId}...`)
       const vertexRes = await fetch(vertexUrl, {
@@ -1349,13 +1349,17 @@ export async function generateAngles(params: {
         },
         body: JSON.stringify({
           instances: [{
-            prompt: `Photo of <character_1>, a photorealistic UGC style shot. ${prompt}. MUST be the same person from <character_1>. Angle: ${params.angle}.`,
-            // Usando o formato direto de referência única sugerido
-            reference_image: {
-              bytesBase64Encoded: base64Image,
-              mimeType: 'image/jpeg'
-            },
-            reference_strength: 0.99,
+            prompt: `A photorealistic UGC style shot of the person[1]. ${prompt}. MUST be the exact same person. Angle: ${params.angle}.`,
+            referenceImages: [
+              {
+                referenceId: 1,
+                referenceImage: {
+                  bytesBase64Encoded: base64Image
+                },
+                subjectDescription: sourceDescription || `A ${detectedGender}`,
+                subjectType: "SUBJECT_TYPE_PERSON"
+              }
+            ],
             negative_prompt: detectedGender === 'woman' 
               ? `man, male, boy, masculine, facial hair, bearded, messy hair` 
               : `woman, female, girl, feminine, biological woman, long hair, makeup`
