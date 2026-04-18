@@ -1260,7 +1260,7 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    const finalPrompt = `A professional UGC photograph of {subject_id: 1} in a ${params.angle} position. Maintain 100% same face, same hair texture, and same appearance. NO GLASSES, NO EARRINGS. High fidelity, cinematic lighting.`
+    const finalPrompt = `Professional UGC photo of {subject_id: 1}. ONLY change the camera angle to ${params.angle} view. Keep ABSOLUTELY IDENTICAL: the exact same outfit and clothing (every garment, color, fabric, pattern), same hair color and texture, same face and makeup, same jewelry and accessories. Do NOT change or replace ANY clothing item. The person must look exactly the same as the reference image in every detail EXCEPT the camera perspective. Photorealistic, 8k, cinematic lighting.`
 
     try {
       // ---- GOOGLE IMAGEN 4.0 (GEMINI API - SUBJECT ID LOCK) ----
@@ -1284,7 +1284,7 @@ export async function generateAngles(params: {
             sample_count: 1,
             aspect_ratio: params.aspect_ratio || '9:16',
             reference_strength: 0.99,
-            negative_prompt: "glasses, earrings, jewelry, different face, distorted, blurry, extra limbs"
+            negative_prompt: "different clothes, outfit change, different shirt, different jacket, different top, different pants, different dress, different color clothes, wardrobe change, costume change, different face, distorted face, extra limbs, blurry, low quality"
           }
         })
       })
