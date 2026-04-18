@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2, User, Film } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2, User, Film, Camera } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from './ImageGenerator'
 import ScriptGenerator from './ScriptGenerator'
@@ -11,6 +11,7 @@ import CaptionGenerator from './CaptionGenerator'
 import UpscaleCard from './UpscaleCard'
 import FaceGenerator from './FaceGenerator'
 import JoinGenerator from './JoinGenerator'
+import AngleGenerator from './AngleGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string }> = {
   face:    { icon: <User size={15} />,     label: 'Rosto Real',  color: 'text-indigo-400' },
@@ -26,6 +27,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   animate: { icon: <Sparkles size={15} />, label: 'Animar',      color: 'text-fuchsia-400' },
   compose: { icon: <Layers size={15} />,   label: 'Compor Cena', color: 'text-orange-400'  },
   lipsync: { icon: <Wand2 size={15} />,    label: 'Lip Sync',    color: 'text-cyan-400'    },
+  angles:  { icon: <Camera size={15} />,   label: 'Dir. de Cena',color: 'text-emerald-400' },
 }
 
 // Mapeamento: tipo de origem → ações "Usar em..."
@@ -265,5 +267,6 @@ function FormForType({ type, initialParams, onGenerate }: {
   if (type === 'video')   return <VideoGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'caption') return <CaptionGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'upscale') return <UpscaleCard      initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'angles')  return <AngleGenerator   initial={initialParams} onGenerate={onGenerate} />
   return null
 }
