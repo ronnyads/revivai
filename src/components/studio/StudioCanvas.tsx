@@ -705,7 +705,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     const i = assets.length
     const frontend_id = crypto.randomUUID()
 
-    // Posicionamento inteligente: se vier do botão direito, usa a posição do mouse
+    // Posicionamento inteligente: se vier do botão direito, usa a posição do mouse.
+    // Se vier do botão do topo, nasce no CENTRO da tela atual.
     let pX = 60 + (i % 3) * 380
     let pY = 450 + Math.floor(i / 3) * 440
 
@@ -713,6 +714,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       const flowPos = screenToFlowPosition({ x: quickAddMenu.x, y: quickAddMenu.y })
       pX = flowPos.x
       pY = flowPos.y
+    } else {
+      // Nasce no centro exato da visão atual do usuário
+      const flowPos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
+      pX = flowPos.x - 180 // Centraliza a largura do card (360px / 2)
+      pY = flowPos.y - 100 // Sobe um pouco para ficar bem no meio
     }
     
     // 1. Cria localmente para feedback instantâneo (otimista)
