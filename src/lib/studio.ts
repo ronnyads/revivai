@@ -1181,6 +1181,7 @@ export async function generateAngles(params: {
   source_url: string
   angle: string
   engine?: string
+  aspect_ratio?: string
   assetId: string
   userId: string
 }) {
@@ -1281,7 +1282,7 @@ export async function generateAngles(params: {
           }],
           parameters: {
             sample_count: 1,
-            aspect_ratio: '9:16',
+            aspect_ratio: params.aspect_ratio || '9:16',
             reference_strength: 0.99,
             negative_prompt: "glasses, earrings, jewelry, piercings, hats, different face, different hair color, blurry, distorted"
           }
@@ -1321,6 +1322,7 @@ export async function generateAngles(params: {
           strength: 0.6, 
           num_inference_steps: 30,
           guidance_scale: 3.5,
+          image_size: params.aspect_ratio === '9:16' ? 'landscape_16_9' : params.aspect_ratio === '1:1' ? 'square' : 'landscape_4_5', // Note: flux labels are different
           output_format: 'jpeg',
         }),
       })
@@ -1351,6 +1353,7 @@ export async function generateAngles(params: {
       strength: 0.6, 
       num_inference_steps: 30,
       guidance_scale: 3.5,
+      image_size: params.aspect_ratio === '1:1' ? 'square' : params.aspect_ratio === '4:5' ? 'portrait_4_5' : 'portrait_9_16',
       output_format: 'jpeg',
       }),
     })

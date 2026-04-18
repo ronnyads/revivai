@@ -236,6 +236,7 @@ export async function POST(req: NextRequest) {
         source_url: String(input_params.source_url ?? ''),
         angle: String(input_params.angle ?? 'frontal'),
         engine: String(input_params.engine ?? 'flux'),
+        aspect_ratio: String(input_params.aspect_ratio ?? '9:16'),
         assetId: asset.id,
         userId: user.id,
       })

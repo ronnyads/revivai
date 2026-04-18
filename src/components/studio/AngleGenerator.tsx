@@ -19,6 +19,7 @@ const ANGLES = [
 
 export default function AngleGenerator({ initial, onGenerate }: Props) {
   const [selectedAngle, setSelectedAngle] = useState(initial.angle as string || 'frontal')
+  const [aspectRatio, setAspectRatio] = useState(initial.aspect_ratio as string || '9:16')
   const [engine, setEngine] = useState((initial.engine as string) || 'flux')
   const [activeConfig, setActiveConfig] = useState({ anglesGoogle: true, anglesFlux: true })
 
@@ -47,7 +48,7 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
           <div className="absolute -top-2 -left-2 z-10 bg-emerald-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-lg border border-emerald-400/50 flex items-center gap-1">
             <Sparkles size={10} /> NOVA PERSPECTIVA
           </div>
-          <div className="aspect-[9/16] w-full rounded-2xl overflow-hidden border-2 border-emerald-500/30 bg-zinc-900 shadow-2xl transition-all">
+          <div className={`${aspectRatio === '9:16' ? 'aspect-[9/16]' : aspectRatio === '1:1' ? 'aspect-square' : 'aspect-[4/5]'} w-full rounded-2xl overflow-hidden border-2 border-emerald-500/30 bg-zinc-900 shadow-2xl transition-all`}>
             <img src={resultUrl} alt="Result" className="w-full h-full object-cover" />
           </div>
         </div>
@@ -62,7 +63,7 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
         </a>
         
         <button
-          onClick={() => onGenerate({ source_url: sourceUrl, angle: selectedAngle, engine })}
+          onClick={() => onGenerate({ source_url: sourceUrl, angle: selectedAngle, engine, aspect_ratio: aspectRatio })}
           className="text-[10px] text-zinc-500 hover:text-emerald-400 font-bold transition-colors uppercase tracking-widest text-center"
         >
           🔄 Gerar outra variação
@@ -80,14 +81,14 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
         </div>
         
         {sourceUrl ? (
-          <div className="aspect-[9/16] w-full rounded-2xl overflow-hidden border border-white/10 bg-zinc-900/50 shadow-inner group-hover:border-emerald-500/30 transition-colors">
+          <div className={`${aspectRatio === '9:16' ? 'aspect-[9/16]' : aspectRatio === '1:1' ? 'aspect-square' : 'aspect-[4/5]'} w-full rounded-2xl overflow-hidden border border-white/10 bg-zinc-900/50 shadow-inner group-hover:border-emerald-500/30 transition-all`}>
             <img src={sourceUrl} alt="Source" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
             <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 to-transparent flex items-end p-3">
               <span className="text-[10px] text-zinc-400 font-medium">Pronta para novo ângulo</span>
             </div>
           </div>
         ) : (
-          <div className="aspect-[9/16] w-full rounded-2xl border-2 border-dashed border-white/5 bg-white/5 flex flex-col items-center justify-center gap-3 p-6 text-center">
+          <div className={`${aspectRatio === '9:16' ? 'aspect-[9/16]' : aspectRatio === '1:1' ? 'aspect-square' : 'aspect-[4/5]'} w-full rounded-2xl border-2 border-dashed border-white/5 bg-white/5 flex flex-col items-center justify-center gap-3 p-6 text-center`}>
             <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-zinc-600">
               <Camera size={24} />
             </div>
@@ -97,6 +98,30 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
             </div>
           </div>
         )}
+      </div>
+ 
+      {/* Aspect Ratio Selector */}
+      <div className="space-y-3">
+        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2 px-1">
+          <Maximize size={12} className="text-emerald-500" /> Proporção (Aspect Ratio)
+        </label>
+        <div className="flex bg-zinc-900 border border-white/5 p-1 rounded-xl gap-1">
+          {[
+            { id: '9:16', label: '9:16 Reels' },
+            { id: '1:1',  label: '1:1 Post' },
+            { id: '4:5',  label: '4:5 Feed' },
+          ].map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setAspectRatio(opt.id)}
+              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                aspectRatio === opt.id ? 'bg-zinc-800 text-white border border-white/10 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Angle Selector */}
@@ -178,7 +203,7 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
       {/* Action Button */}
       <button
         disabled={!sourceUrl}
-        onClick={() => onGenerate({ source_url: sourceUrl, angle: selectedAngle, engine })}
+        onClick={() => onGenerate({ source_url: sourceUrl, angle: selectedAngle, engine, aspect_ratio: aspectRatio })}
         className={`relative mt-2 w-full py-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all overflow-hidden group/btn ${
           !sourceUrl
             ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
