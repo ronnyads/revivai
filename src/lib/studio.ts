@@ -1242,27 +1242,33 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
+    const finalPrompt = `A ${detectedGender} model UGC, same person, identical face, identical clothes, in a ${params.angle} position, high quality, cinematic lighting`
+
     try {
-      // ---- GOOGLE IMAGEN 4.0 (SUBJECT CONTROL) ----
+      // ---- GOOGLE IMAGEN 4.0 (SUBJECT CUSTOMIZATION - FIXED) ----
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           instances: [{
-            prompt,
-            subject_references: [{
-              subject_id: 1,
-              reference_image: {
-                image: { 
-                  mime_type: 'image/jpeg',
-                  bytes_base_64_encoded: base64Image
+            prompt: finalPrompt,
+            subjectReferencesInRequest: [
+              {
+                referenceId: 1,
+                image: {
+                  bytesBase64Encoded: base64Image,
+                  mimeType: 'image/jpeg'
                 }
               }
-            }]
+            ],
+            editingConfig: {
+              subjectReferencesInRequestLimit: 1,
+              imageInStyleCustomizationInRequestLimit: 1
+            }
           }],
           parameters: {
             sampleCount: 1,
-            aspectRatio: '9:16',
+            aspectRatio: '9:16'
           }
         })
       })
