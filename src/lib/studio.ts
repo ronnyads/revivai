@@ -1299,10 +1299,7 @@ export async function generateAngles(params: {
               referenceType: 'REFERENCE_TYPE_SUBJECT',
               referenceId: 1,
               referenceImage: {
-                image: {
-                  bytesBase64Encoded: base64Image,
-                  mimeType: 'image/jpeg'
-                }
+                imageUri: params.source_url
               },
               subjectImageConfig: {
                 subjectDescription: appearanceDesc || `A ${detectedGender} model`,
