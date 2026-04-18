@@ -1223,8 +1223,12 @@ export async function generateAngles(params: {
         instances: [{
           prompt,
           referenceImages: [{
+            referenceId: 1,
             referenceType: 'SUBJECT',
-            image: { bytesBase64Encoded: base64Image, mimeType: 'image/jpeg' }
+            image: { 
+              bytesBase64Encoded: base64Image, 
+              mimeType: 'image/jpeg' 
+            }
           }]
         }],
         parameters: {
