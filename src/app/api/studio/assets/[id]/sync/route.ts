@@ -99,13 +99,14 @@ export async function POST(
         finalUrl = op.response.generatedVideos[0].video.uri || op.response.generatedVideos[0].video
       }
 
-      if (!finalUrl) return NextResponse.json({ status: 'processing', message: 'Finalizando vídeo Veo3...' })
+      if (!finalUrl) {
+        console.log(`[sync] Veo3 Operation ${predictionId} is done but no video URL found yet.`)
+        return NextResponse.json({ status: 'processing', message: 'Finalizando vídeo Veo3 (URL em processamento)...' })
+      }
 
-      // Para baixar o vídeo da API do Google, precisamos passar a API Key no header (ou via curl)
+      // Baixa o vídeo da API do Google e re-sobe no Storage para perenidade
       try {
-        const vidReq = await fetch(finalUrl, {
-          headers: { 'x-goog-api-key': apiKey }
-        })
+        const vidReq = await fetch(finalUrl, { headers: { 'x-goog-api-key': apiKey } })
         if (vidReq.ok) {
           const buffer = Buffer.from(await vidReq.arrayBuffer())
           const path = `${user.id}/${id}-veo3.mp4`
@@ -114,21 +115,19 @@ export async function POST(
             const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
             finalUrl = publicUrl
           }
-        } else {
-          // fallback se não conseguir baixar (mas o front talvez não consiga tocar)
-          finalUrl = finalUrl // keeps the google URL
         }
       } catch (e) {
-        console.error("Falha ao transpor vídeo", e)
+        console.error("[sync] Falha ao transpor vídeo Veo3 p/ Storage:", e)
       }
       
-      // DEBITA O CRÉDITO DO GOOGLE VEO AQUI! (Pois a geração foi assíncrona)
-      // Como o Veo3 custa 100 créditos e não debitamos na criação, debitamos ao finalizar
-      for(let i = 0; i < (asset.credits_cost ?? 100); i++) {
-        await admin.rpc('debit_credit', { user_id_param: user.id })
-      }
+      console.log(`[sync] Veo3 Success for ${id}. URL: ${finalUrl}`)
+      await admin.from('studio_assets').update({ 
+        status: 'done', 
+        result_url: finalUrl, 
+        last_frame_url: finalUrl, 
+        error_msg: null 
+      }).eq('id', id)
 
-      await admin.from('studio_assets').update({ status: 'done', result_url: finalUrl, last_frame_url: finalUrl, error_msg: null }).eq('id', id)
       return NextResponse.json({ status: 'done', result_url: finalUrl })
 
     } catch (err: any) {
