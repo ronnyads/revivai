@@ -1259,11 +1259,11 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    const finalPrompt = `Mesma modelo ${detectedGender}, posição ${params.angle}, rosto idêntico, corpo igual, roupas similares, UGC fotografia profissional, alta qualidade`
+    const finalPrompt = `EXACT MODEL IDENTITY FROM REFERENCE. ${traits} Position: ${params.angle}. NO GLASSES, NO EARRINGS, NO JEWELRY. Maintain 100% face structure, hair color, and skin tone. High resolution photography.`
     const projectId = process.env.GCP_PROJECT_ID || 'revivai-production'
 
     try {
-      // ---- GOOGLE IMAGEN 4.0 (OFFICIAL VERTEX AI STRUCTURE) ----
+      // ---- GOOGLE IMAGEN 4.0 (MAXIMUM FORCE) ----
       const res = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1274,12 +1274,13 @@ export async function generateAngles(params: {
               bytesBase64Encoded: base64Image,
               mimeType: 'image/jpeg'
             },
-            reference_strength: 0.95
+            reference_strength: 0.99
           }],
           parameters: {
             sampleCount: 1,
             aspectRatio: '9:16',
-            seed: 12345
+            seed: 12345,
+            negativePrompt: "glasses, earrings, jewelry, piercings, hats, different face, different hair color, blurry, distorted"
           }
         })
       })
