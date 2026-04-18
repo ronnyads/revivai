@@ -1197,6 +1197,8 @@ export async function generateAngles(params: {
   const perspective = angleMap[params.angle] || angleMap['frontal']
   const prompt = `Same identical person, identical clothing, identical background environment. Photorealistic. ${perspective}. 8k resolution, cinematic lighting.`
 
+  console.log(`[studio] Gerando Angulo [${engine}] para asset ${params.assetId}. URL: ${params.source_url.slice(0, 50)}...`)
+
   let photoBuffer: Buffer
 
   if (engine === 'google') {
@@ -1205,8 +1207,12 @@ export async function generateAngles(params: {
     if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
     // 1. Download base image
+    if (!params.source_url || !params.source_url.startsWith('http')) {
+      throw new Error('A imagem de origem para a Direção de Cena (Google) deve ser uma URL pública válida.')
+    }
+
     const imgRes = await fetch(params.source_url)
-    if (!imgRes.ok) throw new Error('Falha ao baixar imagem fonte para o Imagen')
+    if (!imgRes.ok) throw new Error(`Falha ao baixar imagem fonte para o Imagen: ${imgRes.status}`)
     const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
     const base64Image = imgBuffer.toString('base64')
 

@@ -15,4 +15,5 @@ export const CREDIT_COST: Record<string, number> = {
   lipsync: 20,  // SyncLabs Pro
   video:   15,  // Motor Padrão (Kling/Fal)
   video_veo: 50,  // Motor Premium (Google Veo 3.1) - Ajustado para 50 para incentivar volume de uso
+  angles: 12,   // Direção de Cena (Flux i2i / Google Subject)
 }
