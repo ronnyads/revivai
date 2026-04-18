@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import {
   ReactFlow, Background, BackgroundVariant, MiniMap, Controls,
   useNodesState, useEdgesState, addEdge, ConnectionMode,
   type Node, type Edge, type Connection, type NodeChange, type EdgeChange,
-  MarkerType, ReactFlowProvider,
+  MarkerType, ReactFlowProvider, useReactFlow
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { ArrowLeft, Edit2, Check, Plus, Wand2, LayoutGrid, RotateCcw } from 'lucide-react'
@@ -96,6 +95,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [assets,      setAssets]      = useState<StudioAsset[]>(initialAssets)
   const [connections, setConnections] = useState<StudioConnection[]>(initialConnections)
   const [credits,     setCredits]     = useState(userCredits)
+  const { screenToFlowPosition } = useReactFlow()
   const [title,       setTitle]       = useState(project.title)
   const [editing,     setEditing]     = useState(false)
   const [showWizard,  setShowWizard]  = useState(false)
@@ -703,6 +703,16 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     }
     const i = assets.length
     const frontend_id = crypto.randomUUID()
+
+    // Posicionamento inteligente: se vier do botão direito, usa a posição do mouse
+    let pX = 60 + (i % 3) * 380
+    let pY = 450 + Math.floor(i / 3) * 440
+
+    if (quickAddMenu) {
+      const flowPos = screenToFlowPosition({ x: quickAddMenu.x, y: quickAddMenu.y })
+      pX = flowPos.x
+      pY = flowPos.y
+    }
     
     // 1. Cria localmente para feedback instantâneo (otimista)
     const newAsset: StudioAsset = {
@@ -714,12 +724,18 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       input_params: DEFAULT_PARAMS[type],
       credits_cost: 0, // só cobra quando gerar
       board_order: i,
-      position_x: 60 + (i % 3) * 380,
-      position_y: 450 + Math.floor(i / 3) * 440,
+      position_x: pX,
+      position_y: pY,
       created_at: new Date().toISOString(),
-      isLocal: true, // marca como local até o sinal do servidor
+      isLocal: true, 
+      isNew: true, // Efeito de fogo ativado
     }
     setAssets(prev => [...prev, newAsset])
+
+    // Resfriamento automático: o brilho some após 12 segundos
+    setTimeout(() => {
+      setAssets(prev => prev.map(a => a.id === frontend_id ? { ...a, isNew: false } : a))
+    }, 12000)
 
     // 2. Persiste no banco de dados como rascunho
     try {
@@ -731,17 +747,19 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           type,
           status: 'idle',
           frontend_id,
-          input_params: DEFAULT_PARAMS[type]
+          input_params: DEFAULT_PARAMS[type],
+          position_x: pX,
+          position_y: pY,
         })
       })
       if (res.ok) {
         const { asset } = await res.json()
         if (asset) {
-          // Remove a flag isLocal quando o server confirma
-          setAssets(prev => prev.map(a => a.id === frontend_id ? { ...asset, isLocal: false } : a))
+          // Remove a flag isLocal quando o server confirma, mas mantém isNew para o UI
+          setAssets(prev => prev.map(a => a.id === frontend_id ? { ...asset, isLocal: false, isNew: true } : a))
         }
       }
-    } catch { /* se falhar, fica local e some no F5 — fallback seguro */ }
+    } catch { /* fallback */ }
   }
 
   // ── Campaign Wizard → monta cards automaticamente ──────────────────────

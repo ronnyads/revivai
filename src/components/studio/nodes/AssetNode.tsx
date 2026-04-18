@@ -97,7 +97,22 @@ function AssetNode({ data }: NodeProps) {
   }
 
   return (
-    <div className={`w-[360px] bg-zinc-950/90 backdrop-blur-md border ${asset.type === 'render' ? 'border-rose-500/40' : 'border-white/5'} rounded-[1.5rem] overflow-visible shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] group/node hover:ring-2 hover:ring-accent/20 transition-all duration-300`}>
+    <div className={`w-[360px] bg-zinc-950/90 backdrop-blur-md border ${asset.type === 'render' ? 'border-rose-500/40' : 'border-white/5'} rounded-[1.5rem] overflow-visible shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] group/node hover:ring-2 hover:ring-accent/20 transition-all duration-300 ${
+      asset.isNew ? 'ring-4 ring-orange-500 shadow-[0_0_50px_rgba(249,115,22,0.5)] animate-fire-pulse scale-[1.02]' : ''
+    }`}>
+      
+      {/* Estilos para o Efeito de Fogo (Fire Highlight) */}
+      <style jsx>{`
+        @keyframes firePulse {
+          0% { box-shadow: 0 0 20px rgba(249, 115, 22, 0.4); border-color: rgba(249, 115, 22, 0.6); }
+          50% { box-shadow: 0 0 50px rgba(249, 115, 22, 0.8), 0 0 80px rgba(255, 69, 0, 0.3); border-color: rgba(255, 149, 0, 1); }
+          100% { box-shadow: 0 0 20px rgba(249, 115, 22, 0.4); border-color: rgba(249, 115, 22, 0.6); }
+        }
+        .animate-fire-pulse {
+          animation: firePulse 2s infinite ease-in-out;
+          z-index: 100;
+        }
+      `}</style>
 
       {/* INPUT handles — esquerda com label visível */}
       {inputHandles.map((h, i) => (

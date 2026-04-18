@@ -58,6 +58,7 @@ export interface StudioProject {
 export interface StudioAsset {
   id: string
   isLocal?: boolean // Marcação para itens gerados e contidos unicamente no estado React local
+  isNew?: boolean   // Marcação temporária para destacar o card no canvas (efeito de brilho)
   project_id: string
   user_id: string
   type: AssetType
