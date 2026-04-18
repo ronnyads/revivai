@@ -1337,8 +1337,10 @@ export async function generateAngles(params: {
 
         if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada. Vertex AI é obrigatório.')
 
-      console.log(`[studio] Chamando Vertex AI Enterprise (PURO) para asset ${params.assetId}...`)
-      
+        const vertexToken = await getVertexAccessToken(vertexKey)
+        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
+
+        console.log(`[studio] Chamando Vertex AI Enterprise (PURO) para asset ${params.assetId}...`)
       const vertexRes = await fetch(vertexUrl, {
         method: 'POST',
         headers: {
