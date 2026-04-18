@@ -1349,21 +1349,31 @@ export async function generateAngles(params: {
           body: JSON.stringify({
             instances: [{
               prompt: finalPrompt,
+              // Estrutura ultra-rígida de referência sugerida para Imagen 4.0
               referenceImages: [{
                 referenceId: 1,
-                referenceType: 'REFERENCE_TYPE_SUBJECT', // Formato canônico v1
+                referenceType: 'REFERENCE_TYPE_SUBJECT',
                 image: {
                   bytesBase64Encoded: base64Image,
                   mimeType: 'image/jpeg'
                 }
-              }]
+              }],
+              // Parâmetros de força na instância
+              reference_strength: 0.99,
+              negative_prompt: `man, male, boy, masculine, facial hair, different face, different person, new character, face transformation, cartoon, anime, illustration`
             }],
             parameters: {
               sampleCount: 1,
               aspectRatio: params.aspect_ratio === '9:16' ? '9:16' : 
-                          params.aspect_ratio === '1:1' ? '1:1' : 
-                          params.aspect_ratio === '16:9' ? '16:9' : '9:16',
-              personGeneration: 'allow_adult'
+                          params.aspect_ratio === '1:1' ? '1:1' : '9:16',
+              seed: 42, // Fixo para consistência absoluta entre ângulos
+              safetyFilterLevel: 'BLOCK_ONLY_HIGH',
+              personGenerationConfig: {
+                allowAdultContent: true,
+                preserveIdentity: true,
+                preserveFaceFeatures: true,
+                preserveBodyShape: true
+              }
             }
           })
         })
