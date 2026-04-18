@@ -1259,28 +1259,31 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    const finalPrompt = `EXACT MODEL IDENTITY FROM REFERENCE. ${traits} Position: ${params.angle}. NO GLASSES, NO EARRINGS, NO JEWELRY. Maintain 100% face structure, hair color, and skin tone. High resolution photography.`
-    const projectId = process.env.GCP_PROJECT_ID || 'revivai-production'
+    const finalPrompt = `EXACT MODEL IDENTITY FROM REFERENCE. ${traits} Position: ${params.angle}. NO GLASSES, NO EARRINGS, NO JEWELRY. Maintain 100% face structure, hair color, and skin tone.`
 
     try {
-      // ---- GOOGLE IMAGEN 4.0 (MAXIMUM FORCE) ----
-      const res = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
+      // ---- GOOGLE IMAGEN 4.0 (GEMINI API - API KEY SUPPORT) ----
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           instances: [{
             prompt: finalPrompt,
-            reference_image: {
-              bytesBase64Encoded: base64Image,
-              mimeType: 'image/jpeg'
-            },
-            reference_strength: 0.99
+            subject_references: [{
+              subject_id: 1,
+              reference_image: {
+                image: {
+                  bytes_base_64_encoded: base64Image,
+                  mime_type: 'image/jpeg'
+                }
+              }
+            }]
           }],
           parameters: {
-            sampleCount: 1,
-            aspectRatio: '9:16',
-            seed: 12345,
-            negativePrompt: "glasses, earrings, jewelry, piercings, hats, different face, different hair color, blurry, distorted"
+            sample_count: 1,
+            aspect_ratio: '9:16',
+            reference_strength: 0.99,
+            negative_prompt: "glasses, earrings, jewelry, piercings, hats, different face, different hair color, blurry, distorted"
           }
         })
       })
