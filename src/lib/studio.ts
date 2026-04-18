@@ -1310,7 +1310,9 @@ export async function generateAngles(params: {
           }],
           parameters: {
             sample_count: 1,
-            aspect_ratio: params.aspect_ratio || '9:16'
+            // Google Imagen só aceita: 1:1 | 9:16 | 16:9 | 3:4 | 4:3
+            // 4:5 (Feed) não existe na API → mapeamos para 4:3 (mais próximo)
+            aspect_ratio: ({ '9:16': '9:16', '1:1': '1:1', '16:9': '16:9', '3:4': '3:4', '4:3': '4:3', '4:5': '4:3' } as Record<string, string>)[params.aspect_ratio || '9:16'] ?? '9:16'
           }
         })
       })
