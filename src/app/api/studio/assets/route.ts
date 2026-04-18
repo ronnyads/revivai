@@ -235,10 +235,11 @@ export async function POST(req: NextRequest) {
       input_params: { ...input_params, ...extraData },
     }).eq('id', asset.id)
 
-    // Debita o custo real (effectiveCost) de forma segura
-    for (let i = 0; i < effectiveCost; i++) {
-        await admin.rpc('debit_credit', { user_id_param: user.id })
-    }
+    // Debita o custo real (effectiveCost) de forma atômica e performática
+    await admin.rpc('debit_credits_bulk', { 
+        user_id_param: user.id, 
+        amount_param: effectiveCost 
+    })
 
     return NextResponse.json({
       asset: {
