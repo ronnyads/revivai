@@ -4,7 +4,7 @@ import { AssetType } from '@/types'
 
 export { CREDIT_COST } from '@/constants/studio'
 
-// ── Prompt helper — lê da tabela studio_prompts, usa fallback hardcoded ─────
+// ââ Prompt helper â lÃª da tabela studio_prompts, usa fallback hardcoded âââââ
 async function getStudioPrompt(
   admin: ReturnType<typeof createAdminClient>,
   key: string,
@@ -22,7 +22,7 @@ async function getStudioPrompt(
   }
 }
 
-// ── Image — DALL-E 3 via fetch ─────────────────────────────────────────────
+// ââ Image â DALL-E 3 via fetch âââââââââââââââââââââââââââââââââââââââââââââ
 export async function generateImage(params: {
   prompt: string
   style: string
@@ -34,7 +34,7 @@ export async function generateImage(params: {
 }) {
   const admin = createAdminClient()
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
+  if (!apiKey) throw new Error('OPENAI_API_KEY nÃ£o configurada')
 
   const sizeMap: Record<string, string> = {
     '1:1':  '1024x1024',
@@ -61,7 +61,7 @@ export async function generateImage(params: {
     ? `${params.model_prompt}. ${stylePrefix}${params.prompt}`
     : stylePrefix + params.prompt
 
-  // Sulfixo varia se for mascote/cartoon (não usar 'real person' em desenhos)
+  // Sulfixo varia se for mascote/cartoon (nÃ£o usar 'real person' em desenhos)
   const isMascotOrCartoon = ['mascote', 'personagem_cartoon'].includes(params.style)
   
   // Suffixos de realismo via Admin
@@ -80,7 +80,7 @@ export async function generateImage(params: {
   if (params.source_face_url && !isMascotOrCartoon) {
     // PuLID - Exclusivo para Humanos
     const falKey = process.env.FAL_KEY
-    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+    if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
     const sizeMap: Record<string, string> = {
       '1:1':  'square_hd',
@@ -111,12 +111,12 @@ export async function generateImage(params: {
 
     const data = await res.json()
     tempUrl = data.images?.[0]?.url
-    if (!tempUrl) throw new Error('Fal AI não retornou URL')
+    if (!tempUrl) throw new Error('Fal AI nÃ£o retornou URL')
     
   } else {
-    // Fallback ou Mascote — Flux Pro 1.1 Ultra
+    // Fallback ou Mascote â Flux Pro 1.1 Ultra
     const falKey = process.env.FAL_KEY
-    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+    if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
     const payload: any = {
       prompt: finalPrompt,
@@ -130,7 +130,7 @@ export async function generateImage(params: {
       const payload: any = {
         prompt: finalPrompt,
         image_url: params.source_face_url,
-        strength: 0.85,  // Mantém a estrutura principal do mascote recriando o contexto
+        strength: 0.85,  // MantÃ©m a estrutura principal do mascote recriando o contexto
         num_inference_steps: 40,
         guidance_scale: 3.5,
       }
@@ -151,9 +151,9 @@ export async function generateImage(params: {
 
       const data = await res.json()
       tempUrl = data.images?.[0]?.url
-      if (!tempUrl) throw new Error('Flux Image-to-Image não retornou URL')
+      if (!tempUrl) throw new Error('Flux Image-to-Image nÃ£o retornou URL')
     } else {
-      // Geração Pura (Ultra)
+      // GeraÃ§Ã£o Pura (Ultra)
       const payload: any = {
         prompt: finalPrompt,
         aspect_ratio: params.aspect_ratio || '9:16',
@@ -177,7 +177,7 @@ export async function generateImage(params: {
 
       const data = await res.json()
       tempUrl = data.images?.[0]?.url
-      if (!tempUrl) throw new Error('Flux Ultra não retornou URL')
+      if (!tempUrl) throw new Error('Flux Ultra nÃ£o retornou URL')
     }
   }
 
@@ -195,7 +195,7 @@ export async function generateImage(params: {
   return publicUrl
 }
 
-// ── Script — GPT-4o UGC viral em PT via fetch ──────────────────────────────
+// ââ Script â GPT-4o UGC viral em PT via fetch ââââââââââââââââââââââââââââââ
 export async function generateScript(params: {
   product: string
   audience: string
@@ -206,18 +206,18 @@ export async function generateScript(params: {
 }) {
   const admin = createAdminClient()
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
+  if (!apiKey) throw new Error('OPENAI_API_KEY nÃ£o configurada')
 
   const formatGuideStr = await getStudioPrompt(admin, 'script_format_guide', JSON.stringify({
     reels: 'Reels/TikTok (15-30 segundos, hook nos primeiros 3s)',
-    story: 'Stories (até 15 segundos por slide, 3 slides)',
-    feed:  'Feed/anúncio (30-60 segundos, mais elaborado)',
+    story: 'Stories (atÃ© 15 segundos por slide, 3 slides)',
+    feed:  'Feed/anÃºncio (30-60 segundos, mais elaborado)',
   }))
   const hookGuideStr = await getStudioPrompt(admin, 'script_hook_guide', JSON.stringify({
-    problema: 'começe identificando um problema real do público',
-    resultado: 'começe mostrando o resultado incrível primeiro',
-    pergunta:  'começe com uma pergunta provocadora',
-    historia:  'começe com uma mini história pessoal',
+    problema: 'comeÃ§e identificando um problema real do pÃºblico',
+    resultado: 'comeÃ§e mostrando o resultado incrÃ­vel primeiro',
+    pergunta:  'comeÃ§e com uma pergunta provocadora',
+    historia:  'comeÃ§e com uma mini histÃ³ria pessoal',
   }))
 
   let formatGuide: any = {}
@@ -237,24 +237,24 @@ export async function generateScript(params: {
           content: (await getStudioPrompt(
             admin,
             'script_generation_system',
-            `Você é um especialista em criação de scripts UGC virais para o mercado brasileiro.
-Crie scripts autênticos, conversacionais e de alta conversão. Use linguagem natural e cotidiana do brasileiro.
-Inclua indicações de tom, pausas e emoção entre colchetes.`,
+            `VocÃª Ã© um especialista em criaÃ§Ã£o de scripts UGC virais para o mercado brasileiro.
+Crie scripts autÃªnticos, conversacionais e de alta conversÃ£o. Use linguagem natural e cotidiana do brasileiro.
+Inclua indicaÃ§Ãµes de tom, pausas e emoÃ§Ã£o entre colchetes.`,
           )) + ` Formato: ${formatGuide[params.format] ?? formatGuide.reels}.`,
         },
         {
           role: 'user',
-          content: `Produto/Serviço: ${params.product}
-Público-alvo: ${params.audience}
+          content: `Produto/ServiÃ§o: ${params.product}
+PÃºblico-alvo: ${params.audience}
 Estilo de hook: ${hookGuide[params.hook_style] ?? hookGuide.problema}
 
 Crie um script UGC completo com:
 1. HOOK (primeiros 3 segundos)
-2. DESENVOLVIMENTO (problema + solução)
+2. DESENVOLVIMENTO (problema + soluÃ§Ã£o)
 3. PROVA SOCIAL (resultado/depoimento)
 4. CTA (call-to-action forte)
 
-Inclua também 3 variações de hook alternativas no final.`,
+Inclua tambÃ©m 3 variaÃ§Ãµes de hook alternativas no final.`,
         },
       ],
     }),
@@ -279,7 +279,7 @@ Inclua também 3 variações de hook alternativas no final.`,
   return { url: publicUrl, text: script }
 }
 
-// ── Voice — ElevenLabs ─────────────────────────────────────────────────────
+// ââ Voice â ElevenLabs âââââââââââââââââââââââââââââââââââââââââââââââââââââ
 export const ELEVENLABS_VOICES = [
   { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (masculino)' },
   { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (feminino)' },
@@ -297,7 +297,7 @@ export async function generateVoice(params: {
 }) {
   const admin = createAdminClient()
   const apiKey = process.env.ELEVENLABS_API_KEY
-  if (!apiKey) throw new Error('ELEVENLABS_API_KEY não configurada')
+  if (!apiKey) throw new Error('ELEVENLABS_API_KEY nÃ£o configurada')
 
   const configStr = await getStudioPrompt(admin, 'audio_elevenlabs_config', '{}')
   let config: any = {}
@@ -333,13 +333,13 @@ export async function generateVoice(params: {
   const { error } = await admin.storage
     .from('studio')
     .upload(path, buffer, { contentType: 'audio/mpeg', upsert: true })
-  if (error) throw new Error(`Upload áudio falhou: ${error.message}`)
+  if (error) throw new Error(`Upload Ã¡udio falhou: ${error.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
   return publicUrl
 }
 
-// ── Caption — Whisper via fetch ────────────────────────────────────────────
+// ââ Caption â Whisper via fetch ââââââââââââââââââââââââââââââââââââââââââââ
 export async function generateCaption(params: {
   audio_url: string
   assetId: string
@@ -347,10 +347,10 @@ export async function generateCaption(params: {
 }) {
   const admin = createAdminClient()
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
+  if (!apiKey) throw new Error('OPENAI_API_KEY nÃ£o configurada')
 
   const audioRes = await fetch(params.audio_url)
-  if (!audioRes.ok) throw new Error('Não foi possível baixar o áudio')
+  if (!audioRes.ok) throw new Error('NÃ£o foi possÃ­vel baixar o Ã¡udio')
   const buffer = Buffer.from(await audioRes.arrayBuffer())
 
   const configStr = await getStudioPrompt(admin, 'subtitle_whisper_config', '{}')
@@ -388,13 +388,13 @@ export async function generateCaption(params: {
   return { url: publicUrl, srt }
 }
 
-// ── Upscale — Fal AI ESRGAN (synchronous) ────────────────────────────────
+// ââ Upscale â Fal AI ESRGAN (synchronous) ââââââââââââââââââââââââââââââââ
 export async function generateUpscale(params: {
   source_url: string
   scale: number
 }) {
   const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada')
+  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada')
 
   const admin = createAdminClient()
   const configStr = await getStudioPrompt(admin, 'upscale_esrgan_config', '{}')
@@ -421,12 +421,12 @@ export async function generateUpscale(params: {
 
   const data = await res.json()
   const resultUrl = data.image?.url ?? data.images?.[0]?.url
-  if (!resultUrl) throw new Error('ESRGAN não retornou URL válida')
+  if (!resultUrl) throw new Error('ESRGAN nÃ£o retornou URL vÃ¡lida')
 
   return resultUrl as string
 }
 
-// ── Model — GPT-4o gera descrição visual única para UGC ───────────────────
+// ââ Model â GPT-4o gera descriÃ§Ã£o visual Ãºnica para UGC âââââââââââââââââââ
 export async function generateModel(params: {
   gender: string
   age_range: string
@@ -440,7 +440,7 @@ export async function generateModel(params: {
 }) {
   const admin = createAdminClient()
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
+  if (!apiKey) throw new Error('OPENAI_API_KEY nÃ£o configurada')
 
   const seed = Math.random().toString(36).slice(2, 8)
 
@@ -461,7 +461,7 @@ export async function generateModel(params: {
     'model_generation_system',
     `You are a UGC creative director specializing in AI image generation for ads.
 Generate a UNIQUE, vivid, photorealistic visual description of a model for FLUX PRO Ultra API.
-Vary vocabulary, hair details, facial features, and scene context every response — never repeat.
+Vary vocabulary, hair details, facial features, and scene context every response â never repeat.
 Output: one dense English paragraph (3-5 sentences). No names. Pure visual description.`
   )
   const system = `${systemBase}\nSeed for uniqueness: ${seed}.`
@@ -491,7 +491,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   const text: string = data.choices?.[0]?.message?.content?.trim() ?? ''
 
   const googleApiKey = process.env.GOOGLE_API_KEY
-  if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+  if (!googleApiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
 
   const fluxSuffix = await getStudioPrompt(
     admin,
@@ -502,11 +502,11 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 
   let photoBuffer: Buffer
 
-  // O motor padrão volta a ser o GOOGLE (Agora usando o IMAGEN 4.0 ULTRA identificado no diagnóstico)
+  // O motor padrÃ£o volta a ser o GOOGLE (Agora usando o IMAGEN 4.0 ULTRA identificado no diagnÃ³stico)
   if (params.engine === 'google' || !params.engine) {
-    // ---- MOTOR GOOGLE IMAGEN 4.0 ULTRA (Padrão) ----
+    // ---- MOTOR GOOGLE IMAGEN 4.0 ULTRA (PadrÃ£o) ----
     const googleApiKey = process.env.GOOGLE_API_KEY
-    if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+    if (!googleApiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
 
     const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
       method: 'POST',
@@ -528,14 +528,14 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 
     const data = await imgRes.json()
     const base64 = data.predictions?.[0]?.bytesBase64Encoded
-    if (!base64) throw new Error('Google Imagen 4.0 não retornou imagem. Verifique logs.')
+    if (!base64) throw new Error('Google Imagen 4.0 nÃ£o retornou imagem. Verifique logs.')
 
     photoBuffer = Buffer.from(base64, 'base64')
 
   } else {
     // ---- MOTOR FLUX PRO 1.1 ULTRA (Opcional/Alternativo) ----
     const falKey = process.env.FAL_KEY
-    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+    if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
     const res = await fetch('https://fal.run/fal-ai/flux-pro/v1.1-ultra', {
       method: 'POST',
@@ -558,7 +558,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 
     const data = await res.json()
     const tempUrl = data.images?.[0]?.url
-    if (!tempUrl) throw new Error('Flux Ultra não retornou URL')
+    if (!tempUrl) throw new Error('Flux Ultra nÃ£o retornou URL')
 
     const imgRes = await fetch(tempUrl)
     photoBuffer = Buffer.from(await imgRes.arrayBuffer())
@@ -574,7 +574,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   return { url: publicUrl, text }
 }
 
-// ── Video — Kling AI via Fal AI (async — usa webhook) ──────────────────
+// ââ Video â Kling AI via Fal AI (async â usa webhook) ââââââââââââââââââ
 export async function startVideoGeneration(params: {
   source_image_url: string
   motion_prompt: string
@@ -586,7 +586,7 @@ export async function startVideoGeneration(params: {
   userId: string
 }) {
   const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
 
@@ -608,10 +608,10 @@ export async function startVideoGeneration(params: {
     duration: config.duration || '5',
     aspect_ratio: '9:16',
     webhook_url: webhookUrl,
-    ...config // Permite sobrescrever qualquer parâmetro via JSON Admin
+    ...config // Permite sobrescrever qualquer parÃ¢metro via JSON Admin
   }
 
-  // Se o usuário selecionou o motor do Google Veo 3
+  // Se o usuÃ¡rio selecionou o motor do Google Veo 3
   if (params.engine === 'veo') {
     endpoint = 'https://queue.fal.run/fal-ai/veo3.1/image-to-video'
     payload = {
@@ -635,11 +635,11 @@ export async function startVideoGeneration(params: {
 
   if (!queueRes.ok) {
     const err = await queueRes.text()
-    throw new Error(`Fal AI erro ao enfileirar vídeo Kling: ${err}`)
+    throw new Error(`Fal AI erro ao enfileirar vÃ­deo Kling: ${err}`)
   }
 
   const { request_id } = await queueRes.json()
-  if (!request_id) throw new Error('Fal AI não retornou request_id para video')
+  if (!request_id) throw new Error('Fal AI nÃ£o retornou request_id para video')
 
   // Salva prediction_id para permitir sync manual e rastreamento
   await admin.from('studio_assets')
@@ -647,7 +647,7 @@ export async function startVideoGeneration(params: {
     .eq('id', params.assetId)
 }
 
-// ── Render — merge áudio + vídeo via Replicate ────────────────────────────
+// ââ Render â merge Ã¡udio + vÃ­deo via Replicate ââââââââââââââââââââââââââââ
 export async function mergeVideoAudio(params: {
   video_url: string
   audio_url: string
@@ -686,7 +686,7 @@ export async function mergeVideoAudio(params: {
         .input(audioPath)
         .outputOptions([
           '-c:v', 'copy',       // copia stream original sem reencodar video
-          '-c:a', 'aac',        // encoder compatível pra audio
+          '-c:a', 'aac',        // encoder compatÃ­vel pra audio
           '-map', '0:v:0',      // pega o primeiro track de video
           '-map', '1:a:0',      // pega o primeiro track de audio
           '-shortest',          // acaba quando a variavel mais curta acabar
@@ -713,7 +713,7 @@ export async function mergeVideoAudio(params: {
   }
 }
 
-// Helper: executa fn com retry automático em caso de 429 (respeita retry_after)
+// Helper: executa fn com retry automÃ¡tico em caso de 429 (respeita retry_after)
 async function withReplicateRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -728,7 +728,7 @@ async function withReplicateRetry<T>(fn: () => Promise<T>, maxRetries = 3): Prom
   throw new Error('Max retries exceeded')
 }
 
-// ── Compose — Virtual Try-On ou Colar Produto ─────────
+// ââ Compose â Virtual Try-On ou Colar Produto âââââââââ
 export async function composeProductScene(params: {
   portrait_url:   string
   product_url:    string
@@ -742,7 +742,7 @@ export async function composeProductScene(params: {
 }): Promise<string> {
   const admin  = createAdminClient()
   const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada')
+  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada')
 
   let resultBuffer: Buffer
 
@@ -784,7 +784,7 @@ export async function composeProductScene(params: {
 
     const data = await pulidRes.json()
     const finalUrl = data.images?.[0]?.url || data.image?.url
-    if (!finalUrl) throw new Error('Flux Prompt não retornou imagem válida.')
+    if (!finalUrl) throw new Error('Flux Prompt nÃ£o retornou imagem vÃ¡lida.')
 
     const imgRes = await fetch(finalUrl)
     resultBuffer = Buffer.from(await imgRes.arrayBuffer())
@@ -839,13 +839,13 @@ export async function composeProductScene(params: {
   } else {
     // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON (Native Fetch) ----
     
-    // Mapeamos para 'dresses' quando é Corpo Inteiro para garantir calça e blusa
+    // Mapeamos para 'dresses' quando Ã© Corpo Inteiro para garantir calÃ§a e blusa
     let idmCategory = 'upper_body'
     if (params.vton_category === 'bottoms') idmCategory = 'lower_body'
     if (params.vton_category === 'one-pieces') idmCategory = 'dresses'
 
-    // Evita rigorosamente que o IDM-VTON ache que 'dresses' é um vestido de mulher com decote.
-    // Força o entendimento de que é um "Conjunto/Terno Masculino Fechado"
+    // Evita rigorosamente que o IDM-VTON ache que 'dresses' Ã© um vestido de mulher com decote.
+    // ForÃ§a o entendimento de que Ã© um "Conjunto/Terno Masculino Fechado"
     const femaleDesc = await getStudioPrompt(admin, 'compose_vton_description_female', 'Virtual try-on garment, {category}')
     const maleDesc = await getStudioPrompt(admin, 'compose_vton_description_male', 'A fully closed masculine outfit, formal suit with pants, completely buttoned coat, chest fully covered by fabric, formal menswear, highly masculine tailoring, strictly male outfit, no cleavage, no skin visible on chest.')
 
@@ -876,7 +876,7 @@ export async function composeProductScene(params: {
 
     const data = await vtonRes.json()
     const vtonImageUrl = data.image?.url || data.images?.[0]?.url
-    if (!vtonImageUrl) throw new Error('IDM-VTON não retornou imagem válida.')
+    if (!vtonImageUrl) throw new Error('IDM-VTON nÃ£o retornou imagem vÃ¡lida.')
 
     const imgRes = await fetch(vtonImageUrl)
     if (!imgRes.ok) throw new Error('Falha ao baixar imagem do IDM-VTON.')
@@ -894,7 +894,7 @@ export async function composeProductScene(params: {
   return publicUrl
 }
 
-// ── Lip Sync — Fal AI SyncLabs 2.0 Pro (assíncrono via webhook) ────────────────────────
+// ââ Lip Sync â Fal AI SyncLabs 2.0 Pro (assÃ­ncrono via webhook) ââââââââââââââââââââââââ
 export async function startLipsyncGeneration(params: {
   face_url:  string
   audio_url: string
@@ -903,7 +903,7 @@ export async function startLipsyncGeneration(params: {
   appUrl:    string
 }) {
   const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
   const admin = createAdminClient()
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}&provider=fal`
@@ -933,7 +933,7 @@ export async function startLipsyncGeneration(params: {
   }
 
   const { request_id } = await queueRes.json()
-  if (!request_id) throw new Error('Fal AI não retornou request_id')
+  if (!request_id) throw new Error('Fal AI nÃ£o retornou request_id')
 
   // Salva request_id para o webhook identificar depois
   await admin.from('studio_assets')
@@ -941,7 +941,7 @@ export async function startLipsyncGeneration(params: {
     .eq('id', params.assetId)
 }
 
-// ── Animate — Fal AI live-portrait (síncrono — mesma estratégia do Lip Sync) ─
+// ââ Animate â Fal AI live-portrait (sÃ­ncrono â mesma estratÃ©gia do Lip Sync) â
 export async function startAnimateGeneration(params: {
   portrait_image_url: string
   driving_video_url: string
@@ -950,7 +950,7 @@ export async function startAnimateGeneration(params: {
   userId: string
 }) {
   const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
   const admin = createAdminClient()
 
@@ -978,14 +978,14 @@ export async function startAnimateGeneration(params: {
   }
 
   const { request_id } = await queueRes.json()
-  if (!request_id) throw new Error('Fal AI não retornou request_id para animate')
+  if (!request_id) throw new Error('Fal AI nÃ£o retornou request_id para animate')
 
   // Salva prediction_id para permitir sync manual caso o polling expire
   await admin.from('studio_assets')
     .update({ input_params: { prediction_id: request_id, portrait_image_url: params.portrait_image_url, driving_video_url: params.driving_video_url } })
     .eq('id', params.assetId)
 
-  // 2. Polling síncrono — até 240s
+  // 2. Polling sÃ­ncrono â atÃ© 240s
   const statusUrl = `https://queue.fal.run/fal-ai/live-portrait/requests/${request_id}`
   const deadline = Date.now() + 240_000
   let videoUrl: string | null = null
@@ -1014,7 +1014,7 @@ export async function startAnimateGeneration(params: {
 
   if (!videoUrl) throw new Error('Fal AI (animate): timeout aguardando resultado')
 
-  // 3. Re-upload para Supabase — URL Fal AI expira após horas
+  // 3. Re-upload para Supabase â URL Fal AI expira apÃ³s horas
   try {
     const videoRes = await fetch(videoUrl)
     if (videoRes.ok) {
@@ -1046,13 +1046,13 @@ export async function startAnimateGeneration(params: {
   return videoUrl
 }
 
-// ── Join — Costura de vídeos via FFmpeg (Fase 3) ───────────────────────────
+// ââ Join â Costura de vÃ­deos via FFmpeg (Fase 3) âââââââââââââââââââââââââââ
 export async function joinVideos(params: {
-  video_urls: string[]   // array ordenado de URLs de vídeo
+  video_urls: string[]   // array ordenado de URLs de vÃ­deo
   assetId:    string
   userId:     string
 }) {
-  if (params.video_urls.length < 2) throw new Error('Mínimo de 2 vídeos para unir')
+  if (params.video_urls.length < 2) throw new Error('MÃ­nimo de 2 vÃ­deos para unir')
 
   const admin   = createAdminClient()
   const os      = await import('os')
@@ -1067,11 +1067,11 @@ export async function joinVideos(params: {
   const localPaths: string[] = []
 
   try {
-    // 1. Download de cada vídeo para /tmp
+    // 1. Download de cada vÃ­deo para /tmp
     for (let i = 0; i < params.video_urls.length; i++) {
       const url = params.video_urls[i]
       const res = await fetch(url)
-      if (!res.ok) throw new Error(`Falha ao baixar vídeo ${i + 1}: ${res.status}`)
+      if (!res.ok) throw new Error(`Falha ao baixar vÃ­deo ${i + 1}: ${res.status}`)
       const buf = Buffer.from(await res.arrayBuffer())
       const localPath = path.join(tmpDir, `clip_${i}.mp4`)
       fs.writeFileSync(localPath, buf)
@@ -1108,12 +1108,12 @@ export async function joinVideos(params: {
     return publicUrl
 
   } finally {
-    // Limpa arquivos temporários
+    // Limpa arquivos temporÃ¡rios
     try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ignora */ }
   }
 }
 
-// ── Veo3 — Google Generative AI direto (sem Fal AI) ──────────────────────────
+// ââ Veo3 â Google Generative AI direto (sem Fal AI) ââââââââââââââââââââââââââ
 export async function startVeo3DirectGoogle(params: {
   source_image_url: string
   motion_prompt:    string
@@ -1121,11 +1121,11 @@ export async function startVeo3DirectGoogle(params: {
   userId:           string
 }) {
   const apiKey = process.env.GOOGLE_API_KEY
-  if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+  if (!apiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
 
   const admin = createAdminClient()
 
-  // 1. Baixa imagem e converte para base64 (Google API não aceita URLs externas)
+  // 1. Baixa imagem e converte para base64 (Google API nÃ£o aceita URLs externas)
   const imgRes = await fetch(params.source_image_url)
   if (!imgRes.ok) throw new Error('Falha ao baixar imagem fonte para Veo3 Google')
   const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
@@ -1159,9 +1159,9 @@ export async function startVeo3DirectGoogle(params: {
 
   const body = await res.json()
   const operationName = body.name
-  if (!operationName) throw new Error('Google Veo3 não retornou operationName')
+  if (!operationName) throw new Error('Google Veo3 nÃ£o retornou operationName')
 
-  // 3. Salva operationName para polling manual via botão "Forçar atualização"
+  // 3. Salva operationName para polling manual via botÃ£o "ForÃ§ar atualizaÃ§Ã£o"
   await admin.from('studio_assets')
     .update({
       input_params: {
@@ -1175,7 +1175,7 @@ export async function startVeo3DirectGoogle(params: {
     .eq('id', params.assetId)
 }
 
-// ── Image-to-Image (Angles / Poses) ──────────────────────────────────────────────────────────
+// ââ Image-to-Image (Angles / Poses) ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 export async function generateAngles(params: {
   source_url: string
   angle: string
@@ -1232,11 +1232,11 @@ export async function generateAngles(params: {
     try {
       // ---- GOOGLE IMAGEN 4.0 (SUBJECT CONTROL) ----
       const googleApiKey = process.env.GOOGLE_API_KEY
-      if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+      if (!googleApiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
 
       // 1. Download base image
       if (!params.source_url || !params.source_url.startsWith('http')) {
-        throw new Error('URL da imagem fonte inválida para o Imagen')
+        throw new Error('URL da imagem fonte invÃ¡lida para o Imagen')
       }
 
       const imgRes = await fetch(params.source_url)
@@ -1270,7 +1270,7 @@ export async function generateAngles(params: {
 
       const data = await res.json()
       const base64 = data.predictions?.[0]?.bytesBase64Encoded
-      if (!base64) throw new Error('Imagem não retornada pelo Google')
+      if (!base64) throw new Error('Imagem nÃ£o retornada pelo Google')
       photoBuffer = Buffer.from(base64, 'base64')
 
     } catch (googleError: any) {
@@ -1278,10 +1278,10 @@ export async function generateAngles(params: {
         throw googleError // Se a retentiva estiver desligada, joga o erro real do Google na tela
       }
 
-      console.error("[studio] Erro Google Imagen, migrando para FLUX de segurança...", googleError.message)
-      // Se o Google der qualquer erro (400, 404, etc), usamos o motor FLUX pra não deixar o usuário na mão
+      console.error("[studio] Erro Google Imagen, migrando para FLUX de seguranÃ§a...", googleError.message)
+      // Se o Google der qualquer erro (400, 404, etc), usamos o motor FLUX pra nÃ£o deixar o usuÃ¡rio na mÃ£o
       const falKey = process.env.FAL_KEY
-      if (!falKey) throw new Error('FAL_KEY não configurada para fallback')
+      if (!falKey) throw new Error('FAL_KEY nÃ£o configurada para fallback')
 
       const res = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
         method: 'POST',
@@ -1309,7 +1309,7 @@ export async function generateAngles(params: {
   } else {
     // ---- FLUX DEV (IMAGE-TO-IMAGE) ----
     const falKey = process.env.FAL_KEY
-    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+    if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
     const res = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
       method: 'POST',
@@ -1332,7 +1332,7 @@ export async function generateAngles(params: {
 
     const data = await res.json()
     const imageUrl = data.images?.[0]?.url
-    if (!imageUrl) throw new Error('Não foi possível obter a URL da nova imagem (Flux)')
+    if (!imageUrl) throw new Error('NÃ£o foi possÃ­vel obter a URL da nova imagem (Flux)')
 
     const imgDl = await fetch(imageUrl)
     photoBuffer = Buffer.from(await imgDl.arrayBuffer())
@@ -1370,7 +1370,7 @@ export async function generateAngles(params: {
  
      c o n s t   g o o g l e A p i K e y   =   p r o c e s s . e n v . G O O G L E _ A P I _ K E Y 
  
-     i f   ( ! g o o g l e A p i K e y )   t h r o w   n e w   E r r o r ( ' G O O G L E _ A P I _ K E Y   n � � o   c o n f i g u r a d a   n o   s e r v i d o r ' ) 
+     i f   ( ! g o o g l e A p i K e y )   t h r o w   n e w   E r r o r ( ' G O O G L E _ A P I _ K E Y   n Ã £ o   c o n f i g u r a d a   n o   s e r v i d o r ' ) 
  
  
  
@@ -1378,7 +1378,7 @@ export async function generateAngles(params: {
  
  
  
-     / /   A d i c i o n a   i m a g e m   s e   h o u v e r   ( M u l t i m o d a l   -   I n s p i r a � � � � o   v i s u a l   p a r a   a   m � � s i c a ) 
+     / /   A d i c i o n a   i m a g e m   s e   h o u v e r   ( M u l t i m o d a l   -   I n s p i r a Ã § Ã £ o   v i s u a l   p a r a   a   m Ã º s i c a ) 
  
      i f   ( p a r a m s . s o u r c e _ i m a g e _ u r l )   { 
  
@@ -1414,7 +1414,7 @@ export async function generateAngles(params: {
  
  
  
-     c o n s o l e . l o g ( ` [ s t u d i o ]   G e r a n d o   M � � s i c a   [ L y r i a   3 ]   p a r a   a s s e t   $ { p a r a m s . a s s e t I d } .   M u l t i m o d a l ?   $ { ! ! p a r a m s . s o u r c e _ i m a g e _ u r l } ` ) 
+     c o n s o l e . l o g ( ` [ s t u d i o ]   G e r a n d o   M Ã º s i c a   [ L y r i a   3 ]   p a r a   a s s e t   $ { p a r a m s . a s s e t I d } .   M u l t i m o d a l ?   $ { ! ! p a r a m s . s o u r c e _ i m a g e _ u r l } ` ) 
  
  
  
@@ -1448,7 +1448,7 @@ export async function generateAngles(params: {
  
      
  
-     / /   O   L y r i a   r e t o r n a   o   � � u d i o   e m   u m   d o s   p a r t s   c o m o   i n l i n e _ d a t a   ( b a s e 6 4 ) 
+     / /   O   L y r i a   r e t o r n a   o   Ã ¡ u d i o   e m   u m   d o s   p a r t s   c o m o   i n l i n e _ d a t a   ( b a s e 6 4 ) 
  
      l e t   a u d i o D a t a :   B u f f e r   |   n u l l   =   n u l l 
  
@@ -1474,7 +1474,7 @@ export async function generateAngles(params: {
  
  
  
-     i f   ( ! a u d i o D a t a )   t h r o w   n e w   E r r o r ( ' L y r i a   3   n � � o   r e t o r n o u   o   a r q u i v o   d e   � � u d i o .   V e r i f i q u e   s u a   q u o t a / p r o m p t . ' ) 
+     i f   ( ! a u d i o D a t a )   t h r o w   n e w   E r r o r ( ' L y r i a   3   n Ã £ o   r e t o r n o u   o   a r q u i v o   d e   Ã ¡ u d i o .   V e r i f i q u e   s u a   q u o t a / p r o m p t . ' ) 
  
  
  
@@ -1490,7 +1490,7 @@ export async function generateAngles(params: {
  
  
  
-     i f   ( e r r o r )   t h r o w   n e w   E r r o r ( ` F a l h a   n o   u p l o a d   d a   m � � s i c a :   $ { e r r o r . m e s s a g e } ` ) 
+     i f   ( e r r o r )   t h r o w   n e w   E r r o r ( ` F a l h a   n o   u p l o a d   d a   m Ã º s i c a :   $ { e r r o r . m e s s a g e } ` ) 
  
  
  
