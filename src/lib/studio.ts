@@ -502,8 +502,9 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 
   let photoBuffer: Buffer
 
-  if (params.engine === 'flux') {
-    // ---- MOTOR FLUX PRO 1.1 ULTRA ----
+  // Agora o motor padrão é o FLUX PRO 1.1 ULTRA (Superior em realismo e estabilidade)
+  if (params.engine !== 'google') {
+    // ---- MOTOR FLUX PRO 1.1 ULTRA (Padrão) ----
     const falKey = process.env.FAL_KEY
     if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
 
@@ -534,11 +535,11 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
     photoBuffer = Buffer.from(await imgRes.arrayBuffer())
 
   } else {
-    // ---- MOTOR GOOGLE IMAGEN 3 (Padrão) ----
+    // ---- MOTOR GOOGLE IMAGEN 3 (Opcional/Fallback) ----
     const googleApiKey = process.env.GOOGLE_API_KEY
     if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
-    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${googleApiKey}`, {
+    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-fast-generate-001:predict?key=${googleApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
