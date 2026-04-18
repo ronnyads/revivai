@@ -1348,16 +1348,21 @@ export async function generateAngles(params: {
           },
           body: JSON.stringify({
             instances: [{
-              prompt: `A photorealistic UGC photo of the EXACT SAME PERSON from {reference_image}: ${prompt}`,
-              // Formato 'Fix Definitivo' (Singular e Direto)
-              reference_image: {
-                bytesBase64Encoded: base64Image,
-                mimeType: 'image/jpeg'
-              },
-              reference_strength: 0.99,
+              // Usando o marcador oficial de personagen do Google: <character_1>
+              prompt: `Photo of <character_1>, a photorealistic UGC style shot. ${prompt}. MUST be the same woman/man from <character_1>. Correct camera angle: ${params.angle}.`,
+              referenceImages: [
+                {
+                  referenceId: 1,
+                  referenceType: 'CHARACTER', // Modo supremo de rostos
+                  image: {
+                    bytesBase64Encoded: base64Image,
+                    mimeType: 'image/jpeg'
+                  }
+                }
+              ],
               negative_prompt: detectedGender === 'woman' 
-                ? `man, male, boy, masculine, facial hair, different face, different person, new character, face transformation, cartoon, anime, illustration`
-                : `woman, female, girl, feminine, biological woman, different face, different person, new character, face transformation, cartoon, anime, illustration`
+                ? `man, male, boy, masculine, facial hair, different face, bearded, messy hair`
+                : `woman, female, girl, feminine, biological woman, long hair, makeup, different face`
             }],
             parameters: {
               sampleCount: 1,
