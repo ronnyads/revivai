@@ -1330,9 +1330,8 @@ export async function generateAngles(params: {
       `Photorealistic UGC photo, 8k, cinematic lighting.`,
     ].filter(Boolean).join(' ')
 
-    if (engine === 'google') {
-      try {
-        const vertexKey = process.env.GOOGLE_VERTEX_KEY
+    try {
+      const vertexKey = process.env.GOOGLE_VERTEX_KEY
         const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
         const location = process.env.VERTEX_LOCATION || 'us-central1'
 
