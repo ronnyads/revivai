@@ -11,7 +11,11 @@ export async function extractLastFrame(videoUrl: string): Promise<Buffer> {
   const { default: ffmpeg } = await import('fluent-ffmpeg')
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const ffmpegPath = require('ffmpeg-static') as string
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const ffprobePath = require('ffprobe-static').path as string
+  
   ffmpeg.setFfmpegPath(ffmpegPath)
+  ffmpeg.setFfprobePath(ffprobePath)
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-frame-'))
   const inputPath = path.join(tmpDir, 'input.mp4')
