@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Camera, Image as ImageIcon, Map, Maximize, User, Scan, ArrowRight, Sparkles } from 'lucide-react'
+import { Camera, Image as ImageIcon, Map, Maximize, User, Scan, ArrowRight, Sparkles, Layers } from 'lucide-react'
 import { StudioAsset } from '@/types'
 
 interface Props {
@@ -19,6 +19,7 @@ const ANGLES = [
 
 export default function AngleGenerator({ initial, onGenerate }: Props) {
   const [selectedAngle, setSelectedAngle] = useState(initial.angle as string || 'frontal')
+  const [engine, setEngine] = useState((initial.engine as string) || 'flux')
   const sourceUrl = initial.source_url as string
 
   return (
@@ -87,10 +88,41 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
         </div>
       </div>
 
+      {/* Engine Selector */}
+      <div className="space-y-3">
+        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2 px-1">
+          <Sparkles size={12} className="text-zinc-500" /> Motor de IA
+        </label>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setEngine('flux')}
+            className={`flex-1 flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+              engine === 'flux'
+                ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'
+                : 'bg-white/2 border-white/5 text-zinc-500 hover:text-zinc-300 hover:bg-white/5'
+            }`}
+          >
+            <Layers size={14} />
+            <span className="text-[10px] font-bold">FLUX Ultra</span>
+          </button>
+          <button
+            onClick={() => setEngine('google')}
+            className={`flex-1 flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
+              engine === 'google'
+                ? 'bg-blue-500/10 border-blue-500/50 text-blue-400'
+                : 'bg-white/2 border-white/5 text-zinc-500 hover:text-zinc-300 hover:bg-white/5'
+            }`}
+          >
+            <Camera size={14} />
+            <span className="text-[10px] font-bold">Imagen 4.0</span>
+          </button>
+        </div>
+      </div>
+
       {/* Action Button */}
       <button
         disabled={!sourceUrl}
-        onClick={() => onGenerate({ source_url: sourceUrl, angle: selectedAngle })}
+        onClick={() => onGenerate({ source_url: sourceUrl, angle: selectedAngle, engine })}
         className={`relative mt-2 w-full py-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all overflow-hidden group/btn ${
           !sourceUrl
             ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'

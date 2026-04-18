@@ -1179,13 +1179,12 @@ export async function startVeo3DirectGoogle(params: {
 export async function generateAngles(params: {
   source_url: string
   angle: string
+  engine?: string
   assetId: string
   userId: string
 }) {
-  const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
-
   const admin = createAdminClient()
+  const engine = params.engine ?? 'flux'
   
   const angleMap: Record<string, string> = {
     frontal: 'frontal shot, looking directly at the camera, symmetric composition',
@@ -1198,41 +1197,89 @@ export async function generateAngles(params: {
   const perspective = angleMap[params.angle] || angleMap['frontal']
   const prompt = `Same identical person, identical clothing, identical background environment. Photorealistic. ${perspective}. 8k resolution, cinematic lighting.`
 
-  // Vamos utilizar o motor base de Image to Image do Flux para repintar a perspectiva
-  const res = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Key ${falKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      image_url: params.source_url,
-      prompt: prompt,
-      strength: 0.85, // Suficiente para rotacionar/distanciar mantendo a identidade
-      output_format: 'jpeg',
-    }),
-  })
+  let photoBuffer: Buffer
 
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Falha ao gerar nova perspectiva (Flux i2i): ${err}`)
+  if (engine === 'google') {
+    // ---- GOOGLE IMAGEN 4.0 (SUBJECT CONTROL) ----
+    const googleApiKey = process.env.GOOGLE_API_KEY
+    if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+
+    // 1. Download base image
+    const imgRes = await fetch(params.source_url)
+    if (!imgRes.ok) throw new Error('Falha ao baixar imagem fonte para o Imagen')
+    const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
+    const base64Image = imgBuffer.toString('base64')
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${googleApiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{
+          prompt,
+          referenceImages: [{
+            referenceType: 'SUBJECT',
+            image: { bytesBase64Encoded: base64Image, mimeType: 'image/jpeg' }
+          }]
+        }],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: '9:16',
+          personGeneration: 'ALLOW_ADULT'
+        }
+      })
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Google Imagen erro (${res.status}): ${err}`)
+    }
+
+    const data = await res.json()
+    const base64 = data.predictions?.[0]?.bytesBase64Encoded
+    if (!base64) throw new Error('Google Imagen não retornou a nova perspectiva. Verifique logs.')
+    photoBuffer = Buffer.from(base64, 'base64')
+
+  } else {
+    // ---- FLUX DEV (IMAGE-TO-IMAGE) ----
+    const falKey = process.env.FAL_KEY
+    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+
+    const res = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        image_url: params.source_url,
+        prompt: prompt,
+        strength: 0.85, 
+        output_format: 'jpeg',
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Falha ao gerar nova perspectiva (Flux i2i): ${err}`)
+    }
+
+    const data = await res.json()
+    const imageUrl = data.images?.[0]?.url
+    if (!imageUrl) throw new Error('Não foi possível obter a URL da nova imagem (Flux)')
+
+    const imgDl = await fetch(imageUrl)
+    photoBuffer = Buffer.from(await imgDl.arrayBuffer())
   }
 
-  const data = await res.json()
-  const imageUrl = data.images?.[0]?.url
-  if (!imageUrl) throw new Error('Não foi possível obter a URL da nova imagem')
-
-  // Baixa e transfere para o Supabase Storage (Cache Permanente)
-  const imgRes = await fetch(imageUrl)
-  const buffer = Buffer.from(await imgRes.arrayBuffer())
-
+  // Define caminho e sobe pro Storage
   const storagePath = `${params.userId}/${params.assetId}-angle.jpg`
   const { error } = await admin.storage
     .from('studio')
-    .upload(storagePath, buffer, { contentType: 'image/jpeg', upsert: true })
+    .upload(storagePath, photoBuffer, { contentType: 'image/jpeg', upsert: true })
 
   if (error) throw new Error(`Falha no Storage (Angles): ${error.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(storagePath)
   return publicUrl
 }
+

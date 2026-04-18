@@ -228,6 +228,7 @@ export async function POST(req: NextRequest) {
       resultUrl = await generateAngles({
         source_url: String(input_params.source_url ?? ''),
         angle: String(input_params.angle ?? 'frontal'),
+        engine: String(input_params.engine ?? 'flux'),
         assetId: asset.id,
         userId: user.id,
       })
