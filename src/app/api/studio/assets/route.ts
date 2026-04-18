@@ -264,8 +264,27 @@ export async function POST(req: NextRequest) {
     }, { status: 201 })
 
   } catch (err: any) {
-    console.error(`[studio] Asset ${asset.id} falhou:`, err.message)
-    await admin.from('studio_assets').update({ status: 'error', error_msg: err.message }).eq('id', asset.id)
-    return NextResponse.json({ error: err.message, asset: { ...asset, status: 'error' } }, { status: 500 })
+    const errorMsg = err instanceof Error ? err.message : String(err)
+    const errorStack = err instanceof Error ? err.stack : ''
+    
+    console.error(`[studio] CRITICAL ERROR [Asset ${asset?.id}]:`, {
+      message: errorMsg,
+      stack: errorStack,
+      type,
+      input_params
+    })
+
+    if (asset?.id) {
+      await admin.from('studio_assets').update({ 
+        status: 'error', 
+        error_msg: errorMsg.slice(0, 500) 
+      }).eq('id', asset.id)
+    }
+    
+    return NextResponse.json({ 
+      error: errorMsg,
+      code: 'INTERNAL_SERVER_ERROR',
+      asset_id: asset?.id 
+    }, { status: 500 })
   }
 }
