@@ -1206,7 +1206,6 @@ export async function startVeo3DirectGoogle(params: {
         }],
         parameters: {
           aspectRatio: '9:16',
-          videoDurationSeconds: params.duration || 8, // Novo campo para duração
           personGeneration: 'ALLOW_ADULT'
         },
       }),

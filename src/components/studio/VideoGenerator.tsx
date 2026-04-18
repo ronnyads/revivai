@@ -121,21 +121,23 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
       <div className="space-y-2.5 bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4">
         <div className="flex items-center justify-between px-1">
           <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Duração do Clipe</label>
-          <span className="text-[11px] font-black text-blue-400">
-            {duration} Segundos
+          <span className={`text-[11px] font-black ${engine === 'veo' ? 'text-zinc-400' : 'text-blue-400'}`}>
+            {engine === 'veo' ? '8s (Fixo Google)' : `${duration} Segundos`}
           </span>
         </div>
-        <div className="px-1">
-          <input
-            type="range" 
-            min="3" 
-            max={engine === 'veo' ? 8 : 10} 
-            step="1"
-            value={engine === 'veo' && duration > 8 ? 8 : duration}
-            onChange={e => setDuration(Number(e.target.value))}
-            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-          />
-        </div>
+        {engine !== 'veo' && (
+          <div className="px-1">
+            <input
+              type="range" 
+              min="3" 
+              max="10" 
+              step="1"
+              value={duration}
+              onChange={e => setDuration(Number(e.target.value))}
+              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            />
+          </div>
+        )}
       </div>
 
       <button
