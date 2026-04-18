@@ -1330,99 +1330,64 @@ export async function generateAngles(params: {
       `Photorealistic UGC photo, 8k, cinematic lighting.`,
     ].filter(Boolean).join(' ')
 
-    try {
-      const vertexKey = process.env.GOOGLE_VERTEX_KEY
-      const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
-      const location = process.env.VERTEX_LOCATION || 'us-central1'
+      if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada. Vertex AI é obrigatório.')
 
-      if (vertexKey) {
-        console.log(`[studio] Usando Vertex AI Enterprise (Subject Lock) para asset ${params.assetId} (${detectedGender})...`)
-        const vertexToken = await getVertexAccessToken(vertexKey)
-        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
+      const vertexToken = await getVertexAccessToken(vertexKey)
+      const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
 
-        const vertexRes = await fetch(vertexUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${vertexToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            instances: [{
-              // Usando o marcador oficial de personagen do Google: <character_1>
-              prompt: `Photo of <character_1>, a photorealistic UGC style shot. ${prompt}. MUST be the same woman/man from <character_1>. Correct camera angle: ${params.angle}.`,
-              referenceImages: [
-                {
-                  referenceId: 1,
-                  referenceType: 'CHARACTER', // Modo supremo de rostos
-                  image: {
-                    bytesBase64Encoded: base64Image,
-                    mimeType: 'image/jpeg'
-                  }
-                }
-              ],
-              negative_prompt: detectedGender === 'woman' 
-                ? `man, male, boy, masculine, facial hair, different face, bearded, messy hair`
-                : `woman, female, girl, feminine, biological woman, long hair, makeup, different face`
-            }],
-            parameters: {
-              sampleCount: 1,
-              aspectRatio: params.aspect_ratio === '9:16' ? '9:16' : 
-                          params.aspect_ratio === '1:1' ? '1:1' : '9:16',
-              seed: 42,
-              safetyFilterLevel: 'BLOCK_ONLY_HIGH',
-              personGenerationConfig: {
-                allowAdultContent: true,
-                preserveIdentity: true,
-                preserveFaceFeatures: true,
-                preserveBodyShape: true
-              }
-            }
-          })
-        })
-
-        if (!vertexRes.ok) {
-          const err = await vertexRes.text()
-          console.warn('[studio] Vertex AI falhou, tentando Gemini API simples...', err)
-          throw new Error(err)
-        }
-
-        const vertexData = await vertexRes.json()
-        const base64 = vertexData.predictions?.[0]?.bytesBase64Encoded
-        if (!base64) throw new Error('Imagem não retornada pelo Vertex')
-      } else {
-        console.warn('[studio] GOOGLE_VERTEX_KEY não encontrada nas variáveis de ambiente.')
-        throw new Error('Sem Vertex Key')
-      }
-    } catch (vertexError: any) {
-      console.warn('[studio] FALHA CRÍTICA NO VERTEX AI:', vertexError.message)
+      console.log(`[studio] Chamando Vertex AI Enterprise (PURO) para asset ${params.assetId}...`)
       
-      // ---- FALLBACK: GEMINI API SIMPLES (O que já tinhamos) ----
-      console.log('[studio] Tentando fallback para Gemini API simples...')
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
+      const vertexRes = await fetch(vertexUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${vertexToken}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           instances: [{
-            prompt: finalPrompt,
+            prompt: `Photo of <character_1>, a photorealistic UGC style shot. ${prompt}. MUST be the same person from <character_1>. Angle: ${params.angle}.`,
+            // Usando o formato direto de referência única sugerido
+            reference_image: {
+              bytesBase64Encoded: base64Image,
+              mimeType: 'image/jpeg'
+            },
+            reference_strength: 0.99,
+            negative_prompt: detectedGender === 'woman' 
+              ? `man, male, boy, masculine, facial hair, bearded, messy hair` 
+              : `woman, female, girl, feminine, biological woman, long hair, makeup`
           }],
           parameters: {
-            sampleCount: 1, // Corrigido para camelCase compatível com v1
-            aspectRatio: params.aspect_ratio === '9:16' ? '9:16' : 
-                         params.aspect_ratio === '1:1' ? '1:1' : '9:16'
+            sampleCount: 1,
+            aspectRatio: params.aspect_ratio === '1:1' ? '1:1' : '9:16',
+            seed: 42,
+            safetyFilterLevel: 'BLOCK_ONLY_HIGH',
+            personGenerationConfig: {
+              allowAdultContent: true,
+              preserveIdentity: true,
+              preserveFaceFeatures: true,
+              preserveBodyShape: true
+            }
           }
         })
       })
 
-      if (!res.ok) {
-        const errorBody = await res.text()
-        console.error(`[studio] Gemini API falhou feio (${res.status}):`, errorBody)
-        throw new Error(`Google Error: ${errorBody}`)
+      if (!vertexRes.ok) {
+        const errBody = await vertexRes.text()
+        console.error('[studio] ERRO VERDADEIRO DO VERTEX:', errBody)
+        throw new Error(`Vertex AI Error (${vertexRes.status}): ${errBody}`)
       }
 
-      const data = await res.json()
-      const base64Fallback = data.predictions?.[0]?.bytesBase64Encoded
-      if (!base64Fallback) throw new Error('Imagem não retornada pelo Google Gemini Fallback')
-      photoBuffer = Buffer.from(base64Fallback, 'base64')
+      const vertexData = await vertexRes.json()
+      const base64Res = vertexData.predictions?.[0]?.bytesBase64Encoded
+      if (!base64Res) {
+        console.error('[studio] Vertex não retornou imagem. Raw:', JSON.stringify(vertexData))
+        throw new Error('Response do Vertex não contém bytesBase64Encoded.')
+      }
+      photoBuffer = Buffer.from(base64Res, 'base64')
+
+    } catch (vertexError: any) {
+      console.error('[studio] Falha definitiva no Vertex AI (SEM FALLBACK):', vertexError.message)
+      throw vertexError
     }
 
   } else {
