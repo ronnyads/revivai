@@ -33,35 +33,32 @@ export async function POST(req: NextRequest) {
 
   if (!project_id || !type) return NextResponse.json({ error: 'project_id e type obrigatórios' }, { status: 400 })
 
-  // Verifica credits_cost dinâmico
+  // 1. Cálculo de Custo e Verificação de Saldo
   const baseCost = CREDIT_COST[type] ?? 1
-  
-  // Lógica de Preço por Motor (Engine-Specific Pricing)
-  // Se for vídeo e o motor for 'veo', usamos o custo premium
   let effectiveCost = baseCost
   if (type === 'video' && String(input_params?.engine ?? '') === 'veo') {
-    effectiveCost = CREDIT_COST['video_veo'] ?? 100
+    effectiveCost = CREDIT_COST['video_veo'] ?? 50
   }
 
   const isDraft = body.status === 'idle'
   const { data: profile } = await supabase.from('users').select('credits').eq('id', user.id).single()
   
   if (!isDraft && (!profile || profile.credits < effectiveCost)) {
-    return NextResponse.json({ error: `Sem créditos. Necessário ${effectiveCost} cr.` }, { status: 402 })
+    return NextResponse.json({ error: `Saldo insuficiente. Necessário ${effectiveCost} cr.` }, { status: 402 })
   }
 
   const admin = createAdminClient()
 
-  // Prepara o registro do asset (Smart Upsert)
+  // 2. Registro do Asset (Smart Upsert)
   let asset: any
-  const status = body.status === 'idle' ? 'idle' : 'processing'
+  const status = isDraft ? 'idle' : 'processing'
   const insertData: any = { 
     project_id, 
     user_id: user.id, 
     type, 
     status, 
     input_params, 
-    credits_cost: status === 'idle' ? 0 : effectiveCost,
+    credits_cost: isDraft ? 0 : effectiveCost,
     board_order: 0
   }
   if (frontend_id || existing_id) insertData.id = frontend_id || existing_id
@@ -73,13 +70,26 @@ export async function POST(req: NextRequest) {
     .single()
   
   if (dbErr || !inserted) {
-    return NextResponse.json({ error: dbErr?.message ?? 'Erro DB' }, { status: 500 })
+    return NextResponse.json({ error: dbErr?.message ?? 'Erro ao criar registro' }, { status: 500 })
   }
   asset = inserted
 
-  if (asset.status === 'idle') return NextResponse.json({ asset }, { status: 201 })
+  // Se for rascunho, para aqui
+  if (isDraft) return NextResponse.json({ asset }, { status: 201 })
 
-  // Dispatch de geração (restante da lógica mantida igual)
+  // 3. COBRANÇA IMEDIATA (Atomic Debit)
+  // Debita antes de gastar com as APIs externas de IA.
+  try {
+    await admin.rpc('debit_credits_bulk', { 
+      user_id_param: user.id, 
+      amount_param: effectiveCost 
+    })
+  } catch (chargeErr: any) {
+    console.error(`[studio] Falha na cobrança:`, chargeErr.message)
+    return NextResponse.json({ error: 'Falha ao processar créditos.' }, { status: 500 })
+  }
+
+  // 4. Execução da IA
   try {
     let resultUrl: string | null = null
     let extraData: Record<string, unknown> = {}
@@ -177,14 +187,14 @@ export async function POST(req: NextRequest) {
       const appUrl    = origin
         ? (origin.startsWith('http') ? origin : `https://${origin}`)
         : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
-      const animateUrl = await startAnimateGeneration({
+      await startAnimateGeneration({
         portrait_image_url: String(input_params.portrait_image_url ?? ''),
         driving_video_url:  String(input_params.driving_video_url  ?? ''),
         assetId: asset.id,
         userId: user.id,
         appUrl,
       })
-      return NextResponse.json({ asset: { ...asset, status: 'done', result_url: animateUrl } }, { status: 201 })
+      return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
 
     } else if (type === 'lipsync') {
       const origin    = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
@@ -201,6 +211,7 @@ export async function POST(req: NextRequest) {
         appUrl,
       })
       return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
+
     } else if (type === 'compose') {
       resultUrl = await composeProductScene({
         portrait_url:  String(input_params.portrait_url   ?? ''),
@@ -228,18 +239,12 @@ export async function POST(req: NextRequest) {
       resultUrl = await joinVideos({ video_urls: videoUrls, assetId: asset.id, userId: user.id })
     }
 
-    // Atualiza resultado e debita créditos reais via RPC
+    // 5. Finalização (Sync Types Only)
     await admin.from('studio_assets').update({
       status: 'done',
       result_url: resultUrl,
       input_params: { ...input_params, ...extraData },
     }).eq('id', asset.id)
-
-    // Debita o custo real (effectiveCost) de forma atômica e performática
-    await admin.rpc('debit_credits_bulk', { 
-        user_id_param: user.id, 
-        amount_param: effectiveCost 
-    })
 
     return NextResponse.json({
       asset: {
