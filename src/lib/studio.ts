@@ -1242,11 +1242,11 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    const finalPrompt = `Mesma modelo ${detectedGender}, posição ${params.angle}, rosto idêntico, corpo igual, roupas similares, fundo estúdio profissional, iluminação cinematic, UGC style, fotografia de alta qualidade`
+    const finalPrompt = `Maintain 100% identity of the woman in the reference. Beautiful ${detectedGender} model UGC, identical face, identical long hair, professional studio, cinematic lighting, position: ${params.angle}`
 
     try {
-      // ---- GOOGLE IMAGEN 4.0 (SUBJECT CUSTOMIZATION - GEMINI API STYLE) ----
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
+      // ---- GOOGLE IMAGEN 3.0 (STABLE FAST ENGINE) ----
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-fast-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1263,8 +1263,8 @@ export async function generateAngles(params: {
             }]
           }],
           parameters: {
-            sampleCount: 1,
-            aspectRatio: '9:16'
+            sample_count: 1,
+            aspect_ratio: '9:16'
           }
         })
       })
