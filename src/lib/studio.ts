@@ -1320,10 +1320,11 @@ export async function generateAngles(params: {
     } catch { /* silent */ }
 
     const finalPrompt = [
-      `Photo of {subject_id: 1}.`,
-      appearanceDesc ? `The person is wearing: ${appearanceDesc}.` : '',
+      `A photorealistic UGC photo of the ${detectedGender} {subject_id: 1}.`,
+      appearanceDesc ? `The ${detectedGender} is wearing: ${appearanceDesc}.` : '',
       `Change ONLY the camera angle to ${params.angle} view (${perspective}).`,
-      `Preserve EXACTLY: same face, same hair color and style, same outfit and every clothing item with exact colors and patterns.`,
+      `Preserve EXACTLY: same ${detectedGender} face, same hair color and style, same outfit and every clothing item with exact colors and patterns.`,
+      `DO NOT change gender. MUST be a ${detectedGender}.`,
       `Photorealistic UGC photo, 8k, cinematic lighting.`,
     ].filter(Boolean).join(' ')
 
@@ -1333,73 +1334,49 @@ export async function generateAngles(params: {
       const location = process.env.VERTEX_LOCATION || 'us-central1'
 
       if (vertexKey) {
-        console.log(`[studio] Usando Vertex AI Enterprise para asset ${params.assetId}...`)
-        const credentials = JSON.parse(vertexKey)
-        const vertexAI = new VertexAI({ project: projectId, location: location, googleAuthOptions: { credentials } })
-        
-        // Modelo Imagen 3.0/4.0 no Vertex
-        // Nota: No Vertex a estrutura é via predictionServiceClient ou SDK generativo
-        const generativeModel = vertexAI.getGenerativeModel({
-          model: 'imagen-3.0-generate-001', // Imagen 3/4 no Vertex
+        console.log(`[studio] Usando Vertex AI Enterprise (Subject Lock) para asset ${params.assetId} (${detectedGender})...`)
+        const vertexToken = await getVertexAccessToken(vertexKey)
+        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
+
+        const vertexRes = await fetch(vertexUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${vertexToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            instances: [{
+              prompt: finalPrompt,
+              referenceImages: [{
+                referenceId: 1,
+                referenceType: 'SUBJECT',
+                image: {
+                  bytesBase64Encoded: base64Image,
+                  mimeType: 'image/jpeg'
+                }
+              }]
+            }],
+            parameters: {
+              sampleCount: 1,
+              aspectRatio: params.aspect_ratio || '9:16',
+              personGeneration: 'allow_adult'
+            }
+          })
         })
 
-        const result = await generativeModel.generateContent({
-          contents: [{
-            role: 'user',
-            parts: [{
-              text: finalPrompt
-            }]
-          }]
-        })
-        // O SDK do Vertexai para node as vezes tem comportamentos diferentes para Image Generation.
-        // Se falhar o SDK generativo, usamos o REST que é garantido.
+        if (!vertexRes.ok) {
+          const err = await vertexRes.text()
+          console.warn('[studio] Vertex AI falhou, tentando Gemini API simples...', err)
+          throw new Error(err)
+        }
+
+        const vertexData = await vertexRes.json()
+        const base64 = vertexData.predictions?.[0]?.bytesBase64Encoded
+        if (!base64) throw new Error('Imagem não retornada pelo Vertex')
+        photoBuffer = Buffer.from(base64, 'base64')
+      } else {
+        throw new Error('GOOGLE_VERTEX_KEY não encontrada')
       }
-
-      // ---- GOOGLE IMAGEN (Vertex AI REST API - O MAIS PODEROSO) ----
-      const vertex_token = await getVertexAccessToken(vertexKey)
-      const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
-
-      const vertexRes = await fetch(vertexUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${vertex_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          instances: [{
-            prompt: finalPrompt,
-            referenceImages: [{
-              referenceId: 1,
-              referenceType: 'REFERENCE_TYPE_SUBJECT',
-              image: {
-                bytesBase64Encoded: base64Image,
-                mimeType: 'image/jpeg'
-              },
-              subjectImageConfig: {
-                subjectDescription: appearanceDesc || `A ${detectedGender} model`,
-                subjectType: 'SUBJECT_TYPE_PERSON'
-              }
-            }]
-          }],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio: params.aspect_ratio || '9:16',
-            personGeneration: 'allow_adult'
-          }
-        })
-      })
-
-      if (!vertexRes.ok) {
-        const err = await vertexRes.text()
-        console.warn('[studio] Vertex AI falhou, tentando Gemini API simples...', err)
-        throw new Error(err)
-      }
-
-      const vertexData = await vertexRes.json()
-      const base64 = vertexData.predictions?.[0]?.bytesBase64Encoded
-      if (!base64) throw new Error('Imagem não retornada pelo Vertex')
-      photoBuffer = Buffer.from(base64, 'base64')
-
     } catch (vertexError: any) {
       console.warn('[studio] Erro no Vertex AI (via JSON Key), tentando Gemini API simples...')
       
