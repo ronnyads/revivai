@@ -36,6 +36,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   lipsync: { icon: <Wand2 size={14} />,    label: 'Lip Sync',    color: 'text-cyan-400',    bg: 'bg-cyan-500/10 border-cyan-500/30',        hint: '← Conecte Vídeo + Voz', output: 'Vídeo sincronizado →' },
   angles:  { icon: <Camera size={14} />,   label: 'Ângulos (Trocar Posição)', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', hint: '← Conecte a Modelo ou Fusão', output: 'Novo Ângulo →' },
   music:   { icon: <Music size={14} />,    label: 'Trilha Sonora AI', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30', hint: 'Gera música com Lyria 3', output: 'Áudio MP3 →' },
+  ugc_bundle: { icon: <Sparkles size={14} />, label: 'Pacote 8 Poses UGC', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Gera 8 poses em paralelo', output: '8 Fotos UGC →' },
 }
 
 const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string }>>> = {
@@ -76,6 +77,7 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
   ],
   angles:  [{ id: 'source_url', label: 'Imagem/Modelo' }],
   music:   [{ id: 'source_image_url', label: 'Imagem/Mood' }],
+  ugc_bundle: [{ id: 'source_url', label: 'Imagem/Modelo' }],
 }
 
 export interface AssetNodeData {
@@ -316,6 +318,21 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
   if (type === 'script') return <ScriptPreview text={String(params.script_text ?? '')} url={url} />
   if (type === 'caption') return <CaptionPreview url={url} />
   if (type === 'music') return <audio src={url} controls className="w-full" />
+  if (type === 'ugc_bundle') {
+    const bundle = params.ugc_bundle as Array<{ position: string; url: string }> || []
+    return (
+      <div className="grid grid-cols-2 gap-1.5">
+        {bundle.map((item, i) => (
+          <div key={i} className="relative group cursor-pointer" onClick={() => window.open(item.url, '_blank')}>
+            <img src={item.url} alt={item.position} className="w-full aspect-[9/16] object-cover rounded-lg border border-white/5" />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+              <Download size={12} className="text-white" />
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
   return null
 }
 
@@ -417,6 +434,7 @@ const ESTIMATED: Partial<Record<AssetType, number>> = {
   render:  30,
   lipsync: 90,
   music:   45,
+  ugc_bundle: 110,
 }
 
 const LABELS: Partial<Record<AssetType, string>> = {
@@ -432,6 +450,7 @@ const LABELS: Partial<Record<AssetType, string>> = {
   render:  'Processando corte final e áudio...',
   lipsync: 'Motor de Mapeamento sincronizando lábios...',
   music:   'Maestro Virtual compondo trilha sonora...',
+  ugc_bundle: 'Renderizando 8 ângulos UGC em paralelo...',
 }
 
 function ProcessingCard({ type, createdAt, assetId }: { type: AssetType; createdAt: string; assetId: string }) {
