@@ -1333,41 +1333,47 @@ export async function generateAngles(params: {
 
     try {
       const vertexKey = process.env.GOOGLE_VERTEX_KEY
-        const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
-        const location = process.env.VERTEX_LOCATION || 'us-central1'
+      if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada nas variáveis de ambiente.')
 
-        if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada. Vertex AI é obrigatório.')
+      let projectId = process.env.VERTEX_PROJECT_ID
+      if (!projectId) {
+         try {
+           const keyData = JSON.parse(vertexKey.startsWith('"') ? JSON.parse(vertexKey) : vertexKey)
+           projectId = keyData.project_id
+         } catch (e) {
+           console.warn('[studio] Não foi possível extrair ProjectID da chave JSON em angles')
+         }
+      }
+      if (!projectId) throw new Error('VERTEX_PROJECT_ID não configurado para angles.')
 
-        const vertexToken = await getVertexAccessToken(vertexKey)
-        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001:predict`
+      const location = process.env.VERTEX_LOCATION || 'us-central1'
+      const vertexToken = await getVertexAccessToken(vertexKey)
+      const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001:predict`
 
-        console.log(`[studio] Chamando Vertex AI Enterprise (PURO) para asset ${params.assetId}...`)
+      console.log(`[studio] Chamando Vertex AI Enterprise para asset ${params.assetId}...`)
 
-        const payload = {
-          instances: [{
-            prompt: `A photorealistic UGC style shot of the person[1]. ${prompt}. MUST be the exact same person. Angle: ${params.angle}.`,
-            referenceImages: [
-              {
-                referenceId: 1,
-                referenceType: "REFERENCE_TYPE_RAW",
-                referenceImage: {
-                  bytesBase64Encoded: base64Image,
-                  mimeType: 'image/jpeg'
-                }
+      const payload = {
+        instances: [{
+          prompt: `(IDENTITY LOCK: person[1]). A realistic UGC photo. ${prompt}. Angle: ${params.angle}.
+          The person MUST have the EXACT same facial features, EXACT same face shape, EXACT same eyes, and EXACT same hair style as person[1]. 
+          The OUTFIT must be IDENTICAL to the clothing seen in person[1]. 
+          High resolution, natural studio lighting, raw photography, consistent character.`,
+          referenceImages: [
+            {
+              referenceId: 1,
+              referenceType: "REFERENCE_TYPE_RAW",
+              referenceImage: {
+                bytesBase64Encoded: base64Image,
+                mimeType: 'image/jpeg'
               }
-            ],
-            negative_prompt: detectedGender === 'woman' 
-              ? `man, male, boy, masculine, facial hair, bearded, messy hair` 
-              : `woman, female, girl, feminine, biological woman, long hair, makeup`
-          }],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio: params.aspect_ratio === '1:1' ? '1:1' : '9:16',
-            addWatermark: false,
-            safetyFilterLevel: 'BLOCK_ONLY_HIGH',
-            personGeneration: 'ALLOW_ALL'
-          }
+            }
+          ]
+        }],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: params.aspect_ratio === '1:1' ? '1:1' : '9:16'
         }
+      }
         
         console.log('[Payload]', JSON.stringify(payload, null, 2))
 
@@ -1617,7 +1623,10 @@ export async function generateUGCPositions(params: {
       try {
         const payload = {
           instances: [{
-            prompt: `A photorealistic UGC style shot of the person[1]. ${posConfig.prompt}. MUST be the exact same person. High quality, cinematic lighting.`,
+            prompt: `(IDENTITY LOCK: person[1]). A realistic UGC photo. ${posConfig.prompt}. 
+            The person MUST have the EXACT same facial features, EXACT same face shape, EXACT same eyes, and EXACT same hair style as person[1]. 
+            The OUTFIT must be IDENTICAL to the clothing seen in person[1]. 
+            High resolution, natural studio lighting, raw photography, consistent character.`,
             referenceImages: [
               {
                 referenceId: 1,
