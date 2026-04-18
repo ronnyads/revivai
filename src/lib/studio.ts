@@ -1415,4 +1415,4 @@ export async function generateMusic(params: {
   await admin.storage.from('studio').upload(path, audioData, { contentType: 'audio/mpeg', upsert: true })
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
   return publicUrl
-}\n
+}
