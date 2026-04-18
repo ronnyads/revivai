@@ -422,8 +422,8 @@ function FormForType({ type, initialParams, onGenerate }: { type: AssetType; ini
 }
 // ── Processing card com barra de progresso e timer ──────────────────────────────
 const ESTIMATED: Partial<Record<AssetType, number>> = {
-  video:   180, // 3 min
-  animate: 90,  // 1.5 min
+  video:   300, // 5 min
+  animate: 120, // 2 min
   model:   35,
   image:   20,
   voice:   10,
@@ -432,7 +432,7 @@ const ESTIMATED: Partial<Record<AssetType, number>> = {
   caption: 15,
   compose: 20,
   render:  30,
-  lipsync: 90,
+  lipsync: 120, // 2 min
   music:   45,
   ugc_bundle: 110,
 }

@@ -32,9 +32,9 @@ export default async function BoardPage({ params }: Props) {
     .eq('project_id', projectId)
     .order('board_order', { ascending: true })
 
-  // Limpa assets "processing" há mais de 5 min (tentativas antigas falhas)
+  // Limpa assets "processing" há mais de 10 min (tentativas antigas falhas)
   // Evita polling infinito no browser por assets zumbis
-  const staleThreshold = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  const staleThreshold = new Date(Date.now() - 10 * 60 * 1000).toISOString()
   const staleIds = (assets ?? [])
     .filter(a => a.status === 'processing' && a.created_at < staleThreshold)
     .map(a => a.id)
