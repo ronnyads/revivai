@@ -30,16 +30,19 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   lipsync: { icon: <Wand2 size={15} />,    label: 'Lip Sync',    color: 'text-cyan-400'    },
   angles:  { icon: <Camera size={15} />,   label: 'Dir. de Cena',color: 'text-emerald-400' },
   music:   { icon: <Music size={15} />,    label: 'Trilha Sonora', color: 'text-amber-400' },
+  ugc_bundle: { icon: <Sparkles size={15} />, label: 'Pacote 8 Poses UGC', color: 'text-indigo-400' },
 }
 
 // Mapeamento: tipo de origem → ações "Usar em..."
 const USE_AS_ACTIONS: Partial<Record<AssetType, Array<{ targetType: AssetType; label: string; getParams: (asset: StudioAsset) => Record<string, unknown> }>>> = {
   face: [
     { targetType: 'image',   label: 'Usar Rosto na Cena', getParams: a => ({ model_prompt: '', source_face_url: a.result_url }) },
+    { targetType: 'ugc_bundle', label: 'Gerar 8 Poses UGC', getParams: a => ({ source_url: a.result_url }) },
   ],
   image: [
     { targetType: 'video',   label: 'Usar no Vídeo',   getParams: a => ({ source_image_url: a.result_url, motion_prompt: '', duration: 5 }) },
     { targetType: 'upscale', label: 'Fazer Upscale',   getParams: a => ({ source_url: a.result_url, scale: 4 }) },
+    { targetType: 'ugc_bundle', label: 'Gerar 8 Poses UGC', getParams: a => ({ source_url: a.result_url }) },
   ],
   upscale: [
     { targetType: 'video',   label: 'Usar no Vídeo',   getParams: a => ({ source_image_url: a.result_url, motion_prompt: '', duration: 5 }) },
@@ -62,7 +65,7 @@ interface Props {
 }
 
 export default function AssetCard({ asset, stepNumber, onDelete, onRetry, onGenerate, onUseAs }: Props) {
-  const meta = TYPE_META[asset.type]
+  const meta = TYPE_META[asset.type] || { icon: <Wand2 size={15} />, label: 'Desconhecido', color: 'text-zinc-400' }
   const [collapsed, setCollapsed] = useState(asset.status === 'done')
   const useAsActions = USE_AS_ACTIONS[asset.type] ?? []
 
@@ -112,6 +115,9 @@ export default function AssetCard({ asset, stepNumber, onDelete, onRetry, onGene
             {asset.type === 'video' && (
               <p className="text-xs text-zinc-600 text-center">Vídeos levam até 3 minutos</p>
             )}
+            {asset.type === 'ugc_bundle' && (
+              <p className="text-xs text-zinc-600 text-center">Gerando 8 poses em paralelo...</p>
+            )}
           </div>
         )}
 
@@ -134,7 +140,7 @@ export default function AssetCard({ asset, stepNumber, onDelete, onRetry, onGene
             <ResultPreview type={asset.type} url={asset.result_url} params={asset.input_params} />
 
             {/* Download (exceto script/caption que têm botões próprios) */}
-            {asset.type !== 'script' && asset.type !== 'caption' && (
+            {asset.type !== 'script' && asset.type !== 'caption' && asset.type !== 'ugc_bundle' && (
               <button
                 onClick={handleDownload}
                 className="flex items-center justify-center gap-2 text-xs text-zinc-400 hover:text-white border border-zinc-700 px-3 py-2 rounded-xl transition-colors w-full"
@@ -201,6 +207,21 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
   }
   if (type === 'caption') {
     return <CaptionPreview url={url} />
+  }
+  if (type === 'ugc_bundle') {
+    const bundle = params.ugc_bundle as Array<{ position: string; url: string }> || []
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        {bundle.map((item, i) => (
+          <div key={i} className="relative group cursor-pointer" onClick={() => window.open(item.url, '_blank')}>
+            <img src={item.url} alt={item.position} className="w-full aspect-[9/16] object-cover rounded-lg border border-zinc-800" />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+              <Download size={14} className="text-white" />
+            </div>
+          </div>
+        ))}
+      </div>
+    )
   }
   return null
 }
