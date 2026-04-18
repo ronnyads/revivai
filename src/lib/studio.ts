@@ -1211,7 +1211,19 @@ export async function generateAngles(params: {
 
   // Identificacao automatica de genero via Gemini Vision para garantir consistencia
   let detectedGender = 'person'
+  let sourceDescription = ''
   try {
+    // Busca descrição original se vier de um Nó de Modelo ou Compose
+    const { data: sourceAsset } = await admin
+      .from('studio_assets')
+      .select('input_params')
+      .eq('result_url', params.source_url)
+      .maybeSingle()
+    
+    if (sourceAsset?.input_params?.model_text) {
+      sourceDescription = String(sourceAsset.input_params.model_text)
+    }
+
     const visionRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1232,7 +1244,12 @@ export async function generateAngles(params: {
     console.warn('[studio] Falha na auto-detencao de genero:', e)
   }
 
-  const prompt = `Maintain EXACT identity, EXACT same clothes, hair color, and facial features. Switch camera to ${params.angle} view. Full consistency of the ${detectedGender} is mandatory. Maintain ${detectedGender} gender. Photorealistic. ${perspective}. 8k resolution, cinematic lighting.`
+  // Se tivermos a descrição original, ela vira um reforço imbatível no prompt
+  const traits = sourceDescription 
+    ? `Exactly this person: ${sourceDescription}. `
+    : `A ${detectedGender} model. `
+
+  const prompt = `${traits} Maintain EXACT identity, EXACT same clothes, hair color, and facial features. Switch camera to ${params.angle} view. Full consistency of the ${detectedGender} is mandatory. Photorealistic. ${perspective}. 8k resolution, cinematic lighting.`
 
   console.log(`[studio] Gerando Angulo [${engine}] para asset ${params.assetId}. URL: ${params.source_url.slice(0, 50)}...`)
 
@@ -1242,7 +1259,7 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    const finalPrompt = `Maintain 100% identity of the woman in the reference. Beautiful ${detectedGender} model UGC, identical face, identical long hair, professional studio, cinematic lighting, position: ${params.angle}`
+    const finalPrompt = `PROMPT INSTRUCTION: Maintain 100% same person traits. ${traits} Position: ${params.angle}. Professional studio, cinematic lighting.`
 
     try {
       // ---- GOOGLE IMAGEN 4.0 (SUBJECT CUSTOMIZATION - GEMINI API STYLE) ----
@@ -1298,8 +1315,10 @@ export async function generateAngles(params: {
         },
         body: JSON.stringify({
           image_url: params.source_url,
-          prompt: `Mesma modelo mulher UGC, posição ${params.angle}, face idêntica, corpo igual`,
-          strength: 0.8, 
+          prompt: `EXACT SAME PERSON FROM THE REFERENCE: ${prompt}`,
+          strength: 0.6, 
+          num_inference_steps: 30,
+          guidance_scale: 3.5,
           output_format: 'jpeg',
         }),
       })
@@ -1314,7 +1333,7 @@ export async function generateAngles(params: {
     }
 
   } else {
-    // ---- FLUX DEV (IMAGE-TO-IMAGE) ----
+    // ---- FLUX DEV (IMAGE-TO-IMAGE) - OPTIMIZED FOR IDENTITY ----
     const falKey = process.env.FAL_KEY
     if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
 
@@ -1326,8 +1345,10 @@ export async function generateAngles(params: {
       },
       body: JSON.stringify({
       image_url: params.source_url,
-      prompt: `Mesma modelo mulher UGC, posição ${params.angle}, face idêntica, corpo igual`,
-      strength: 0.8, 
+      prompt: `EXACT SAME PERSON FROM THE REFERENCE: ${prompt}`,
+      strength: 0.6, 
+      num_inference_steps: 30,
+      guidance_scale: 3.5,
       output_format: 'jpeg',
       }),
     })
