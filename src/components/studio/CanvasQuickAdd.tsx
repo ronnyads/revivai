@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Image, Video, Mic, ZoomIn, FileText, Captions, User, Film, Sparkles, Layers, Wand2, Upload, Scissors, MousePointer2, ChevronDown, Plus, Camera } from 'lucide-react'
+import { Image, Video, Mic, ZoomIn, FileText, Captions, User, Film, Sparkles, Layers, Wand2, Upload, Scissors, MousePointer2, ChevronDown, Plus, Camera, Music } from 'lucide-react'
 import { AssetType } from '@/types'
 import { CREDIT_COST } from '@/constants/studio'
 
@@ -22,6 +22,7 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
       { type: 'script',  icon: <FileText size={20} />,  label: 'Script Ad',    desc: 'Copy para vendas',      gradient: 'from-[#FF9500] to-[#FFCC00]' }, 
       { type: 'image',   icon: <Image size={20} />,     label: 'Imagem IA',    desc: 'Foto de produto',       gradient: 'from-[#007AFF] to-[#00C7BE]' }, 
       { type: 'voice',   icon: <Mic size={20} />,       label: 'Voz / Audio',  desc: 'Locução humana',        gradient: 'from-[#FF2D55] to-[#FF3B30]' }, 
+      { type: 'music',   icon: <Music size={20} />,     label: 'Trilha Sonora AI', desc: 'Compor trilha exclusiva', gradient: 'from-[#007AFF] to-[#5856D6]' },
       { type: 'angles',  icon: <Camera size={20} />,    label: 'Dir. de Cena', desc: 'Trocar perspectiva',    gradient: 'from-[#34D399] to-[#059669]' },
     ],
   },

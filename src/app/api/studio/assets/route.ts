@@ -4,7 +4,7 @@ export const maxDuration = 300
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos, generateAngles } from '@/lib/studio'
+import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos, generateAngles, generateMusic } from '@/lib/studio'
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
 
@@ -223,6 +223,13 @@ export async function POST(req: NextRequest) {
         costume_prompt: input_params.costume_prompt ? String(input_params.costume_prompt) : undefined,
         assetId: asset.id,
         userId:  user.id,
+      })
+    } else if (type === 'music') {
+      resultUrl = await generateMusic({
+        prompt: String(input_params.prompt ?? ''),
+        source_image_url: input_params.source_image_url ? String(input_params.source_image_url) : undefined,
+        assetId: asset.id,
+        userId: user.id
       })
     } else if (type === 'angles') {
       resultUrl = await generateAngles({
