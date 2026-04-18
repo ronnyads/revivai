@@ -97,7 +97,7 @@ export async function generateImage(params: {
       },
       body: JSON.stringify({
         prompt: finalPrompt,
-        reference_images: [{ image_url: params.source_face_url }],
+        subject_references: [{ image_url: params.source_face_url }],
         image_size: image_size,
         num_images: 1,
         enable_safety_checker: true,
@@ -764,7 +764,7 @@ export async function composeProductScene(params: {
       },
       body: JSON.stringify({
         prompt: finalPrompt,
-        reference_images: [
+        subject_references: [
           {
             image_url: params.portrait_url,
             image_size: 1024
@@ -1244,36 +1244,29 @@ export async function generateAngles(params: {
       const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
       const base64Image = imgBuffer.toString('base64')
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           instances: [{
             prompt,
-            reference_images: [{
-              reference_id: 1,
-              reference_type: 'RAW',
+            subject_references: [{
+              subject_id: 1,
               reference_image: {
                 image: { 
                   mime_type: 'image/jpeg',
-                  bytes_base64_encoded: base64Image
+                  bytes_base_64_encoded: base64Image
                 }
               }
             }]
           }],
           parameters: {
             sampleCount: 1,
-            aspectRatio: '9:16',
-            personGeneration: 'ALLOW_ADULT'
+            aspectRatio: "9:16",
+            seed: 42
           }
         })
       })
-
-      if (!res.ok) {
-        const errorBody = await res.text()
-        console.warn(`[studio] Google Imagen falhou (${res.status}), tentando fallback para FLUX:`, errorBody)
-        throw new Error(`Google Error: ${errorBody}`)
-      }
 
       const data = await res.json()
       const base64 = data.predictions?.[0]?.bytesBase64Encoded
