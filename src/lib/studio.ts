@@ -1392,7 +1392,6 @@ export async function generateAngles(params: {
       console.error('[studio] Falha definitiva no Vertex AI (SEM FALLBACK):', vertexError.message)
       throw vertexError
     }
-
   } else {
     // ---- FLUX DEV (IMAGE-TO-IMAGE) - OPTIMIZED FOR IDENTITY ----
     const falKey = process.env.FAL_KEY
@@ -1405,13 +1404,13 @@ export async function generateAngles(params: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-      image_url: params.source_url,
-      prompt: `${prompt} — camera angle change ONLY. Do NOT alter any clothing, outfit, hair color, face, or accessories. Preserve every visual detail from the source image.`,
-      strength: 0.28,
-      num_inference_steps: 35,
-      guidance_scale: 3.5,
-      image_size: params.aspect_ratio === '9:16' ? 'portrait_16_9' : params.aspect_ratio === '1:1' ? 'square_hd' : 'portrait_4_3',
-      output_format: 'jpeg',
+        image_url: params.source_url,
+        prompt: `${prompt} — camera angle change ONLY. Do NOT alter any clothing, outfit, hair color, face, or accessories. Preserve every visual detail from the source image.`,
+        strength: 0.28,
+        num_inference_steps: 35,
+        guidance_scale: 3.5,
+        image_size: params.aspect_ratio === '9:16' ? 'portrait_16_9' : params.aspect_ratio === '1:1' ? 'square_hd' : 'portrait_4_3',
+        output_format: 'jpeg',
       }),
     })
 
