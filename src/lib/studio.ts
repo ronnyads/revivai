@@ -1228,7 +1228,7 @@ export async function generateAngles(params: {
             prompt,
             referenceImages: [{
               referenceId: 1,
-              referenceType: 'SUBJECT',
+              referenceType: 'REFERENCE',
               referenceImage: { 
                 bytesBase64Encoded: base64Image
               }
