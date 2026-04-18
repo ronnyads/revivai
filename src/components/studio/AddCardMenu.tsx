@@ -64,28 +64,27 @@ export default function AddCardMenu({ onAdd, disabled }: Props) {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-4 w-[480px] bg-[#0c0c0e] border border-white/10 rounded-[40px] shadow-[0_40px_100px_rgba(0,0,0,1)] z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-300 origin-top-right flex flex-col h-[540px]">
+          <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-4 w-[480px] h-[540px] bg-[#0c0c0e] border border-white/10 rounded-[40px] shadow-[0_40px_100px_rgba(0,0,0,1)] z-50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 origin-top-right">
             
             {/* Header High Contrast */}
             <div className="px-8 py-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-accent rounded-[18px] shadow-lg shadow-accent/40">
-                  <MousePointer2 size={18} className="text-white" />
+                  <MousePointer2 size={20} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="text-[18px] font-black text-white tracking-tight">Novos Equipamentos</h3>
-                  <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.25em] mt-0.5">Painel de Ativos Profissional</p>
+                  <h3 className="text-[19px] font-black text-white tracking-tight">Equipamentos IA</h3>
+                  <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.25em] mt-0.5">God Mode Activated</p>
                 </div>
               </div>
             </div>
 
-            {/* List com Scroll Violeta (Visível para Leigos) */}
-            <div className="flex-1 relative overflow-hidden">
-               <div className="absolute top-0 bottom-0 left-0 right-0 overflow-y-scroll overflow-x-hidden p-6 custom-scrollbar-vibrant-menu">
+            {/* List - Estrutura Simplificada e Robusta */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar-vibrant px-6 py-4 space-y-8">
                 {GROUPS.map((group) => (
-                    <div key={group.label} className="mb-8 last:mb-2">
-                        <h4 className="text-[11px] text-accent/80 font-black uppercase tracking-[0.2em] px-4 mb-4 flex items-center gap-3">
+                    <div key={group.label}>
+                        <h4 className="text-[11px] text-accent/80 font-black uppercase tracking-[0.2em] mb-5 flex items-center gap-3">
                              <div className="h-px w-6 bg-accent/30" />
                              {group.label}
                              <div className="h-px flex-1 bg-accent/10" />
@@ -98,12 +97,9 @@ export default function AddCardMenu({ onAdd, disabled }: Props) {
                                     <button
                                         key={item.type}
                                         onClick={() => { onAdd(item.type); setOpen(false) }}
-                                        className="group relative flex items-center gap-4 p-4 rounded-[28px] bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-accent/30 transition-all text-left active:scale-[0.95] overflow-hidden"
+                                        className="group relative flex items-center gap-4 p-4 rounded-[28px] bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-accent/35 transition-all text-left active:scale-[0.94] overflow-hidden"
                                     >
-                                        <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-5 blur-xl transition-opacity`} />
-
-                                        {/* Squircle Apple Icon */}
-                                        <div className={`shrink-0 w-12 h-12 rounded-[17px] bg-gradient-to-br ${item.gradient} flex items-center justify-center text-white shadow-xl group-hover:shadow-[0_0_15px_rgba(255,255,255,0.2)] transition-all duration-500`}>
+                                        <div className={`shrink-0 w-11 h-11 rounded-[17px] bg-gradient-to-br ${item.gradient} flex items-center justify-center text-white shadow-xl group-hover:shadow-[0_0_15px_rgba(255,255,255,0.2)] transition-all duration-500`}>
                                             <div className="text-white drop-shadow-md scale-110">
                                                 {item.icon}
                                             </div>
@@ -111,19 +107,18 @@ export default function AddCardMenu({ onAdd, disabled }: Props) {
 
                                         <div className="flex-1 min-w-0 z-10">
                                             <div className="flex items-center justify-between gap-1">
-                                                <p className="text-[14px] font-black text-zinc-100 leading-none group-hover:text-white transition-colors">
+                                                <p className="text-[13px] font-bold text-zinc-100 leading-none group-hover:text-white transition-colors">
                                                     {item.label}
                                                 </p>
-                                                {/* Preço Ultra Visível */}
-                                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shadow-lg ${
+                                                <span className={`text-[9px] font-black px-2 py-1 rounded-full shadow-lg ${
                                                     cost === 0 
                                                     ? 'bg-emerald-500 text-white animate-pulse' 
                                                     : 'bg-accent text-white border border-white/20'
                                                 }`}>
-                                                    {cost === 0 ? 'GRÁTIS' : `${cost}cr`}
+                                                    {cost === 0 ? 'FREE' : `${cost}cr`}
                                                 </span>
                                             </div>
-                                            <p className="text-[11px] text-zinc-500 leading-tight mt-1.5 line-clamp-1 group-hover:text-zinc-300 transition-colors">
+                                            <p className="text-[11px] text-zinc-500 leading-tight mt-2 line-clamp-1 group-hover:text-zinc-300 transition-colors">
                                                 {item.desc}
                                             </p>
                                         </div>
@@ -133,34 +128,28 @@ export default function AddCardMenu({ onAdd, disabled }: Props) {
                         </div>
                     </div>
                 ))}
-               </div>
-
-               {/* Bouncing Help Icon */}
-               <div className="absolute bottom-6 right-8 pointer-events-none p-4 bg-accent rounded-full shadow-2xl animate-bounce border-2 border-white/10 z-20">
-                  <ChevronDown size={16} className="text-white" />
-               </div>
             </div>
 
-            <div className="px-10 py-5 bg-black/60 border-t border-white/5 flex items-center justify-center gap-2 shrink-0">
-              <Sparkles size={12} className="text-accent" />
-              <p className="text-[10px] font-black text-white tracking-widest uppercase">Experiência Unificada Premium</p>
+            <div className="px-10 py-5 bg-black/40 border-t border-white/5 flex items-center justify-center gap-3 shrink-0">
+              <Sparkles size={14} className="text-accent animate-pulse" />
+              <p className="text-[11px] font-black text-white tracking-widest uppercase">Experiência Unificada</p>
+              <ChevronDown size={16} className="text-accent animate-bounce" />
             </div>
           </div>
         </>
       )}
 
       <style jsx>{`
-        /* Scrollbar VIBRANTE para maior visibilidade */
-        .custom-scrollbar-vibrant-menu::-webkit-scrollbar {
+        .custom-scrollbar-vibrant::-webkit-scrollbar {
           width: 8px;
         }
-        .custom-scrollbar-vibrant-menu::-webkit-scrollbar-track {
+        .custom-scrollbar-vibrant::-webkit-scrollbar-track {
           background: rgba(255,255,255,0.02);
           border-radius: 20px;
           margin: 15px;
         }
-        .custom-scrollbar-vibrant-menu::-webkit-scrollbar-thumb {
-          background: #7c3aed; /* Violeta Vibrante */
+        .custom-scrollbar-vibrant::-webkit-scrollbar-thumb {
+          background: #7c3aed;
           border-radius: 20px;
           border: 2px solid #0c0c0e;
         }

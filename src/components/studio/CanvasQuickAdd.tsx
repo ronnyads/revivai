@@ -61,42 +61,41 @@ export default function CanvasQuickAdd({ x, y, onAdd, onClose }: Props) {
   }, [onClose])
 
   const menuW = 460 
-  const menuH = 500
+  const menuH = 520
   const left = Math.min(x, window.innerWidth  - menuW - 16)
   const top  = Math.min(y, window.innerHeight - menuH - 16)
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[4px]" onMouseDown={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[6px]" onMouseDown={onClose} />
 
       <div
         ref={ref}
         style={{ left, top }}
-        className="fixed z-50 w-[460px] bg-[#0c0c0e] border border-white/10 rounded-[32px] shadow-[0_30px_90px_-12px_rgba(0,0,0,1)] overflow-hidden animate-in zoom-in-95 fade-in duration-300 origin-top-left flex flex-col h-[520px]"
+        className="fixed z-50 w-[460px] h-[520px] bg-[#0c0c0e] border border-white/10 rounded-[40px] shadow-[0_30px_100px_rgba(0,0,0,1)] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
         onMouseDown={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-7 py-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-accent rounded-2xl shadow-[0_0_20px_rgba(124,58,237,0.3)]">
-              <Plus size={18} className="text-white" />
+        <div className="px-8 py-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-accent rounded-[20px] shadow-[0_0_25px_rgba(124,58,237,0.4)]">
+              <Plus size={20} className="text-white" />
             </div>
             <div>
-              <h3 className="text-[17px] font-black text-white tracking-tight">Criação Studio</h3>
-              <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.2em] mt-0.5">God Mode Activated</p>
+              <h3 className="text-[18px] font-black text-white tracking-tight">O que vamos criar?</h3>
+              <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.25em] mt-0.5 leading-none">God Mode Activated</p>
             </div>
           </div>
         </div>
 
-        {/* Content con Scroll Colorido e Indicadores */}
-        <div className="flex-1 relative overflow-hidden">
-          <div className="absolute top-0 bottom-0 left-0 right-0 overflow-y-scroll overflow-x-hidden p-5 custom-scrollbar-vibrant">
+        {/* Content - Estrutura Simplificada e Robusta */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar-vibrant px-6 py-4 space-y-8">
             {GROUPS.map((group) => (
-              <div key={group.label} className="mb-8 last:mb-4">
-                <h4 className="text-[11px] text-accent font-black uppercase tracking-[0.2em] px-4 mb-4 flex items-center gap-2">
-                   <div className="h-px flex-1 bg-accent/20" />
+              <div key={group.label}>
+                <h4 className="text-[11px] text-accent font-black uppercase tracking-[0.2em] mb-5 flex items-center gap-3">
+                   <div className="h-px w-6 bg-accent/30" />
                    {group.label}
-                   <div className="h-px flex-1 bg-accent/20" />
+                   <div className="h-px flex-1 bg-accent/10" />
                 </h4>
                 
                 <div className="grid grid-cols-2 gap-3">
@@ -106,13 +105,9 @@ export default function CanvasQuickAdd({ x, y, onAdd, onClose }: Props) {
                       <button
                         key={item.type}
                         onMouseDown={() => { onAdd(item.type); onClose() }}
-                        className="group relative flex items-center gap-4 p-4 rounded-[26px] bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-accent/30 transition-all text-left active:scale-[0.95] shadow-sm overflow-hidden"
+                        className="group relative flex items-center gap-4 p-4 rounded-[30px] bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-accent/40 transition-all text-left active:scale-[0.94] overflow-hidden"
                       >
-                        {/* Glow no hover */}
-                        <div className={`absolute inset-0 bg-gradient-to-br ${item.gradient} opacity-0 group-hover:opacity-5 blur-xl transition-opacity animate-pulse`} />
-
-                        {/* Squircle Apple Icon */}
-                        <div className={`shrink-0 w-12 h-12 rounded-[16px] bg-gradient-to-br ${item.gradient} flex items-center justify-center text-white shadow-lg group-hover:shadow-[0_0_15px_rgba(255,255,255,0.2)] transition-all duration-500`}>
+                        <div className={`shrink-0 w-12 h-12 rounded-[18px] bg-gradient-to-br ${item.gradient} flex items-center justify-center text-white shadow-xl group-hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-all duration-500`}>
                           <div className="text-white drop-shadow-lg scale-110">
                              {item.icon}
                           </div>
@@ -123,13 +118,12 @@ export default function CanvasQuickAdd({ x, y, onAdd, onClose }: Props) {
                             <p className="text-[14px] font-black text-white leading-none tracking-tight">
                               {item.label}
                             </p>
-                            {/* Valor Ultra Visível */}
-                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shadow-lg ${
+                            <span className={`text-[9px] font-black px-2 py-1 rounded-full shadow-lg ${
                               cost === 0 
                               ? 'bg-emerald-500 text-white animate-pulse' 
                               : 'bg-accent text-white border border-white/20'
                             }`}>
-                              {cost === 0 ? 'GRÁTIS' : `${cost}cr`}
+                              {cost === 0 ? 'FREE' : `${cost}cr`}
                             </span>
                           </div>
                           <p className="text-[11px] text-zinc-500 leading-tight mt-2 line-clamp-1 group-hover:text-zinc-300 transition-colors">
@@ -142,27 +136,21 @@ export default function CanvasQuickAdd({ x, y, onAdd, onClose }: Props) {
                 </div>
               </div>
             ))}
-          </div>
-
-          {/* Seta de ajuda flutuante */}
-          <div className="absolute bottom-6 right-6 pointer-events-none p-3 bg-accent rounded-full shadow-2xl animate-bounce border-2 border-white/10">
-             <ChevronDown size={14} className="text-white" />
-          </div>
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-5 bg-black/60 border-t border-white/5 flex items-center justify-between shrink-0">
-           <div className="flex items-center gap-2.5">
-             <div className="w-2.5 h-2.5 bg-accent rounded-full animate-pulse shadow-[0_0_12px_rgba(124,58,237,0.8)]" />
-             <p className="text-[11px] font-black text-white tracking-widest uppercase">Estúdio Profissional</p>
+        <div className="px-10 py-5 bg-black/40 border-t border-white/5 flex items-center justify-between shrink-0">
+           <div className="flex items-center gap-3">
+             <div className="w-3 h-3 bg-accent rounded-full animate-pulse shadow-[0_0_15px_rgba(124,58,237,0.6)]" />
+             <p className="text-[11px] font-black text-zinc-400 tracking-widest uppercase">RevivAI Studio © 2026</p>
            </div>
+           <ChevronDown size={16} className="text-accent animate-bounce" />
         </div>
       </div>
 
       <style jsx>{`
-        /* Scrollbar VIBRANTE para maior visibilidade */
         .custom-scrollbar-vibrant::-webkit-scrollbar {
-          width: 8px; /* Mais larga para ser vista */
+          width: 8px;
         }
         .custom-scrollbar-vibrant::-webkit-scrollbar-track {
           background: rgba(255,255,255,0.02);
@@ -170,10 +158,9 @@ export default function CanvasQuickAdd({ x, y, onAdd, onClose }: Props) {
           margin: 15px;
         }
         .custom-scrollbar-vibrant::-webkit-scrollbar-thumb {
-          background: #7c3aed; /* Violeta Vibrante (O mesmo do Accent) */
+          background: #7c3aed;
           border-radius: 20px;
-          border: 2px solid #0c0c0e; /* Espaço para parecer flutuante */
-          box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+          border: 2px solid #0c0c0e;
         }
         .custom-scrollbar-vibrant::-webkit-scrollbar-thumb:hover {
           background: #a78bfa;
