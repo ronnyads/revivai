@@ -1338,41 +1338,34 @@ export async function generateAngles(params: {
         if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada. Vertex AI é obrigatório.')
 
         const vertexToken = await getVertexAccessToken(vertexKey)
-        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001:predict`
+        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-4.0-generate-001:predict`
 
         console.log(`[studio] Chamando Vertex AI Enterprise (PURO) para asset ${params.assetId}...`)
-      const vertexRes = await fetch(vertexUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${vertexToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+
+        const payload = {
           instances: [{
-            prompt: `A photorealistic UGC style shot of the person[1]. ${prompt}. MUST be the exact same person. Angle: ${params.angle}.`,
-            referenceImages: [
-              {
-                referenceId: 1,
-                referenceType: "REFERENCE_TYPE_RAW",
-                referenceImage: {
-                  bytesBase64Encoded: base64Image,
-                  mimeType: 'image/jpeg'
-                }
-              }
-            ],
-            negative_prompt: detectedGender === 'woman' 
-              ? `man, male, boy, masculine, facial hair, bearded, messy hair` 
-              : `woman, female, girl, feminine, biological woman, long hair, makeup`
+            prompt: `Uma mulher modelo UGC de pé sorrindo, mesma pessoa, mesmo rosto, corpo igual, mesmas roupas, fundo estúdio, fotografia profissional. ${prompt}. Angle: ${params.angle}.`,
+            reference_image: {
+              bytesBase64Encoded: base64Image,
+              mimeType: 'image/jpeg'
+            }
           }],
           parameters: {
             sampleCount: 1,
-            aspectRatio: params.aspect_ratio === '1:1' ? '1:1' : '9:16',
-            addWatermark: false,
-            safetyFilterLevel: 'BLOCK_ONLY_HIGH',
-            personGeneration: 'ALLOW_ALL'
+            aspectRatio: params.aspect_ratio === '1:1' ? '1:1' : '9:16'
           }
+        }
+        
+        console.log('[Payload]', JSON.stringify(payload, null, 2))
+
+        const vertexRes = await fetch(vertexUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${vertexToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
         })
-      })
 
       if (!vertexRes.ok) {
         const errBody = await vertexRes.text()
