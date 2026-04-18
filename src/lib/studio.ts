@@ -1259,29 +1259,27 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    const finalPrompt = `PROMPT INSTRUCTION: Maintain 100% same person traits. ${traits} Position: ${params.angle}. Professional studio, cinematic lighting.`
+    const finalPrompt = `Mesma modelo ${detectedGender}, posição ${params.angle}, rosto idêntico, corpo igual, roupas similares, UGC fotografia profissional, alta qualidade`
+    const projectId = process.env.GCP_PROJECT_ID || 'revivai-production'
 
     try {
-      // ---- GOOGLE IMAGEN 4.0 (SUBJECT CUSTOMIZATION - GEMINI API STYLE) ----
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
+      // ---- GOOGLE IMAGEN 4.0 (OFFICIAL VERTEX AI STRUCTURE) ----
+      const res = await fetch(`https://us-central1-aiplatform.googleapis.com/v1/projects/${projectId}/locations/us-central1/publishers/google/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           instances: [{
             prompt: finalPrompt,
-            subject_references: [{
-              subject_id: 1,
-              reference_image: {
-                image: {
-                  bytes_base_64_encoded: base64Image,
-                  mime_type: 'image/jpeg'
-                }
-              }
-            }]
+            reference_image: {
+              bytesBase64Encoded: base64Image,
+              mimeType: 'image/jpeg'
+            },
+            reference_strength: 0.95
           }],
           parameters: {
-            sample_count: 1,
-            aspect_ratio: '9:16'
+            sampleCount: 1,
+            aspectRatio: '9:16',
+            seed: 12345
           }
         })
       })

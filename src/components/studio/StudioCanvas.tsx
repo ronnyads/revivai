@@ -1030,10 +1030,32 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       </div>
 
       {/* Canvas */}
+      {/* Globals para performance das arestas */}
+      <style>{`
+        @keyframes dashdraw {
+          from { stroke-dashoffset: 20; }
+          to { stroke-dashoffset: 0; }
+        }
+        .light-ray {
+          animation: dashdraw 0.8s linear infinite;
+        }
+      `}</style>
+      <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+        <defs>
+          <linearGradient id="ray-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#f97316" stopOpacity="0.2" />
+            <stop offset="50%" stopColor="#fb923c" stopOpacity="1" />
+            <stop offset="100%" stopColor="#f97316" stopOpacity="0.2" />
+          </linearGradient>
+        </defs>
+      </svg>
+
       <div className="flex-1">
         <ReactFlow
           nodes={nodes}
           edges={edges}
+          onlyRenderVisibleElements={true}
+          translateExtent={[[-5000, -5000], [5000, 5000]]}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}

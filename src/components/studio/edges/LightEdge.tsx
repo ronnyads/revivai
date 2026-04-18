@@ -12,16 +12,6 @@ export default function LightEdge({
 
   return (
     <>
-      <style>{`
-        @keyframes dashdraw {
-          from { stroke-dashoffset: 20; }
-          to { stroke-dashoffset: 0; }
-        }
-        .light-ray {
-          animation: dashdraw 0.8s linear infinite;
-        }
-      `}</style>
-
       {/* Linha de interação (invisível, mas grossa) */}
       <path d={edgePath} fill="none" stroke="transparent" strokeWidth={20} className="react-flow__edge-interaction" />
       
@@ -34,6 +24,7 @@ export default function LightEdge({
           strokeWidth: 2.5,
           opacity: 0.4
         }} 
+        markerEnd={markerEnd}
       />
 
       {/* Raio de luz (Animado) */}
@@ -44,16 +35,7 @@ export default function LightEdge({
         strokeWidth={3}
         strokeDasharray="8, 12"
         className="light-ray"
-        markerEnd={markerEnd}
       />
-
-      <defs>
-        <linearGradient id="ray-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#f97316" stopOpacity="0.2" />
-          <stop offset="50%" stopColor="#fb923c" stopOpacity="1" />
-          <stop offset="100%" stopColor="#f97316" stopOpacity="0.2" />
-        </linearGradient>
-      </defs>
     </>
   )
 }
