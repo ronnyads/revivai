@@ -538,7 +538,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
     const googleApiKey = process.env.GOOGLE_API_KEY
     if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
-    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1/models/imagen-3.0-generate-002:predict?key=${googleApiKey}`, {
+    const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${googleApiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
