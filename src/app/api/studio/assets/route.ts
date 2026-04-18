@@ -185,6 +185,7 @@ export async function POST(req: NextRequest) {
         await startVeo3DirectGoogle({
           source_image_url: sourceImageUrl,
           motion_prompt: String(input_params.motion_prompt ?? ''),
+          duration: Number(input_params.duration ?? 8),
           assetId: asset.id,
           userId: user.id,
         })

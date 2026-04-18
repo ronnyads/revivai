@@ -1158,10 +1158,10 @@ export async function joinVideos(params: {
   }
 }
 
-// ── Veo3 — Google Generative AI direto (sem Fal AI) ──────────────────────────
 export async function startVeo3DirectGoogle(params: {
   source_image_url: string
   motion_prompt:    string
+  duration?:        number
   assetId:          string
   userId:           string
 }) {
@@ -1206,6 +1206,7 @@ export async function startVeo3DirectGoogle(params: {
         }],
         parameters: {
           aspectRatio: '9:16',
+          videoDurationSeconds: params.duration || 8, // Novo campo para duração
           personGeneration: 'ALLOW_ADULT'
         },
       }),
