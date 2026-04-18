@@ -1,44 +1,45 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Image, Video, Mic, ZoomIn, FileText, Captions, User, Film, Sparkles, Layers, Wand2, Upload } from 'lucide-react'
+import { Image, Video, Mic, ZoomIn, FileText, Captions, User, Film, Sparkles, Layers, Wand2, Upload, Scissors, MousePointer2 } from 'lucide-react'
 import { AssetType } from '@/types'
+import { CREDIT_COST } from '@/constants/studio'
 
 interface CardDef {
   type: AssetType
   icon: React.ReactNode
   label: string
   desc: string
-  cost: number
-  badge?: string
+  color: string // Cor temática para o hover premium
 }
 
 const GROUPS: { label: string; items: CardDef[] }[] = [
   {
-    label: 'Criar conteúdo',
+    label: 'Criação & Assets',
     items: [
-      { type: 'face',    icon: <Upload size={16} />,    label: 'Rosto Real',         desc: 'Traga um rosto ou personagem',       cost: 0 },
-      { type: 'model',   icon: <User size={16} />,      label: 'Modelo UGC',         desc: 'Persona realista com IA',             cost: 1 },
-      { type: 'script',  icon: <FileText size={16} />,  label: 'Script UGC',         desc: 'Texto viral pra conversão',           cost: 1 },
-      { type: 'image',   icon: <Image size={16} />,     label: 'Imagem',             desc: 'Foto premium com IA',                 cost: 1 },
-      { type: 'voice',   icon: <Mic size={16} />,       label: 'Voz',                desc: 'Locução hiper-realista',              cost: 1 },
+      { type: 'face',    icon: <Upload size={18} />,    label: 'Rosto Real',   desc: 'Upload de face',        color: 'from-blue-500' },
+      { type: 'model',   icon: <User size={18} />,      label: 'Modelo UGC',   desc: 'Persona com IA',        color: 'from-indigo-500' },
+      { type: 'script',  icon: <FileText size={18} />,  label: 'Script Ad',    desc: 'Texto para vídeo',      color: 'from-amber-500' },
+      { type: 'image',   icon: <Image size={18} />,     label: 'Imagem IA',    desc: 'Foto de produto',       color: 'from-emerald-500' },
+      { type: 'voice',   icon: <Mic size={18} />,       label: 'Voz / Áudio',  desc: 'Locução humana',        color: 'from-rose-500' },
     ],
   },
   {
-    label: 'Vídeo com IA',
+    label: 'Motores de Vídeo',
     items: [
-      { type: 'video',   icon: <Video size={16} />,     label: 'Vídeo',              desc: 'Imagem animada em vídeo',             cost: 3 },
-      { type: 'animate', icon: <Sparkles size={16} />,  label: 'Imitar Movimentos',  desc: 'Replique movimentos de um vídeo',     cost: 3 },
-      { type: 'lipsync', icon: <Wand2 size={16} />,     label: 'Lip Sync',           desc: 'Sincronia labial com áudio',          cost: 3 },
+      { type: 'video',   icon: <Video size={18} />,     label: 'Vídeo / Anima', desc: 'Kling ou Google',       color: 'from-cyan-500' },
+      { type: 'animate', icon: <Sparkles size={18} />,  label: 'Movimentos',    desc: 'Replicar dança/face',   color: 'from-fuchsia-500' },
+      { type: 'lipsync', icon: <Wand2 size={18} />,     label: 'Lip Sync',      desc: 'Sincronia labial',      color: 'from-sky-500' },
     ],
   },
   {
-    label: 'Finalizar',
+    label: 'Post-Production',
     items: [
-      { type: 'compose', icon: <Layers size={16} />,    label: 'Fusão UGC',          desc: 'Modelo + produto em 1 cena',          cost: 1 },
-      { type: 'upscale', icon: <ZoomIn size={16} />,    label: 'Upscale',            desc: 'Foto para Ultra HD',                  cost: 1 },
-      { type: 'caption', icon: <Captions size={16} />,  label: 'Legenda',            desc: 'Legendas sincronizadas',              cost: 1 },
-      { type: 'render',  icon: <Film size={16} />,      label: 'Vídeo Final',        desc: 'Finalização com áudio',               cost: 1 },
+      { type: 'compose', icon: <Layers size={18} />,    label: 'Fusão UGC',     desc: 'Modelo + Produto',      color: 'from-orange-500' },
+      { type: 'upscale', icon: <ZoomIn size={18} />,    label: 'Upscale 4K',    desc: 'Restaurar fotos',       color: 'from-teal-500' },
+      { type: 'caption', icon: <Captions size={18} />,  label: 'Legendas',      desc: 'Corte e legenda',       color: 'from-violet-500' },
+      { type: 'render',  icon: <Film size={18} />,      label: 'Finalização',   desc: 'Merge Vídeo+Áudio',     color: 'from-pink-500' },
+      { type: 'join',    icon: <Scissors size={18} />,  label: 'Unir Clipes',   desc: 'Concat via FFmpeg',     color: 'from-red-500' },
     ],
   },
 ]
@@ -60,58 +61,100 @@ export default function CanvasQuickAdd({ x, y, onAdd, onClose }: Props) {
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  // Ajusta posição para não sair da tela
-  const menuW = 280
-  const menuH = 480
-  const left = Math.min(x, window.innerWidth  - menuW - 12)
-  const top  = Math.min(y, window.innerHeight - menuH - 12)
+  // Ajusta posição para não sair da tela (Layout mais largo agora)
+  const menuW = 460 
+  const menuH = 520
+  const left = Math.min(x, window.innerWidth  - menuW - 16)
+  const top  = Math.min(y, window.innerHeight - menuH - 16)
 
   return (
     <>
-      {/* Backdrop invisível para fechar ao clicar fora */}
-      <div className="fixed inset-0 z-40" onMouseDown={onClose} />
+      {/* Backdrop de foco com blur no canvas de fundo */}
+      <div className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px]" onMouseDown={onClose} />
 
       <div
         ref={ref}
         style={{ left, top }}
-        className="fixed z-50 w-[280px] bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden"
+        className="fixed z-50 w-[460px] bg-zinc-950/90 backdrop-blur-xl border border-white/10 rounded-[28px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] overflow-hidden animate-in zoom-in-95 fade-in duration-200"
         onMouseDown={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="px-4 pt-3 pb-2 border-b border-zinc-800">
-          <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">Adicionar card</p>
+        {/* Header Estilizado */}
+        <div className="px-6 py-5 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-accent/20 rounded-xl">
+              <MousePointer2 size={16} className="text-accent" />
+            </div>
+            <div>
+              <h3 className="text-[14px] font-bold text-white tracking-tight">Criação Rápida</h3>
+              <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.15em] mt-0.5">God Mode Activated</p>
+            </div>
+          </div>
+          <div className="px-3 py-1 bg-zinc-900 border border-white/5 rounded-full">
+             <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Selecione um Card</span>
+          </div>
         </div>
 
-        <div className="overflow-y-auto max-h-[440px] py-1">
-          {GROUPS.map((group, gi) => (
-            <div key={group.label}>
-              {gi > 0 && <div className="h-px bg-zinc-800 mx-3 my-1" />}
-              <p className="text-[9px] text-zinc-600 uppercase tracking-widest px-4 pt-2 pb-1 font-semibold">
+        <div className="p-3 overflow-y-auto max-h-[500px] custom-scrollbar">
+          {GROUPS.map((group) => (
+            <div key={group.label} className="mb-4 last:mb-0">
+              <h4 className="text-[10px] text-zinc-500 uppercase font-black tracking-widest px-3 mb-3 flex items-center gap-2">
+                <span className="w-1 h-1 bg-accent rounded-full" />
                 {group.label}
-              </p>
-              {group.items.map(item => (
-                <button
-                  key={item.type}
-                  onMouseDown={() => { onAdd(item.type); onClose() }}
-                  className="w-full flex items-center gap-3 px-4 py-2 hover:bg-zinc-800/80 transition-colors text-left group"
-                >
-                  <span className="w-7 h-7 rounded-lg bg-zinc-800 group-hover:bg-accent/20 flex items-center justify-center text-zinc-400 group-hover:text-accent transition-colors shrink-0">
-                    {item.icon}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-white leading-tight">{item.label}</p>
-                    <p className="text-[11px] text-zinc-500 leading-tight">{item.desc}</p>
-                  </div>
-                  {item.cost > 0 && (
-                    <span className="text-[10px] text-zinc-500 shrink-0">{item.cost}cr</span>
-                  )}
-                </button>
-              ))}
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-2">
+                {group.items.map(item => {
+                  const cost = CREDIT_COST[item.type] ?? 0
+                  return (
+                    <button
+                      key={item.type}
+                      onMouseDown={() => { onAdd(item.type); onClose() }}
+                      className="group relative flex items-start gap-4 p-4 rounded-[20px] bg-white/[0.03] border border-white/5 hover:bg-white/[0.07] hover:border-white/10 transition-all text-left overflow-hidden active:scale-[0.97]"
+                    >
+                      {/* Glow de fundo no hover */}
+                      <div className={`absolute -right-4 -bottom-4 w-12 h-12 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 blur-2xl transition-opacity`} />
+                      
+                      {/* Ícone Container */}
+                      <div className={`shrink-0 w-11 h-11 rounded-2xl bg-gradient-to-br ${item.color} to-transparent p-[1px] opacity-80 group-hover:opacity-100 transition-all shadow-lg`}>
+                        <div className="w-full h-full bg-zinc-950 rounded-[15px] flex items-center justify-center text-white">
+                          {item.icon}
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0 py-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[13px] font-bold text-zinc-100 leading-none truncate group-hover:text-white transition-colors">
+                            {item.label}
+                          </p>
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${cost === 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-white/5 text-zinc-500'}`}>
+                            {cost === 0 ? 'FREE' : `${cost}cr`}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-500 leading-tight mt-1.5 line-clamp-2">
+                          {item.desc}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           ))}
-          <div className="h-2" />
+        </div>
+
+        {/* Footer info */}
+        <div className="px-6 py-3 bg-accent/5 border-t border-accent/10 flex items-center justify-center gap-2">
+           <Sparkles size={12} className="text-accent/60" />
+           <p className="text-[10px] font-medium text-accent/60 tracking-wide uppercase">Cresça seu negócio com o poder da IA</p>
         </div>
       </div>
+
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.1); }
+      `}</style>
     </>
   )
 }
