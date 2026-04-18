@@ -1386,7 +1386,7 @@ export async function generateMusic(params: {
     }
   }
 
-  const res = await fetch(https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent?key=, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent?key=${googleApiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ contents: [{ parts }] })
@@ -1394,7 +1394,7 @@ export async function generateMusic(params: {
 
   if (!res.ok) {
     const err = await res.text()
-    throw new Error(Erro Lyria 3 (): )
+    throw new Error(`Erro Lyria 3 (${res.status}): ${err}`)
   }
 
   const data = await res.json()
