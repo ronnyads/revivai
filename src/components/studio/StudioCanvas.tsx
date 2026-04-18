@@ -1000,7 +1000,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           onEdgesDelete={onEdgesDelete}
-          onPaneClick={e => setQuickAddMenu({ x: e.clientX, y: e.clientY })}
+          onPaneClick={() => setQuickAddMenu(null)}
+          onPaneContextMenu={e => {
+            e.preventDefault();
+            setQuickAddMenu({ x: e.clientX, y: e.clientY });
+          }}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
