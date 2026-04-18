@@ -34,6 +34,25 @@ const PROMPT_GROUPS: {
     ],
   },
   {
+    label: 'Configurações de Direção de Cena (Ângulos)',
+    card: 'angles',
+    color: 'border-emerald-500/30 bg-emerald-500/5',
+    items: [
+      {
+        key: 'angles_engine_google_active',
+        label: '🌐 Motor Google Imagen 4.0 — Ativar?',
+        description: 'Ferramenta: Google AI. Permite ativar experimentalmente o Imagen 4.0 para girar a cena da modelo.',
+        type: 'boolean'
+      },
+      {
+        key: 'angles_engine_flux_active',
+        label: '🚀 Motor FLUX Ultra — Ativar?',
+        description: 'Ferramenta: FLUX (Fal AI). Recomendado. Faz um Image-to-image cirúrgico controlando 85% de força.',
+        type: 'boolean'
+      },
+    ],
+  },
+  {
     label: 'Configurações de Roteiro (Copywriting)',
     card: 'script',
     color: 'border-amber-500/30 bg-amber-500/5',

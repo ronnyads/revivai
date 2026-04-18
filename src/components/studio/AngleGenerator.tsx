@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Camera, Image as ImageIcon, Map, Maximize, User, Scan, ArrowRight, Sparkles, Layers } from 'lucide-react'
 import { StudioAsset } from '@/types'
 
@@ -20,6 +20,22 @@ const ANGLES = [
 export default function AngleGenerator({ initial, onGenerate }: Props) {
   const [selectedAngle, setSelectedAngle] = useState(initial.angle as string || 'frontal')
   const [engine, setEngine] = useState((initial.engine as string) || 'flux')
+  const [activeConfig, setActiveConfig] = useState({ anglesGoogle: true, anglesFlux: true })
+
+  // Busca configurações do Admin
+  useEffect(() => {
+    fetch('/api/studio/config')
+      .then(r => r.json())
+      .then(config => {
+        setActiveConfig(config)
+        if (config.anglesGoogle && !config.anglesFlux) setEngine('google')
+        if (!config.anglesGoogle && config.anglesFlux) setEngine('flux')
+      })
+      .catch(() => {})
+  }, [])
+
+  const showEngineBlock = activeConfig.anglesGoogle && activeConfig.anglesFlux
+
   const sourceUrl = initial.source_url as string
 
   return (
@@ -89,11 +105,13 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
       </div>
 
       {/* Engine Selector */}
+      {showEngineBlock && (
       <div className="space-y-3">
         <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2 px-1">
           <Sparkles size={12} className="text-zinc-500" /> Motor de IA
         </label>
         <div className="flex gap-2">
+          {activeConfig.anglesFlux && (
           <button
             onClick={() => setEngine('flux')}
             className={`flex-1 flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
@@ -105,6 +123,9 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
             <Layers size={14} />
             <span className="text-[10px] font-bold">FLUX Ultra</span>
           </button>
+          )}
+
+          {activeConfig.anglesGoogle && (
           <button
             onClick={() => setEngine('google')}
             className={`flex-1 flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all ${
@@ -116,8 +137,10 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
             <Camera size={14} />
             <span className="text-[10px] font-bold">Imagen 4.0</span>
           </button>
+          )}
         </div>
       </div>
+      )}
 
       {/* Action Button */}
       <button
