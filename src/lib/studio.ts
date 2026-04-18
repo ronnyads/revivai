@@ -1242,29 +1242,25 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    const finalPrompt = `A ${detectedGender} model UGC, same person, identical face, identical clothes, in a ${params.angle} position, high quality, cinematic lighting`
+    const finalPrompt = `Mesma modelo ${detectedGender}, posição ${params.angle}, rosto idêntico, corpo igual, roupas similares, fundo estúdio profissional, iluminação cinematic, UGC style, fotografia de alta qualidade`
 
     try {
-      // ---- GOOGLE IMAGEN 4.0 (SUBJECT CUSTOMIZATION - FIXED) ----
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
+      // ---- GOOGLE IMAGEN 3.0 (SUBJECT CUSTOMIZATION - GEMINI API STYLE) ----
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           instances: [{
             prompt: finalPrompt,
-            subjectReferencesInRequest: [
-              {
-                referenceId: 1,
+            subject_references: [{
+              subject_id: 1,
+              reference_image: {
                 image: {
-                  bytesBase64Encoded: base64Image,
-                  mimeType: 'image/jpeg'
+                  bytes_base_64_encoded: base64Image,
+                  mime_type: 'image/jpeg'
                 }
               }
-            ],
-            editingConfig: {
-              subjectReferencesInRequestLimit: 1,
-              imageInStyleCustomizationInRequestLimit: 1
-            }
+            }]
           }],
           parameters: {
             sampleCount: 1,
@@ -1302,8 +1298,8 @@ export async function generateAngles(params: {
         },
         body: JSON.stringify({
           image_url: params.source_url,
-          prompt: prompt,
-          strength: 0.85, 
+          prompt: `Mesma modelo mulher UGC, posição ${params.angle}, face idêntica, corpo igual`,
+          strength: 0.8, 
           output_format: 'jpeg',
         }),
       })
@@ -1329,10 +1325,10 @@ export async function generateAngles(params: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        image_url: params.source_url,
-        prompt: prompt,
-        strength: 0.85, 
-        output_format: 'jpeg',
+      image_url: params.source_url,
+      prompt: `Mesma modelo mulher UGC, posição ${params.angle}, face idêntica, corpo igual`,
+      strength: 0.8, 
+      output_format: 'jpeg',
       }),
     })
 
