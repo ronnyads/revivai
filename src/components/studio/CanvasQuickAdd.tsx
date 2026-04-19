@@ -29,7 +29,7 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
   {
     label: 'Motores de Movimento',
     items: [
-      { type: 'video',   icon: <Video size={20} />,     label: 'Vídeo / Anima', desc: 'Sora / Kling AI',       gradient: 'from-[#141414] to-[#444444]' }, 
+      { type: 'video',   icon: <Video size={20} />,     label: 'Vídeo / Anima', desc: 'Veo 3.1 / Kling AI',    gradient: 'from-[#141414] to-[#444444]' },
       { type: 'animate', icon: <Sparkles size={20} />,  label: 'Movimentos',    desc: 'Replicar trejeitos',    gradient: 'from-[#FF375F] to-[#BF5AF2]' }, 
       { type: 'lipsync', icon: <Wand2 size={20} />,     label: 'Lip Sync',      desc: 'Sincronia real',        gradient: 'from-[#64D2FF] to-[#0A84FF]' }, 
     ],
