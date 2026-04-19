@@ -1700,10 +1700,14 @@ export async function generateAngles(params: {
 
   if (engine === 'google') {
     // Gemini 3 Pro Image → Gemini 3.1 Flash Image (fallback)
+    const aspectLabel: Record<string, string> = { '9:16': 'vertical 9:16 portrait', '1:1': 'square 1:1', '4:5': 'vertical 4:5 portrait', '16:9': 'horizontal 16:9 landscape', '3:4': 'vertical 3:4 portrait' }
+    const ratioInstruction = `Compose the output image in ${aspectLabel[geminiAspectRatio] ?? 'vertical 9:16 portrait'} format. Ensure the full body fits within the frame without cropping.`
+
     const geminiPrompt = [
       `You are a professional photo director. You receive a photo of a ${detectedGender} and must output a NEW photorealistic photo of the SAME person from a different camera angle.`,
       `CHANGE ONLY: the camera angle to "${params.angle}" view — ${perspective}.`,
       `PRESERVE EXACTLY: same face, same facial features, same skin tone, same hair color and style, same outfit and every clothing item with exact colors, patterns and details, same body proportions.`,
+      ratioInstruction,
       `Output: photorealistic commercial photo, natural lighting, white or neutral background, no watermarks.`,
     ].join(' ')
 
@@ -1723,7 +1727,7 @@ export async function generateAngles(params: {
                 { text: geminiPrompt },
                 { inlineData: { mimeType, data: base64Image } },
               ]}],
-              generationConfig: { responseModalities: ['IMAGE', 'TEXT'], aspectRatio: geminiAspectRatio } as any,
+              generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
             }),
           }
         )
