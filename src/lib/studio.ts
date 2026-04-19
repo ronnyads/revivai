@@ -1193,7 +1193,8 @@ export async function startVeo3DirectGoogle(params: {
   const base64Image = imgBuffer.toString('base64')
   const mimeType = 'image/jpeg'
 
-  const model = 'veo-3.0-generate-001';
+  // Usando veo-3.1-generate-preview como padrão do AI Studio
+  const model = 'veo-3.1-generate-preview';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`;
   
   const res = await fetch(url, {
