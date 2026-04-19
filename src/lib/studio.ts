@@ -1144,8 +1144,12 @@ export async function composeProductScene(params: {
       if (retryBase64) {
         const qc2 = await assessCompositionQuality(params.product_url, retryBase64, profile)
         console.log(`[compose-qc] attempt=2 | approved=${qc2.approved} score=${qc2.score}`)
-        currentBase64 = retryBase64
-        resultBuffer = Buffer.from(currentBase64, 'base64')
+        if (qc2.approved) {
+          currentBase64 = retryBase64
+          resultBuffer = Buffer.from(currentBase64, 'base64')
+        } else {
+          console.warn(`[compose-qc] Retry PIOR que original — mantendo attempt=1`)
+        }
       }
     } else {
       console.log(`[compose-qc] APROVADO | score=${qc1.score}`)
