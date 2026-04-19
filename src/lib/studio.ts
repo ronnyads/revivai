@@ -1247,7 +1247,7 @@ export async function composeProductScene(params: {
       try {
         const poseBase64 = await geminiPoseOnly(portraitBuf, userIntent, apiKey, COMPOSE_MODELS)
         if (poseBase64) {
-          resultBuffer = await sharpOverlayProduct(Buffer.from(poseBase64, 'base64'), productBuf)
+          resultBuffer = await sharpOverlayProduct(Buffer.from(poseBase64, 'base64'), finalProductBuf)
           console.log('[studio] high-risk fallback: sharp overlay concluído — produto 100% original')
         }
       } catch (e) {
