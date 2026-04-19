@@ -1193,9 +1193,12 @@ export async function startVeo3DirectGoogle(params: {
   const base64Image = imgBuffer.toString('base64')
   const mimeType = 'image/jpeg'
 
-  // Usando veo-3.1-generate-preview como padrão do AI Studio
-  const model = 'veo-3.1-generate-preview';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`;
+  const projectId = process.env.VERTEX_PROJECT_ID || 'revivai-ads';
+  const location = 'us-central1'; // Força região US para evitar bloqueio no BR
+  const model = 'veo-3.1-generate-001';
+  
+  // Endpoint do Vertex AI (Padrão Enterprise)
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:predict?key=${apiKey}`;
   
   const res = await fetch(url, {
       method: 'POST',
@@ -1208,6 +1211,7 @@ export async function startVeo3DirectGoogle(params: {
           }],
         }],
         parameters: {
+          sampleCount: 1,
           aspectRatio: '9:16'
         },
       }),
@@ -1216,28 +1220,29 @@ export async function startVeo3DirectGoogle(params: {
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
-    console.error(`[Google Veo3 Error] ${res.status}:`, errText);
-    throw new Error(`Google Veo3 erro (${res.status}): ${errText.slice(0, 300)}`);
+    console.error(`[Vertex AI Error] ${res.status}:`, errText);
+    throw new Error(`Google Vertex AI erro (${res.status}): ${errText.slice(0, 300)}`);
   }
 
   const body = await res.json()
-  const operationName = body.name
-  if (!operationName) throw new Error('Google Veo3 não retornou operationName')
+  // No Vertex AI, a resposta pode ser síncrona ou retornar um operation
+  const predictionId = body.name || body.predictions?.[0]?.id || `vertex-${Date.now()}`;
 
   await admin.from('studio_assets')
     .update({
       input_params: {
-        prediction_id: operationName,
+        prediction_id: predictionId,
         provider: 'google',
         engine: 'veo',
         source_image_url: params.source_image_url,
         motion_prompt: params.motion_prompt,
         quality: params.quality,
+        vertex_op: body.name
       }
     })
     .eq('id', params.assetId)
 
-  return operationName;
+  return predictionId;
 }
 
 // ── Image-to-Image (Angles / Poses) ──────────────────────────────────────────────────────────
