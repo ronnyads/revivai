@@ -986,14 +986,16 @@ export async function composeProductScene(params: {
     // 2. MÁSCARA INTELIGENTE PARA BRAÇOS COMPLETO (Hollow Mask + Lower Erase + Edge Anchor)
     const rawPixels = Buffer.alloc(portW * portH, 0)
     
-    // O erro anterior (roupa virou preta e 3 mãos) ocorreu por apagarmos MUITO a imagem
-    // e deixar a IA confusa. Agora deixamos uma margem de proteção ('Edge Anchor') 
-    // nas extremidades esquerda e direita para a IA 'lembrar' da cor da jaqueta.
-    const padX = Math.round(portW * 0.23); // Deixa as beiradas desmascaradas como âncora visual da roupa
+    // O erro do "Pote Gigante / Criatura" ocorreu porque pedir pra IA desenhar um braço 
+    // de 500 pixels do nada, apagando as mãos no bolso e o centro do corpo, dá nisso.
+    // Agora o sistema está oficialmente OTIMIZADO PARA A ARQUITETURA DE POSE PREPARADA:
+    // A IA tem apenas uma zona de ~150px em volta do pote pra puxar os dedos da modelo por cima dele.
+    const padX = 150;
+    const padY = 150;
     const outLeft = Math.max(0, left - padX);
     const outRight = Math.min(portW, left + prodW + padX);
-    const outTop = Math.max(0, top - 100); 
-    const outBottom = portH; // Desce até o chão para cobrir mãos no bolso
+    const outTop = Math.max(0, top - padY); 
+    const outBottom = Math.min(portH, top + prodH + padY); 
 
     // Proteção central do Rótulo (Impede a IA de alucinar as letras)
     const inLeft = Math.round(left + prodW * 0.15) 
