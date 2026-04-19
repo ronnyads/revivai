@@ -1162,6 +1162,7 @@ export async function startVeo3DirectGoogle(params: {
   source_image_url: string
   motion_prompt:    string
   duration?:        number
+  quality?:         string
   assetId:          string
   userId:           string
 }) {
@@ -1229,6 +1230,7 @@ export async function startVeo3DirectGoogle(params: {
         engine: 'veo',
         source_image_url: params.source_image_url,
         motion_prompt: params.motion_prompt,
+        quality: params.quality,
       }
     })
     .eq('id', params.assetId)

@@ -39,6 +39,10 @@ export async function POST(req: NextRequest) {
   if (type === 'video' && String(input_params?.engine ?? '') === 'veo') {
     effectiveCost = CREDIT_COST['video_veo'] ?? 50
   }
+  // Dobra o custo se a qualidade for 1080p HQ
+  if (String(input_params?.quality ?? '') === '1080p') {
+    effectiveCost *= 2
+  }
 
   const isDraft = body.status === 'idle'
   const { data: profile } = await supabase.from('users').select('credits').eq('id', user.id).single()
@@ -183,11 +187,12 @@ export async function POST(req: NextRequest) {
 
       if (input_params.engine === 'veo') {
         await startVeo3DirectGoogle({
-          source_image_url: sourceImageUrl,
-          motion_prompt: String(input_params.motion_prompt ?? ''),
-          duration: Number(input_params.duration ?? 8),
-          assetId: asset.id,
-          userId: user.id,
+          source_image_url: String(input_params.source_image_url ?? ''),
+          motion_prompt:    String(input_params.motion_prompt ?? ''),
+          duration:         Number(input_params.duration ?? 5),
+          quality:          String(input_params.quality ?? '720p'),
+          assetId:          asset.id,
+          userId:           user.id,
         })
       } else {
         await startVideoGeneration({

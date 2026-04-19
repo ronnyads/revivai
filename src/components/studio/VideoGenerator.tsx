@@ -25,6 +25,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
   const [motion,   setMotion]   = useState(String(initial.motion_prompt ?? ''))
   const [duration, setDuration] = useState(Number(initial.duration      ?? 5))
   const [engine,   setEngine]   = useState(String(initial.engine        ?? 'veo'))
+  const [quality,  setQuality]  = useState(String(initial.quality       ?? '720p'))
 
   // Sync quando conexão do canvas preenche source_image_url ou continuation_frame
   useEffect(() => {
@@ -32,8 +33,9 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
     if (url) setImageUrl(url)
   }, [initial.source_image_url, initial.continuation_frame])
 
-  // Custo dinâmico baseado no motor selecionado
-  const cost = engine === 'veo' ? CREDIT_COST['video_veo'] : CREDIT_COST['video']
+  // Custo dinâmico baseado no motor e na QUALIDADE selecionada
+  const baseCost = engine === 'veo' ? CREDIT_COST['video_veo'] : CREDIT_COST['video']
+  const cost = quality === '1080p' ? baseCost * 2 : baseCost
 
   return (
     <div className="flex flex-col gap-4">
@@ -50,7 +52,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
         </div>
       </div>
 
-      {/* Seletor de Motor - Adicionado para Transparência */}
+      {/* Seletor de Motor */}
       <div className="flex flex-col gap-2">
         <label className="text-[10px] text-zinc-500 uppercase font-black tracking-widest px-1">Tecnologia de Vídeo</label>
         <div className="grid grid-cols-2 gap-2">
@@ -75,6 +77,29 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
           >
             <span className={`text-[11px] font-bold ${engine === 'kling' ? 'text-white' : 'text-zinc-400'}`}>Kling AI</span>
             <span className="text-[8px] uppercase tracking-tighter">Fluidez Máxima</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Seletor de Qualidade */}
+      <div className="flex flex-col gap-2 bg-zinc-900/40 border border-zinc-800 rounded-2xl p-3">
+        <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1">Resolução do Vídeo</label>
+        <div className="grid grid-cols-2 gap-2 mt-1">
+          <button
+            onClick={() => setQuality('720p')}
+            className={`flex items-center justify-center gap-2 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+              quality === '720p' ? 'bg-zinc-800 border-zinc-700 text-white' : 'bg-transparent border-transparent text-zinc-600 hover:text-zinc-400'
+            }`}
+          >
+            720p HD
+          </button>
+          <button
+            onClick={() => setQuality('1080p')}
+            className={`flex items-center justify-center gap-2 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+              quality === '1080p' ? 'bg-zinc-800 border-zinc-700 text-white shadow-lg' : 'bg-transparent border-transparent text-zinc-600 hover:text-zinc-400'
+            }`}
+          >
+            1080p <span className="text-[8px] font-black text-amber-500">HQ</span>
           </button>
         </div>
       </div>
@@ -147,6 +172,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
           motion_prompt: motion,
           duration: duration,
           engine,
+          quality,
         })}
         disabled={!imageUrl.trim()}
         className={`group relative flex items-center justify-center gap-2 text-white text-[13px] font-bold py-4 rounded-2xl transition-all disabled:opacity-40 w-full mt-2 overflow-hidden active:scale-[0.98] ${
