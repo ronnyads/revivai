@@ -938,7 +938,7 @@ export async function composeProductScene(params: {
     const { GoogleGenerativeAI } = await import('@google/generative-ai')
     const genAI = new GoogleGenerativeAI(apiKey)
     const genModel = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp-image-generation',
+      model: 'gemini-2.0-flash-preview-image-generation',
     })
 
     const userIntent = params.smart_prompt?.trim()
