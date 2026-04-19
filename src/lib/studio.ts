@@ -983,33 +983,31 @@ export async function composeProductScene(params: {
       .jpeg({ quality: 100 })
       .toBuffer()
 
-    // 2. MÁSCARA INTELIGENTE AMPLIADA (Hollow Mask / Borda Mágica)
+    // 2. MÁSCARA INTELIGENTE (Hollow Mask + Full Lower Erase)
     const rawPixels = Buffer.alloc(portW * portH, 0)
     
-    // Super importante: Expandimos MUITO o padding ao redor do produto para que 
-    // a IA consiga desenhar braços inteiros que se conectem à blusa da modelo, 
-    // em vez de criar mãos "amputadas" dentro de um quadradinho restrito.
-    const padX = 250  
-    const padYTop = 80 // para cima não precisa tanto, ombros já estão lá
-    const padYBottom = 350 // muito espaço para baixo para puxar braços/mangas da modelo
-    
-    const outLeft = Math.max(0, left - padX)
-    const outRight = Math.min(portW, left + prodW + padX)
-    const outTop = Math.max(0, top - padYTop)
-    const outBottom = Math.min(portH, top + prodH + padYBottom)
+    // O erro anterior ("mãos no bolso e mão dupla") ocorreu porque não mascaramos
+    // a parte inferior da imagem original. Agora, vamos mascarar 100% da imagem
+    // abaixo da linha do produto para FORÇAR a IA a redesenhar a barriga/mangas
+    // e apagar as mãos originais que estavam no bolso.
+    const outLeft = 0;
+    const outRight = portW;
+    const outTop = Math.max(0, top - 80); // começa um pouco acima do produto para pegar os braços descendo
+    const outBottom = portH; // vai até o final da imagem
 
-    const inLeft = Math.round(left + prodW * 0.15) // protege 70% da frontal
+    // Proteção central do Rótulo (Impede a IA de alucinar as letras)
+    const inLeft = Math.round(left + prodW * 0.15) 
     const inRight = Math.round(left + prodW * 0.85)
-    const inTop = Math.round(top + prodH * 0.10)  // protege parte de cima (tampa)
+    const inTop = Math.round(top + prodH * 0.10)  
     const inBottom = Math.round(top + prodH * 0.90)
 
     for (let y = outTop; y < outBottom; y++) {
       for (let x = outLeft; x < outRight; x++) {
         if (x >= inLeft && x <= inRight && y >= inTop && y <= inBottom) {
-           // Zona BLINDADA (100% Cor/Texto imaculados)
+           // Zona BLINDADA (Rótulo)
            rawPixels[y * portW + x] = 0
         } else {
-           // Zona LIVRE (onde a IA é livre pra reconstruir braços, tecidos, mãos)
+           // Zona LIVRE (Apaga roupa inferior e mãos originais)
            rawPixels[y * portW + x] = 255
         }
       }
@@ -1018,9 +1016,10 @@ export async function composeProductScene(params: {
     const maskBuf = await sharp(rawPixels, {
       raw: { width: portW, height: portH, channels: 1 }
     })
-    .blur(25) // FUNDAMENTAL: Suaviza absurdamente as bordas para não ficar corte de faca
+    .blur(25) // Transição suave
     .png()
     .toBuffer()
+
 
     // 3. Chamada ao Flux Inpainting via Fal.ai (Máximo respeito à máscara)
     // O Vertex AI Inpaint Insertion ignora pixels desprotegidos e altera o rótulo da inserção.
@@ -1035,7 +1034,12 @@ export async function composeProductScene(params: {
       ? String(params.smart_prompt).trim()
       : 'holding a product jar naturally with both hands at chest height, smiling at the camera'
 
-    const prompt = `Ultra-realistic professional product photography. The person in the photo is ${clientDescription}. The hands and fingers are seamlessly blending into the scene, wrapping naturally around the edges of the jar holding it firmly. Photorealistic, 8k, highly detailed hands.`
+    const prompt = `Ultra-realistic professional photography. The person in the photo is ${clientDescription}. 
+IMPORTANT INSTRUCTIONS: 
+1. The product is already in the center of the image. DO NOT generate duplicate products or a second jar. 
+2. Erase any original hands that were in pockets.
+3. Only generate the person's lower body, jacket, and arms reaching up to firmly hold the central object.
+4. The hands and fingers must wrap naturally around the edges. Photorealistic, 8k, highly detailed hands.`
 
     console.log(`[studio] Smart Prompt (Flux): ${prompt.substring(0, 120)}...`)
 
