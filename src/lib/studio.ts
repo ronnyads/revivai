@@ -1193,12 +1193,10 @@ export async function startVeo3DirectGoogle(params: {
   const base64Image = imgBuffer.toString('base64')
   const mimeType = 'image/jpeg'
 
-  const projectId = process.env.VERTEX_PROJECT_ID || 'revivai-ads';
-  const location = 'us-central1'; // Força região US para evitar bloqueio no BR
-  const model = 'veo-3.1-generate-001';
-  
-  // Endpoint do Vertex AI (Padrão Enterprise)
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:predict?key=${apiKey}`;
+  // Retornando para o Gemini API (que aceita API Key simples)
+  // Agora usando os dados do seu NOVO projeto que você configurou no Vercel
+  const model = 'veo-3.1-generate-preview';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`;
   
   const res = await fetch(url, {
       method: 'POST',
@@ -1211,7 +1209,6 @@ export async function startVeo3DirectGoogle(params: {
           }],
         }],
         parameters: {
-          sampleCount: 1,
           aspectRatio: '9:16'
         },
       }),
@@ -1220,29 +1217,28 @@ export async function startVeo3DirectGoogle(params: {
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
-    console.error(`[Vertex AI Error] ${res.status}:`, errText);
-    throw new Error(`Google Vertex AI erro (${res.status}): ${errText.slice(0, 300)}`);
+    console.error(`[Google AI Error] ${res.status}:`, errText);
+    throw new Error(`Erro na API do Google (${res.status}): ${errText.slice(0, 300)}`);
   }
 
   const body = await res.json()
-  // No Vertex AI, a resposta pode ser síncrona ou retornar um operation
-  const predictionId = body.name || body.predictions?.[0]?.id || `vertex-${Date.now()}`;
+  const operationName = body.name
+  if (!operationName) throw new Error('Google não retornou o nome da operação de vídeo')
 
   await admin.from('studio_assets')
     .update({
       input_params: {
-        prediction_id: predictionId,
+        prediction_id: operationName,
         provider: 'google',
         engine: 'veo',
         source_image_url: params.source_image_url,
         motion_prompt: params.motion_prompt,
         quality: params.quality,
-        vertex_op: body.name
       }
     })
     .eq('id', params.assetId)
 
-  return predictionId;
+  return operationName;
 }
 
 // ── Image-to-Image (Angles / Poses) ──────────────────────────────────────────────────────────
