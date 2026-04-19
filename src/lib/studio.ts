@@ -1,5 +1,4 @@
 // FORCE_REBUILD_ID: 2716873455033918919
-import sharp from 'sharp'
 import { VertexAI } from '@google-cloud/vertexai'
 import { GoogleAuth } from 'google-auth-library'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -902,101 +901,10 @@ function buildRetryPrompt(basePrompt: string, issues: string[], weakestDimension
   return basePrompt + issueBlock + focusBlock
 }
 
-async function geminiPoseOnly(
-  portraitBuf: Buffer,
-  userIntent: string,
-  apiKey: string,
-  models: string[],
-): Promise<string | null> {
-  const posePrompt = `You are a professional photo editor. Make MINIMAL changes to this portrait.
-TASK: Position this person's arms and hands naturally to hold or display a product at chest or waist level.
-STRICT RULES:
-- Face, hair, skin tone, makeup, clothing: IDENTICAL — do NOT change anything
-- Background: pure white (#FFFFFF)
-- Only adjust arm/hand position to a natural holding pose
-- Do NOT add any objects or products to the image
-- Preserve all clothing exactly
-Pose instruction: ${userIntent}`
-
-  const body = JSON.stringify({
-    contents: [{
-      role: 'user',
-      parts: [
-        { text: posePrompt },
-        { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
-      ],
-    }],
-    generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
-  })
-
-  for (const model of models) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
-      )
-      if (!res.ok) continue
-      const json = await res.json()
-      const parts = json.candidates?.[0]?.content?.parts ?? []
-      const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
-      if (imgPart?.inlineData?.data) {
-        console.log(`[studio] geminiPoseOnly OK | model=${model}`)
-        return imgPart.inlineData.data as string
-      }
-    } catch {}
-  }
-  return null
-}
-
-async function sharpOverlayProduct(poseBuf: Buffer, productBuf: Buffer): Promise<Buffer> {
-  const poseMeta = await sharp(poseBuf).metadata()
-  const poseWidth  = poseMeta.width  ?? 1024
-  const poseHeight = poseMeta.height ?? 1024
-
-  const productTargetWidth = Math.round(poseWidth * 0.40)
-  const productResized = await sharp(productBuf)
-    .resize({ width: productTargetWidth, withoutEnlargement: true })
-    .ensureAlpha()
-    .toBuffer()
-
-  const productMeta = await sharp(productResized).metadata()
-  const pW = productMeta.width ?? 0
-
-  const shadowBuf = await sharp(productResized)
-    .modulate({ brightness: 0.1, saturation: 0 })
-    .blur(12)
-    .toBuffer()
-
-  const compositeTop  = Math.round(poseHeight * 0.45)
-  const compositeLeft = Math.round((poseWidth - pW) / 2)
-
-  return sharp(poseBuf)
-    .composite([
-      { input: shadowBuf, top: compositeTop + 8, left: compositeLeft + 8, blend: 'multiply' },
-      { input: productResized, top: compositeTop, left: compositeLeft },
-    ])
-    .jpeg({ quality: 95 })
-    .toBuffer()
-}
-
-type RouteDecision = 'GEMINI_ONLY' | 'GEMINI_THEN_OVERLAY' | 'OVERLAY_DIRECT'
-
-function decideRoute(profile: ProductProfile): RouteDecision {
-  if (profile.deformation_risk === 'high') return 'OVERLAY_DIRECT'
-  if (profile.deformation_risk === 'medium') {
-    if (profile.has_text_logo || profile.shape_complexity === 'complex') return 'GEMINI_THEN_OVERLAY'
-    return 'GEMINI_ONLY'
-  }
-  return 'GEMINI_ONLY'
-}
-
-async function refineComposite(buffer: Buffer): Promise<Buffer> {
-  return sharp(buffer)
-    .modulate({ brightness: 1.01, saturation: 0.98 })
-    .blur(0.3)
-    .sharpen({ sigma: 0.8, m1: 0, m2: 3 })
-    .jpeg({ quality: 95 })
-    .toBuffer()
+function decideRoute(profile: ProductProfile): string {
+  if (profile.deformation_risk === 'high') return 'GEMINI_HIGH_RISK'
+  if (profile.deformation_risk === 'medium') return 'GEMINI_MEDIUM_RISK'
+  return 'GEMINI_LOW_RISK'
 }
 
 // ── Compose — Virtual Try-On ou Colar Produto ─────────
@@ -1239,57 +1147,26 @@ export async function composeProductScene(params: {
       return null
     }
 
-    async function doOverlay(): Promise<Buffer> {
-      const poseBase64 = await geminiPoseOnly(portraitBuf, userIntent, apiKey!, COMPOSE_MODELS)
-      const poseBuf = poseBase64 ? Buffer.from(poseBase64, 'base64') : portraitBuf
-      const overlaid = await sharpOverlayProduct(poseBuf, finalProductBuf)
-      return refineComposite(overlaid)
-    }
+    // Gemini para todos os produtos — 1 retry com prompt adaptado se QC reprovar
+    const initialBase64 = await callGeminiCompose(finalPrompt)
+    if (!initialBase64) throw new Error('Todos os modelos Gemini falharam na composição')
 
-    // ── OVERLAY_DIRECT: alto risco → pula Gemini, vai direto ao overlay ──
-    if (route === 'OVERLAY_DIRECT') {
-      console.log('[studio] route=OVERLAY_DIRECT — gemini-pose + sharp-overlay + refine')
-      resultBuffer = await doOverlay()
+    let currentBase64 = initialBase64
+    resultBuffer = Buffer.from(currentBase64, 'base64')
 
-    // ── GEMINI_THEN_OVERLAY: tenta Gemini 1x, se falhar usa overlay ──
-    } else if (route === 'GEMINI_THEN_OVERLAY') {
-      const geminiBase64 = await callGeminiCompose(finalPrompt)
-      if (geminiBase64) {
-        const qc = await assessCompositionQuality(params.product_url, geminiBase64, profile)
-        console.log(`[compose-qc] route=GEMINI_THEN_OVERLAY | approved=${qc.approved} score=${qc.score}`)
-        if (qc.approved) {
-          resultBuffer = Buffer.from(geminiBase64, 'base64')
-        } else {
-          console.warn(`[compose-qc] Gemini reprovado — fallback overlay | weakest=${qc.weakest_dimension}`)
-          resultBuffer = await doOverlay()
-        }
-      } else {
-        console.warn('[studio] Gemini falhou — fallback overlay')
-        resultBuffer = await doOverlay()
+    const qc1 = await assessCompositionQuality(params.product_url, currentBase64, profile)
+    console.log(`[compose-qc] route=${route} attempt=1 | approved=${qc1.approved} score=${qc1.score}`)
+    if (!qc1.approved) {
+      console.warn(`[compose-qc] REPROVADO | weakest=${qc1.weakest_dimension} | issues: ${qc1.issues.join(', ')}`)
+      const retryBase64 = await callGeminiCompose(buildRetryPrompt(finalPrompt, qc1.issues, qc1.weakest_dimension))
+      if (retryBase64) {
+        const qc2 = await assessCompositionQuality(params.product_url, retryBase64, profile)
+        console.log(`[compose-qc] attempt=2 | approved=${qc2.approved} score=${qc2.score}`)
+        currentBase64 = retryBase64
+        resultBuffer = Buffer.from(currentBase64, 'base64')
       }
-
-    // ── GEMINI_ONLY: baixo risco → Gemini com 1 retry ──
     } else {
-      const initialBase64 = await callGeminiCompose(finalPrompt)
-      if (!initialBase64) throw new Error('Todos os modelos Gemini falharam na composição')
-
-      let currentBase64 = initialBase64
-      resultBuffer = Buffer.from(currentBase64, 'base64')
-
-      const qc1 = await assessCompositionQuality(params.product_url, currentBase64, profile)
-      console.log(`[compose-qc] route=GEMINI_ONLY attempt=1 | approved=${qc1.approved} score=${qc1.score}`)
-      if (!qc1.approved) {
-        console.warn(`[compose-qc] REPROVADO | weakest=${qc1.weakest_dimension} | issues: ${qc1.issues.join(', ')}`)
-        const retryBase64 = await callGeminiCompose(buildRetryPrompt(finalPrompt, qc1.issues, qc1.weakest_dimension))
-        if (retryBase64) {
-          const qc2 = await assessCompositionQuality(params.product_url, retryBase64, profile)
-          console.log(`[compose-qc] attempt=2 | approved=${qc2.approved} score=${qc2.score}`)
-          currentBase64 = retryBase64
-          resultBuffer = Buffer.from(currentBase64, 'base64')
-        }
-      } else {
-        console.log(`[compose-qc] APROVADO | score=${qc1.score}`)
-      }
+      console.log(`[compose-qc] APROVADO | score=${qc1.score}`)
     }
 
   } else {
