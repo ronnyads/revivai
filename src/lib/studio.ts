@@ -48,10 +48,10 @@ export async function generateImage(params: {
   const size = sizeMap[params.aspect_ratio] ?? '1024x1024'
 
   const STYLE_FALLBACKS: Record<string, string> = {
-    realista:   'UGC style ad photo, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, cinematic lighting, hyper-realistic, 8k, highly detailed, ',
-    ugc:        'UGC style ad photo, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, authentic, candid, real person, photorealistic, film grain, natural depth of field, 8k, ',
-    clonado:    'UGC style ad photo, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, authentic, real person face, photorealistic, 8k, ',
-    produto:    'professional product photography, shot on Phase One IQ4 150MP, Zeiss Milvus 100mm f/2M lens, clean background, studio lighting, hyper-realistic, 8k resolution, ',
+    realista:   'UGC style ad photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, cinematic lighting, hyper-realistic, 8k, highly detailed, ',
+    ugc:        'UGC style ad photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, authentic, candid, real person, photorealistic, film grain, natural depth of field, 8k, ',
+    clonado:    'UGC style ad photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, authentic, real person face, photorealistic, 8k, ',
+    produto:    'professional product photography, shot on film, shot on Phase One IQ4 150MP, Zeiss Milvus 100mm f/2M lens, clean background, studio lighting, hyper-realistic, 8k resolution, ',
     logo:       'professional logo design, clean vector style, transparent background, minimalist, ',
     mascote:    '3D animated mascot, anthropomorphic character, cinematic lighting, highly detailed 3D render, Pixar style, ',
     cartoon:    'Cartoon Network style, 2D flat animation, vibrant colors, bold outlines, stylized character design, solid color background, ',
@@ -74,7 +74,7 @@ export async function generateImage(params: {
     ? "hyper-detailed 3D render, perfectly consistent character, 8k resolution, cinematic lighting, vibrant colors."
     : params.style === 'personagem_cartoon'
       ? "2D flat cartoon illustration, no 3d elements, vector art, smooth lines, clean colors, cartoon aesthetics."
-      : "RAW photo, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, film grain, natural depth of field, not illustrated, not cartoon, real photography."
+      : "RAW photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, film grain, natural depth of field, not illustrated, not cartoon, real photography."
       
   const realismSuffix = await getStudioPrompt(admin, realismKey, realismFallback)
   const finalPrompt = `${basePrompt}. ${realismSuffix}`
@@ -571,7 +571,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
     'Skin pores and natural imperfections visible. Real human face, authentic natural lighting, not retouched, not illustrated, not CGI.',
   )
   const negativePrompt = 'outdoor, street, city, building, trees, nature, bokeh background, blurred background, environment, park, cafe, wall, colorful background, any background scene, gradient background, dark background, grey background, textured background, window, curtain, interior room'
-  const finalPrompt = `COMMERCIAL PHOTOGRAPHY STUDIO. Seamless pure white paper backdrop, studio strobe lighting, clean white background. ${text} ${fluxSuffix} Shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, hyper-realistic, 8k. MANDATORY: solid white background only, no environment, no outdoor scene, no bokeh, plain white seamless backdrop, professional studio portrait.`
+  const finalPrompt = `COMMERCIAL PHOTOGRAPHY STUDIO. Seamless pure white paper backdrop, studio strobe lighting, clean white background. ${text} ${fluxSuffix} Shot on film. Shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, hyper-realistic, 8k. MANDATORY: solid white background only, no environment, no outdoor scene, no bokeh, plain white seamless backdrop, professional studio portrait.`
 
   let photoBuffer: Buffer | null = null
 
@@ -1713,7 +1713,7 @@ export async function generateAngles(params: {
       `CHANGE ONLY: the camera angle to "${params.angle}" view — ${perspective}.`,
       `PRESERVE EXACTLY: same face, same facial features, same skin tone, same hair color and style, same outfit and every clothing item with exact colors, patterns and details, same body proportions.`,
       ratioInstruction,
-      `Output: photorealistic commercial photo, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, white or neutral background, no watermarks.`,
+      `Output: photorealistic commercial photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, white or neutral background, no watermarks.`,
     ].join(' ')
 
     const geminiChain = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
