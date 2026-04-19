@@ -1265,12 +1265,28 @@ export async function generateAngles(params: {
   const googleApiKey = process.env.GOOGLE_API_KEY
   if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
-  // 1. Download base image
+  // 1. Download base image (Garantindo que seja IMAGEM e não VÍDEO)
   if (!params.source_url || !params.source_url.startsWith('http')) {
     throw new Error('URL da imagem fonte inválida para o Imagen')
   }
-  const imgResSource = await fetch(params.source_url)
-  if (!imgResSource.ok) throw new Error(`Erro download: ${imgResSource.status}`)
+
+  let urlToFetch = params.source_url
+  if (urlToFetch.toLowerCase().endsWith('.mp4')) {
+    console.log('[studio] Source is video, searching for last_frame_url...')
+    const { data: assetData } = await admin
+      .from('studio_assets')
+      .select('last_frame_url')
+      .eq('result_url', params.source_url)
+      .maybeSingle()
+    
+    if (assetData?.last_frame_url) {
+      urlToFetch = assetData.last_frame_url
+      console.log('[studio] Using last_frame_url as reference:', urlToFetch.slice(0, 50))
+    }
+  }
+
+  const imgResSource = await fetch(urlToFetch)
+  if (!imgResSource.ok) throw new Error(`Erro download: ${imgResSource.status} de ${urlToFetch}`)
   const imgBuffer = Buffer.from(await imgResSource.arrayBuffer())
   const base64Image = imgBuffer.toString('base64')
 
