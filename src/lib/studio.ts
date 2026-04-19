@@ -1016,10 +1016,10 @@ export async function composeProductScene(params: {
 
     console.log(`[studio] Chamando Smart Composition no projeto: ${projectId}`)
 
-    // Descritor do produto para ajudar a IA
-    const productDesc = "a creatine supplement jar with red label and black lid, highly detailed, photorealistic"
-    const prompt = `A highly realistic professional photo. A person is NATURALLY holding and interacting with a jar of ${productDesc}. The person's fingers are realistically visible over the edges of the jar, matching the lighting and texture of the scene. Natural soft lighting, realistic shadows, integrated into the background. High resolution, 8k.`
+    // Prompt de integração realista do produto
+    const prompt = `A highly realistic professional product photo. A person is NATURALLY holding a product jar with both hands at the specified position. The hands and fingers are wrapped naturally around the jar. Natural soft lighting, realistic shadows, photorealistic, 8k.`
 
+    // Payload correto para imagen-3.0-capability-001 (inpainting via referenceImages)
     const vertexRes = await fetch(vertexUrl, {
       method: 'POST',
       headers: {
@@ -1029,19 +1029,36 @@ export async function composeProductScene(params: {
       body: JSON.stringify({
         instances: [
           {
-            image: { bytesBase64Encoded: portraitBuf.toString('base64') },
-            mask: { 
-              image: { bytesBase64Encoded: maskBuf.toString('base64') }
-            },
-            prompt
+            prompt,
+            referenceImages: [
+              {
+                referenceId: 1,
+                referenceType: "REFERENCE_TYPE_RAW",
+                referenceImage: {
+                  bytesBase64Encoded: portraitBuf.toString('base64'),
+                  mimeType: 'image/jpeg'
+                }
+              },
+              {
+                referenceId: 2,
+                referenceType: "REFERENCE_TYPE_MASK",
+                referenceImage: {
+                  bytesBase64Encoded: maskBuf.toString('base64'),
+                  mimeType: 'image/png'
+                },
+                maskImageConfig: {
+                  maskMode: "MASK_MODE_USER_PROVIDED",
+                  maskDilation: 0.03
+                }
+              }
+            ]
           }
         ],
         parameters: {
           sampleCount: 1,
-          editConfig: {
-            editMode: 'inpainting-insert',
-            guidanceScale: 60
-          }
+          editMode: "EDIT_MODE_INPAINT_INSERTION",
+          guidanceScale: 60,
+          personGeneration: "allow_adult"
         }
       })
     })
