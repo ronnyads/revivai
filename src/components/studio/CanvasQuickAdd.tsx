@@ -24,6 +24,7 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
       { type: 'voice',   icon: <Mic size={20} />,       label: 'Voz / Audio',  desc: 'Locução humana',        gradient: 'from-[#FF2D55] to-[#FF3B30]' }, 
       { type: 'music',   icon: <Music size={20} />,     label: 'Trilha Sonora AI', desc: 'Compor trilha exclusiva', gradient: 'from-[#007AFF] to-[#5856D6]' },
       { type: 'angles',  icon: <Camera size={20} />,    label: 'Dir. de Cena', desc: 'Trocar perspectiva',    gradient: 'from-[#34D399] to-[#059669]' },
+      { type: 'ugc_bundle', icon: <Sparkles size={20} />, label: 'Pacote 8 UGC', desc: 'Poses automáticas',     gradient: 'from-[#8B5CF6] to-[#D946EF]' },
     ],
   },
   {
