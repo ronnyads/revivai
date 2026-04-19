@@ -512,7 +512,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
       if (vertexKey) {
         console.log(`[studio] Usando Vertex AI Enterprise (UGC Model) para asset ${params.assetId}...`)
         const vertexToken = await getVertexAccessToken(vertexKey)
-        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
+        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-generate-001:predict`
 
         const vertexRes = await fetch(vertexUrl, {
           method: 'POST',
@@ -1012,7 +1012,7 @@ export async function composeProductScene(params: {
     // 2. Chamada ao Vertex AI (In-painting)
     const vertexToken = await getVertexAccessToken(vertexKey)
     const location = process.env.VERTEX_LOCATION || 'us-central1'
-    const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
+    const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001:predict`
 
     console.log(`[studio] Chamando Smart Composition no projeto: ${projectId}`)
 
