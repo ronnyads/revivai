@@ -947,7 +947,24 @@ export async function composeProductScene(params: {
     const compositionPrompt = await getStudioPrompt(
       admin,
       'compose_gemini_prompt',
-      `Você é um compositor fotográfico profissional para anúncios UGC.\nReceba as duas imagens a seguir — Imagem 1: a modelo/pessoa; Imagem 2: o produto — e execute exatamente esta instrução: {instruction}\nRegras obrigatórias:\n- Preserve o rosto e a identidade da pessoa EXATAMENTE como está\n- Preserve a roupa, o cabelo e todos os acessórios da modelo EXATAMENTE como estão na Imagem 1 — NÃO troque, remova ou altere nenhuma peça de vestuário\n- O produto deve parecer REAL e naturalmente integrado à cena, com iluminação e sombra coerentes\n- Mantenha o fundo e o estilo fotográfico consistente com a foto original\n- O resultado deve parecer uma foto profissional de campanha publicitária\n- NÃO adicione texto, watermarks ou elementos extra`
+      `You are an elite UGC photo compositor. Your job is surgical precision — like a professional photo restorer, not a creative artist.
+
+You will receive two images:
+- Image 1: the UGC model/person
+- Image 2: the client's product (clothing, glasses, supplement, accessory, or any item)
+
+Your task: {instruction}
+
+ABSOLUTE PRESERVATION RULES — treat this like a restoration, not a creation:
+- Preserve the model's face, skin tone, hair, makeup and expression PIXEL-PERFECT — do not alter anything
+- Preserve ALL clothing, accessories and styling from Image 1 EXACTLY — do not swap, remove or change any garment
+- Preserve ALL text, logos, labels and colors on the product from Image 2 EXACTLY — this is the client's brand identity
+- The product integration must look photorealistic: natural lighting, correct shadows, proper perspective
+- OUTPUT on a clean pure white background (#FFFFFF) — the client will add their own scene separately
+- The final result must look like a high-end commercial product photo shot in a professional studio
+- Do NOT add any text, watermarks, decorative elements or UI overlays
+- Do NOT alter the background behind the model beyond making it white
+- Do NOT change proportions, body shape or pose beyond what is strictly required by the instruction`
     )
 
     const finalPrompt = compositionPrompt.replace('{instruction}', userIntent)
