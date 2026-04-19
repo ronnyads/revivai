@@ -102,63 +102,58 @@ export default function AngleGenerator({ initial, onGenerate }: Props) {
         )}
       </div>
  
-      {/* Aspect Ratio Selector */}
-      <div className="space-y-3">
-        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2 px-1">
-          <Maximize size={12} className="text-emerald-500" /> Proporção (Aspect Ratio)
-        </label>
-        <div className="flex bg-zinc-900 border border-white/5 p-1 rounded-xl gap-1">
-          {[
-            { id: '9:16', label: '9:16 Reels' },
-            { id: '1:1',  label: '1:1 Post' },
-            { id: '4:5',  label: '4:5 Feed' },
-          ].map(opt => (
-            <button
-              key={opt.id}
-              onClick={() => setAspectRatio(opt.id)}
-              className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-                aspectRatio === opt.id ? 'bg-zinc-800 text-white border border-white/10 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+      {/* Aspect Ratio + Angle — compact row */}
+      <div className="flex gap-2 items-end">
+        {/* Aspect Ratio */}
+        <div className="flex flex-col gap-1.5 flex-1">
+          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1 px-0.5">
+            <Maximize size={10} className="text-emerald-500" /> Proporção
+          </label>
+          <div className="flex bg-zinc-900 border border-white/5 p-0.5 rounded-lg gap-0.5">
+            {[
+              { id: '9:16', label: '9:16' },
+              { id: '1:1',  label: '1:1' },
+              { id: '4:5',  label: '4:5' },
+            ].map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => setAspectRatio(opt.id)}
+                className={`flex-1 py-1 rounded-md text-[10px] font-bold transition-all ${
+                  aspectRatio === opt.id ? 'bg-zinc-800 text-white border border-white/10' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Angle Selector */}
-      <div className="space-y-3">
-        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2 px-1">
-          <Scan size={12} className="text-emerald-500" /> Selecione a Nova Perspectiva
+      {/* Angle Selector — compact 3-col grid */}
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1 px-0.5">
+          <Scan size={10} className="text-emerald-500" /> Perspectiva
         </label>
-        
-        <div className="grid grid-cols-1 gap-2">
+
+        <div className="grid grid-cols-3 gap-1.5">
           {ANGLES.map((ang) => (
             <button
               key={ang.id}
               onClick={() => setSelectedAngle(ang.id)}
-              className={`flex items-center gap-3 p-3 rounded-xl border transition-all duration-300 text-left group ${
-                selectedAngle === ang.id 
-                  ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/20' 
+              className={`flex flex-col items-center gap-1.5 py-2 px-1 rounded-xl border transition-all duration-200 ${
+                selectedAngle === ang.id
+                  ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/20'
                   : 'bg-white/2 border-white/5 hover:bg-white/5 hover:border-white/10'
               }`}
             >
-              <div className={`p-2 rounded-lg transition-colors ${
-                 selectedAngle === ang.id ? 'bg-emerald-500 text-white' : 'bg-zinc-800 text-zinc-500 group-hover:text-zinc-300'
+              <div className={`p-1.5 rounded-lg transition-colors ${
+                selectedAngle === ang.id ? 'bg-emerald-500 text-white' : 'bg-zinc-800 text-zinc-500'
               }`}>
                 {ang.icon}
               </div>
-              <div className="flex flex-col">
-                <span className={`text-xs font-bold ${selectedAngle === ang.id ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
-                  {ang.label}
-                </span>
-                <span className="text-[9px] text-zinc-600 font-medium leading-none mt-1">
-                  {ang.desc}
-                </span>
-              </div>
-              {selectedAngle === ang.id && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              )}
+              <span className={`text-[10px] font-bold leading-none ${selectedAngle === ang.id ? 'text-white' : 'text-zinc-400'}`}>
+                {ang.label}
+              </span>
             </button>
           ))}
         </div>
