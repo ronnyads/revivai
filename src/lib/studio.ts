@@ -1031,13 +1031,9 @@ export async function composeProductScene(params: {
       ? String(params.smart_prompt).trim()
       : 'holding the central product jar naturally with both hands'
 
-    const prompt = `Ultra-realistic professional photography. The person in the photo is ${clientDescription}. 
-IMPORTANT INSTRUCTIONS: 
-1. Maintain the EXACT SAME CLOTHING colors, style, and fabric as the original image edges.
-2. The product is already in the center. DO NOT generate duplicate products.
-3. Generate EXACTLY TWO human arms and hands reaching up to firmly hold the central object, wrapping naturally around its edges.
-4. Erase any original hands that were in pockets at the bottom.
-5. Perfect human anatomy, exactly 5 fingers per hand, no floating limbs.`
+    // Remoção de comandos diretos (Flux escreve comandos diretos na imagem por ter forte OCR reverso)
+    // Usamos um prompt puramente descritivo e visual.
+    const prompt = `A flawless, photorealistic image of a person. The person is ${clientDescription}. The person is wearing the exact same clothing as the surrounding unmasked areas. The person's arms are lifted up and their hands are firmly gripping the object in the center. Perfect human anatomy, exactly two hands, realistic skin texture, natural lighting. No text, no floating hands, no watermarks, no extra limbs.`
 
     console.log(`[studio] Smart Prompt (Flux): ${prompt.substring(0, 120)}...`)
 
