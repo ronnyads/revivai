@@ -981,8 +981,14 @@ export async function composeProductScene(params: {
 
     console.log(`[studio] Chamando Smart Composition no projeto: ${projectId}`)
 
-    // Prompt de integração realista do produto
-    const prompt = `A highly realistic professional product photo. A person is NATURALLY holding a product jar with both hands at the specified position. The hands and fingers are wrapped naturally around the jar. Natural soft lighting, realistic shadows, photorealistic, 8k.`
+    // Prompt do cliente + instrução técnica de fusão
+    const clientDescription = params.smart_prompt
+      ? String(params.smart_prompt).trim()
+      : 'holding a product jar naturally with both hands at chest height, smiling at the camera'
+
+    const prompt = `Ultra-realistic professional product photography. The person in the photo is ${clientDescription}. The product jar is physically integrated into the scene with realistic hand grip, natural finger placement over the container, matching lighting and shadows from the environment. Photorealistic, 8k, studio quality, no artifacts.`
+
+    console.log(`[studio] Smart Prompt: ${prompt.substring(0, 120)}...`)
 
     // Payload correto para imagen-3.0-capability-001 (inpainting via referenceImages)
     const vertexRes = await fetch(vertexUrl, {

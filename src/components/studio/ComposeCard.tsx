@@ -38,6 +38,9 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
   const [category,    setCategory]    = useState(String(initial.vton_category ?? 'tops'))
   const [costumePrompt, setCostumePrompt] = useState(String(initial.costume_prompt ?? ''))
 
+  // Smart Fusion params
+  const [smartPrompt, setSmartPrompt] = useState(String(initial.smart_prompt ?? ''))
+
   // Sincroniza portrait_url quando a conexão do canvas injeta via props
   useEffect(() => {
     const val = String(initial.portrait_url ?? '')
@@ -161,9 +164,21 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
           </div>
           
           {mode === 'smart' && (
-            <p className="text-[10px] text-orange-400 bg-orange-500/10 p-3 rounded-xl border border-orange-500/20 italic leading-relaxed">
-              ⭐ <b>Dica:</b> A IA vai redesenhar as mãos e a iluminação ao redor do produto para que ele pareça estar sendo segurado de verdade.
-            </p>
+            <div className="space-y-2">
+              <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 block">
+                Como a modelo deve aparecer com o produto?
+              </label>
+              <textarea
+                value={smartPrompt}
+                onChange={e => setSmartPrompt(e.target.value)}
+                placeholder="Ex: 'Segurando o pote com as duas mãos na altura do peito, sorrindo para a câmera' ou 'Exibindo o produto na mão esquerda levantada, estilo propaganda de TV'..."
+                rows={3}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-3 text-[12px] text-white placeholder-zinc-700 focus:outline-none focus:border-orange-500/50 transition-all leading-relaxed resize-none"
+              />
+              <p className="text-[9px] text-orange-400/80 italic leading-relaxed px-1">
+                ⭐ Quanto mais detalhado, mais realista fica!
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -212,7 +227,8 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
           position, 
           product_scale: scale, 
           vton_category: category,
-          costume_prompt: costumePrompt
+          costume_prompt: costumePrompt,
+          smart_prompt: smartPrompt
         })}
         disabled={!hasPortrait || (mode !== 'prompt' && !hasProduct) || (mode === 'prompt' && !costumePrompt.trim())}
         className="group relative flex items-center justify-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-[13px] font-bold py-4 rounded-2xl transition-all disabled:opacity-40 w-full mt-2 shadow-[0_10px_30px_-10px_rgba(234,88,12,0.5)] active:scale-[0.98] overflow-hidden"
