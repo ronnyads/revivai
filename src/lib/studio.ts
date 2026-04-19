@@ -782,6 +782,7 @@ export async function composeProductScene(params: {
   product_scale?: number
   vton_category?: string
   costume_prompt?: string
+  smart_prompt?:  string
   assetId:        string
   userId:         string
 }): Promise<string> {
