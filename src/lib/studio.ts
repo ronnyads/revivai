@@ -947,130 +947,92 @@ export async function composeProductScene(params: {
       productRes.arrayBuffer().then(b => Buffer.from(b))
     ])
 
+    // Detecta mime type pelo conteúdo do buffer
+    const getImageMime = (buf: Buffer): string => {
+      if (buf[0] === 0xff && buf[1] === 0xd8) return 'image/jpeg'
+      if (buf[0] === 0x89 && buf[1] === 0x50) return 'image/png'
+      if (buf[0] === 0x52 && buf[1] === 0x49) return 'image/webp'
+      return 'image/jpeg'
+    }
+
+    const portraitMime = getImageMime(portraitBuf)
+    const productMime = getImageMime(productBuf)
+
+    // Garante que o produto não seja maior que a portrait (redimensiona se necessário)
     const portraitMeta = await sharp(portraitBuf).metadata()
     const portW = portraitMeta.width || 1024
-    const portH = portraitMeta.height || 1024
-
-    const scale = params.product_scale || 0.45
-    const productTargetWidth = Math.round(portW * scale)
-
-    // Redimensiona o produto
-    const productResized = await sharp(productBuf)
+    const productTargetWidth = Math.round(portW * (params.product_scale || 0.45))
+    const productResizedBuf = await sharp(productBuf)
       .resize({ width: productTargetWidth, withoutEnlargement: true })
-      .ensureAlpha()
+      .jpeg({ quality: 95 })
       .toBuffer()
 
-    const productMeta = await sharp(productResized).metadata()
-    const prodW = productMeta.width ?? 0
-    const prodH = productMeta.height ?? 0
+    const geminiKey = process.env.GEMINI_API_KEY
+    if (!geminiKey) throw new Error('GEMINI_API_KEY não configurada')
 
-    let left = Math.round(portW - prodW - 20)
-    let top = Math.round(portH - prodH - 20)
-
-    if (params.position === 'south') { left = Math.round((portW - prodW)/2); top = portH - prodH - 20; }
-    if (params.position?.includes('center')) { left = Math.round((portW - prodW)/2); top = Math.round((portH - prodH)/2); }
-    if (params.position === 'southwest') { left = 20; top = portH - prodH - 20; }
-    if (params.position === 'west') { left = 20; top = Math.round((portH - prodH)/2); }
-    if (params.position === 'east') { left = portW - prodW - 20; top = Math.round((portH - prodH)/2); }
-
-    // Garante bounds
-    left = Math.max(0, Math.min(left, portW - prodW))
-    top = Math.max(0, Math.min(top, portH - prodH))
-
-    // 1. INSERÇÃO REAL: Coloca o produto real (100% fiel) na cena antes da IA
-    const compositeBuf = await sharp(portraitBuf)
-      .composite([{ input: productResized, top, left }])
-      .jpeg({ quality: 100 })
-      .toBuffer()
-
-    // 2. MÁSCARA INTELIGENTE PARA BRAÇOS COMPLETO (Hollow Mask + Lower Erase + Edge Anchor)
-    const rawPixels = Buffer.alloc(portW * portH, 0)
-    
-    // O erro anterior (roupa virou preta e 3 mãos) ocorreu por apagarmos MUITO a imagem
-    // e deixar a IA confusa. Agora deixamos uma margem de proteção ('Edge Anchor') 
-    // nas extremidades esquerda e direita para a IA 'lembrar' da cor da jaqueta.
-    const padX = Math.round(portW * 0.23); // Deixa as beiradas desmascaradas como âncora visual da roupa
-    const outLeft = Math.max(0, left - padX);
-    const outRight = Math.min(portW, left + prodW + padX);
-    const outTop = Math.max(0, top - 100); 
-    const outBottom = portH; // Desce até o chão para cobrir mãos no bolso
-
-    // Proteção central do Rótulo (Impede a IA de alucinar as letras)
-    const inLeft = Math.round(left + prodW * 0.15) 
-    const inRight = Math.round(left + prodW * 0.85)
-    const inTop = Math.round(top + prodH * 0.10)  
-    const inBottom = Math.round(top + prodH * 0.90)
-
-    for (let y = outTop; y < outBottom; y++) {
-      for (let x = outLeft; x < outRight; x++) {
-        if (x >= inLeft && x <= inRight && y >= inTop && y <= inBottom) {
-           // Zona BLINDADA (Rótulo original intocável)
-           rawPixels[y * portW + x] = 0
-        } else {
-           // Zona de Geração (para pintar braços e apagar bolsos centrais)
-           rawPixels[y * portW + x] = 255
-        }
-      }
-    }
-
-    const maskBuf = await sharp(rawPixels, {
-      raw: { width: portW, height: portH, channels: 1 }
-    })
-    .blur(30) // Transição extra hiper-suave
-    .png()
-    .toBuffer()
-
-
-    // 3. Chamada ao Flux Inpainting via Fal.ai (Máximo respeito à máscara)
-    console.log(`[studio] Chamando Flux Pro Fill no Fal.ai...`)
-
-    const imageUri = `data:image/jpeg;base64,${compositeBuf.toString('base64')}`
-    const maskUri = `data:image/png;base64,${maskBuf.toString('base64')}`
-
-    const clientDescription = params.smart_prompt
+    const clientInstruction = params.smart_prompt
       ? String(params.smart_prompt).trim()
-      : 'holding the central product jar naturally with both hands'
+      : 'segurando o produto com as duas mãos na altura do peito, de forma natural'
 
-    const prompt = `Ultra-realistic professional photography. The person in the photo is ${clientDescription}. 
-IMPORTANT INSTRUCTIONS: 
-1. Maintain the EXACT SAME CLOTHING colors, style, and fabric as the original image edges.
-2. The product is already in the center. DO NOT generate duplicate products.
-3. Generate EXACTLY TWO human arms and hands reaching up to firmly hold the central object, wrapping naturally around its edges.
-4. Erase any original hands that were in pockets at the bottom.
-5. Perfect human anatomy, exactly 5 fingers per hand, no floating limbs.`
+    const editPrompt = `Você é um editor de fotografia profissional especialista em UGC (User Generated Content) para marketing de produtos.
 
-    console.log(`[studio] Smart Prompt (Flux): ${prompt.substring(0, 120)}...`)
+Tarefa: Edite a foto da modelo para que ela esteja ${clientInstruction}.
 
-    const falRes = await fetch('https://fal.run/fal-ai/flux-pro/v1/fill', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${falKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        image_url: imageUri,
-        mask_url: maskUri,
-        prompt: prompt,
-        output_format: 'jpeg',
-        sync_mode: true
-      })
-    })
+Imagens fornecidas:
+- Imagem 1: Foto da modelo (portrait)
+- Imagem 2: Foto do produto a ser segurado
 
-    if (!falRes.ok) {
-      const errText = await falRes.text()
-      console.error(`[studio] Error from Fal.ai Flux Fill: ${errText}`)
-      throw new Error(`Flux Smart Composition falhou: ${errText.slice(0, 300)}`)
+Regras OBRIGATÓRIAS:
+1. Mantenha o ROSTO e a IDENTIDADE da modelo 100% idênticos ao original
+2. Preserve as CORES e o ESTILO da roupa exatamente como estão
+3. O produto deve estar VISÍVEL e COMPLETO com TODAS as letras e cores originais preservadas
+4. Gere dois braços e mãos humanos naturais e realistas segurando o produto
+5. A iluminação dos braços deve ser coerente com a cena da foto original
+6. Resultado final deve parecer uma foto profissional real, sem artefatos ou inconsistências`
+
+    console.log(`[studio] Chamando Gemini 2.0 Flash para Smart Composition...`)
+    console.log(`[studio] Instrução: ${clientInstruction}`)
+
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: editPrompt },
+                { inline_data: { mime_type: portraitMime, data: portraitBuf.toString('base64') } },
+                { inline_data: { mime_type: productMime, data: productResizedBuf.toString('base64') } }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseModalities: ['IMAGE', 'TEXT'],
+            temperature: 0.4
+          }
+        })
+      }
+    )
+
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text()
+      console.error(`[studio] Gemini Smart Error: ${errText}`)
+      throw new Error(`Gemini Smart Composition falhou: ${errText.slice(0, 400)}`)
     }
 
-    const falData = await falRes.json()
-    const outputUrl = falData.images?.[0]?.url || falData.image?.url
+    const geminiData = await geminiRes.json()
+    const parts = geminiData.candidates?.[0]?.content?.parts ?? []
+    const imagePart = parts.find((p: any) => p.inline_data?.mime_type?.startsWith('image/'))
 
-    if (!outputUrl) {
-      throw new Error('Fal.ai não retornou URL da imagem preenchida.')
+    if (!imagePart) {
+      const textPart = parts.find((p: any) => p.text)
+      console.error(`[studio] Gemini sem imagem na resposta. Texto: ${textPart?.text ?? 'nenhum'}`)
+      throw new Error('Gemini não retornou imagem na resposta.')
     }
 
-    const finalImgRes = await fetch(outputUrl)
-    resultBuffer = Buffer.from(await finalImgRes.arrayBuffer())
+    resultBuffer = Buffer.from(imagePart.inline_data.data, 'base64')
 
   } else {
     // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON (Native Fetch) ----
