@@ -1193,8 +1193,7 @@ export async function startVeo3DirectGoogle(params: {
   const base64Image = imgBuffer.toString('base64')
   const mimeType = 'image/jpeg'
 
-  // Retornando para o Gemini API (que aceita API Key simples)
-  // Agora usando os dados do seu NOVO projeto que você configurou no Vercel
+  // Tentativa final com Gemini API + AdsLiberty Key (Org Policy Fixed)
   const model = 'veo-3.1-generate-preview';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`;
   
