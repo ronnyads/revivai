@@ -82,6 +82,7 @@ export async function POST(
       }
 
       const op = await opRes.json()
+      console.log(`[sync] Google Operation Data for ${id}:`, JSON.stringify(op, null, 2))
 
       if (!op.done) return NextResponse.json({ status: 'processing', message: 'Google Veo3 ainda processando...' })
 

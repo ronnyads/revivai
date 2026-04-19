@@ -1398,19 +1398,23 @@ export async function generateAngles(params: {
         
         console.log('[Payload]', JSON.stringify(payload, null, 2))
 
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 45000) // 45s timeout
+
         const vertexRes = await fetch(vertexUrl, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${vertexToken}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(payload)
-        })
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        }).finally(() => clearTimeout(timeoutId))
 
       if (!vertexRes.ok) {
         const errBody = await vertexRes.text()
-        console.error('[studio] ERRO VERDADEIRO DO VERTEX:', errBody)
-        throw new Error(`Vertex AI Error (${vertexRes.status}): ${errBody}`)
+        console.error('[studio] ERRO DETALHADO DO VERTEX (IMAGEN):', vertexRes.status, errBody)
+        throw new Error(`Vertex AI Photo Error (${vertexRes.status}): ${errBody.slice(0, 500)}`)
       }
 
       const vertexData = await vertexRes.json()
