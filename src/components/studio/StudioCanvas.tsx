@@ -441,6 +441,52 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     })
   }, [connections]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Promove arestas locais → DB quando ambos os nós ganham ID real ─────────
+  const promotedEdgesRef = useRef<Set<string>>(new Set())
+  const edgesRef = useRef<Edge[]>([])
+  useEffect(() => { edgesRef.current = edges }, [edges])
+
+  useEffect(() => {
+    const assetMap = new Map(assets.map(a => [a.id, a]))
+    const toPromote = edgesRef.current.filter(e => {
+      if (!(e as any).isLocalConn) return false
+      if (promotedEdgesRef.current.has(e.id)) return false
+      const src = assetMap.get(e.source)
+      const tgt = assetMap.get(e.target)
+      return src && !src.isLocal && tgt && !tgt.isLocal
+    })
+
+    toPromote.forEach(async e => {
+      promotedEdgesRef.current.add(e.id)
+      try {
+        const res = await fetch('/api/studio/connections', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project_id: project.id,
+            source_id: e.source,
+            target_id: e.target,
+            source_handle: e.sourceHandle ?? 'output',
+            target_handle: e.targetHandle ?? 'output',
+          }),
+        })
+        if (res.ok) {
+          const { connection: conn } = await res.json()
+          if (conn) {
+            setConnections(prev => [...prev, conn])
+            setEdges(prev => prev.map(edge =>
+              edge.id === e.id ? { ...edge, isLocalConn: undefined } as any : edge
+            ))
+          }
+        } else {
+          promotedEdgesRef.current.delete(e.id) // retry on next assets change
+        }
+      } catch {
+        promotedEdgesRef.current.delete(e.id)
+      }
+    })
+  }, [assets]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-propaga URLs pelas arestas quando um asset completa
   // Usa ref para evitar loop infinito (assets → update → assets → ...)
   const lastPropagated = useRef<Map<string, string>>(new Map())
