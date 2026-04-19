@@ -1032,14 +1032,6 @@ export async function composeProductScene(params: {
                   maskMode: "MASK_MODE_USER_PROVIDED",
                   maskDilation: 0.03
                 }
-              },
-              {
-                referenceId: 3,
-                referenceType: "REFERENCE_TYPE_SUBJECT",
-                referenceImage: {
-                  bytesBase64Encoded: productBuf.toString('base64'),
-                  mimeType: 'image/png'
-                }
               }
             ]
           }
