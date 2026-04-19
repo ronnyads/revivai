@@ -4,9 +4,9 @@ const DEFAULT_RETRY_PROMPT = `Restore this photograph with minimal intervention.
 
 // Cadeia de fallback — tenta em ordem até um funcionar
 const FALLBACK_CHAIN = [
-  'gemini-2.0-flash-exp-image-generation',
-  'gemini-2.5-flash-image',
+  'gemini-3.1-flash-image-preview',
   'gemini-3-pro-image-preview',
+  'gemini-2.5-flash-image',
 ]
 
 async function tryRestoreWithModel(
