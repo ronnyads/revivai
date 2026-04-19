@@ -935,14 +935,8 @@ export async function composeProductScene(params: {
       productRes.arrayBuffer().then(b => Buffer.from(b)),
     ])
 
-    const { GoogleGenerativeAI } = await import('@google/generative-ai')
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const genModel = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-preview-image-generation',
-    })
-
     const userIntent = params.smart_prompt?.trim()
-      || 'coloque o produto na mão da modelo de forma natural e realista'
+      || 'place the product naturally in the model\'s hands'
 
     const compositionPrompt = await getStudioPrompt(
       admin,
@@ -969,25 +963,39 @@ ABSOLUTE PRESERVATION RULES — treat this like a restoration, not a creation:
 
     const finalPrompt = compositionPrompt.replace('{instruction}', userIntent)
 
-    console.log(`[studio] Gemini compose | intent: ${userIntent.substring(0, 100)}`)
+    console.log(`[studio] Gemini compose REST v1alpha | intent: ${userIntent.substring(0, 100)}`)
 
-    const geminiResult = await genModel.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: finalPrompt },
-          { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
-          { inlineData: { mimeType: 'image/jpeg', data: productBuf.toString('base64') } },
-        ],
-      }],
-      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
-    })
+    // REST direto em v1alpha — o SDK usa v1beta que não suporta geração de imagem
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1alpha/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: finalPrompt },
+              { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
+              { inlineData: { mimeType: 'image/jpeg', data: productBuf.toString('base64') } },
+            ],
+          }],
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        }),
+      }
+    )
 
-    const geminiParts = geminiResult.response.candidates?.[0]?.content?.parts ?? []
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text()
+      throw new Error(`Gemini REST falhou (${geminiRes.status}): ${errText.slice(0, 400)}`)
+    }
+
+    const geminiJson = await geminiRes.json()
+    const geminiParts = geminiJson.candidates?.[0]?.content?.parts ?? []
     const geminiImagePart = geminiParts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
 
     if (!geminiImagePart?.inlineData?.data) {
-      const finishReason = geminiResult.response.candidates?.[0]?.finishReason
+      const finishReason = geminiJson.candidates?.[0]?.finishReason
       throw new Error(`Gemini não gerou imagem | finishReason=${finishReason}`)
     }
 
