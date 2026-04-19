@@ -41,7 +41,7 @@ export default function UpscaleCard({ initial, onGenerate }: Props) {
 
       <div className="space-y-2.5 bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4">
         <div className="flex items-center justify-between px-1">
-          <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Nível de Realismo (Upscale)</label>
+          <label className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest">Nível de Realismo (Upscale)</label>
           <span className="text-[11px] text-emerald-400 font-black">{scale}X Mais Nitidez</span>
         </div>
         <div className="px-1">
@@ -52,15 +52,15 @@ export default function UpscaleCard({ initial, onGenerate }: Props) {
             className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 mt-2"
           />
           <div className="flex justify-between mt-1.5">
-             <span className="text-[8px] text-zinc-700 font-bold uppercase tracking-tighter italic">Normal (HD)</span>
-             <span className="text-[8px] text-zinc-700 font-bold uppercase tracking-tighter italic">Ultra (4K)</span>
+             <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-tighter italic">Normal (HD)</span>
+             <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-tighter italic">Ultra (4K)</span>
           </div>
         </div>
       </div>
 
       <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl px-3 py-2 flex items-center gap-2">
          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-         <span className="text-[10px] text-emerald-400/80 font-medium italic">O motor ESRGAN está reconstruindo texturas de pele, olhos e tecidos em alta frequência.</span>
+         <span className="text-[10px] text-emerald-400/80 font-medium italic">Motor Google Imagen 4 Ultra — reconstruindo texturas de pele, olhos e tecidos em altíssima resolução.</span>
       </div>
 
       <button

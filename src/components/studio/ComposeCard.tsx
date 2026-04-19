@@ -61,13 +61,13 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
         </div>
         <div className="flex-1">
           <h4 className="text-[12px] font-bold text-white leading-tight">Fusão UGC — Produto + Modelo</h4>
-          <p className="text-[10px] text-zinc-500 leading-tight">Vista roupas, insira ou segure produtos com IA.</p>
+          <p className="text-[10px] text-zinc-400 leading-tight">Vista roupas, insira ou segure produtos com IA.</p>
         </div>
       </div>
 
       {/* Seletor de Tecnologia - Mais discreto */}
       <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-2.5">
-        <label className="text-[9px] text-zinc-500 uppercase font-bold tracking-widest px-1 block mb-1.5">Tecnologia</label>
+        <label className="text-[9px] text-zinc-400 uppercase font-bold tracking-widest px-1 block mb-1.5">Tecnologia</label>
         <div className="relative">
           <select
             value={mode}
@@ -79,7 +79,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
             <option value="overlay">📦 Produto na Cena (Inserção)</option>
             <option value="gemini">🤖 IA Gemini — Segure, Vista, Cene Livre</option>
           </select>
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
              <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M19 9l-7 7-7-7" /></svg>
           </div>
         </div>
@@ -89,7 +89,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
       <div className="grid grid-cols-2 gap-2">
          {/* Lado 1: Base */}
          <div className={`p-2 rounded-2xl border transition-all flex flex-col items-center gap-2 ${hasPortrait ? 'bg-orange-500/5 border-orange-500/20' : 'bg-zinc-900 border-zinc-800'}`}>
-            <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-tighter">Cena Base</span>
+            <span className="text-[9px] text-zinc-400 uppercase font-bold tracking-tighter">Cena Base</span>
             {hasPortrait ? (
               <div className="relative aspect-square w-full rounded-lg overflow-hidden border border-zinc-800 group">
                 <img src={portraitUrl} className="w-full h-full object-cover" />
@@ -111,7 +111,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
          {mode !== 'prompt' && (
            <div className={`p-2 rounded-2xl border transition-all flex flex-col items-center gap-2 ${hasProduct ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-zinc-900 border-zinc-800'}`}>
               <div className="flex items-center gap-1">
-                <span className="text-[9px] text-zinc-500 uppercase font-bold tracking-tighter">Produto</span>
+                <span className="text-[9px] text-zinc-400 uppercase font-bold tracking-tighter">Produto</span>
                 <ShieldCheck size={10} className="text-emerald-500" />
               </div>
               {hasProduct ? (
@@ -138,7 +138,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800">
             <div className="space-y-2">
-              <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 block">Posição</label>
+              <label className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest px-1 block">Posição</label>
               <select
                 value={position}
                 onChange={e => setPosition(e.target.value)}
@@ -151,7 +151,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between px-1">
-                <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Tamanho</label>
+                <label className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest">Tamanho</label>
                 <span className="text-[10px] text-orange-400 font-bold">{Math.round(scale * 100)}%</span>
               </div>
               <input
@@ -165,7 +165,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
           
           {mode === 'gemini' && (
             <div className="space-y-2">
-              <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 block">
+              <label className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest px-1 block">
                 Descreva a cena — o Gemini faz o resto
               </label>
               <textarea
@@ -185,7 +185,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
 
       {mode === 'try-on' && (
         <div className="space-y-2 bg-orange-500/5 border border-orange-500/10 p-3 rounded-xl">
-          <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1">Tipo de Peça (Categorização)</label>
+          <label className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest px-1">Tipo de Peça (Categorização)</label>
           <div className="relative mt-1">
             <select
               value={category}
@@ -196,7 +196,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
                 <option key={p.value} value={p.value}>{p.label}</option>
               ))}
             </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M19 9l-7 7-7-7" /></svg>
             </div>
           </div>
@@ -205,7 +205,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
 
       {mode === 'prompt' && (
         <div className="space-y-2.5">
-          <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1">O que a modelo deve vestir?</label>
+          <label className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest px-1">O que a modelo deve vestir?</label>
           <textarea
             value={costumePrompt}
             onChange={e => setCostumePrompt(e.target.value)}
@@ -213,7 +213,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
             rows={4}
             className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3.5 text-[13px] text-white placeholder-zinc-700 focus:outline-none focus:border-orange-500/50 transition-all leading-relaxed shadow-inner resize-none"
           />
-          <p className="text-[9px] text-zinc-600 italic leading-relaxed px-1">
+          <p className="text-[9px] text-zinc-400 italic leading-relaxed px-1">
             💡 <b>Dica:</b> No modo Prompt, a IA cria a roupa do zero baseada na sua descrição textual.
           </p>
         </div>

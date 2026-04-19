@@ -48,7 +48,7 @@ export default function RenderCard({ initial, onGenerate }: Props) {
         <div className={`flex items-center gap-3 px-3 py-2 rounded-xl border transition-all ${
           hasVideo
             ? 'text-rose-400 bg-rose-500/10 border-rose-500/30'
-            : 'text-zinc-500 bg-zinc-800/50 border-zinc-700/50'
+            : 'text-zinc-400 bg-zinc-800/50 border-zinc-700/50'
         }`}>
           <Video size={12} strokeWidth={3} />
           <span className="text-[10px] font-black uppercase tracking-widest">{hasVideo ? 'Vídeo Masterizado' : 'Vídeo Master Pendente'}</span>
@@ -56,7 +56,7 @@ export default function RenderCard({ initial, onGenerate }: Props) {
         <div className={`flex items-center gap-3 px-3 py-2 rounded-xl border transition-all ${
           hasAudio
             ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-            : 'text-zinc-500 bg-zinc-800/50 border-zinc-700/50'
+            : 'text-zinc-400 bg-zinc-800/50 border-zinc-700/50'
         }`}>
           <Mic size={12} strokeWidth={3} />
           <span className="text-[10px] font-black uppercase tracking-widest">{hasAudio ? 'Narração Conectada' : 'Aguardando Voz'}</span>
@@ -66,7 +66,7 @@ export default function RenderCard({ initial, onGenerate }: Props) {
       {/* Inputs manuais (fallback se não houver conexão) */}
       {!hasVideo && (
         <div className="px-1">
-          <label className="text-[9px] text-zinc-600 uppercase font-black tracking-widest mb-1.5 block">URL do Clipe de Vídeo</label>
+          <label className="text-[9px] text-zinc-400 uppercase font-black tracking-widest mb-1.5 block">URL do Clipe de Vídeo</label>
           <input
             value={videoUrl}
             onChange={e => setVideoUrl(e.target.value)}
@@ -77,7 +77,7 @@ export default function RenderCard({ initial, onGenerate }: Props) {
       )}
       {!hasAudio && (
         <div className="px-1">
-          <label className="text-[9px] text-zinc-600 uppercase font-black tracking-widest mb-1.5 block">URL da Narração</label>
+          <label className="text-[9px] text-zinc-400 uppercase font-black tracking-widest mb-1.5 block">URL da Narração</label>
           <input
             value={audioUrl}
             onChange={e => setAudioUrl(e.target.value)}
@@ -89,7 +89,7 @@ export default function RenderCard({ initial, onGenerate }: Props) {
 
       <div className="flex items-center gap-2.5 bg-zinc-900/60 border border-zinc-800 rounded-xl p-3">
         <div className="w-1 h-1 rounded-full bg-rose-500 animate-pulse shrink-0" />
-        <p className="text-[10px] text-zinc-500 leading-relaxed italic">
+        <p className="text-[10px] text-zinc-400 leading-relaxed italic">
           O processamento FFmpeg 4.0 está otimizando o bitrate para carregamento rápido em redes sociais.
         </p>
       </div>
