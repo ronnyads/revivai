@@ -948,44 +948,77 @@ export async function composeProductScene(params: {
     ])
 
     const portraitMeta = await sharp(portraitBuf).metadata()
-    const pW = portraitMeta.width || 1024
-    const pH = portraitMeta.height || 1024
+    const portW = portraitMeta.width || 1024
+    const portH = portraitMeta.height || 1024
 
-    // 1. Criar a máscara onde o produto deve ser "fundido"
-    // Calculamos o retângulo baseado no scale e position
     const scale = params.product_scale || 0.45
-    const maskW = Math.round(pW * scale * 1.2)
-    const maskH = Math.round(pH * scale * 1.2)
+    const productTargetWidth = Math.round(portW * scale)
+
+    // Redimensiona o produto
+    const productResized = await sharp(productBuf)
+      .resize({ width: productTargetWidth, withoutEnlargement: true })
+      .ensureAlpha()
+      .toBuffer()
+
+    const productMeta = await sharp(productResized).metadata()
+    const prodW = productMeta.width ?? 0
+    const prodH = productMeta.height ?? 0
+
+    let left = Math.round(portW - prodW - 20)
+    let top = Math.round(portH - prodH - 20)
+
+    if (params.position === 'south') { left = Math.round((portW - prodW)/2); top = portH - prodH - 20; }
+    if (params.position?.includes('center')) { left = Math.round((portW - prodW)/2); top = Math.round((portH - prodH)/2); }
+    if (params.position === 'southwest') { left = 20; top = portH - prodH - 20; }
+    if (params.position === 'west') { left = 20; top = Math.round((portH - prodH)/2); }
+    if (params.position === 'east') { left = portW - prodW - 20; top = Math.round((portH - prodH)/2); }
+
+    // Garante bounds
+    left = Math.max(0, Math.min(left, portW - prodW))
+    top = Math.max(0, Math.min(top, portH - prodH))
+
+    // 1. INSERÇÃO REAL: Coloca o produto real (100% fiel) na cena antes da IA
+    const compositeBuf = await sharp(portraitBuf)
+      .composite([{ input: productResized, top, left }])
+      .jpeg({ quality: 100 })
+      .toBuffer()
+
+    // 2. MÁSCARA INTELIGENTE (Hollow Mask / Borda Mágica)
+    // - Pintamos de BRANCO (deixar a IA desenhar mãos/braços) os arredores e as BORDAS do produto.
+    // - Protegemos de PRETO (nāo tocar de jeito nenhum) o CENTRO do produto, salvando o rótulo da alucinação.
+    const rawPixels = Buffer.alloc(portW * portH, 0)
     
-    let left = Math.round(pW - maskW - 20)
-    let top = Math.round(pH - maskH - 20)
+    const padX = 120
+    const padY = 80
+    const outLeft = Math.max(0, left - padX)
+    const outRight = Math.min(portW, left + prodW + padX)
+    const outTop = Math.max(0, top - padY)
+    const outBottom = Math.min(portH, top + prodH + padY)
 
-    if (params.position === 'south') { left = Math.round((pW - maskW)/2); top = pH - maskH - 20; }
-    if (params.position?.includes('center')) { left = Math.round((pW - maskW)/2); top = Math.round((pH - maskH)/2); }
-    if (params.position === 'southwest') { left = 20; top = pH - maskH - 20; }
-    if (params.position === 'west') { left = 20; top = Math.round((pH - maskH)/2); }
-    if (params.position === 'east') { left = pW - maskW - 20; top = Math.round((pH - maskH)/2); }
+    const inLeft = Math.round(left + prodW * 0.15) // protege 70% da horizontal central
+    const inRight = Math.round(left + prodW * 0.85)
+    const inTop = Math.round(top + prodH * 0.10)  // protege quase todo o topo (tampa)
+    const inBottom = Math.round(top + prodH * 0.90)
 
-    // Garante que não saia do canvas
-    left = Math.max(0, Math.min(left, pW - maskW))
-    top = Math.max(0, Math.min(top, pH - maskH))
-
-    // Gera máscara usando raw pixels (mais confiável em serverless do que sharp.create)
-    // Cria um buffer RAW de pixels cinza (0=preto/fora, 255=branco/área a editar)
-    const rawPixels = Buffer.alloc(pW * pH, 0) // começa tudo preto
-    for (let y = top; y < top + maskH && y < pH; y++) {
-      for (let x = left; x < left + maskW && x < pW; x++) {
-        rawPixels[y * pW + x] = 255 // pinta de branco a área da máscara
+    for (let y = outTop; y < outBottom; y++) {
+      for (let x = outLeft; x < outRight; x++) {
+        if (x >= inLeft && x <= inRight && y >= inTop && y <= inBottom) {
+           // Zona de Proteção do Rótulo
+           rawPixels[y * portW + x] = 0
+        } else {
+           // Zona onde Dedos e Sombras Mágicas da IA vão trabalhar
+           rawPixels[y * portW + x] = 255
+        }
       }
     }
 
     const maskBuf = await sharp(rawPixels, {
-      raw: { width: pW, height: pH, channels: 1 }
+      raw: { width: portW, height: portH, channels: 1 }
     })
     .png()
     .toBuffer()
 
-    // 2. Chamada ao Vertex AI (In-painting)
+    // 3. Chamada ao Vertex AI (In-painting)
     const vertexToken = await getVertexAccessToken(vertexKey)
     const location = process.env.VERTEX_LOCATION || 'us-central1'
     const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001:predict`
@@ -997,11 +1030,11 @@ export async function composeProductScene(params: {
       ? String(params.smart_prompt).trim()
       : 'holding a product jar naturally with both hands at chest height, smiling at the camera'
 
-    const prompt = `Ultra-realistic professional product photography. The person in the photo is ${clientDescription}. The product jar is physically integrated into the scene with realistic hand grip, natural finger placement over the container, matching lighting and shadows from the environment. Photorealistic, 8k, studio quality, no artifacts.`
+    const prompt = `Ultra-realistic professional product photography. The person in the photo is ${clientDescription}. The hands and fingers are seamlessly blending into the scene, wrapping naturally around the edges of the jar holding it firmly. Photorealistic, 8k, highly detailed hands.`
 
     console.log(`[studio] Smart Prompt: ${prompt.substring(0, 120)}...`)
 
-    // Payload correto para imagen-3.0-capability-001 (inpainting via referenceImages)
+    // Payload correto
     const vertexRes = await fetch(vertexUrl, {
       method: 'POST',
       headers: {
@@ -1017,7 +1050,7 @@ export async function composeProductScene(params: {
                 referenceId: 1,
                 referenceType: "REFERENCE_TYPE_RAW",
                 referenceImage: {
-                  bytesBase64Encoded: portraitBuf.toString('base64'),
+                  bytesBase64Encoded: compositeBuf.toString('base64'),
                   mimeType: 'image/jpeg'
                 }
               },
