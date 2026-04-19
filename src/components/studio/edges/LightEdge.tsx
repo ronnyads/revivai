@@ -1,6 +1,6 @@
 'use client'
 
-import { getBezierPath, EdgeProps, BaseEdge, EdgeLabelRenderer, useReactFlow } from '@xyflow/react'
+import { getBezierPath, EdgeProps, EdgeLabelRenderer, useReactFlow } from '@xyflow/react'
 import { X } from 'lucide-react'
 
 export default function LightEdge({
@@ -19,51 +19,44 @@ export default function LightEdge({
 
   return (
     <>
-      {/* Linha de interação (invisível, mas grossa) */}
+      {/* Hit area invisível para facilitar interação */}
       <path d={edgePath} fill="none" stroke="transparent" strokeWidth={24} className="react-flow__edge-interaction cursor-default" />
-      
-      {/* Base da aresta (estática) */}
-      <BaseEdge 
-        id={id} 
-        path={edgePath} 
-        style={{ 
-          stroke: '#3f3f46', 
-          strokeWidth: 2,
-          opacity: 0.3
-        }} 
-        markerEnd={markerEnd}
-      />
 
-      {/* Rastro de fogo/energia (Animado) */}
+      {/* Linha base */}
       <path
         d={edgePath}
         fill="none"
-        stroke="url(#fireball-gradient)"
-        strokeWidth={3}
-        strokeDasharray="4, 16"
-        className="fire-trail-pulse"
-        filter="url(#fire-glow-small)"
+        stroke="#52525b"
+        strokeWidth={2}
+        strokeLinecap="round"
+        markerEnd={markerEnd as string}
+        opacity={0.5}
       />
 
-      {/* Bola de Fogo (Fireball) Principal */}
-      <g>
-        <circle r="5" fill="url(#fireball-gradient)" filter="url(#fire-glow)">
-          <animateMotion
-            dur="2.5s"
-            repeatCount="indefinite"
-            path={edgePath}
-          />
-        </circle>
-        {/* Faísca secundária para rastro */}
-        <circle r="2" fill="#ffcc00" opacity="0.4">
-          <animateMotion
-            dur="2.5s"
-            begin="0.1s"
-            repeatCount="indefinite"
-            path={edgePath}
-          />
-        </circle>
-      </g>
+      {/* Linha animada por cima */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke="url(#edge-gradient)"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeDasharray="8 16"
+        style={{ animation: 'edgeDash 1.8s linear infinite' }}
+        opacity={0.7}
+      />
+
+      <style>{`
+        @keyframes edgeDash { to { stroke-dashoffset: -24; } }
+      `}</style>
+
+      <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+        <defs>
+          <linearGradient id="edge-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#f97316" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#a855f7" stopOpacity="0.6" />
+          </linearGradient>
+        </defs>
+      </svg>
 
       <EdgeLabelRenderer>
         <div
@@ -74,11 +67,10 @@ export default function LightEdge({
           }}
           className="nodrag nopan group"
         >
-          {/* Container invisível maior para facilitar o hover */}
           <div className="w-10 h-10 flex items-center justify-center">
             <button
               onClick={onEdgeClick}
-              className="w-7 h-7 flex items-center justify-center rounded-full bg-zinc-950 border border-zinc-700 text-white hover:bg-red-600 hover:border-red-400 transition-all opacity-0 group-hover:opacity-100 shadow-[0_0_15px_rgba(255,0,0,0.3)] scale-75 group-hover:scale-100 active:scale-90"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-zinc-950 border border-zinc-700 text-white hover:bg-red-600 hover:border-red-400 transition-all opacity-0 group-hover:opacity-100 shadow-lg scale-75 group-hover:scale-100 active:scale-90"
               title="Remover conexão"
             >
               <X size={14} strokeWidth={3} />
@@ -86,42 +78,6 @@ export default function LightEdge({
           </div>
         </div>
       </EdgeLabelRenderer>
-
-      {/* Definições CSS Globais para esta aresta */}
-      <style>{`
-        .fire-trail-pulse {
-          animation: firePulse 1.5s ease-in-out infinite alternate;
-        }
-        @keyframes firePulse {
-          from { opacity: 0.2; stroke-width: 2; }
-          to { opacity: 0.8; stroke-width: 4; }
-        }
-      `}</style>
-
-      {/* Definições de gradiente e filtros */}
-      <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-        <defs>
-          <radialGradient id="fireball-gradient">
-            <stop offset="10%" stopColor="#fff" />
-            <stop offset="40%" stopColor="#ffcc00" />
-            <stop offset="100%" stopColor="#ff4400" />
-          </radialGradient>
-          <filter id="fire-glow">
-            <feGaussianBlur stdDeviation="4" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <filter id="fire-glow-small">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-      </svg>
     </>
   )
 }

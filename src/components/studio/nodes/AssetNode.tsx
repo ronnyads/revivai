@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, Music, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2, CopyPlus, Camera } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, Music, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2, CopyPlus, Camera, GripHorizontal } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import FaceGenerator from '../FaceGenerator'
 import JoinGenerator from '../JoinGenerator'
@@ -270,6 +270,10 @@ function AssetNode({ data }: NodeProps) {
               Configurar e gerar
             </button>
           )}
+        </div>
+        {/* Grip strip — arrastar pelo fundo do card */}
+        <div className="flex items-center justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing opacity-30 hover:opacity-60 transition-opacity">
+          <GripHorizontal size={16} className="text-zinc-500" />
         </div>
       </div>
     </div>
