@@ -101,6 +101,15 @@ export async function POST(
         finalUrl = op.response.generatedVideos[0].video.uri || op.response.generatedVideos[0].video
       }
 
+      // Detecta bloqueio por Filtro de Segurança (RAI)
+      const raiFiltered = op.response?.generateVideoResponse?.raiMediaFilteredCount > 0
+      if (raiFiltered) {
+        const reason = op.response?.generateVideoResponse?.raiMediaFilteredReasons?.[0] || 'Bloqueado pelos filtros de segurança do Google'
+        console.warn(`[sync] Veo3 RAI Blocked: ${reason}`)
+        await admin.from('studio_assets').update({ status: 'error', error_msg: `Segurança Google: ${reason}` }).eq('id', id)
+        return NextResponse.json({ status: 'error', error: reason })
+      }
+
       if (!finalUrl) {
         console.log(`[sync] Veo3 Operation ${predictionId} is done but no video URL found yet.`)
         return NextResponse.json({ status: 'processing', message: 'Finalizando vídeo Veo3 (URL em processamento)...' })
