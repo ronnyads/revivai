@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { formatDate } from '@/lib/utils'
+import CopyButton from './CopyButton'
 
 const TYPE_COLORS: Record<string, string> = {
   compose:    'bg-orange-500/20 text-orange-400',
@@ -120,14 +121,14 @@ export default async function AdminStudioDebug() {
                   {/* Erro / Prompt */}
                   <td className="px-4 py-3 max-w-[260px]">
                     {a.error_msg && (
-                      <details>
-                        <summary className="text-[11px] text-red-400 cursor-pointer font-mono leading-tight">
-                          {String(a.error_msg).slice(0, 80)}…
-                        </summary>
-                        <pre className="mt-2 text-[10px] text-red-300/70 bg-red-950/30 rounded p-2 whitespace-pre-wrap break-all leading-relaxed">
-                          {a.error_msg}
-                        </pre>
-                      </details>
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[11px] text-red-400 font-mono leading-tight line-clamp-2">
+                            {String(a.error_msg).slice(0, 80)}…
+                          </span>
+                          <CopyButton text={a.error_msg} />
+                        </div>
+                      </div>
                     )}
                     {!a.error_msg && prompt && (
                       <p className="text-[11px] text-white/30 italic leading-snug line-clamp-2">
