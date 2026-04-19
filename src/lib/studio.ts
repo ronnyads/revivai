@@ -935,8 +935,18 @@ export async function composeProductScene(params: {
     }
     if (!projectId) throw new Error('VERTEX_PROJECT_ID não configurado para Fusão Inteligente.')
 
-    const portraitRes = await fetch(params.portrait_url)
-    const portraitBuf = Buffer.from(await portraitRes.arrayBuffer())
+    const [portraitRes, productRes] = await Promise.all([
+      fetch(params.portrait_url),
+      fetch(params.product_url)
+    ])
+    
+    if (!portraitRes.ok || !productRes.ok) throw new Error('Falha ao baixar imagens para smart composition')
+
+    const [portraitBuf, productBuf] = await Promise.all([
+      portraitRes.arrayBuffer().then(b => Buffer.from(b)),
+      productRes.arrayBuffer().then(b => Buffer.from(b))
+    ])
+
     const portraitMeta = await sharp(portraitBuf).metadata()
     const pW = portraitMeta.width || 1024
     const pH = portraitMeta.height || 1024
@@ -1021,6 +1031,14 @@ export async function composeProductScene(params: {
                 maskImageConfig: {
                   maskMode: "MASK_MODE_USER_PROVIDED",
                   maskDilation: 0.03
+                }
+              },
+              {
+                referenceId: 3,
+                referenceType: "REFERENCE_TYPE_SUBJECT",
+                referenceImage: {
+                  bytesBase64Encoded: productBuf.toString('base64'),
+                  mimeType: 'image/png'
                 }
               }
             ]
