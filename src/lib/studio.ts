@@ -570,7 +570,8 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
     'model_flux_suffix',
     'Shot on a cinematic phone camera, authentic UGC style. Skin pores and natural imperfections visible. Real human face, authentic lighting, not a studio shoot, not retouched, not illustrated.',
   )
-  const finalPrompt = `Candid portrait photo of a real person: ${text} ${fluxSuffix} Pure white background, isolated figure, clean white studio background, nothing behind the person.`
+  const negativePrompt = 'outdoor, street, city, building, trees, nature, bokeh background, blurred background, environment, park, cafe, wall, colorful background, any background scene'
+  const finalPrompt = `PURE WHITE STUDIO BACKGROUND. Isolated portrait on solid white backdrop. ${text} ${fluxSuffix} White background only, no environment, no outdoor, plain white, studio portrait.`
 
   let photoBuffer: Buffer | null = null
 
@@ -596,7 +597,8 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
             parameters: {
               sampleCount: 1,
               aspectRatio: '9:16',
-              personGeneration: 'allow_adult'
+              personGeneration: 'allow_adult',
+              negativePrompt,
             }
           })
         })
@@ -659,9 +661,11 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
       },
       body: JSON.stringify({
         prompt: finalPrompt,
+        negative_prompt: negativePrompt,
         aspect_ratio: '9:16',
         output_format: 'jpeg',
         safety_tolerance: '3',
+        seed: Math.floor(Math.random() * 9999999),
       }),
     })
 
