@@ -791,19 +791,19 @@ async function classifyProduct(
   const prompt = `Analyze this product image and return a JSON profile.
 
 Categories:
-- "handheld": device meant to be held in hand (stun gun, weapon-shaped, controller, remote, tool)
+- "handheld": compact device or tool meant to be held or gripped in one hand (controller, remote, device, tool, gadget)
 - "delicate": fragile or thin item (glasses, jewelry, watch, earrings, small accessory)
 - "wearable": clothing, hat, shoes, or fabric item
 - "packaged": bottle, can, jar, box, or container with visible label or logo
 - "no-identity": abstract shape with no distinctive features
 
 deformation_risk rules:
-- "high": no visible text/logo AND unusual or weapon-like shape (easily misinterpreted)
+- "high": no visible text/logo AND compact grip-type shape that could be misinterpreted
 - "medium": has some distinctive features but shape could be interpreted differently
 - "low": has clear text/logo OR very standard recognizable shape (bottle, box)
 
 shape_complexity rules:
-- "complex": weapon-like, multi-part device, unusual silhouette, many protrusions
+- "complex": multi-part device, unusual silhouette, many protrusions or cutouts
 - "medium": recognizable shape but with distinctive features (watch, sunglasses)
 - "simple": standard symmetric shape (bottle, box, jar, ball)
 
@@ -813,8 +813,8 @@ Respond ONLY with valid JSON — no markdown, no explanation:
   "has_text_logo": <true|false>,
   "deformation_risk": "<low|medium|high>",
   "shape_complexity": "<simple|medium|complex>",
-  "placement_suggestion": "<natural instruction for how a model should hold/wear/display this>",
-  "key_features": ["<short feature description>", ...]
+  "placement_suggestion": "<natural instruction for how a model should hold/wear/display this product>",
+  "key_features": ["<short visual feature description>", ...]
 }`
 
   try {
@@ -855,7 +855,7 @@ Respond ONLY with valid JSON — no markdown, no explanation:
 
 function buildCompositionPrompt(profile: ProductProfile, userIntent: string): string {
   const categoryBlocks: Record<string, string> = {
-    handheld:      `The product has these exact physical features: ${profile.key_features.join(', ')}. Preserve EVERY feature exactly. Do NOT simplify, reinterpret, or substitute the shape.`,
+    handheld:      `This is a client product with these exact visual features: ${profile.key_features.join(', ')}. Reproduce the product EXACTLY as shown in [PRODUCT]. Do NOT reinterpret, simplify, or replace it with any other object.`,
     delicate:      `This is a fragile or small item. Show it held delicately with fingertips. Preserve its exact proportions — do NOT scale it up or change its form.`,
     wearable:      `This garment or accessory must be worn by or held near the person. Do NOT lay it flat — it must be active in the scene.`,
     packaged:      `Preserve ALL text, logos, label colors and placement EXACTLY as in the original product image.`,
@@ -865,7 +865,7 @@ function buildCompositionPrompt(profile: ProductProfile, userIntent: string): st
   const categoryBlock = categoryBlocks[profile.category] ?? categoryBlocks['packaged']
 
   const highRiskBlock = profile.deformation_risk === 'high'
-    ? `\nCRITICAL PRODUCT IDENTITY LOCK: The product in [PRODUCT] is the ONLY acceptable version of this item. Do NOT substitute it with any other object even if visually similar or more common. Key features that MUST appear unchanged: ${profile.key_features.join(', ')}.`
+    ? `\nCRITICAL: Use ONLY the product shown in [PRODUCT]. Do NOT substitute it with any other object. The exact appearance must be preserved: ${profile.key_features.join(', ')}.`
     : ''
 
   const clothingRule = profile.category === 'wearable'
