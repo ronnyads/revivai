@@ -69,7 +69,7 @@ export default function CanvasQuickAdd({ x, y, onAdd, onClose }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[6px]" onMouseDown={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/60" onMouseDown={onClose} />
 
       <div
         ref={ref}
@@ -107,9 +107,9 @@ export default function CanvasQuickAdd({ x, y, onAdd, onClose }: Props) {
                       <button
                         key={item.type}
                         onMouseDown={() => { onAdd(item.type); onClose() }}
-                        className="group relative flex items-center gap-4 p-4 rounded-[30px] bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-accent/40 transition-all text-left active:scale-[0.94] overflow-hidden"
+                        className="group relative flex items-center gap-4 p-4 rounded-[30px] bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-accent/40 transition-colors text-left active:scale-[0.94] overflow-hidden"
                       >
-                        <div className={`shrink-0 w-12 h-12 rounded-[18px] bg-gradient-to-br ${item.gradient} flex items-center justify-center text-white shadow-xl group-hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] transition-all duration-500`}>
+                        <div className={`shrink-0 w-12 h-12 rounded-[18px] bg-gradient-to-br ${item.gradient} flex items-center justify-center text-white shadow-xl`}>
                           <div className="text-white drop-shadow-lg scale-110">
                              {item.icon}
                           </div>
