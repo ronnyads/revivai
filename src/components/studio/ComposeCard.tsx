@@ -75,7 +75,8 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
           >
             <option value="try-on">Virtual Try-On (Veste a roupa na foto)</option>
             <option value="prompt">Vestir Personagem (Através de descrição)</option>
-            <option value="overlay">Colar Produto (Objetos na cena)</option>
+            <option value="overlay">Colar Produto (Adesivo/Overlay)</option>
+            <option value="smart">Fusão com IA (Modelo segura o produto) ✨</option>
           </select>
           <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M19 9l-7 7-7-7" /></svg>
@@ -151,32 +152,40 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
       )}
 
       {/* Opções específicas por modo */}
-      {mode === 'overlay' && (
-        <div className="grid grid-cols-2 gap-3 bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800">
-          <div className="space-y-2">
-            <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 block">Posição</label>
-            <select
-              value={position}
-              onChange={e => setPosition(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-[11px] text-white focus:outline-none focus:border-orange-500/50 appearance-none transition-all"
-            >
-              {POSITIONS.map(p => (
-                <option key={p.value} value={p.value}>{p.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between px-1">
-              <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Tamanho</label>
-              <span className="text-[10px] text-orange-400 font-bold">{Math.round(scale * 100)}%</span>
+      {(mode === 'overlay' || mode === 'smart') && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800">
+            <div className="space-y-2">
+              <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 block">Posição</label>
+              <select
+                value={position}
+                onChange={e => setPosition(e.target.value)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-[11px] text-white focus:outline-none focus:border-orange-500/50 appearance-none transition-all"
+              >
+                {POSITIONS.map(p => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
             </div>
-            <input
-              type="range" min="20" max="55" step="1"
-              value={Math.round(scale * 100)}
-              onChange={e => setScale(Number(e.target.value) / 100)}
-              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-orange-500 mt-2"
-            />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Tamanho</label>
+                <span className="text-[10px] text-orange-400 font-bold">{Math.round(scale * 100)}%</span>
+              </div>
+              <input
+                type="range" min="20" max="55" step="1"
+                value={Math.round(scale * 100)}
+                onChange={e => setScale(Number(e.target.value) / 100)}
+                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-orange-500 mt-2"
+              />
+            </div>
           </div>
+          
+          {mode === 'smart' && (
+            <p className="text-[10px] text-orange-400 bg-orange-500/10 p-3 rounded-xl border border-orange-500/20 italic leading-relaxed">
+              ⭐ <b>Dica:</b> A IA vai redesenhar as mãos e a iluminação ao redor do produto para que ele pareça estar sendo segurado de verdade.
+            </p>
+          )}
         </div>
       )}
 

@@ -942,6 +942,97 @@ export async function composeProductScene(params: {
       .jpeg({ quality: 95 })
       .toBuffer()
 
+  } else if (params.compose_mode === 'smart') {
+    // ---- MODO FUSÃO INTELIGENTE (In-Painting / Segurar Produto) ----
+    const sharp = (await import('sharp')).default
+    const vertexKey = process.env.GOOGLE_VERTEX_KEY
+    if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não configurada para Fusão Inteligente')
+
+    const portraitRes = await fetch(params.portrait_url)
+    const portraitBuf = Buffer.from(await portraitRes.arrayBuffer())
+    const portraitMeta = await sharp(portraitBuf).metadata()
+    const pW = portraitMeta.width || 1024
+    const pH = portraitMeta.height || 1024
+
+    // 1. Criar a máscara onde o produto deve ser "fundido"
+    // Calculamos o retângulo baseado no scale e position
+    const scale = params.product_scale || 0.45
+    const maskW = Math.round(pW * scale * 1.2)
+    const maskH = Math.round(pH * scale * 1.2)
+    
+    let left = Math.round(pW - maskW - 20)
+    let top = Math.round(pH - maskH - 20)
+
+    if (params.position === 'south') { left = Math.round((pW - maskW)/2); top = pH - maskH - 20; }
+    if (params.position === 'center') { left = Math.round((pW - maskW)/2); top = Math.round((pH - maskH)/2); }
+    if (params.position === 'southwest') { left = 20; top = pH - maskH - 20; }
+    if (params.position === 'west') { left = 20; top = Math.round((pH - maskH)/2); }
+    if (params.position === 'east') { left = pW - maskW - 20; top = Math.round((pH - maskH)/2); }
+
+    const maskBuf = await sharp({
+      create: {
+        width: pW,
+        height: pH,
+        channels: 3,
+        background: { r: 0, g: 0, b: 0 }
+      }
+    })
+    .composite([{
+      input: await sharp({
+        create: { width: maskW, height: maskH, channels: 3, background: { r: 255, g: 255, b: 255 } }
+      }).toBuffer(),
+      top, left
+    }])
+    .png()
+    .toBuffer()
+
+    // 2. Chamada ao Vertex AI (In-painting)
+    const vertexToken = await getVertexAccessToken(vertexKey)
+    const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
+    const location = process.env.VERTEX_LOCATION || 'us-central1'
+    const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
+
+    // Prompt agressivo para forçar a integração
+    const prompt = `A highly realistic professional product photography. A person is NATURALLY holding and interacting with a product jar. The person's fingers are realistically visible over the edges of the jar. Natural soft lighting, realistic shadows cast by the person onto the product and vice-versa. Integrated into the background. High resolution, 8k, cinematic photoshoot.`
+
+    const vertexRes = await fetch(vertexUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${vertexToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        instances: [
+          {
+            image: { bytesBase64Encoded: portraitBuf.toString('base64') },
+            mask: { 
+              maskConfig: { maskMode: 'mask_mode_user_provided' },
+              image: { bytesBase64Encoded: maskBuf.toString('base64') }
+            },
+            prompt
+          }
+        ],
+        parameters: {
+          sampleCount: 1,
+          editConfig: {
+            editMode: 'inpainting-insert',
+            guidanceScale: 60 // Alta escala para seguir o prompt
+          }
+        }
+      })
+    })
+
+    if (!vertexRes.ok) {
+      const err = await vertexRes.text()
+      throw new Error(`Vertex Smart Composition falhou: ${err}`)
+    }
+
+    const vertexData = await vertexRes.json()
+    const b64 = vertexData.predictions?.[0]?.bytesBase64Encoded
+    if (!b64) throw new Error('Vertex não retornou imagem para composição inteligente.')
+
+    resultBuffer = Buffer.from(b64, 'base64')
+
   } else {
     // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON (Native Fetch) ----
     
