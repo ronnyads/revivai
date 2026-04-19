@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { 
   ChevronRight, ChevronLeft, RefreshCw, Save, Check, Loader2, User, 
   Sparkles, Briefcase, Star, Target, UserRound, GraduationCap, 
@@ -206,6 +206,7 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
     (initial.model_text as string) || null
   )
   const [saved,  setSaved]      = useState(false)
+  const intentionalClear = useRef(false)
   const [savedPrompt, setSavedPrompt] = useState<string | null>(null)
   const [loadingSaved, setLoadingSaved] = useState(false)
 
@@ -240,10 +241,13 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
     }
   }
 
-  // If result is in initial (after generation), show it
-  if (initial.model_text && !result) {
-    setResult(initial.model_text as string)
-  }
+  // Sincroniza result com initial.model_text apenas quando muda externamente (nova geração)
+  useEffect(() => {
+    if (initial.model_text && !intentionalClear.current) {
+      setResult(initial.model_text as string)
+    }
+    intentionalClear.current = false
+  }, [initial.model_text])
 
   async function handleSave() {
     if (!result) return
@@ -277,7 +281,7 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => { setResult(null); handleGenerate() }}
+            onClick={() => { intentionalClear.current = true; setResult(null); handleGenerate() }}
             className="flex items-center justify-center gap-1.5 flex-1 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 py-2 rounded-xl transition-colors"
           >
             <RefreshCw size={11} /> Regenerar
