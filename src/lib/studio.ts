@@ -918,157 +918,63 @@ export async function composeProductScene(params: {
       .jpeg({ quality: 95 })
       .toBuffer()
 
-  } else if (params.compose_mode === 'smart') {
-    // ---- MODO FUSÃO INTELIGENTE (In-Painting / Segurar Produto) ----
-    const sharp = (await import('sharp')).default
-    const vertexKey = process.env.GOOGLE_VERTEX_KEY
-    if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não configurada para Fusão Inteligente')
-
-    let projectId = process.env.VERTEX_PROJECT_ID
-    if (!projectId) {
-       try {
-         const keyData = JSON.parse(vertexKey.startsWith('"') ? JSON.parse(vertexKey) : vertexKey)
-         projectId = keyData.project_id
-       } catch (e) {
-         console.warn('[studio] Não foi possível extrair ProjectID da chave JSON para smart composition')
-       }
-    }
-    if (!projectId) throw new Error('VERTEX_PROJECT_ID não configurado para Fusão Inteligente.')
+  } else if (params.compose_mode === 'gemini') {
+    // ---- FUSÃO GEMINI NATIVA (Composição por Prompt Livre) ----
+    const apiKey = process.env.GOOGLE_API_KEY
+    if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
 
     const [portraitRes, productRes] = await Promise.all([
       fetch(params.portrait_url),
-      fetch(params.product_url)
+      fetch(params.product_url),
     ])
-    
-    if (!portraitRes.ok || !productRes.ok) throw new Error('Falha ao baixar imagens para smart composition')
+    if (!portraitRes.ok || !productRes.ok)
+      throw new Error('Falha ao baixar imagens para composição Gemini')
 
     const [portraitBuf, productBuf] = await Promise.all([
       portraitRes.arrayBuffer().then(b => Buffer.from(b)),
-      productRes.arrayBuffer().then(b => Buffer.from(b))
+      productRes.arrayBuffer().then(b => Buffer.from(b)),
     ])
 
-    const portraitMeta = await sharp(portraitBuf).metadata()
-    const portW = portraitMeta.width || 1024
-    const portH = portraitMeta.height || 1024
-
-    const scale = params.product_scale || 0.45
-    const productTargetWidth = Math.round(portW * scale)
-
-    // Redimensiona o produto
-    const productResized = await sharp(productBuf)
-      .resize({ width: productTargetWidth, withoutEnlargement: true })
-      .ensureAlpha()
-      .toBuffer()
-
-    const productMeta = await sharp(productResized).metadata()
-    const prodW = productMeta.width ?? 0
-    const prodH = productMeta.height ?? 0
-
-    let left = Math.round(portW - prodW - 20)
-    let top = Math.round(portH - prodH - 20)
-
-    if (params.position === 'south') { left = Math.round((portW - prodW)/2); top = portH - prodH - 20; }
-    if (params.position?.includes('center')) { left = Math.round((portW - prodW)/2); top = Math.round((portH - prodH)/2); }
-    if (params.position === 'southwest') { left = 20; top = portH - prodH - 20; }
-    if (params.position === 'west') { left = 20; top = Math.round((portH - prodH)/2); }
-    if (params.position === 'east') { left = portW - prodW - 20; top = Math.round((portH - prodH)/2); }
-
-    // Garante bounds
-    left = Math.max(0, Math.min(left, portW - prodW))
-    top = Math.max(0, Math.min(top, portH - prodH))
-
-    // 1. INSERÇÃO REAL: Coloca o produto real (100% fiel) na cena antes da IA
-    const compositeBuf = await sharp(portraitBuf)
-      .composite([{ input: productResized, top, left }])
-      .jpeg({ quality: 100 })
-      .toBuffer()
-
-    // 2. MÁSCARA INTELIGENTE PARA BRAÇOS COMPLETO (Hollow Mask + Lower Erase + Edge Anchor)
-    const rawPixels = Buffer.alloc(portW * portH, 0)
-    
-    // O erro do "Pote Gigante / Criatura" ocorreu porque pedir pra IA desenhar um braço 
-    // de 500 pixels do nada, apagando as mãos no bolso e o centro do corpo, dá nisso.
-    // Agora o sistema está oficialmente OTIMIZADO PARA A ARQUITETURA DE POSE PREPARADA:
-    // A IA tem apenas uma zona de ~150px em volta do pote pra puxar os dedos da modelo por cima dele.
-    const padX = 150;
-    const padY = 150;
-    const outLeft = Math.max(0, left - padX);
-    const outRight = Math.min(portW, left + prodW + padX);
-    const outTop = Math.max(0, top - padY); 
-    const outBottom = Math.min(portH, top + prodH + padY); 
-
-    // Proteção central do Rótulo (Impede a IA de alucinar as letras)
-    const inLeft = Math.round(left + prodW * 0.15) 
-    const inRight = Math.round(left + prodW * 0.85)
-    const inTop = Math.round(top + prodH * 0.10)  
-    const inBottom = Math.round(top + prodH * 0.90)
-
-    for (let y = outTop; y < outBottom; y++) {
-      for (let x = outLeft; x < outRight; x++) {
-        if (x >= inLeft && x <= inRight && y >= inTop && y <= inBottom) {
-           // Zona BLINDADA (Rótulo original intocável)
-           rawPixels[y * portW + x] = 0
-        } else {
-           // Zona de Geração (para pintar braços e apagar bolsos centrais)
-           rawPixels[y * portW + x] = 255
-        }
-      }
-    }
-
-    const maskBuf = await sharp(rawPixels, {
-      raw: { width: portW, height: portH, channels: 1 }
-    })
-    .blur(30) // Transição extra hiper-suave
-    .png()
-    .toBuffer()
-
-
-    // 3. Chamada ao Flux Inpainting via Fal.ai (Máximo respeito à máscara)
-    console.log(`[studio] Chamando Flux Pro Fill no Fal.ai...`)
-
-    const imageUri = `data:image/jpeg;base64,${compositeBuf.toString('base64')}`
-    const maskUri = `data:image/png;base64,${maskBuf.toString('base64')}`
-
-    const clientDescription = params.smart_prompt
-      ? String(params.smart_prompt).trim()
-      : 'holding the central product jar naturally with both hands'
-
-    // Remoção de comandos diretos (Flux escreve comandos diretos na imagem por ter forte OCR reverso)
-    // Usamos um prompt puramente descritivo e visual.
-    const prompt = `A flawless, photorealistic image of a person. The person is ${clientDescription}. The person is wearing the exact same clothing as the surrounding unmasked areas. The person's arms are lifted up and their hands are firmly gripping the object in the center. Perfect human anatomy, exactly two hands, realistic skin texture, natural lighting. No text, no floating hands, no watermarks, no extra limbs.`
-
-    console.log(`[studio] Smart Prompt (Flux): ${prompt.substring(0, 120)}...`)
-
-    const falRes = await fetch('https://fal.run/fal-ai/flux-pro/v1/fill', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Key ${falKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        image_url: imageUri,
-        mask_url: maskUri,
-        prompt: prompt,
-        output_format: 'jpeg',
-        sync_mode: true
-      })
+    const { GoogleGenerativeAI } = await import('@google/generative-ai')
+    const genAI = new GoogleGenerativeAI(apiKey)
+    const genModel = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash-exp-image-generation',
     })
 
-    if (!falRes.ok) {
-      const errText = await falRes.text()
-      console.error(`[studio] Error from Fal.ai Flux Fill: ${errText}`)
-      throw new Error(`Flux Smart Composition falhou: ${errText.slice(0, 300)}`)
+    const userIntent = params.smart_prompt?.trim()
+      || 'coloque o produto na mão da modelo de forma natural e realista'
+
+    const compositionPrompt = await getStudioPrompt(
+      admin,
+      'compose_gemini_prompt',
+      `Você é um compositor fotográfico profissional para anúncios UGC.\nReceba as duas imagens a seguir — Imagem 1: a modelo/pessoa; Imagem 2: o produto — e execute exatamente esta instrução: {instruction}\nRegras obrigatórias:\n- Preserve o rosto e a identidade da pessoa EXATAMENTE como está\n- O produto deve parecer REAL e naturalmente integrado à cena, com iluminação e sombra coerentes\n- Mantenha o estilo fotográfico consistente com a foto original\n- O resultado deve parecer uma foto profissional de campanha publicitária\n- NÃO adicione texto, watermarks ou elementos extra`
+    )
+
+    const finalPrompt = compositionPrompt.replace('{instruction}', userIntent)
+
+    console.log(`[studio] Gemini compose | intent: ${userIntent.substring(0, 100)}`)
+
+    const geminiResult = await genModel.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: finalPrompt },
+          { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
+          { inlineData: { mimeType: 'image/jpeg', data: productBuf.toString('base64') } },
+        ],
+      }],
+      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
+    })
+
+    const geminiParts = geminiResult.response.candidates?.[0]?.content?.parts ?? []
+    const geminiImagePart = geminiParts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
+
+    if (!geminiImagePart?.inlineData?.data) {
+      const finishReason = geminiResult.response.candidates?.[0]?.finishReason
+      throw new Error(`Gemini não gerou imagem | finishReason=${finishReason}`)
     }
 
-    const falData = await falRes.json()
-    const outputUrl = falData.images?.[0]?.url || falData.image?.url
-
-    if (!outputUrl) {
-      throw new Error('Fal.ai não retornou URL da imagem preenchida.')
-    }
-
-    const finalImgRes = await fetch(outputUrl)
-    resultBuffer = Buffer.from(await finalImgRes.arrayBuffer())
+    resultBuffer = Buffer.from(geminiImagePart.inlineData.data, 'base64')
 
   } else {
     // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON (Native Fetch) ----

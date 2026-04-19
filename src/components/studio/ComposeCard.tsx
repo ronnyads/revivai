@@ -77,7 +77,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
             <option value="try-on">👗 Vestir Roupa na Modelo</option>
             <option value="prompt">✍️ Criar Roupa por Descrição</option>
             <option value="overlay">📦 Produto na Cena (Inserção)</option>
-            <option value="smart">🤲 Modelo Segurando o Produto ✨</option>
+            <option value="gemini">🤖 IA Gemini — Segure, Vista, Cene Livre</option>
           </select>
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
              <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M19 9l-7 7-7-7" /></svg>
@@ -134,7 +134,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
 
 
       {/* Opções específicas por modo */}
-      {(mode === 'overlay' || mode === 'smart') && (
+      {(mode === 'overlay' || mode === 'gemini') && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800">
             <div className="space-y-2">
@@ -163,15 +163,15 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
             </div>
           </div>
           
-          {mode === 'smart' && (
+          {mode === 'gemini' && (
             <div className="space-y-2">
               <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 block">
-                Como a modelo deve aparecer com o produto?
+                Descreva a cena — o Gemini faz o resto
               </label>
               <textarea
                 value={smartPrompt}
                 onChange={e => setSmartPrompt(e.target.value)}
-                placeholder="Ex: 'Segurando o pote com as duas mãos na altura do peito, sorrindo para a câmera' ou 'Exibindo o produto na mão esquerda levantada, estilo propaganda de TV'..."
+                placeholder="Ex: 'Segurando o pote com as duas mãos na altura do peito, sorrindo' • 'Exibindo o produto levantado com uma mão, na praia ao pôr do sol' • 'Descansando no sofá segurando o produto, ambiente clean minimalista'..."
                 rows={3}
                 className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-3 text-[12px] text-white placeholder-zinc-700 focus:outline-none focus:border-orange-500/50 transition-all leading-relaxed resize-none"
               />
