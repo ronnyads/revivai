@@ -947,7 +947,7 @@ export async function composeProductScene(params: {
     const compositionPrompt = await getStudioPrompt(
       admin,
       'compose_gemini_prompt',
-      `Você é um compositor fotográfico profissional para anúncios UGC.\nReceba as duas imagens a seguir — Imagem 1: a modelo/pessoa; Imagem 2: o produto — e execute exatamente esta instrução: {instruction}\nRegras obrigatórias:\n- Preserve o rosto e a identidade da pessoa EXATAMENTE como está\n- O produto deve parecer REAL e naturalmente integrado à cena, com iluminação e sombra coerentes\n- Mantenha o estilo fotográfico consistente com a foto original\n- O resultado deve parecer uma foto profissional de campanha publicitária\n- NÃO adicione texto, watermarks ou elementos extra`
+      `Você é um compositor fotográfico profissional para anúncios UGC.\nReceba as duas imagens a seguir — Imagem 1: a modelo/pessoa; Imagem 2: o produto — e execute exatamente esta instrução: {instruction}\nRegras obrigatórias:\n- Preserve o rosto e a identidade da pessoa EXATAMENTE como está\n- Preserve a roupa, o cabelo e todos os acessórios da modelo EXATAMENTE como estão na Imagem 1 — NÃO troque, remova ou altere nenhuma peça de vestuário\n- O produto deve parecer REAL e naturalmente integrado à cena, com iluminação e sombra coerentes\n- Mantenha o fundo e o estilo fotográfico consistente com a foto original\n- O resultado deve parecer uma foto profissional de campanha publicitária\n- NÃO adicione texto, watermarks ou elementos extra`
     )
 
     const finalPrompt = compositionPrompt.replace('{instruction}', userIntent)
