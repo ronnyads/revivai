@@ -965,9 +965,9 @@ ABSOLUTE PRESERVATION RULES — treat this like a restoration, not a creation:
 
     console.log(`[studio] Gemini compose REST v1alpha | intent: ${userIntent.substring(0, 100)}`)
 
-    // REST direto em v1alpha — o SDK usa v1beta que não suporta geração de imagem
+    // gemini-2.0-flash-exp suporta responseModalities IMAGE via v1beta
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1alpha/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
