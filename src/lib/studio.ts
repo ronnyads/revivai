@@ -1196,78 +1196,47 @@ export async function startVeo3DirectGoogle(params: {
   const model = 'veo-3.0-generate-001';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`;
   
-  try {
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          instances: [{
-            prompt: params.motion_prompt || (await getStudioPrompt(admin, 'video_veo_default_prompt', 'smooth cinematic product motion')),
-            referenceImages: [{
-              image: { bytesBase64Encoded: base64Image, mimeType }
-            }],
+  const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{
+          prompt: params.motion_prompt || (await getStudioPrompt(admin, 'video_veo_default_prompt', 'smooth cinematic product motion')),
+          referenceImages: [{
+            image: { bytesBase64Encoded: base64Image, mimeType }
           }],
-          parameters: {
-            aspectRatio: '9:16'
-          },
-        }),
-      }
-    )
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      console.error(`[Google Veo3 Error] ${res.status}:`, errText);
-
-      // ── FALLBACK AUTOMÁTICO PARA KLING AI EM CASO DE BLOQUEIO ────────────────
-      if (res.status === 403 || res.status === 404 || errText.includes('denied')) {
-        console.warn(`[Studio] Google Veo3 negado. Acionando FALLBACK automático para Kling AI...`);
-        const { startVideoGeneration } = await import('./studio'); // Importação dinâmica
-        return await startVideoGeneration({
-          source_image_url: params.source_image_url,
-          motion_prompt: params.motion_prompt,
-          duration: params.duration || 5,
-          assetId: params.assetId,
-          userId: params.userId,
-          engine: 'kling'
-        });
-      }
-
-      throw new Error(`Google Veo3 erro (${res.status}): ${errText.slice(0, 300)}`);
+        }],
+        parameters: {
+          aspectRatio: '9:16'
+        },
+      }),
     }
+  )
 
-    const body = await res.json()
-    const operationName = body.name
-    if (!operationName) throw new Error('Google Veo3 não retornou operationName')
-
-    await admin.from('studio_assets')
-      .update({
-        input_params: {
-          prediction_id: operationName,
-          provider: 'google',
-          engine: 'veo',
-          source_image_url: params.source_image_url,
-          motion_prompt: params.motion_prompt,
-          quality: params.quality,
-        }
-      })
-      .eq('id', params.assetId)
-
-    return operationName;
-
-  } catch (err: any) {
-    if (err.message?.includes('403') || err.message?.includes('denied')) {
-       const { startVideoGeneration } = await import('./studio');
-       return await startVideoGeneration({
-          source_image_url: params.source_image_url,
-          motion_prompt: params.motion_prompt,
-          duration: params.duration || 5,
-          assetId: params.assetId,
-          userId: params.userId,
-          engine: 'kling'
-       });
-    }
-    throw err;
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    console.error(`[Google Veo3 Error] ${res.status}:`, errText);
+    throw new Error(`Google Veo3 erro (${res.status}): ${errText.slice(0, 300)}`);
   }
+
+  const body = await res.json()
+  const operationName = body.name
+  if (!operationName) throw new Error('Google Veo3 não retornou operationName')
+
+  await admin.from('studio_assets')
+    .update({
+      input_params: {
+        prediction_id: operationName,
+        provider: 'google',
+        engine: 'veo',
+        source_image_url: params.source_image_url,
+        motion_prompt: params.motion_prompt,
+        quality: params.quality,
+      }
+    })
+    .eq('id', params.assetId)
+
+  return operationName;
 }
 
 // ── Image-to-Image (Angles / Poses) ──────────────────────────────────────────────────────────
