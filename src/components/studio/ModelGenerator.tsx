@@ -277,7 +277,7 @@ export default function ModelGenerator({ initial, onGenerate }: Props) {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => { setResult(null); setStep(filteredSteps.length) }}
+            onClick={() => { setResult(null); handleGenerate() }}
             className="flex items-center justify-center gap-1.5 flex-1 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 py-2 rounded-xl transition-colors"
           >
             <RefreshCw size={11} /> Regenerar
