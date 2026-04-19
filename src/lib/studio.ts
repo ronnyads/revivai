@@ -1598,12 +1598,22 @@ export async function generateAngles(params: {
   const engine = params.engine ?? 'flux'
   
   const angleMap: Record<string, string> = {
-    frontal: 'frontal shot, looking directly at the camera, symmetric composition, consistent facial identity',
-    profile: 'side profile shot, face turned 90 degrees away from the camera, consistent facial features',
-    closeup: 'extreme close-up macro shot of the face details, maintaining skin texture and eye color',
-    wide:    'extreme wide angle, full body shot, maintaining body proportions and clothing',
-    back:    'shot from behind, back facing the camera, turning away, but maintaining the same hair style, hair color and gender silhouette',
+    frontal: 'frontal shot, looking directly at the camera, symmetric composition, full body visible, consistent facial identity',
+    profile: 'full body side profile shot, entire person visible from head to toe, wide framing with ample space on both sides to avoid cropping, face and body turned 90 degrees, consistent facial features',
+    closeup: 'extreme close-up macro shot of the face only, maintaining skin texture and eye color, tight framing on the face',
+    wide:    'extreme wide angle, full body shot, entire figure visible with generous surrounding space, maintaining body proportions and clothing',
+    back:    'full body shot from behind, entire person visible head to toe, back and hair facing the camera, maintaining the same hair style, hair color and gender silhouette',
   }
+
+  // Mapeia aspect_ratio do frontend para formato aceito pelo Gemini
+  const aspectRatioMap: Record<string, string> = {
+    '9:16': '9:16',
+    '1:1':  '1:1',
+    '4:5':  '4:5',
+    '16:9': '16:9',
+    '3:4':  '3:4',
+  }
+  const geminiAspectRatio = aspectRatioMap[params.aspect_ratio ?? '9:16'] ?? '9:16'
 
   const perspective = angleMap[params.angle] || angleMap['frontal']
   
@@ -1713,7 +1723,7 @@ export async function generateAngles(params: {
                 { text: geminiPrompt },
                 { inlineData: { mimeType, data: base64Image } },
               ]}],
-              generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
+              generationConfig: { responseModalities: ['IMAGE', 'TEXT'], aspectRatio: geminiAspectRatio } as any,
             }),
           }
         )
