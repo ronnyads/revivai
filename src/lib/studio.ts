@@ -868,27 +868,36 @@ function buildCompositionPrompt(profile: ProductProfile, userIntent: string): st
     ? `\nCRITICAL PRODUCT IDENTITY LOCK: The product in [PRODUCT] is the ONLY acceptable version of this item. Do NOT substitute it with any other object even if visually similar or more common. Key features that MUST appear unchanged: ${profile.key_features.join(', ')}.`
     : ''
 
-  return `You are a professional photo compositor. Your ONLY job is to produce ONE single unified photograph — never a collage, never side-by-side, never split image.
+  const clothingRule = profile.category === 'wearable'
+    ? `CLOTHING: The person is wearing/displaying the [PRODUCT] — clothing changes are allowed and expected for this product type.`
+    : `CLOTHING: Keep the person's existing clothing EXACTLY as in [BASE PHOTO] — do NOT add, remove, or change any garment.`
+
+  return `You are a professional photo compositor. Produce ONE single unified photograph — never a collage, never side-by-side.
 
 You receive two images:
-[BASE PHOTO]: the person/model — this is your canvas and must be preserved exactly
-[PRODUCT]: the item to be physically integrated into the base photo
+[BASE PHOTO]: the UGC model — use as the base
+[PRODUCT]: the item to be integrated into the scene
 
 Your task: ${userIntent}
+
+WHAT TO PRESERVE FROM [BASE PHOTO]:
+- Face, skin tone, hair color, hair style, makeup, eye color: IDENTICAL — do not alter anything
+- ${clothingRule}
+- You MAY adjust arm and hand position naturally so the person can hold or interact with the product
+
+WHAT YOU MUST NOT DO:
+- Do not change the face or facial expression
+- Do not swap, add, or remove clothing (unless product is wearable)
+- Do not generate extra hands or disembodied hands
+- Do not create a collage or side-by-side layout
 
 PRODUCT RULES (category: ${profile.category}):
 ${categoryBlock}${highRiskBlock}
 
-MODEL IDENTITY PROTECTION: The person's face, skin tone, hair color, hair style, makeup, eye color, body proportions, and ALL clothing items are LOCKED. Do not alter any of these under any circumstances.
-
-OUTPUT RULES — non-negotiable:
-- ONE single unified photo. NOT a collage. NOT side-by-side. The person and product must exist in the same scene.
-- The product must be PHYSICALLY HELD, WORN, or USED by the person — it must make contact with hands, body, or immediate scene
-- Use ONLY the model's existing hands — do NOT generate extra hands, duplicate hands, or disembodied hands
-- The number of visible hands must match the original portrait — never add more hands than the person naturally has
-- Natural lighting and shadows — the product must cast realistic shadows consistent with the photo
-- Pure white background (#FFFFFF)
-- No text overlays, watermarks, borders, or decorative elements`
+OUTPUT:
+- Pure white background (#FFFFFF) — no city, no studio, no outdoor scene
+- Natural lighting and shadows consistent with the photo
+- No watermarks, borders, or text overlays`
 }
 
 function buildRetryPrompt(basePrompt: string, issues: string[], weakestDimension?: string): string {
