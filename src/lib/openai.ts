@@ -490,22 +490,28 @@ export async function assessCompositionQuality(
   const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
   if (!apiKey) return { approved: true, score: 80, issues: [] }
 
-  const prompt = `You are a strict product quality analyst for UGC advertising photos.
-Compare the FIRST IMAGE (original product) with the SECOND IMAGE (composed photo).
-Check ONLY the product appearance — not the model, not the background.
+  const prompt = `You are an extremely strict product quality analyst for UGC advertising photos.
+Your job: compare the ORIGINAL PRODUCT (first image) with how it appears in the COMPOSED PHOTO (second image).
+Analyze ONLY the product — ignore model, background, lighting differences.
 
-APPROVE if:
-- All text, logos, brand names are readable and identical
-- Colors match the original (same shades)
-- Overall shape and proportions are correct
-- Minor perspective/lighting changes are acceptable
+You do NOT know what type of product this is in advance. It could be a supplement, weapon, cosmetic, food, device, clothing item, or anything else. Apply the same strict rules regardless.
 
-REJECT if:
-- Any text is missing, blurred beyond reading, or changed
-- Logo is distorted, missing, or replaced
-- Colors are significantly different
-- Product shape changed substantially
-- Product is not visible in the composition
+APPROVE ONLY if ALL of these are true:
+- Product silhouette and shape match the original exactly (same form factor)
+- All physical details are preserved: buttons, prongs, openings, handles, textures
+- Colors are identical or near-identical (same hues, same contrast)
+- Any text or logos are readable and match the original
+- No parts were added, removed, or morphed into something else
+
+REJECT if ANY of these are true:
+- The product shape or silhouette changed — even slightly (e.g. taser became a pistol, jar became a bottle)
+- Any physical feature is missing, added, or changed (missing prong, extra button, different grip)
+- Colors shifted significantly
+- Text or logo is blurred, missing, distorted, or altered
+- The product was replaced with a visually similar but different object
+- The product is not clearly visible
+
+Be extremely strict. When in doubt, REJECT. A client will compare the original and result side by side.
 
 Respond ONLY with valid JSON in this exact format:
 {"score": <number 0-100>, "approved": <true|false>, "issues": [<string>, ...]}`
