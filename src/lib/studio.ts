@@ -963,43 +963,53 @@ ABSOLUTE PRESERVATION RULES — treat this like a restoration, not a creation:
 
     const finalPrompt = compositionPrompt.replace('{instruction}', userIntent)
 
-    const MODEL = 'gemini-3-pro-image-preview'
+    const COMPOSE_MODELS = [
+      'gemini-3.1-flash-image-preview',
+      'gemini-3-pro-image-preview',
+      'gemini-2.5-flash-image',
+    ]
 
-    console.log(`[studio] Gemini compose | model=${MODEL} | intent: ${userIntent.substring(0, 80)}`)
+    const requestBody = JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: finalPrompt },
+          { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
+          { inlineData: { mimeType: 'image/jpeg', data: productBuf.toString('base64') } },
+        ],
+      }],
+      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+    })
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            role: 'user',
-            parts: [
-              { text: finalPrompt },
-              { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
-              { inlineData: { mimeType: 'image/jpeg', data: productBuf.toString('base64') } },
-            ],
-          }],
-          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
-        }),
+    let geminiJson: any = null
+    let usedModel = ''
+
+    for (const model of COMPOSE_MODELS) {
+      console.log(`[studio] Gemini compose trying: ${model}`)
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody }
+      )
+      if (!res.ok) {
+        console.warn(`[studio] ${model} falhou (${res.status})`)
+        continue
       }
-    )
-
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text()
-      throw new Error(`Gemini REST falhou (${geminiRes.status}): ${errText.slice(0, 400)}`)
+      geminiJson = await res.json()
+      usedModel = model
+      break
     }
 
-    const geminiJson = await geminiRes.json()
+    if (!geminiJson) throw new Error('Todos os modelos Gemini falharam na composição')
+
     const geminiParts = geminiJson.candidates?.[0]?.content?.parts ?? []
     const geminiImagePart = geminiParts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
 
     if (!geminiImagePart?.inlineData?.data) {
       const finishReason = geminiJson.candidates?.[0]?.finishReason
-      throw new Error(`Gemini não gerou imagem | finishReason=${finishReason}`)
+      throw new Error(`Gemini não gerou imagem | model=${usedModel} | finishReason=${finishReason}`)
     }
 
+    console.log(`[studio] Gemini compose OK | model=${usedModel}`)
     resultBuffer = Buffer.from(geminiImagePart.inlineData.data, 'base64')
 
   } else {
