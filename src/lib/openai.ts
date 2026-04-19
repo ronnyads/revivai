@@ -480,7 +480,8 @@ Reponda APENAS no JSON Schema exigido.
 export interface ProductProfile {
   category: string
   has_text_logo: boolean
-  deformation_risk: string
+  deformation_risk: 'low' | 'medium' | 'high'
+  shape_complexity: 'simple' | 'medium' | 'complex'
   placement_suggestion: string
   key_features: string[]
 }
