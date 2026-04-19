@@ -477,52 +477,78 @@ Reponda APENAS no JSON Schema exigido.
 
 // ─── Composition Quality Gate — verifica se produto foi preservado ─────────────
 
+export interface ProductProfile {
+  category: string
+  has_text_logo: boolean
+  deformation_risk: string
+  placement_suggestion: string
+  key_features: string[]
+}
+
 export interface CompositionQuality {
   approved: boolean
   score: number      // 0-100
   issues: string[]
+  weakest_dimension?: string
 }
 
 export async function assessCompositionQuality(
   productUrl: string,
   composedImageBase64: string,
+  profile?: ProductProfile,
 ): Promise<CompositionQuality> {
   const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
   if (!apiKey) return { approved: true, score: 80, issues: [] }
 
+  const featuresLine = profile?.key_features?.length
+    ? `Product key features to verify: ${profile.key_features.join(', ')}.`
+    : ''
+  const textLogoRule = profile?.has_text_logo === false
+    ? '- (Surface/text check skipped — product has no visible text or logo)'
+    : '- Any text or logo is blurred, missing, distorted, or altered\n- Label colors or layout changed'
+
   const prompt = `You are an extremely strict quality analyst for UGC advertising photo compositions.
 You receive: FIRST IMAGE = original product. SECOND IMAGE = composed photo with model + product.
+Product category: ${profile?.category ?? 'unknown'}. ${featuresLine}
 
-Evaluate TWO dimensions:
+Evaluate FIVE dimensions. Score each 0-100. APPROVED = ALL dimensions ≥ 70.
 
-## 1. COMPOSITION QUALITY (is it a real unified photo?)
+## DIMENSION 1 — COMPOSITION (unified photo?)
 REJECT if ANY:
-- The result is a collage, side-by-side, or split image (model on one side, product on the other)
-- The product is floating or not physically connected to the model's hands/body
-- The product appears pasted/overlaid without natural integration
-- The model's hands do not appear to actually hold or touch the product
-- There are visible seams, borders, or unnatural edges around the product
+- Result is a collage, side-by-side, or split image
+- Product is floating or not physically connected to hands/body
+- Product appears pasted/overlaid without natural integration
+- Visible seams, borders, or unnatural edges around the product
 
-## 2. PRODUCT FIDELITY (is the product preserved exactly?)
-You do NOT know what type of product this is. Apply the same rules to anything: supplement, weapon, cosmetic, food, device, clothing, or any other item.
-
+## DIMENSION 2 — PRODUCT SHAPE FIDELITY
 REJECT if ANY:
-- Product silhouette or shape changed (e.g. taser became a pistol, round jar became a bottle)
-- Any physical feature is missing, added, or changed (prongs, buttons, openings, handles, textures)
-- Colors shifted significantly
-- Any text or logo is blurred, missing, distorted, or altered
-- The product was replaced with a visually similar but different object
-- The product is not clearly visible
+- Silhouette or overall shape changed (e.g. taser became a pistol, jar became a bottle)
+- Any physical feature from the key features list is missing, added, or altered
+- Product was replaced with a visually similar but different object
 
-APPROVE only if BOTH dimensions pass completely.
-Be extremely strict. When in doubt, REJECT. A client will compare the original and result side by side.
+## DIMENSION 3 — PRODUCT SURFACE FIDELITY
+${textLogoRule}
+- Colors shifted significantly from original
 
-Respond ONLY with valid JSON in this exact format:
-{"score": <number 0-100>, "approved": <true|false>, "issues": [<string>, ...]}`
+## DIMENSION 4 — CONTEXT COHERENCE
+REJECT if ANY:
+- Product makes no physical sense in the scene (impossible angle, wrong scale, floating)
+- Product and model exist in separate spatial planes
+
+## DIMENSION 5 — MODEL IDENTITY
+REJECT if ANY:
+- Face, skin tone, hair style/color, or expression changed
+- Any clothing item added, removed, or changed
+- Body proportions noticeably altered
+
+Be extremely strict. When in doubt, REJECT. A client will compare original and result side by side.
+
+Respond ONLY with valid JSON:
+{"score": <0-100>, "approved": <true|false>, "issues": [<string>...], "weakest_dimension": "<DIMENSION_NAME>"}`
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -546,8 +572,13 @@ Respond ONLY with valid JSON in this exact format:
     const data = await res.json()
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
     const parsed = JSON.parse(text) as CompositionQuality
-    console.log(`[compose-qc] score=${parsed.score} approved=${parsed.approved} issues=${(parsed.issues ?? []).join(', ')}`)
-    return { approved: parsed.approved ?? true, score: parsed.score ?? 80, issues: parsed.issues ?? [] }
+    console.log(`[compose-qc] score=${parsed.score} approved=${parsed.approved} weakest=${parsed.weakest_dimension} issues=${(parsed.issues ?? []).join(', ')}`)
+    return {
+      approved: parsed.approved ?? true,
+      score: parsed.score ?? 80,
+      issues: parsed.issues ?? [],
+      weakest_dimension: parsed.weakest_dimension,
+    }
   } catch (err: any) {
     console.warn('[compose-qc] Gemini QC falhou — aprovando por padrão:', err.message)
     return { approved: true, score: 80, issues: [] }

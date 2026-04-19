@@ -5,7 +5,7 @@ import { GoogleAuth } from 'google-auth-library'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AssetType } from '@/types'
 import { extractLastFrame as extractVideoFrame } from './videoUtils'
-import { assessCompositionQuality } from '@/lib/openai'
+import { assessCompositionQuality, ProductProfile } from '@/lib/openai'
 
 export { CREDIT_COST } from '@/constants/studio'
 
@@ -774,6 +774,201 @@ async function withReplicateRetry<T>(fn: () => Promise<T>, maxRetries = 3): Prom
   throw new Error('Max retries exceeded')
 }
 
+// ── Product-Aware Helpers (Fases 1-4) ─────────────────────────────────────────
+
+async function classifyProduct(
+  productBuf: Buffer,
+  apiKey: string,
+): Promise<ProductProfile> {
+  const FALLBACK: ProductProfile = {
+    category: 'packaged',
+    has_text_logo: false,
+    deformation_risk: 'medium',
+    placement_suggestion: 'holding the product at chest level with both hands',
+    key_features: [],
+  }
+
+  const prompt = `Analyze this product image and return a JSON profile.
+
+Categories:
+- "handheld": device meant to be held in hand (stun gun, weapon-shaped, controller, remote, tool)
+- "delicate": fragile or thin item (glasses, jewelry, watch, earrings, small accessory)
+- "wearable": clothing, hat, shoes, or fabric item
+- "packaged": bottle, can, jar, box, or container with visible label or logo
+- "no-identity": abstract shape with no distinctive features
+
+deformation_risk rules:
+- "high": no visible text/logo AND unusual or weapon-like shape (easily misinterpreted)
+- "medium": has some distinctive features but shape could be interpreted differently
+- "low": has clear text/logo OR very standard recognizable shape (bottle, box)
+
+Respond ONLY with valid JSON — no markdown, no explanation:
+{
+  "category": "<category>",
+  "has_text_logo": <true|false>,
+  "deformation_risk": "<low|medium|high>",
+  "placement_suggestion": "<natural instruction for how a model should hold/wear/display this>",
+  "key_features": ["<short feature description>", ...]
+}`
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: prompt },
+              { inlineData: { mimeType: 'image/jpeg', data: productBuf.toString('base64') } },
+            ],
+          }],
+          generationConfig: { responseMimeType: 'application/json' },
+        }),
+      }
+    )
+    if (!res.ok) throw new Error(`classify HTTP ${res.status}`)
+    const data = await res.json()
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
+    const parsed = JSON.parse(text) as ProductProfile
+    return {
+      category: parsed.category ?? FALLBACK.category,
+      has_text_logo: parsed.has_text_logo ?? FALLBACK.has_text_logo,
+      deformation_risk: parsed.deformation_risk ?? FALLBACK.deformation_risk,
+      placement_suggestion: parsed.placement_suggestion || FALLBACK.placement_suggestion,
+      key_features: Array.isArray(parsed.key_features) ? parsed.key_features : [],
+    }
+  } catch (e: any) {
+    console.warn('[studio] classifyProduct falhou — usando fallback:', e.message)
+    return FALLBACK
+  }
+}
+
+function buildCompositionPrompt(profile: ProductProfile, userIntent: string): string {
+  const categoryBlocks: Record<string, string> = {
+    handheld:      `The product has these exact physical features: ${profile.key_features.join(', ')}. Preserve EVERY feature exactly. Do NOT simplify, reinterpret, or substitute the shape.`,
+    delicate:      `This is a fragile or small item. Show it held delicately with fingertips. Preserve its exact proportions — do NOT scale it up or change its form.`,
+    wearable:      `This garment or accessory must be worn by or held near the person. Do NOT lay it flat — it must be active in the scene.`,
+    packaged:      `Preserve ALL text, logos, label colors and placement EXACTLY as in the original product image.`,
+    'no-identity': `Hold this item with both hands. Preserve its exact shape and color with no modifications.`,
+  }
+
+  const categoryBlock = categoryBlocks[profile.category] ?? categoryBlocks['packaged']
+
+  const highRiskBlock = profile.deformation_risk === 'high'
+    ? `\nCRITICAL PRODUCT IDENTITY LOCK: The product in [PRODUCT] is the ONLY acceptable version of this item. Do NOT substitute it with any other object even if visually similar or more common. Key features that MUST appear unchanged: ${profile.key_features.join(', ')}.`
+    : ''
+
+  return `You are a professional photo compositor. Your ONLY job is to produce ONE single unified photograph — never a collage, never side-by-side, never split image.
+
+You receive two images:
+[BASE PHOTO]: the person/model — this is your canvas and must be preserved exactly
+[PRODUCT]: the item to be physically integrated into the base photo
+
+Your task: ${userIntent}
+
+PRODUCT RULES (category: ${profile.category}):
+${categoryBlock}${highRiskBlock}
+
+MODEL IDENTITY PROTECTION: The person's face, skin tone, hair color, hair style, makeup, eye color, body proportions, and ALL clothing items are LOCKED. Do not alter any of these under any circumstances.
+
+OUTPUT RULES — non-negotiable:
+- ONE single unified photo. NOT a collage. NOT side-by-side. The person and product must exist in the same scene.
+- The product must be PHYSICALLY HELD, WORN, or USED by the person — it must make contact with hands, body, or immediate scene
+- Natural lighting and shadows — the product must cast realistic shadows consistent with the photo
+- Pure white background (#FFFFFF)
+- No text overlays, watermarks, borders, or decorative elements`
+}
+
+function buildRetryPrompt(basePrompt: string, issues: string[], weakestDimension?: string): string {
+  const issueBlock = issues.length > 0
+    ? `\n\nPREVIOUS ATTEMPT FAILED. Issues detected: ${issues.join('; ')}. You MUST fix ALL of these.`
+    : ''
+  const focusBlock = weakestDimension
+    ? `\nCRITICAL FOCUS FOR THIS RETRY: ${weakestDimension}. Do not compromise on this dimension.`
+    : ''
+  return basePrompt + issueBlock + focusBlock
+}
+
+async function geminiPoseOnly(
+  portraitBuf: Buffer,
+  userIntent: string,
+  apiKey: string,
+  models: string[],
+): Promise<string | null> {
+  const posePrompt = `You are a professional photo editor. Make MINIMAL changes to this portrait.
+TASK: Position this person's arms and hands naturally to hold or display a product at chest or waist level.
+STRICT RULES:
+- Face, hair, skin tone, makeup, clothing: IDENTICAL — do NOT change anything
+- Background: pure white (#FFFFFF)
+- Only adjust arm/hand position to a natural holding pose
+- Do NOT add any objects or products to the image
+- Preserve all clothing exactly
+Pose instruction: ${userIntent}`
+
+  const body = JSON.stringify({
+    contents: [{
+      role: 'user',
+      parts: [
+        { text: posePrompt },
+        { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
+      ],
+    }],
+    generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+  })
+
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
+      )
+      if (!res.ok) continue
+      const json = await res.json()
+      const parts = json.candidates?.[0]?.content?.parts ?? []
+      const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
+      if (imgPart?.inlineData?.data) {
+        console.log(`[studio] geminiPoseOnly OK | model=${model}`)
+        return imgPart.inlineData.data as string
+      }
+    } catch {}
+  }
+  return null
+}
+
+async function sharpOverlayProduct(poseBuf: Buffer, productBuf: Buffer): Promise<Buffer> {
+  const poseMeta = await sharp(poseBuf).metadata()
+  const poseWidth  = poseMeta.width  ?? 1024
+  const poseHeight = poseMeta.height ?? 1024
+
+  const productTargetWidth = Math.round(poseWidth * 0.40)
+  const productResized = await sharp(productBuf)
+    .resize({ width: productTargetWidth, withoutEnlargement: true })
+    .ensureAlpha()
+    .toBuffer()
+
+  const productMeta = await sharp(productResized).metadata()
+  const pW = productMeta.width ?? 0
+
+  const shadowBuf = await sharp(productResized)
+    .modulate({ brightness: 0.1, saturation: 0 })
+    .blur(12)
+    .toBuffer()
+
+  const compositeTop  = Math.round(poseHeight * 0.45)
+  const compositeLeft = Math.round((poseWidth - pW) / 2)
+
+  return sharp(poseBuf)
+    .composite([
+      { input: shadowBuf, top: compositeTop + 8, left: compositeLeft + 8, blend: 'multiply' },
+      { input: productResized, top: compositeTop, left: compositeLeft },
+    ])
+    .jpeg({ quality: 95 })
+    .toBuffer()
+}
+
 // ── Compose — Virtual Try-On ou Colar Produto ─────────
 export async function composeProductScene(params: {
   portrait_url:   string
@@ -920,7 +1115,7 @@ export async function composeProductScene(params: {
       .toBuffer()
 
   } else if (params.compose_mode === 'gemini') {
-    // ---- FUSÃO GEMINI NATIVA (Composição por Prompt Livre) ----
+    // ---- FUSÃO GEMINI NATIVA — Product-Aware Architecture ----
     const apiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
     if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
 
@@ -935,6 +1130,11 @@ export async function composeProductScene(params: {
       portraitRes.arrayBuffer().then(b => Buffer.from(b)),
       productRes.arrayBuffer().then(b => Buffer.from(b)),
     ])
+
+    // FASE 1 — Product Classifier
+    const profile = await classifyProduct(productBuf, apiKey)
+    console.log(`[studio] product-profile | category=${profile.category} has_text=${profile.has_text_logo} risk=${profile.deformation_risk}`)
+    console.log(`[studio] key_features: ${profile.key_features.join(', ')}`)
 
     // Auto-remove product background via Fal AI Bria
     const falKey = process.env.FAL_KEY
@@ -965,112 +1165,93 @@ export async function composeProductScene(params: {
     }
 
     const userIntent = params.smart_prompt?.trim()
+      || profile.placement_suggestion
       || 'place the product naturally in the model\'s hands, she is holding it'
 
-    const compositionPrompt = await getStudioPrompt(
-      admin,
-      'compose_gemini_prompt',
-      `You are a professional photo compositor. Your ONLY job is to produce ONE single unified photograph — never a collage, never side-by-side, never split image.
-
-You receive two images:
-[BASE PHOTO]: the person/model — this is your canvas and must be preserved exactly
-[PRODUCT]: the item to be physically integrated into the base photo
-
-Your task: {instruction}
-
-OUTPUT RULES — non-negotiable:
-- ONE single unified photo. NOT a collage. NOT side-by-side. NOT two images merged. The person and product must exist in the same scene.
-- The product must appear PHYSICALLY HELD, WORN, or USED by the person — it must make contact with the person's hands, body, or be in their immediate scene
-- Preserve the person's face, skin tone, hair, makeup, expression PIXEL-PERFECT — do not alter anything
-- Preserve ALL clothing and accessories EXACTLY — do not swap, remove or change any garment
-- Preserve ALL product text, logos, labels and colors EXACTLY
-- Natural lighting and shadows — the product must cast realistic shadows consistent with the photo lighting
-- Pure white background (#FFFFFF)
-- No text, watermarks, borders, frames, or decorative elements`
-    )
-
-    const finalPrompt = compositionPrompt.replace('{instruction}', userIntent)
+    // FASE 2 — Dynamic Prompt Builder
+    const finalPrompt = buildCompositionPrompt(profile, userIntent)
 
     const COMPOSE_MODELS = [
       'gemini-2.5-flash-image',
       'gemini-3.1-flash-image-preview',
     ]
 
-    const requestBody = JSON.stringify({
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: '[BASE PHOTO] — preserve this person exactly:' },
-          { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
-          { text: '[PRODUCT] — place this into the base photo:' },
-          { inlineData: { mimeType: productMime, data: finalProductBuf.toString('base64') } },
-          { text: finalPrompt },
-        ],
-      }],
-      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
-    })
-
-    let geminiJson: any = null
-    let usedModel = ''
-
-    for (const model of COMPOSE_MODELS) {
-      console.log(`[studio] Gemini compose trying: ${model}`)
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody }
-      )
-      if (!res.ok) {
-        console.warn(`[studio] ${model} falhou (${res.status})`)
-        continue
+    async function callGeminiCompose(promptText: string): Promise<string | null> {
+      const body = JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [
+            { text: '[BASE PHOTO] — preserve this person exactly:' },
+            { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
+            { text: '[PRODUCT] — place this into the base photo:' },
+            { inlineData: { mimeType: productMime, data: finalProductBuf.toString('base64') } },
+            { text: promptText },
+          ],
+        }],
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+      })
+      for (const model of COMPOSE_MODELS) {
+        console.log(`[studio] Gemini compose trying: ${model}`)
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
+        )
+        if (!res.ok) { console.warn(`[studio] ${model} falhou (${res.status})`); continue }
+        const json = await res.json()
+        const parts = json.candidates?.[0]?.content?.parts ?? []
+        const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
+        if (imgPart?.inlineData?.data) {
+          console.log(`[studio] Gemini compose OK | model=${model}`)
+          return imgPart.inlineData.data as string
+        }
+        console.warn(`[studio] ${model} sem imagem | finishReason=${json.candidates?.[0]?.finishReason}`)
       }
-      geminiJson = await res.json()
-      usedModel = model
-      break
+      return null
     }
 
-    if (!geminiJson) throw new Error('Todos os modelos Gemini falharam na composição')
+    const initialBase64 = await callGeminiCompose(finalPrompt)
+    if (!initialBase64) throw new Error('Todos os modelos Gemini falharam na composição')
 
-    const geminiParts = geminiJson.candidates?.[0]?.content?.parts ?? []
-    const geminiImagePart = geminiParts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
-
-    if (!geminiImagePart?.inlineData?.data) {
-      const finishReason = geminiJson.candidates?.[0]?.finishReason
-      throw new Error(`Gemini não gerou imagem | model=${usedModel} | finishReason=${finishReason}`)
-    }
-
-    console.log(`[studio] Gemini compose OK | model=${usedModel}`)
-    let currentBase64 = geminiImagePart.inlineData.data as string
+    let currentBase64 = initialBase64
     resultBuffer = Buffer.from(currentBase64, 'base64')
 
-    // GPT Quality Gate — verifica se produto foi preservado, retry até 2x
+    // FASE 3 — QC 5D + Retry com Estratégia Escalada
     const MAX_RETRIES = 2
+    let allRetriesExhausted = false
+
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      const qc = await assessCompositionQuality(params.product_url, currentBase64)
+      const qc = await assessCompositionQuality(params.product_url, currentBase64, profile)
       if (qc.approved) {
         console.log(`[compose-qc] APROVADO | score=${qc.score}`)
         break
       }
-      console.warn(`[compose-qc] REPROVADO (${attempt}/${MAX_RETRIES}) | issues: ${qc.issues.join(', ')}`)
+      console.warn(`[compose-qc] REPROVADO (${attempt}/${MAX_RETRIES}) | weakest=${qc.weakest_dimension} | issues: ${qc.issues.join(', ')}`)
       if (attempt === MAX_RETRIES) {
-        console.warn('[compose-qc] Esgotadas tentativas — entregando melhor resultado disponível')
+        allRetriesExhausted = true
+        console.warn('[compose-qc] Esgotadas tentativas')
         break
       }
-      // Retry Gemini
-      for (const model of COMPOSE_MODELS) {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody }
-        )
-        if (!res.ok) continue
-        const retryJson = await res.json()
-        const retryImg = (retryJson.candidates?.[0]?.content?.parts ?? [])
-          .find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
-        if (retryImg?.inlineData?.data) {
-          currentBase64 = retryImg.inlineData.data as string
-          resultBuffer = Buffer.from(currentBase64, 'base64')
-          console.log(`[compose-qc] Retry ${attempt + 1} gerado | model=${model}`)
+      // Retry com prompt adaptado ao que falhou
+      const retryPrompt = buildRetryPrompt(finalPrompt, qc.issues, qc.weakest_dimension)
+      const retryBase64 = await callGeminiCompose(retryPrompt)
+      if (retryBase64) {
+        currentBase64 = retryBase64
+        resultBuffer = Buffer.from(currentBase64, 'base64')
+        console.log(`[compose-qc] Retry ${attempt} gerado`)
+      }
+    }
+
+    // FASE 4 — Fallback Híbrido para alto risco com retries esgotados
+    if (allRetriesExhausted && profile.deformation_risk === 'high') {
+      console.log('[studio] high-risk fallback: gemini-pose + sharp-overlay')
+      try {
+        const poseBase64 = await geminiPoseOnly(portraitBuf, userIntent, apiKey, COMPOSE_MODELS)
+        if (poseBase64) {
+          resultBuffer = await sharpOverlayProduct(Buffer.from(poseBase64, 'base64'), productBuf)
+          console.log('[studio] high-risk fallback: sharp overlay concluído — produto 100% original')
         }
-        break
+      } catch (e) {
+        console.error('[studio] high-risk fallback falhou — usando melhor resultado do Gemini:', e)
       }
     }
 
