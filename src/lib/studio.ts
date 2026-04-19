@@ -1018,77 +1018,53 @@ export async function composeProductScene(params: {
     .png()
     .toBuffer()
 
-    // 3. Chamada ao Vertex AI (In-painting)
-    const vertexToken = await getVertexAccessToken(vertexKey)
-    const location = process.env.VERTEX_LOCATION || 'us-central1'
-    const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001:predict`
+    // 3. Chamada ao Flux Inpainting via Fal.ai (Máximo respeito à máscara)
+    // O Vertex AI Inpaint Insertion ignora pixels desprotegidos e altera o rótulo da inserção.
+    // O Flux-Pro Fill é state-of-the-art e respeita 100% os pixels pretos (protegidos da máscara).
+    
+    console.log(`[studio] Chamando Flux Pro Fill no Fal.ai...`)
 
-    console.log(`[studio] Chamando Smart Composition no projeto: ${projectId}`)
+    const imageUri = `data:image/jpeg;base64,${compositeBuf.toString('base64')}`
+    const maskUri = `data:image/png;base64,${maskBuf.toString('base64')}`
 
-    // Prompt do cliente + instrução técnica de fusão
     const clientDescription = params.smart_prompt
       ? String(params.smart_prompt).trim()
       : 'holding a product jar naturally with both hands at chest height, smiling at the camera'
 
     const prompt = `Ultra-realistic professional product photography. The person in the photo is ${clientDescription}. The hands and fingers are seamlessly blending into the scene, wrapping naturally around the edges of the jar holding it firmly. Photorealistic, 8k, highly detailed hands.`
 
-    console.log(`[studio] Smart Prompt: ${prompt.substring(0, 120)}...`)
+    console.log(`[studio] Smart Prompt (Flux): ${prompt.substring(0, 120)}...`)
 
-    // Payload correto
-    const vertexRes = await fetch(vertexUrl, {
+    const falRes = await fetch('https://fal.run/fal-ai/flux-pro/v1/fill', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${vertexToken}`,
+        'Authorization': `Key ${falKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        instances: [
-          {
-            prompt,
-            referenceImages: [
-              {
-                referenceId: 1,
-                referenceType: "REFERENCE_TYPE_RAW",
-                referenceImage: {
-                  bytesBase64Encoded: compositeBuf.toString('base64'),
-                  mimeType: 'image/jpeg'
-                }
-              },
-              {
-                referenceId: 2,
-                referenceType: "REFERENCE_TYPE_MASK",
-                referenceImage: {
-                  bytesBase64Encoded: maskBuf.toString('base64'),
-                  mimeType: 'image/png'
-                },
-                maskImageConfig: {
-                  maskMode: "MASK_MODE_USER_PROVIDED",
-                  maskDilation: 0.03
-                }
-              }
-            ]
-          }
-        ],
-        parameters: {
-          sampleCount: 1,
-          editMode: "EDIT_MODE_INPAINT_INSERTION",
-          guidanceScale: 60,
-          personGeneration: "allow_adult"
-        }
+        image_url: imageUri,
+        mask_url: maskUri,
+        prompt: prompt,
+        output_format: 'jpeg',
+        sync_mode: true
       })
     })
 
-    if (!vertexRes.ok) {
-      const err = await vertexRes.text()
-      console.error('[studio] Vertex Smart Error:', err)
-      throw new Error(`Vertex Smart Composition falhou: ${err}`)
+    if (!falRes.ok) {
+      const errText = await falRes.text()
+      console.error(`[studio] Error from Fal.ai Flux Fill: ${errText}`)
+      throw new Error(`Flux Smart Composition falhou: ${errText.slice(0, 300)}`)
     }
 
-    const vertexData = await vertexRes.json()
-    const b64 = vertexData.predictions?.[0]?.bytesBase64Encoded
-    if (!b64) throw new Error('Vertex não retornou imagem para composição inteligente.')
+    const falData = await falRes.json()
+    const outputUrl = falData.images?.[0]?.url || falData.image?.url
 
-    resultBuffer = Buffer.from(b64, 'base64')
+    if (!outputUrl) {
+      throw new Error('Fal.ai não retornou URL da imagem preenchida.')
+    }
+
+    const finalImgRes = await fetch(outputUrl)
+    resultBuffer = Buffer.from(await finalImgRes.arrayBuffer())
 
   } else {
     // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON (Native Fetch) ----
