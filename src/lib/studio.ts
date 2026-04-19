@@ -964,7 +964,8 @@ ABSOLUTE PRESERVATION RULES — treat this like a restoration, not a creation:
     const finalPrompt = compositionPrompt.replace('{instruction}', userIntent)
 
     const COMPOSE_MODELS = [
-      'gemini-2.5-flash-image',
+      'gemini-2.5-flash-image',       // melhor qualidade confirmado
+      'gemini-3.1-flash-image-preview', // fallback
     ]
 
     const requestBody = JSON.stringify({
