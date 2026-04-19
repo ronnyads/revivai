@@ -568,7 +568,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   const fluxSuffix = await getStudioPrompt(
     admin,
     'model_flux_suffix',
-    'Shot on a cinematic phone camera, authentic UGC style. Skin pores and natural imperfections visible. Real human face, authentic lighting, not a studio shoot, not retouched, not illustrated.',
+    'Skin pores and natural imperfections visible. Real human face, authentic natural lighting, not retouched, not illustrated, not CGI.',
   )
   const negativePrompt = 'outdoor, street, city, building, trees, nature, bokeh background, blurred background, environment, park, cafe, wall, colorful background, any background scene'
   const finalPrompt = `PURE WHITE STUDIO BACKGROUND. Isolated portrait on solid white backdrop. ${text} ${fluxSuffix} Shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, hyper-realistic, 8k. White background only, no environment, no outdoor, plain white, studio portrait.`
