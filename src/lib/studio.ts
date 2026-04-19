@@ -1986,7 +1986,9 @@ RULE 4 — DYNAMIC POSE EXECUTION: Execute exactly — ${posConfig.prompt}
 
 RULE 5 — SCENE & LIGHTING: Follow the scene context described in the pose. Cinematic commercial studio lighting, natural depth of field, soft bokeh.
 
-RULE 6 — CAMERA & QUALITY BOOSTERS (critical): Shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, hyper-realistic, 8k. Shot on film. No external borders, no watermarks, no text overlay.`,
+RULE 6 — CAMERA & QUALITY BOOSTERS (critical): Shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, hyper-realistic, 8k. Shot on film. No external borders, no watermarks, no text overlay.
+
+FINAL CHECK — ABSOLUTE PROHIBITIONS: NO bottles, NO cans, NO skincare products, NO supplements, NO packages, NO props, NO objects in hands unless already in person[1]. NO outfit changes — clothing must be 100% identical to person[1]. NO jacket, NO coat, NO added accessories not present in person[1].`,
             referenceImages: [
               {
                 referenceId: 1,
@@ -2000,7 +2002,8 @@ RULE 6 — CAMERA & QUALITY BOOSTERS (critical): Shot on Hasselblad H6D, Zeiss O
           }],
           parameters: {
             sampleCount: 1,
-            aspectRatio: '9:16'
+            aspectRatio: '9:16',
+            negativePrompt: 'bottle, can, product, skincare, supplement, package, prop, object in hand, jacket, coat, different outfit, outfit change, different clothing, different colors, accessories not in original, watermark, text, extra limbs, extra hands, floating hands',
           }
         }
 
