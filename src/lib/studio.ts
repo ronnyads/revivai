@@ -938,6 +938,7 @@ export async function composeProductScene(params: {
     // Auto-remove product background via Fal AI Bria
     const falKey = process.env.FAL_KEY
     let finalProductBuf = productBuf
+    let productMime = 'image/jpeg'
     if (falKey) {
       try {
         const bgRes = await fetch('https://fal.run/fal-ai/bria/background-removal', {
@@ -947,11 +948,12 @@ export async function composeProductScene(params: {
         })
         if (bgRes.ok) {
           const bgData = await bgRes.json()
-          const cleanUrl = bgData.image?.url
+          const cleanUrl = bgData.image?.url as string | undefined
           if (cleanUrl) {
             const cleanRes = await fetch(cleanUrl)
             if (cleanRes.ok) {
               finalProductBuf = Buffer.from(await cleanRes.arrayBuffer())
+              productMime = cleanUrl.includes('.png') ? 'image/png' : (cleanRes.headers.get('content-type') ?? 'image/png')
               console.log('[studio] product background removed')
             }
           }
@@ -962,45 +964,46 @@ export async function composeProductScene(params: {
     }
 
     const userIntent = params.smart_prompt?.trim()
-      || 'place the product naturally in the model\'s hands'
+      || 'place the product naturally in the model\'s hands, she is holding it'
 
     const compositionPrompt = await getStudioPrompt(
       admin,
       'compose_gemini_prompt',
-      `You are an elite UGC photo compositor. Your job is surgical precision — like a professional photo restorer, not a creative artist.
+      `You are a professional photo compositor. Your ONLY job is to produce ONE single unified photograph — never a collage, never side-by-side, never split image.
 
-You will receive two images:
-- Image 1: the UGC model/person
-- Image 2: the client's product (clothing, glasses, supplement, accessory, or any item)
+You receive two images:
+[BASE PHOTO]: the person/model — this is your canvas and must be preserved exactly
+[PRODUCT]: the item to be physically integrated into the base photo
 
 Your task: {instruction}
 
-ABSOLUTE PRESERVATION RULES — treat this like a restoration, not a creation:
-- Preserve the model's face, skin tone, hair, makeup and expression PIXEL-PERFECT — do not alter anything
-- Preserve ALL clothing, accessories and styling from Image 1 EXACTLY — do not swap, remove or change any garment
-- Preserve ALL text, logos, labels and colors on the product from Image 2 EXACTLY — this is the client's brand identity
-- The product integration must look photorealistic: natural lighting, correct shadows, proper perspective
-- OUTPUT on a clean pure white background (#FFFFFF) — the client will add their own scene separately
-- The final result must look like a high-end commercial product photo shot in a professional studio
-- Do NOT add any text, watermarks, decorative elements or UI overlays
-- Do NOT alter the background behind the model beyond making it white
-- Do NOT change proportions, body shape or pose beyond what is strictly required by the instruction`
+OUTPUT RULES — non-negotiable:
+- ONE single unified photo. NOT a collage. NOT side-by-side. NOT two images merged. The person and product must exist in the same scene.
+- The product must appear PHYSICALLY HELD, WORN, or USED by the person — it must make contact with the person's hands, body, or be in their immediate scene
+- Preserve the person's face, skin tone, hair, makeup, expression PIXEL-PERFECT — do not alter anything
+- Preserve ALL clothing and accessories EXACTLY — do not swap, remove or change any garment
+- Preserve ALL product text, logos, labels and colors EXACTLY
+- Natural lighting and shadows — the product must cast realistic shadows consistent with the photo lighting
+- Pure white background (#FFFFFF)
+- No text, watermarks, borders, frames, or decorative elements`
     )
 
     const finalPrompt = compositionPrompt.replace('{instruction}', userIntent)
 
     const COMPOSE_MODELS = [
-      'gemini-2.5-flash-image',       // melhor qualidade confirmado
-      'gemini-3.1-flash-image-preview', // fallback
+      'gemini-2.5-flash-image',
+      'gemini-3.1-flash-image-preview',
     ]
 
     const requestBody = JSON.stringify({
       contents: [{
         role: 'user',
         parts: [
-          { text: finalPrompt },
+          { text: '[BASE PHOTO] — preserve this person exactly:' },
           { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
-          { inlineData: { mimeType: 'image/jpeg', data: finalProductBuf.toString('base64') } },
+          { text: '[PRODUCT] — place this into the base photo:' },
+          { inlineData: { mimeType: productMime, data: finalProductBuf.toString('base64') } },
+          { text: finalPrompt },
         ],
       }],
       generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
