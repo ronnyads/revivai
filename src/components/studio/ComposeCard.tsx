@@ -57,8 +57,8 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
           <Layers size={16} className="text-orange-400" />
         </div>
         <div className="flex-1">
-          <h4 className="text-[12px] font-bold text-white leading-tight">Composição de Cena</h4>
-          <p className="text-[10px] text-zinc-500 leading-tight">Virtual Try-On e Inserção de Objetos.</p>
+          <h4 className="text-[12px] font-bold text-white leading-tight">Fusão UGC — Produto + Modelo</h4>
+          <p className="text-[10px] text-zinc-500 leading-tight">Vista roupas, insira ou segure produtos com IA.</p>
         </div>
       </div>
 
@@ -71,10 +71,10 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
             onChange={e => setMode(e.target.value)}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-[12px] text-white focus:outline-none focus:border-orange-500/50 appearance-none cursor-pointer transition-all"
           >
-            <option value="try-on">Virtual Try-On</option>
-            <option value="prompt">Vestir via Texto</option>
-            <option value="overlay">Colar Produto (2D)</option>
-            <option value="smart">Fusão com IA (3D) ✨</option>
+            <option value="try-on">👗 Vestir Roupa na Modelo</option>
+            <option value="prompt">✍️ Criar Roupa por Descrição</option>
+            <option value="overlay">📦 Produto na Cena (Inserção)</option>
+            <option value="smart">🤲 Modelo Segurando o Produto ✨</option>
           </select>
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
              <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M19 9l-7 7-7-7" /></svg>
