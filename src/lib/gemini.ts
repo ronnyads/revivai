@@ -15,8 +15,8 @@ async function tryRestoreWithModel(
   prompt: string,
   persona?: string | null,
 ): Promise<Buffer> {
-  const apiKey = process.env.GOOGLE_API_KEY
-  if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
+  const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
+  if (!apiKey) throw new Error('GOOGLE_API_KEY / GEMINI_API_KEY não configurada')
 
   const genAI = new GoogleGenerativeAI(apiKey)
   const genModel = genAI.getGenerativeModel({

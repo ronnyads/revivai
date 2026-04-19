@@ -548,7 +548,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
       console.warn('[studio] Vertex AI (Model) falhou ou não configurado, tentando Gemini API...', vertexError.message)
       
       // ---- FALLBACK: MOTOR GOOGLE IMAGEN 4.0 (Gemini API) ----
-      const googleApiKey = process.env.GOOGLE_API_KEY
+      const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
       if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
       const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
@@ -920,7 +920,7 @@ export async function composeProductScene(params: {
 
   } else if (params.compose_mode === 'gemini') {
     // ---- FUSÃO GEMINI NATIVA (Composição por Prompt Livre) ----
-    const apiKey = process.env.GOOGLE_API_KEY
+    const apiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
     if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
 
     const [portraitRes, productRes] = await Promise.all([
@@ -1286,7 +1286,7 @@ export async function startVeo3DirectGoogle(params: {
   assetId:          string
   userId:           string
 }) {
-  const apiKey = process.env.GOOGLE_API_KEY
+  const apiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
   if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
   const admin = createAdminClient()
@@ -1382,7 +1382,7 @@ export async function generateAngles(params: {
 
   const perspective = angleMap[params.angle] || angleMap['frontal']
   
-  const googleApiKey = process.env.GOOGLE_API_KEY
+  const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
   if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
   // 1. Download base image (Garantindo que seja IMAGEM e não VÍDEO)
@@ -1654,7 +1654,7 @@ export async function generateMusic(params: {
   prompt: string
   source_image_url?: string
 }) {
-  const googleApiKey = process.env.GOOGLE_API_KEY
+  const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
   if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
 
   const parts: any[] = [{ text: params.prompt }]

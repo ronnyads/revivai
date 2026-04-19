@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const apiKey = process.env.GOOGLE_API_KEY
+  const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
   if (!apiKey) return NextResponse.json({ error: 'GOOGLE_API_KEY não configurada' }, { status: 500 })
 
   const [r1, r2] = await Promise.all([

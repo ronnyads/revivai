@@ -66,9 +66,9 @@ export async function POST(
   const engine = (asset.input_params as any)?.engine as string | undefined
   
   if (asset.type === 'video' && (provider === 'google' || engine === 'veo')) {
-    const apiKey = process.env.GOOGLE_API_KEY
+    const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
     if (!apiKey) {
-      return NextResponse.json({ status: 'error', error: 'GOOGLE_API_KEY não configurada no servidor (Veo3)' }, { status: 500 })
+      return NextResponse.json({ status: 'error', error: 'GOOGLE_API_KEY / GEMINI_API_KEY não configurada no servidor (Veo3)' }, { status: 500 })
     }
 
     try {
