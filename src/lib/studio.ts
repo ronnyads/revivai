@@ -862,18 +862,18 @@ function buildCompositionPrompt(profile: ProductProfile, userIntent: string): st
 
 You receive two images:
 [BASE PHOTO]: the UGC model
-[PRODUCT]: a client product to be integrated into the scene
+[PRODUCT]: a client product — this is the EXACT product the client wants to showcase
 
 Your task: ${userIntent}
 
 RULES — non-negotiable:
 1. FACE & IDENTITY: Preserve the person's face, skin tone, hair, makeup exactly — do not alter anything
 2. CLOTHING: ${clothingRule}
-3. PRODUCT FIDELITY: Reproduce [PRODUCT] EXACTLY as it appears in the image — same shape, colors, proportions, and all visual details. Do NOT reinterpret, simplify, or replace it.
-4. INTERACTION: The person naturally holds, uses, or displays the product. Adjust arms/hands as needed.
+3. PRODUCT FIDELITY — CRITICAL: Treat [PRODUCT] like a photo restoration. The client's product must appear in the final image with 100% fidelity — every shape, color, texture, label, logo, proportion, and detail preserved exactly as in [PRODUCT]. Do NOT reimagine, reinterpret, simplify, or substitute it. The client must recognize their own product immediately.
+4. INTERACTION: Analyze the product and determine the most natural way for the person to interact with it — wearing it, holding it, carrying it. Adjust arms and hands naturally. The person and product must be in the same physical space.
 5. COMPOSITION: ONE unified photo — not a collage, not side-by-side. No extra or disembodied hands.
 6. BACKGROUND: Pure white (#FFFFFF) — no outdoor, no studio, no city scene.
-7. OUTPUT: Natural lighting and shadows. No watermarks or borders.`
+7. OUTPUT: Natural lighting and shadows that make the product look real in the scene. No watermarks or borders.`
 }
 
 function buildRetryPrompt(basePrompt: string, issues: string[], weakestDimension?: string): string {
