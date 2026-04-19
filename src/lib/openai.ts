@@ -474,3 +474,87 @@ Reponda APENAS no JSON Schema exigido.
     }
   }
 }
+
+// ─── Composition Quality Gate — verifica se produto foi preservado ─────────────
+
+export interface CompositionQuality {
+  approved: boolean
+  score: number      // 0-100
+  issues: string[]
+}
+
+export async function assessCompositionQuality(
+  productUrl: string,
+  composedImageBase64: string,
+): Promise<CompositionQuality> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) return { approved: true, score: 80, issues: [] }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a strict product quality analyst for UGC advertising photos.
+Your job: compare the ORIGINAL PRODUCT (image 1) with how it appears in the COMPOSED PHOTO (image 2).
+Check ONLY the product — not the model, not the background.
+
+APPROVE if:
+- All text, logos, brand names are readable and identical
+- Colors match the original (same red, same shades)
+- Overall shape and proportions are correct
+- Minor perspective/lighting changes are acceptable
+
+REJECT if:
+- Any text is missing, blurred beyond reading, or changed
+- Logo is distorted, missing, or replaced
+- Colors are significantly different
+- Product shape changed substantially
+- Product is not visible in the composition
+
+Be strict — a client will compare these side by side.`,
+          },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Image 1 — ORIGINAL PRODUCT:' },
+              { type: 'image_url', image_url: { url: productUrl, detail: 'high' } },
+              { type: 'text', text: 'Image 2 — COMPOSED PHOTO (check if product is preserved):' },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${composedImageBase64}`, detail: 'high' } },
+            ],
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'composition_quality',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                score:    { type: 'number' },
+                approved: { type: 'boolean' },
+                issues:   { type: 'array', items: { type: 'string' } },
+              },
+              required: ['score', 'approved', 'issues'],
+              additionalProperties: false,
+            },
+          },
+        },
+      }),
+    })
+
+    if (!response.ok) throw new Error(`OpenAI error: ${response.status}`)
+    const data = await response.json()
+    const parsed = JSON.parse(data.choices[0]?.message?.content ?? '{}') as CompositionQuality
+    console.log(`[compose-qc] score=${parsed.score} approved=${parsed.approved} issues=${parsed.issues.join(', ')}`)
+    return parsed
+  } catch (err: any) {
+    console.warn('[compose-qc] GPT falhou — aprovando por padrão:', err.message)
+    return { approved: true, score: 80, issues: [] }
+  }
+}

@@ -5,6 +5,7 @@ import { GoogleAuth } from 'google-auth-library'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AssetType } from '@/types'
 import { extractLastFrame as extractVideoFrame } from './videoUtils'
+import { assessCompositionQuality } from '@/lib/openai'
 
 export { CREDIT_COST } from '@/constants/studio'
 
@@ -1038,7 +1039,40 @@ OUTPUT RULES — non-negotiable:
     }
 
     console.log(`[studio] Gemini compose OK | model=${usedModel}`)
-    resultBuffer = Buffer.from(geminiImagePart.inlineData.data, 'base64')
+    let currentBase64 = geminiImagePart.inlineData.data as string
+    resultBuffer = Buffer.from(currentBase64, 'base64')
+
+    // GPT Quality Gate — verifica se produto foi preservado, retry até 2x
+    const MAX_RETRIES = 2
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      const qc = await assessCompositionQuality(params.product_url, currentBase64)
+      if (qc.approved) {
+        console.log(`[compose-qc] APROVADO | score=${qc.score}`)
+        break
+      }
+      console.warn(`[compose-qc] REPROVADO (${attempt}/${MAX_RETRIES}) | issues: ${qc.issues.join(', ')}`)
+      if (attempt === MAX_RETRIES) {
+        console.warn('[compose-qc] Esgotadas tentativas — entregando melhor resultado disponível')
+        break
+      }
+      // Retry Gemini
+      for (const model of COMPOSE_MODELS) {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody }
+        )
+        if (!res.ok) continue
+        const retryJson = await res.json()
+        const retryImg = (retryJson.candidates?.[0]?.content?.parts ?? [])
+          .find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
+        if (retryImg?.inlineData?.data) {
+          currentBase64 = retryImg.inlineData.data as string
+          resultBuffer = Buffer.from(currentBase64, 'base64')
+          console.log(`[compose-qc] Retry ${attempt + 1} gerado | model=${model}`)
+        }
+        break
+      }
+    }
 
   } else {
     // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON (Native Fetch) ----
