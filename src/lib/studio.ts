@@ -854,50 +854,26 @@ Respond ONLY with valid JSON — no markdown, no explanation:
 }
 
 function buildCompositionPrompt(profile: ProductProfile, userIntent: string): string {
-  const categoryBlocks: Record<string, string> = {
-    handheld:      `This is a client product with these exact visual features: ${profile.key_features.join(', ')}. Reproduce the product EXACTLY as shown in [PRODUCT]. Do NOT reinterpret, simplify, or replace it with any other object.`,
-    delicate:      `This is a fragile or small item. Show it held delicately with fingertips. Preserve its exact proportions — do NOT scale it up or change its form.`,
-    wearable:      `This garment or accessory must be worn by or held near the person. Do NOT lay it flat — it must be active in the scene.`,
-    packaged:      `Preserve ALL text, logos, label colors and placement EXACTLY as in the original product image.`,
-    'no-identity': `Hold this item with both hands. Preserve its exact shape and color with no modifications.`,
-  }
-
-  const categoryBlock = categoryBlocks[profile.category] ?? categoryBlocks['packaged']
-
-  const highRiskBlock = profile.deformation_risk === 'high'
-    ? `\nCRITICAL: Use ONLY the product shown in [PRODUCT]. Do NOT substitute it with any other object. The exact appearance must be preserved: ${profile.key_features.join(', ')}.`
-    : ''
-
   const clothingRule = profile.category === 'wearable'
-    ? `CLOTHING: The person is wearing/displaying the [PRODUCT] — clothing changes are allowed and expected for this product type.`
-    : `CLOTHING: Keep the person's existing clothing EXACTLY as in [BASE PHOTO] — do NOT add, remove, or change any garment.`
+    ? `The person may wear or display the [PRODUCT] — clothing interaction is expected.`
+    : `Keep the person's existing clothing EXACTLY as in [BASE PHOTO] — do NOT change any garment.`
 
-  return `You are a professional photo compositor. Produce ONE single unified photograph — never a collage, never side-by-side.
+  return `You are a professional photo compositor. Produce ONE single unified photograph.
 
 You receive two images:
-[BASE PHOTO]: the UGC model — use as the base
-[PRODUCT]: the item to be integrated into the scene
+[BASE PHOTO]: the UGC model
+[PRODUCT]: a client product to be integrated into the scene
 
 Your task: ${userIntent}
 
-WHAT TO PRESERVE FROM [BASE PHOTO]:
-- Face, skin tone, hair color, hair style, makeup, eye color: IDENTICAL — do not alter anything
-- ${clothingRule}
-- You MAY adjust arm and hand position naturally so the person can hold or interact with the product
-
-WHAT YOU MUST NOT DO:
-- Do not change the face or facial expression
-- Do not swap, add, or remove clothing (unless product is wearable)
-- Do not generate extra hands or disembodied hands
-- Do not create a collage or side-by-side layout
-
-PRODUCT RULES (category: ${profile.category}):
-${categoryBlock}${highRiskBlock}
-
-OUTPUT:
-- Pure white background (#FFFFFF) — no city, no studio, no outdoor scene
-- Natural lighting and shadows consistent with the photo
-- No watermarks, borders, or text overlays`
+RULES — non-negotiable:
+1. FACE & IDENTITY: Preserve the person's face, skin tone, hair, makeup exactly — do not alter anything
+2. CLOTHING: ${clothingRule}
+3. PRODUCT FIDELITY: Reproduce [PRODUCT] EXACTLY as it appears in the image — same shape, colors, proportions, and all visual details. Do NOT reinterpret, simplify, or replace it.
+4. INTERACTION: The person naturally holds, uses, or displays the product. Adjust arms/hands as needed.
+5. COMPOSITION: ONE unified photo — not a collage, not side-by-side. No extra or disembodied hands.
+6. BACKGROUND: Pure white (#FFFFFF) — no outdoor, no studio, no city scene.
+7. OUTPUT: Natural lighting and shadows. No watermarks or borders.`
 }
 
 function buildRetryPrompt(basePrompt: string, issues: string[], weakestDimension?: string): string {
