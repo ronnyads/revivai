@@ -24,12 +24,13 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
       { type: 'voice',   icon: <Mic size={20} />,       label: 'Voz / Audio',  desc: 'Locução humana',        gradient: 'from-[#FF2D55] to-[#FF3B30]' },
       { type: 'angles',  icon: <Camera size={20} />,    label: 'Dir. de Cena', desc: 'Trocar perspectiva',    gradient: 'from-[#34D399] to-[#059669]' },
       { type: 'ugc_bundle', icon: <Sparkles size={20} />, label: 'Pacote 8 UGC',  desc: 'Poses automáticas',    gradient: 'from-[#8B5CF6] to-[#D946EF]' },
+      { type: 'scene',      icon: <Camera size={20} />,   label: 'Cena Livre',    desc: 'Modelo em qualquer lugar', gradient: 'from-[#7C3AED] to-[#4F46E5]' },
     ],
   },
   {
     label: 'Motores de Movimento',
     items: [
-      { type: 'video',   icon: <Video size={20} />,     label: 'Vídeo / Anima', desc: 'Sora / Kling AI',       gradient: 'from-[#141414] to-[#444444]' },
+      { type: 'video',   icon: <Video size={20} />,     label: 'Vídeo / Anima', desc: 'Veo 3.1 / Kling AI',    gradient: 'from-[#141414] to-[#444444]' },
       { type: 'animate', icon: <Sparkles size={20} />,  label: 'Movimentos',    desc: 'Replicar trejeitos',    gradient: 'from-[#FF375F] to-[#BF5AF2]' },
       { type: 'lipsync', icon: <Wand2 size={20} />,     label: 'Lip Sync',      desc: 'Sincronia real',        gradient: 'from-[#64D2FF] to-[#0A84FF]' },
     ],

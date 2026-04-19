@@ -25,6 +25,7 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
       { type: 'music',   icon: <Music size={20} />,     label: 'Trilha Sonora AI', desc: 'Compor trilha exclusiva', gradient: 'from-[#007AFF] to-[#5856D6]' },
       { type: 'angles',  icon: <Camera size={20} />,    label: 'Dir. de Cena', desc: 'Trocar perspectiva',    gradient: 'from-[#34D399] to-[#059669]' },
       { type: 'ugc_bundle', icon: <Sparkles size={20} />, label: 'Pacote 8 UGC', desc: 'Poses automáticas',     gradient: 'from-[#8B5CF6] to-[#D946EF]' },
+      { type: 'scene',      icon: <Camera size={20} />,   label: 'Cena Livre',   desc: 'Modelo em qualquer lugar', gradient: 'from-[#7C3AED] to-[#4F46E5]' },
     ],
   },
   {

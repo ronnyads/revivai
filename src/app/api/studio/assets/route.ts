@@ -4,7 +4,7 @@ export const maxDuration = 300
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos, generateAngles, generateMusic, generateUGCPositions } from '@/lib/studio'
+import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos, generateAngles, generateMusic, generateUGCPositions, generateScene } from '@/lib/studio'
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
 
@@ -282,6 +282,14 @@ export async function POST(req: NextRequest) {
         console.error('[studio] Erro específico no bundle:', bundleErr)
         throw new Error(`Falha no Bundle UGC: ${bundleErr.message}`)
       }
+    } else if (type === 'scene') {
+      resultUrl = await generateScene({
+        source_url: String(input_params.source_url ?? ''),
+        scene_prompt: String(input_params.scene_prompt ?? ''),
+        aspect_ratio: String(input_params.aspect_ratio ?? '9:16'),
+        assetId: asset.id,
+        userId: user.id,
+      })
     } else if (type === 'angles') {
       resultUrl = await generateAngles({
         source_url: String(input_params.source_url ?? ''),

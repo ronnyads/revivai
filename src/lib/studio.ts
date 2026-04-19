@@ -570,7 +570,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
     'model_flux_suffix',
     'Shot on a cinematic phone camera, authentic UGC style. Skin pores and natural imperfections visible. Real human face, authentic lighting, not a studio shoot, not retouched, not illustrated.',
   )
-  const finalPrompt = `Candid portrait photo of a real person: ${text} ${fluxSuffix}`
+  const finalPrompt = `Candid portrait photo of a real person: ${text} ${fluxSuffix} Pure white background, isolated figure, clean white studio background, nothing behind the person.`
 
   let photoBuffer: Buffer | null = null
 
@@ -2037,4 +2037,86 @@ export async function generateUGCPositions(params: {
 
   const successful = positions.filter((p): p is NonNullable<typeof p> => p !== null && p.status === 'success')
   return successful
+}
+
+// ── Cena Livre — coloca o modelo em qualquer ambiente descrito ────────────────
+export async function generateScene(params: {
+  source_url: string
+  scene_prompt: string
+  aspect_ratio?: string
+  assetId: string
+  userId: string
+}) {
+  const admin = createAdminClient()
+  const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
+  if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+
+  if (!params.source_url?.startsWith('http')) throw new Error('URL da imagem fonte inválida')
+
+  const imgRes = await fetch(params.source_url)
+  if (!imgRes.ok) throw new Error(`Erro download: ${imgRes.status}`)
+  const mimeType = imgRes.headers.get('content-type') || 'image/jpeg'
+  const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
+  const base64Image = imgBuffer.toString('base64')
+
+  const aspectLabel: Record<string, string> = {
+    '9:16': 'vertical 9:16 portrait', '1:1': 'square 1:1', '4:5': 'vertical 4:5 portrait',
+    '16:9': 'horizontal 16:9 landscape', '3:4': 'vertical 3:4 portrait',
+  }
+  const ratioInstruction = `Compose the output in ${aspectLabel[params.aspect_ratio ?? '9:16'] ?? 'vertical 9:16 portrait'} format. Ensure the full person fits in frame.`
+
+  const geminiPrompt = [
+    `You are a professional photo director and visual effects artist.`,
+    `You receive a photo of a person and must place them EXACTLY into a new scene or environment.`,
+    `NEW SCENE: ${params.scene_prompt}.`,
+    `PRESERVE EXACTLY: same face, same facial features, same skin tone, same hair color and style, same outfit with exact colors and details, same body proportions.`,
+    `The person must look naturally integrated into the new scene — realistic lighting matching the environment, natural shadows, correct perspective.`,
+    ratioInstruction,
+    `Output: photorealistic commercial photo, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, no watermarks.`,
+  ].join(' ')
+
+  let photoBuffer: Buffer | null = null
+  const geminiChain = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
+
+  for (const model of geminiChain) {
+    try {
+      console.log(`[scene] Tentando ${model} para asset ${params.assetId}`)
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [
+              { text: geminiPrompt },
+              { inlineData: { mimeType, data: base64Image } },
+            ]}],
+            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
+          }),
+        }
+      )
+      if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
+      const data = await res.json()
+      const parts = data.candidates?.[0]?.content?.parts ?? []
+      const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
+      if (!imgPart?.inlineData?.data) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
+      photoBuffer = Buffer.from(imgPart.inlineData.data, 'base64')
+      console.log(`[scene] Gemini sucesso: ${model}`)
+      break
+    } catch (e: any) {
+      console.warn(`[scene] ${model} falhou: ${e.message}`)
+    }
+  }
+
+  if (!photoBuffer) throw new Error('Todos os modelos Gemini falharam para scene.')
+
+  const fileName = `scene-${params.assetId}-${Date.now()}.jpg`
+  const filePath = `${params.userId}/${fileName}`
+  const { error: uploadError } = await admin.storage
+    .from('studio')
+    .upload(filePath, photoBuffer, { contentType: 'image/jpeg', upsert: true })
+  if (uploadError) throw new Error(`Upload falhou: ${uploadError.message}`)
+
+  const { data: urlData } = admin.storage.from('studio').getPublicUrl(filePath)
+  return urlData.publicUrl
 }

@@ -19,4 +19,5 @@ export const CREDIT_COST: Record<string, number> = {
   angles: 12,   // Direção de Cena (Flux i2i / Google Subject)
   music: 10,    // Trilha Sonora (Google Lyria 3)
   ugc_bundle: 60, // 8 variações cinematográficas (Imagen 3.0 Parallel)
+  scene: 12,      // Cena Livre — modelo em qualquer ambiente (Gemini)
 }

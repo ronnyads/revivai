@@ -19,6 +19,7 @@ import ComposeCard from '../ComposeCard'
 import LipsyncGenerator from '../LipsyncGenerator'
 import AngleGenerator from '../AngleGenerator'
 import MusicGenerator from '../MusicGenerator'
+import SceneGenerator from '../SceneGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string; hint: string; output: string }> = {
   face:    { icon: <User size={14} />,     label: 'Rosto Real (Upload)', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Faça upload de uma foto', output: 'Foto salva →' },
@@ -37,6 +38,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   angles:  { icon: <Camera size={14} />,   label: 'Ângulos (Trocar Posição)', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', hint: '← Conecte a Modelo ou Fusão', output: 'Novo Ângulo →' },
   music:   { icon: <Music size={14} />,    label: 'Trilha Sonora AI', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30', hint: 'Gera música com Lyria 3', output: 'Áudio MP3 →' },
   ugc_bundle: { icon: <Sparkles size={14} />, label: 'Pacote 8 Poses UGC', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Gera 8 poses em paralelo', output: '8 Fotos UGC →' },
+  scene:      { icon: <Camera size={14} />,   label: 'Cena Livre',         color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30', hint: '← Conecte Modelo ou Fusão', output: 'Cena gerada →' },
 }
 
 const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string }>>> = {
@@ -78,6 +80,7 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
   angles:  [{ id: 'source_url', label: 'Imagem/Modelo' }],
   music:   [{ id: 'source_image_url', label: 'Imagem/Mood' }],
   ugc_bundle: [{ id: 'source_url', label: 'Imagem/Modelo' }],
+  scene:   [{ id: 'source_url', label: 'Modelo/Fusão' }],
 }
 
 export interface AssetNodeData {
@@ -424,6 +427,7 @@ function FormForType({ type, initialParams, onGenerate }: { type: AssetType; ini
   if (type === 'lipsync') return <LipsyncGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'angles')  return <AngleGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'music')   return <MusicGenerator   initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'scene')   return <SceneGenerator   initial={initialParams} onGenerate={onGenerate} />
   return null
 }
 // ── Processing card com barra de progresso e timer ──────────────────────────────
@@ -441,6 +445,7 @@ const ESTIMATED: Partial<Record<AssetType, number>> = {
   lipsync: 120, // 2 min
   music:   45,
   ugc_bundle: 110,
+  scene: 25,
 }
 
 const LABELS: Partial<Record<AssetType, string>> = {
@@ -457,6 +462,7 @@ const LABELS: Partial<Record<AssetType, string>> = {
   lipsync: 'Motor de Mapeamento sincronizando lábios...',
   music:   'Maestro Virtual compondo trilha sonora...',
   ugc_bundle: 'Renderizando 8 ângulos UGC em paralelo...',
+  scene: 'Integrando modelo na cena descrita...',
 }
 
 function ProcessingCard({ type, createdAt, assetId }: { type: AssetType; createdAt: string; assetId: string }) {
