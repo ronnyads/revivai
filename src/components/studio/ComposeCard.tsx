@@ -100,7 +100,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
                 )}
               </div>
             ) : (
-              <ImageUpload value={portraitUrl} onChange={setPortraitUrl} label="Subir" accept="image/*" className="w-full !p-2 !py-4" />
+              <ImageUpload value={portraitUrl} onChange={setPortraitUrl} label="Subir" accept="image/*" />
             )}
          </div>
 
@@ -122,7 +122,7 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
                   </button>
                 </div>
               ) : (
-                <ImageUpload value={productUrl} onChange={setProductUrl} label="Subir" accept="image/*" className="w-full !p-2 !py-4" />
+                <ImageUpload value={productUrl} onChange={setProductUrl} label="Subir" accept="image/*" />
               )}
            </div>
          )}
