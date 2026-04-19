@@ -1972,10 +1972,19 @@ export async function generateUGCPositions(params: {
       try {
         const payload = {
           instances: [{
-            prompt: `(IDENTITY LOCK: person[1]). A realistic UGC photo. ${posConfig.prompt}. 
-            The person MUST have the EXACT same facial features, EXACT same face shape, EXACT same eyes, and EXACT same hair style as person[1]. 
-            The OUTFIT must be IDENTICAL to the clothing seen in person[1]. 
-            High resolution, natural studio lighting, raw photography, consistent character.`,
+            prompt: `IDENTITY LOCK — person[1] is the sole reference. Generate ONE single high-resolution commercial photograph.
+
+RULE 1 — FACIAL IDENTITY (non-negotiable): Identify the exact facial structure, features, skin tone, hair color/style and makeup of person[1]. Reproduce the face with 100% fidelity — literal perfect restoration of this specific identity. Do NOT alter the identity.
+
+RULE 2 — OUTFIT FIDELITY (non-negotiable): Preserve the outfit and accessories seen in person[1] with 100% fidelity. All colors, fabric textures, logos, text and design details must be identical.
+
+RULE 3 — UNIFIED COMPOSITION & ANATOMY: Generate ONE single photograph — no collages or side-by-side images. Anatomy check: exactly 2 arms, 2 hands, correct positioning and interaction.
+
+RULE 4 — DYNAMIC POSE EXECUTION: Execute exactly — ${posConfig.prompt}
+
+RULE 5 — SCENE & LIGHTING: Follow the scene context described in the pose. Cinematic commercial studio lighting, natural depth of field, soft bokeh.
+
+RULE 6 — CAMERA & QUALITY BOOSTERS (critical): Shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, hyper-realistic, 8k. Shot on film. No external borders, no watermarks, no text overlay.`,
             referenceImages: [
               {
                 referenceId: 1,
