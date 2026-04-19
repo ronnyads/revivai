@@ -20,7 +20,7 @@ export default async function AdminStudioDebug() {
 
   const { data: assets, count } = await supabase
     .from('studio_assets')
-    .select('*, users(email)', { count: 'exact' })
+    .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -93,9 +93,9 @@ export default async function AdminStudioDebug() {
                     )}
                   </td>
 
-                  {/* Email */}
-                  <td className="px-4 py-3 text-white/50 text-xs max-w-[120px] truncate">
-                    {(a as any).users?.email ?? '—'}
+                  {/* User ID */}
+                  <td className="px-4 py-3 text-white/30 text-[10px] font-mono max-w-[90px] truncate">
+                    {String(a.user_id ?? '—').slice(0, 8)}…
                   </td>
 
                   {/* Tipo */}
