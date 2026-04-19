@@ -885,9 +885,19 @@ export async function composeProductScene(params: {
     const blurSigma = 15
     const shadowOffset = 10
 
-    const shadowMask = await sharp(productResized)
-      .extractChannel('alpha') // Pega o formato do produto
-      .toBuffer()
+    let shadowMask: Buffer
+    try {
+      shadowMask = await sharp(productResized)
+        .ensureAlpha() // Garante canal alpha para não quebrar no extract
+        .extractChannel('alpha') 
+        .toBuffer()
+    } catch (e) {
+      console.warn('[studio] Falha ao extrair Alpha para sombra, usando máscara sólida:', e)
+      // Fallback: se falhar, usa a imagem inteira como máscara (sombra quadrada)
+      shadowMask = await sharp(productResized)
+        .stats()
+        .then(() => productResized) 
+    }
 
     const shadowLayer = await sharp({
       create: {
@@ -899,7 +909,7 @@ export async function composeProductScene(params: {
     })
     .composite([{
       input: await sharp(shadowMask)
-        .linear(shadowOpacity, 0) // Aplica opacidade
+        .linear(shadowOpacity, 0)
         .toBuffer(),
       blend: 'dest-in'
     }])
