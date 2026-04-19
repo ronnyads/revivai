@@ -18,6 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/orders',         icon: '◎', label: 'Pedidos' },
     { href: '/admin/users',          icon: '◉', label: 'Usuários' },
     { href: '/admin/photos',         icon: '◌', label: 'Fotos' },
+    { href: '/admin/studio',         icon: '🐛', label: 'Studio Debug' },
     { href: '/admin/prompts',        icon: '✦', label: 'Modos de Restauração' },
     { href: '/admin/studio-prompts', icon: '🎬', label: 'Prompts Studio IA' },
     { href: '/admin/plans',          icon: '◆', label: 'Planos' },
