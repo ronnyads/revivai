@@ -151,6 +151,7 @@ export async function POST(req: NextRequest) {
       resultUrl = await generateUpscale({
         source_url: String(input_params.source_url ?? ''),
         scale: Number(input_params.scale ?? 4),
+        quality: (input_params.quality as '4k' | '8k') ?? '4k',
         assetId: asset.id,
         userId: user.id,
       })

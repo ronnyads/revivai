@@ -392,15 +392,18 @@ export async function generateCaption(params: {
   return { url: publicUrl, srt }
 }
 
-// ── Upscale — Imagen 4 Ultra → Imagen 4 → ESRGAN fallback ───────────────
+// ── Upscale — Gemini 3 Pro → Gemini 3.1 Flash → Clarity fallback ─────────
 export async function generateUpscale(params: {
   source_url: string
   scale: number
+  quality?: '4k' | '8k'
   assetId?: string
   userId?: string
 }) {
   const googleKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
+  const falKey = process.env.FAL_KEY
   const admin = createAdminClient()
+  const is8k = params.quality === '8k'
 
   async function fetchBase64(url: string): Promise<string> {
     const r = await fetch(url)
@@ -408,71 +411,94 @@ export async function generateUpscale(params: {
     return Buffer.from(await r.arrayBuffer()).toString('base64')
   }
 
-  async function uploadBase64ToStorage(base64: string): Promise<string> {
+  async function uploadBase64ToStorage(base64: string, suffix = 'upscale'): Promise<string> {
     if (!params.assetId || !params.userId) return `data:image/png;base64,${base64}`
     const buffer = Buffer.from(base64, 'base64')
-    const path = `${params.userId}/${params.assetId}-upscale.png`
+    const path = `${params.userId}/${params.assetId}-${suffix}.png`
     const { error } = await admin.storage.from('studio').upload(path, buffer, { contentType: 'image/png', upsert: true })
     if (error) return `data:image/png;base64,${base64}`
     const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
     return publicUrl
   }
 
-  async function tryImagenUpscale(model: string, base64: string): Promise<string> {
+  async function geminiEnhance(model: string, base64: string): Promise<string> {
     if (!googleKey) throw new Error('GOOGLE_API_KEY não configurada')
+    const prompt = `You are an ultra-high quality photo enhancer. Output an enhanced version with maximum photorealistic detail — sharp skin texture, crisp fabric details, clear product labels, natural lighting. Preserve EVERYTHING exactly: same person, same product, same composition, same colors. Output at maximum quality.`
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${googleKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          instances: [{ image: { bytesBase64Encoded: base64 } }],
-          parameters: { upscaleConfig: { upscaleFactor: 'x4' } },
+          contents: [{ role: 'user', parts: [
+            { text: prompt },
+            { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+          ]}],
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
         }),
       }
     )
-    if (!res.ok) throw new Error(`${model} falhou: ${await res.text()}`)
+    if (!res.ok) throw new Error(`${model}: ${res.status}`)
     const data = await res.json()
-    const resultBase64 = data.predictions?.[0]?.bytesBase64Encoded
-    if (!resultBase64) throw new Error(`${model} sem imagem na resposta`)
-    return resultBase64
+    const parts = data.candidates?.[0]?.content?.parts ?? []
+    const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
+    if (!imgPart?.inlineData?.data) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
+    return imgPart.inlineData.data as string
   }
 
-  // Cadeia Google: Ultra → Standard
-  if (googleKey) {
-    let sourceBase64: string | null = null
-    try { sourceBase64 = await fetchBase64(params.source_url) } catch { /* fallback externo */ }
+  async function clarityUpscale(imageUrl: string): Promise<string> {
+    if (!falKey) throw new Error('FAL_KEY não configurada')
+    const res = await fetch('https://fal.run/fal-ai/clarity-upscaler', {
+      method: 'POST',
+      headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image_url: imageUrl, upscale_factor: 2, creativity: 0.1, resemblance: 1.0 }),
+    })
+    if (!res.ok) throw new Error(`clarity-upscaler: ${res.status}`)
+    const data = await res.json()
+    const url = data.image?.url ?? data.images?.[0]?.url
+    if (!url) throw new Error('clarity-upscaler sem URL')
+    return url
+  }
 
-    if (sourceBase64) {
-      const imagenChain = ['imagen-4.0-ultra-generate-001', 'imagen-4.0-generate-001']
-      for (const model of imagenChain) {
-        try {
-          console.log(`[upscale] Tentando ${model}...`)
-          const resultBase64 = await tryImagenUpscale(model, sourceBase64)
-          console.log(`[upscale] Sucesso com ${model}`)
-          return await uploadBase64ToStorage(resultBase64)
-        } catch (err: any) {
-          console.warn(`[upscale] ${model} falhou: ${err.message}`)
-        }
+  // ── Passo 1: Gemini enhance
+  let sourceBase64: string | null = null
+  try { sourceBase64 = await fetchBase64(params.source_url) } catch { /* segue pra fallback */ }
+
+  let geminiResultBase64: string | null = null
+  if (googleKey && sourceBase64) {
+    for (const model of ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']) {
+      try {
+        console.log(`[upscale] Gemini enhance model=${model} quality=${params.quality ?? '4k'}`)
+        geminiResultBase64 = await geminiEnhance(model, sourceBase64)
+        console.log(`[upscale] Gemini sucesso: ${model}`)
+        break
+      } catch (e: any) {
+        console.warn(`[upscale] ${model} falhou: ${e.message}`)
       }
     }
   }
 
-  // Fallback externo: ESRGAN (Fal AI)
-  console.log('[upscale] Fallback para ESRGAN (Fal AI)')
-  const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('Todos os motores de upscale falharam e FAL_KEY não configurada')
+  // ── Passo 2 (só 8K): Clarity Upscaler em cima do resultado Gemini
+  if (is8k && geminiResultBase64) {
+    try {
+      const intermediateUrl = await uploadBase64ToStorage(geminiResultBase64, 'upscale-intermediate')
+      console.log(`[upscale] 8K: rodando Clarity Upscaler no resultado Gemini`)
+      const finalUrl = await clarityUpscale(intermediateUrl)
+      return finalUrl
+    } catch (e: any) {
+      console.warn(`[upscale] 8K Clarity falhou, entregando só Gemini: ${e.message}`)
+      return await uploadBase64ToStorage(geminiResultBase64)
+    }
+  }
 
-  const res = await fetch('https://fal.run/fal-ai/esrgan', {
-    method: 'POST',
-    headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image_url: params.source_url, scale: params.scale ?? 4, face_enhance: true }),
-  })
-  if (!res.ok) throw new Error(`ESRGAN (Fal AI) falhou: ${await res.text()}`)
-  const data = await res.json()
-  const resultUrl = data.image?.url ?? data.images?.[0]?.url
-  if (!resultUrl) throw new Error('ESRGAN não retornou URL válida')
-  return resultUrl as string
+  // ── 4K: entrega direto resultado Gemini
+  if (geminiResultBase64) return await uploadBase64ToStorage(geminiResultBase64)
+
+  // ── Fallback externo: Clarity Upscaler
+  console.log('[upscale] Fallback para Clarity Upscaler (Fal AI)')
+  try { return await clarityUpscale(params.source_url) } catch (e: any) {
+    throw new Error(`Todos os motores falharam. Último: ${e.message}`)
+  }
 }
 
 // ── Model — GPT-4o gera descrição visual única para UGC ───────────────────

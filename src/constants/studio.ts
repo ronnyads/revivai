@@ -5,7 +5,8 @@ export const CREDIT_COST: Record<string, number> = {
   join:    0,   // FFmpeg local
   render:  1,   // FFmpeg merge, quase grátis
   caption: 2,   // Whisper
-  upscale: 3,   // ESRGAN
+  upscale: 3,   // 4K — Gemini 3 Pro Image
+  upscale_8k: 8, // 8K — Gemini 3 Pro + Clarity 2x
   script:  3,   // GPT-4o
   voice:   8,   // ElevenLabs
   model:   8,   // Flux Pro + GPT-4o

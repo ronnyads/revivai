@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ZoomIn, Sparkles } from 'lucide-react'
+import { ZoomIn, Sparkles, Zap } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import { CREDIT_COST } from '@/constants/studio'
 
@@ -12,21 +12,27 @@ interface Props {
 
 export default function UpscaleCard({ initial, onGenerate }: Props) {
   const [sourceUrl, setSourceUrl] = useState(String(initial.source_url ?? ''))
-  const [scale,     setScale]     = useState(Number(initial.scale      ?? 4))
+  const [quality, setQuality] = useState<'4k' | '8k'>((initial.quality as '4k' | '8k') ?? '4k')
 
-  const cost = CREDIT_COST['upscale']
+  const is8k = quality === '8k'
+  const cost = is8k ? CREDIT_COST['upscale_8k'] : CREDIT_COST['upscale']
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Cabeçalho de Explicação */}
-      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-start gap-3">
-        <div className="p-2 bg-emerald-500/20 rounded-xl mt-0.5">
-          <ZoomIn size={18} className="text-emerald-400" />
+      {/* Cabeçalho */}
+      <div className={`border rounded-2xl p-4 flex items-start gap-3 transition-all ${is8k ? 'bg-violet-500/10 border-violet-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
+        <div className={`p-2 rounded-xl mt-0.5 ${is8k ? 'bg-violet-500/20' : 'bg-emerald-500/20'}`}>
+          <ZoomIn size={18} className={is8k ? 'text-violet-400' : 'text-emerald-400'} />
         </div>
         <div>
-          <h4 className="text-[13px] font-bold text-white leading-tight">Super Resolução & Nitidez (4K)</h4>
+          <h4 className="text-[13px] font-bold text-white leading-tight">
+            Super Resolução & Nitidez {is8k ? '(8K Ultra)' : '(4K)'}
+          </h4>
           <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
-            Elimine borrões e recupere detalhes. Este card transforma fotos simples em <b>fotografias profissionais ultra-nítidas</b>.
+            {is8k
+              ? <>Gemini 3 Pro + Clarity 2x — <b>máxima qualidade possível</b>, texturas de pele e tecido reconstruídas em dois passes.</>
+              : <>Elimine borrões e recupere detalhes. Transforma fotos simples em <b>fotografias profissionais ultra-nítidas</b>.</>
+            }
           </p>
         </div>
       </div>
@@ -39,38 +45,59 @@ export default function UpscaleCard({ initial, onGenerate }: Props) {
         preview
       />
 
-      <div className="space-y-2.5 bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between px-1">
-          <label className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest">Nível de Realismo (Upscale)</label>
-          <span className="text-[11px] text-emerald-400 font-black">{scale}X Mais Nitidez</span>
-        </div>
-        <div className="px-1">
-          <input
-            type="range" min="2" max="4" step="1"
-            value={scale}
-            onChange={e => setScale(Number(e.target.value))}
-            className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 mt-2"
-          />
-          <div className="flex justify-between mt-1.5">
-             <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-tighter italic">Normal (HD)</span>
-             <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-tighter italic">Ultra (4K)</span>
-          </div>
+      {/* Toggle 4K / 8K */}
+      <div className="bg-zinc-900/40 border border-zinc-800 rounded-2xl p-3">
+        <label className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest px-1 block mb-2">Qualidade de Saída</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setQuality('4k')}
+            className={`flex flex-col items-center gap-1 py-3 rounded-xl border transition-all ${
+              !is8k
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                : 'bg-zinc-800/50 border-zinc-700 text-zinc-400 hover:border-zinc-600'
+            }`}
+          >
+            <ZoomIn size={16} />
+            <span className="text-[12px] font-black">4K</span>
+            <span className="text-[10px] font-medium">{CREDIT_COST['upscale']} créditos</span>
+          </button>
+          <button
+            onClick={() => setQuality('8k')}
+            className={`flex flex-col items-center gap-1 py-3 rounded-xl border transition-all ${
+              is8k
+                ? 'bg-violet-500/15 border-violet-500/40 text-violet-400'
+                : 'bg-zinc-800/50 border-zinc-700 text-zinc-400 hover:border-zinc-600'
+            }`}
+          >
+            <Zap size={16} />
+            <span className="text-[12px] font-black">8K Ultra</span>
+            <span className="text-[10px] font-medium">{CREDIT_COST['upscale_8k']} créditos</span>
+          </button>
         </div>
       </div>
 
-      <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl px-3 py-2 flex items-center gap-2">
-         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-         <span className="text-[10px] text-emerald-400/80 font-medium italic">Motor Google Imagen 4 Ultra — reconstruindo texturas de pele, olhos e tecidos em altíssima resolução.</span>
+      <div className={`border rounded-xl px-3 py-2 flex items-center gap-2 ${is8k ? 'bg-violet-500/5 border-violet-500/10' : 'bg-emerald-500/5 border-emerald-500/10'}`}>
+        <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${is8k ? 'bg-violet-500' : 'bg-emerald-500'}`} />
+        <span className={`text-[10px] font-medium italic ${is8k ? 'text-violet-400/80' : 'text-emerald-400/80'}`}>
+          {is8k
+            ? 'Motor: Gemini 3 Pro Image → Clarity Upscaler 2x — dois passes de reconstrução.'
+            : 'Motor: Gemini 3 Pro Image — reconstruindo texturas de pele, olhos e tecidos em altíssima resolução.'
+          }
+        </span>
       </div>
 
       <button
-        onClick={() => onGenerate({ source_url: sourceUrl, scale })}
+        onClick={() => onGenerate({ source_url: sourceUrl, scale: 4, quality })}
         disabled={!sourceUrl.trim()}
-        className="group relative flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white text-[13px] font-bold py-4 rounded-2xl transition-all disabled:opacity-40 w-full mt-2 shadow-[0_10px_30px_-10px_rgba(16,185,129,0.5)] active:scale-[0.98] overflow-hidden"
+        className={`group relative flex items-center justify-center gap-2 text-white text-[13px] font-bold py-4 rounded-2xl transition-all disabled:opacity-40 w-full mt-2 active:scale-[0.98] overflow-hidden ${
+          is8k
+            ? 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 shadow-[0_10px_30px_-10px_rgba(139,92,246,0.5)]'
+            : 'bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 shadow-[0_10px_30px_-10px_rgba(16,185,129,0.5)]'
+        }`}
       >
         <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-        <Sparkles size={18} className="group-hover:rotate-12 transition-transform" /> 
-        APLICAR ACABAMENTO 4K — {cost} CRÉDITOS
+        <Sparkles size={18} className="group-hover:rotate-12 transition-transform" />
+        {is8k ? `APLICAR 8K ULTRA — ${cost} CRÉDITOS` : `APLICAR ACABAMENTO 4K — ${cost} CRÉDITOS`}
       </button>
     </div>
   )
