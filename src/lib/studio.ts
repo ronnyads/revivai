@@ -835,10 +835,10 @@ export async function composeProductScene(params: {
     resultBuffer = Buffer.from(await imgRes.arrayBuffer())
 
   } else if (params.compose_mode === 'overlay') {
-    // ---- MODO OVERLAY (Colar como objeto) ----
+    // ---- MODO OVERLAY (Colar como objeto com Sombra e Blending) ----
     const sharp = (await import('sharp')).default
 
-    // Remove background do produto
+    // 1. Remove background do produto
     const bgRes = await fetch('https://fal.run/fal-ai/bria/background-removal', {
       method: 'POST',
       headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
@@ -855,6 +855,9 @@ export async function composeProductScene(params: {
       fetch(params.portrait_url),
       fetch(transparentUrl),
     ])
+    
+    if (!portraitRes.ok || !productRes.ok) throw new Error('Falha ao baixar imagens para composição')
+
     const [portraitBuf, productBuf] = await Promise.all([
       portraitRes.arrayBuffer().then(b => Buffer.from(b)),
       productRes.arrayBuffer().then(b => Buffer.from(b)),
@@ -862,22 +865,80 @@ export async function composeProductScene(params: {
 
     const portraitMeta = await sharp(portraitBuf).metadata()
     const portraitWidth = portraitMeta.width ?? 1024
+    const portraitHeight = portraitMeta.height ?? 1024
     
     const scale = params.product_scale || 0.45
     const productTargetWidth = Math.round(portraitWidth * scale)
 
-    const resizedProductBuf = await sharp(productBuf)
+    // Redimensiona o produto
+    const productResized = await sharp(productBuf)
       .resize({ width: productTargetWidth, withoutEnlargement: true })
       .toBuffer()
 
+    const productMeta = await sharp(productResized).metadata()
+    const pW = productMeta.width ?? 0
+    const pH = productMeta.height ?? 0
+
+    // ---- GERAÇÃO DE SOMBRA PROJETADA (Drop Shadow) ----
+    // Criamos uma versão preta do produto, borramos e colocamos atrás
+    const shadowOpacity = 0.5
+    const blurSigma = 15
+    const shadowOffset = 10
+
+    const shadowMask = await sharp(productResized)
+      .extractChannel('alpha') // Pega o formato do produto
+      .toBuffer()
+
+    const shadowLayer = await sharp({
+      create: {
+        width: pW + (blurSigma * 2),
+        height: pH + (blurSigma * 2),
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 }
+      }
+    })
+    .composite([{
+      input: await sharp(shadowMask)
+        .linear(shadowOpacity, 0) // Aplica opacidade
+        .toBuffer(),
+      blend: 'dest-in'
+    }])
+    .blur(blurSigma)
+    .toBuffer()
+
+    // ---- COMPOSIÇÃO FINAL ----
     let gravity = 'southeast'
-    if (params.position === 'south' || params.position?.includes('center')) gravity = 'south'
+    if (params.position === 'south') gravity = 'south'
+    if (params.position?.includes('center')) gravity = 'center'
     if (params.position === 'southwest') gravity = 'southwest'
     if (params.position === 'west') gravity = 'west'
     if (params.position === 'east') gravity = 'east'
+    if (params.position === 'north') gravity = 'north'
+
+    // Monta o produto em cima da sombra
+    const productWithShadow = await sharp({
+      create: {
+        width: pW + blurSigma * 2,
+        height: pH + blurSigma * 2,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 }
+      }
+    })
+    .composite([
+      { input: shadowLayer, top: shadowOffset, left: shadowOffset },
+      { input: productResized, top: blurSigma, left: blurSigma }
+    ])
+    .toBuffer()
 
     resultBuffer = await sharp(portraitBuf)
-      .composite([{ input: resizedProductBuf, gravity }])
+      .composite([{ 
+        input: productWithShadow, 
+        gravity,
+        // Se for sul, ajustamos um pouco para cima para não cortar
+        top: gravity === 'south' || gravity === 'southeast' || gravity === 'southwest' 
+             ? portraitHeight - (pH + blurSigma * 4) 
+             : undefined
+      }])
       .jpeg({ quality: 95 })
       .toBuffer()
 
