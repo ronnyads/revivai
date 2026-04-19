@@ -1272,16 +1272,18 @@ export async function generateAngles(params: {
 
   let urlToFetch = params.source_url
   if (urlToFetch.toLowerCase().endsWith('.mp4')) {
-    console.log('[studio] Source is video, searching for last_frame_url...')
+    console.log('[studio] Source is video (.mp4), searching for last_frame_url in DB...')
     const { data: assetData } = await admin
       .from('studio_assets')
-      .select('last_frame_url')
+      .select('last_frame_url, id')
       .eq('result_url', params.source_url)
       .maybeSingle()
     
     if (assetData?.last_frame_url) {
       urlToFetch = assetData.last_frame_url
-      console.log('[studio] Using last_frame_url as reference:', urlToFetch.slice(0, 50))
+      console.log(`[studio] Found last_frame_url for asset ${assetData.id}:`, urlToFetch.slice(0, 60))
+    } else {
+      console.warn('[studio] Warning: No last_frame_url found for this video. Vertex AI might fail if sent as MP4.')
     }
   }
 
