@@ -983,17 +983,17 @@ export async function composeProductScene(params: {
       .jpeg({ quality: 100 })
       .toBuffer()
 
-    // 2. MÁSCARA INTELIGENTE (Hollow Mask + Full Lower Erase)
+    // 2. MÁSCARA INTELIGENTE PARA BRAÇOS COMPLETO (Hollow Mask + Lower Erase + Edge Anchor)
     const rawPixels = Buffer.alloc(portW * portH, 0)
     
-    // O erro anterior ("mãos no bolso e mão dupla") ocorreu porque não mascaramos
-    // a parte inferior da imagem original. Agora, vamos mascarar 100% da imagem
-    // abaixo da linha do produto para FORÇAR a IA a redesenhar a barriga/mangas
-    // e apagar as mãos originais que estavam no bolso.
-    const outLeft = 0;
-    const outRight = portW;
-    const outTop = Math.max(0, top - 80); // começa um pouco acima do produto para pegar os braços descendo
-    const outBottom = portH; // vai até o final da imagem
+    // O erro anterior (roupa virou preta e 3 mãos) ocorreu por apagarmos MUITO a imagem
+    // e deixar a IA confusa. Agora deixamos uma margem de proteção ('Edge Anchor') 
+    // nas extremidades esquerda e direita para a IA 'lembrar' da cor da jaqueta.
+    const padX = Math.round(portW * 0.23); // Deixa as beiradas desmascaradas como âncora visual da roupa
+    const outLeft = Math.max(0, left - padX);
+    const outRight = Math.min(portW, left + prodW + padX);
+    const outTop = Math.max(0, top - 100); 
+    const outBottom = portH; // Desce até o chão para cobrir mãos no bolso
 
     // Proteção central do Rótulo (Impede a IA de alucinar as letras)
     const inLeft = Math.round(left + prodW * 0.15) 
@@ -1004,10 +1004,10 @@ export async function composeProductScene(params: {
     for (let y = outTop; y < outBottom; y++) {
       for (let x = outLeft; x < outRight; x++) {
         if (x >= inLeft && x <= inRight && y >= inTop && y <= inBottom) {
-           // Zona BLINDADA (Rótulo)
+           // Zona BLINDADA (Rótulo original intocável)
            rawPixels[y * portW + x] = 0
         } else {
-           // Zona LIVRE (Apaga roupa inferior e mãos originais)
+           // Zona de Geração (para pintar braços e apagar bolsos centrais)
            rawPixels[y * portW + x] = 255
         }
       }
@@ -1016,15 +1016,12 @@ export async function composeProductScene(params: {
     const maskBuf = await sharp(rawPixels, {
       raw: { width: portW, height: portH, channels: 1 }
     })
-    .blur(25) // Transição suave
+    .blur(30) // Transição extra hiper-suave
     .png()
     .toBuffer()
 
 
     // 3. Chamada ao Flux Inpainting via Fal.ai (Máximo respeito à máscara)
-    // O Vertex AI Inpaint Insertion ignora pixels desprotegidos e altera o rótulo da inserção.
-    // O Flux-Pro Fill é state-of-the-art e respeita 100% os pixels pretos (protegidos da máscara).
-    
     console.log(`[studio] Chamando Flux Pro Fill no Fal.ai...`)
 
     const imageUri = `data:image/jpeg;base64,${compositeBuf.toString('base64')}`
@@ -1032,14 +1029,15 @@ export async function composeProductScene(params: {
 
     const clientDescription = params.smart_prompt
       ? String(params.smart_prompt).trim()
-      : 'holding a product jar naturally with both hands at chest height, smiling at the camera'
+      : 'holding the central product jar naturally with both hands'
 
     const prompt = `Ultra-realistic professional photography. The person in the photo is ${clientDescription}. 
 IMPORTANT INSTRUCTIONS: 
-1. The product is already in the center of the image. DO NOT generate duplicate products or a second jar. 
-2. Erase any original hands that were in pockets.
-3. Only generate the person's lower body, jacket, and arms reaching up to firmly hold the central object.
-4. The hands and fingers must wrap naturally around the edges. Photorealistic, 8k, highly detailed hands.`
+1. Maintain the EXACT SAME CLOTHING colors, style, and fabric as the original image edges.
+2. The product is already in the center. DO NOT generate duplicate products.
+3. Generate EXACTLY TWO human arms and hands reaching up to firmly hold the central object, wrapping naturally around its edges.
+4. Erase any original hands that were in pockets at the bottom.
+5. Perfect human anatomy, exactly 5 fingers per hand, no floating limbs.`
 
     console.log(`[studio] Smart Prompt (Flux): ${prompt.substring(0, 120)}...`)
 
