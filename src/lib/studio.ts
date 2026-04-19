@@ -1904,7 +1904,7 @@ export const UGC_POSITIONS = {
     description: 'Meia pose CTA - chamada'
   },
   corpo_inteiro_pe: {
-    prompt: `Full body standing shot, confident posture, one hand on hip, natural smile, plain white minimalist background. Exactly 2 arms and 2 hands, anatomically correct.`,
+    prompt: `Full body standing shot, confident posture, right hand on hip, left arm hanging naturally at side with hand fully visible, natural smile, plain white minimalist background. Both arms fully visible, anatomically correct.`,
     description: 'Corpo inteiro - confiança'
   },
   corpo_inteiro_sentada: {
@@ -1974,13 +1974,13 @@ export async function generateUGCPositions(params: {
           instances: [{
             prompt: `IDENTITY LOCK — person[1] is the sole reference. Generate ONE single high-resolution commercial photograph.
 
-RULE 1 — FACIAL IDENTITY (non-negotiable): Identify the exact facial structure, features, skin tone, hair color/style and makeup of person[1]. Reproduce the face with 100% fidelity — literal perfect restoration of this specific identity. Both eyes must be symmetrical, correctly aligned and looking natural. Do NOT alter the identity, do NOT distort the eyes or face.
+RULE 1 — FACIAL & BODY IDENTITY (non-negotiable): This is a CLONING task. Reproduce person[1] with 100% fidelity: exact facial bone structure, exact nose shape, exact lip shape, exact eye shape and color, exact eyebrow shape, exact skin tone and texture, exact age appearance, exact hair cut and length, exact hair color. Both eyes symmetrical and correctly aligned. The generated person must be indistinguishable from person[1]. Do NOT make them younger, thinner, prettier or different in any way.
 
-RULE 2 — OUTFIT FIDELITY (non-negotiable): Preserve the outfit and accessories seen in person[1] with 100% fidelity. All colors, fabric textures, logos, text and design details must be identical.
+RULE 2 — OUTFIT FIDELITY (non-negotiable): The outfit must be pixel-perfect identical to person[1]: exact garment type, exact color, exact fabric texture, exact neckline, exact straps, exact fit. Do NOT add, remove or change any clothing item.
 
-RULE 2B — NO INVENTED OBJECTS: Do NOT add, invent or hallucinate any product, object, prop or accessory that is NOT visibly present in person[1]. If person[1] has no product in hand, generate NO product. If person[1] IS holding a product, preserve it with 100% fidelity — exact shape, color, label and packaging.
+RULE 2B — NO INVENTED OBJECTS: Do NOT add any product, object, prop or accessory NOT visible in person[1]. Empty hands stay empty. No bottles, no packages, no devices.
 
-RULE 3 — UNIFIED COMPOSITION & ANATOMY (critical): Generate ONE single photograph — no collages or side-by-side images. ANATOMY VERIFICATION: the human body has exactly 2 arms and 2 hands total. Count carefully — no extra limbs, no floating hands, no extra fingers. Each hand has exactly 5 fingers. Correct anatomical proportions throughout.
+RULE 3 — UNIFIED COMPOSITION & ANATOMY (critical): ONE single photograph only. Both arms must be fully visible and anatomically correct — no arm disappearing behind body, no merged limbs, no floating hands. Exactly 2 arms, 2 hands, 5 fingers each. Verify arm visibility before finalizing.
 
 RULE 4 — DYNAMIC POSE EXECUTION: Execute exactly — ${posConfig.prompt}
 
