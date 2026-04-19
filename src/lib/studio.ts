@@ -392,41 +392,86 @@ export async function generateCaption(params: {
   return { url: publicUrl, srt }
 }
 
-// ── Upscale — Fal AI ESRGAN (synchronous) ────────────────────────────────
+// ── Upscale — Imagen 4 Ultra → Imagen 4 → ESRGAN fallback ───────────────
 export async function generateUpscale(params: {
   source_url: string
   scale: number
+  assetId?: string
+  userId?: string
 }) {
-  const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada')
-
+  const googleKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
   const admin = createAdminClient()
-  const configStr = await getStudioPrompt(admin, 'upscale_esrgan_config', '{}')
-  let config: any = {}
-  try { config = JSON.parse(configStr) } catch { /* ignore */ }
+
+  async function fetchBase64(url: string): Promise<string> {
+    const r = await fetch(url)
+    if (!r.ok) throw new Error(`Falha ao baixar imagem: ${r.status}`)
+    return Buffer.from(await r.arrayBuffer()).toString('base64')
+  }
+
+  async function uploadBase64ToStorage(base64: string): Promise<string> {
+    if (!params.assetId || !params.userId) return `data:image/png;base64,${base64}`
+    const buffer = Buffer.from(base64, 'base64')
+    const path = `${params.userId}/${params.assetId}-upscale.png`
+    const { error } = await admin.storage.from('studio').upload(path, buffer, { contentType: 'image/png', upsert: true })
+    if (error) return `data:image/png;base64,${base64}`
+    const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+    return publicUrl
+  }
+
+  async function tryImagenUpscale(model: string, base64: string): Promise<string> {
+    if (!googleKey) throw new Error('GOOGLE_API_KEY não configurada')
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${googleKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          instances: [{ image: { bytesBase64Encoded: base64 } }],
+          parameters: { upscaleConfig: { upscaleFactor: 'x4' } },
+        }),
+      }
+    )
+    if (!res.ok) throw new Error(`${model} falhou: ${await res.text()}`)
+    const data = await res.json()
+    const resultBase64 = data.predictions?.[0]?.bytesBase64Encoded
+    if (!resultBase64) throw new Error(`${model} sem imagem na resposta`)
+    return resultBase64
+  }
+
+  // Cadeia Google: Ultra → Standard
+  if (googleKey) {
+    let sourceBase64: string | null = null
+    try { sourceBase64 = await fetchBase64(params.source_url) } catch { /* fallback externo */ }
+
+    if (sourceBase64) {
+      const imagenChain = ['imagen-4.0-ultra-generate-001', 'imagen-4.0-generate-001']
+      for (const model of imagenChain) {
+        try {
+          console.log(`[upscale] Tentando ${model}...`)
+          const resultBase64 = await tryImagenUpscale(model, sourceBase64)
+          console.log(`[upscale] Sucesso com ${model}`)
+          return await uploadBase64ToStorage(resultBase64)
+        } catch (err: any) {
+          console.warn(`[upscale] ${model} falhou: ${err.message}`)
+        }
+      }
+    }
+  }
+
+  // Fallback externo: ESRGAN (Fal AI)
+  console.log('[upscale] Fallback para ESRGAN (Fal AI)')
+  const falKey = process.env.FAL_KEY
+  if (!falKey) throw new Error('Todos os motores de upscale falharam e FAL_KEY não configurada')
 
   const res = await fetch('https://fal.run/fal-ai/esrgan', {
     method: 'POST',
-    headers: {
-      'Authorization': `Key ${falKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      image_url: params.source_url,
-      scale: params.scale ?? config.scale ?? 4,
-      face_enhance: config.face_enhance ?? true,
-    }),
+    headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image_url: params.source_url, scale: params.scale ?? 4, face_enhance: true }),
   })
-
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`ESRGAN (Fal AI) falhou: ${err}`)
-  }
-
+  if (!res.ok) throw new Error(`ESRGAN (Fal AI) falhou: ${await res.text()}`)
   const data = await res.json()
   const resultUrl = data.image?.url ?? data.images?.[0]?.url
   if (!resultUrl) throw new Error('ESRGAN não retornou URL válida')
-
   return resultUrl as string
 }
 

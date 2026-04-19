@@ -151,6 +151,8 @@ export async function POST(req: NextRequest) {
       resultUrl = await generateUpscale({
         source_url: String(input_params.source_url ?? ''),
         scale: Number(input_params.scale ?? 4),
+        assetId: asset.id,
+        userId: user.id,
       })
     } else if (type === 'video') {
       const origin    = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
