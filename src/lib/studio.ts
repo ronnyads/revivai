@@ -983,30 +983,33 @@ export async function composeProductScene(params: {
       .jpeg({ quality: 100 })
       .toBuffer()
 
-    // 2. MÁSCARA INTELIGENTE (Hollow Mask / Borda Mágica)
-    // - Pintamos de BRANCO (deixar a IA desenhar mãos/braços) os arredores e as BORDAS do produto.
-    // - Protegemos de PRETO (nāo tocar de jeito nenhum) o CENTRO do produto, salvando o rótulo da alucinação.
+    // 2. MÁSCARA INTELIGENTE AMPLIADA (Hollow Mask / Borda Mágica)
     const rawPixels = Buffer.alloc(portW * portH, 0)
     
-    const padX = 120
-    const padY = 80
+    // Super importante: Expandimos MUITO o padding ao redor do produto para que 
+    // a IA consiga desenhar braços inteiros que se conectem à blusa da modelo, 
+    // em vez de criar mãos "amputadas" dentro de um quadradinho restrito.
+    const padX = 250  
+    const padYTop = 80 // para cima não precisa tanto, ombros já estão lá
+    const padYBottom = 350 // muito espaço para baixo para puxar braços/mangas da modelo
+    
     const outLeft = Math.max(0, left - padX)
     const outRight = Math.min(portW, left + prodW + padX)
-    const outTop = Math.max(0, top - padY)
-    const outBottom = Math.min(portH, top + prodH + padY)
+    const outTop = Math.max(0, top - padYTop)
+    const outBottom = Math.min(portH, top + prodH + padYBottom)
 
-    const inLeft = Math.round(left + prodW * 0.15) // protege 70% da horizontal central
+    const inLeft = Math.round(left + prodW * 0.15) // protege 70% da frontal
     const inRight = Math.round(left + prodW * 0.85)
-    const inTop = Math.round(top + prodH * 0.10)  // protege quase todo o topo (tampa)
+    const inTop = Math.round(top + prodH * 0.10)  // protege parte de cima (tampa)
     const inBottom = Math.round(top + prodH * 0.90)
 
     for (let y = outTop; y < outBottom; y++) {
       for (let x = outLeft; x < outRight; x++) {
         if (x >= inLeft && x <= inRight && y >= inTop && y <= inBottom) {
-           // Zona de Proteção do Rótulo
+           // Zona BLINDADA (100% Cor/Texto imaculados)
            rawPixels[y * portW + x] = 0
         } else {
-           // Zona onde Dedos e Sombras Mágicas da IA vão trabalhar
+           // Zona LIVRE (onde a IA é livre pra reconstruir braços, tecidos, mãos)
            rawPixels[y * portW + x] = 255
         }
       }
@@ -1015,6 +1018,7 @@ export async function composeProductScene(params: {
     const maskBuf = await sharp(rawPixels, {
       raw: { width: portW, height: portH, channels: 1 }
     })
+    .blur(25) // FUNDAMENTAL: Suaviza absurdamente as bordas para não ficar corte de faca
     .png()
     .toBuffer()
 
