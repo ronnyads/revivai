@@ -211,64 +211,66 @@ function AssetNode({ data }: NodeProps) {
       </div>
 
       {/* Body */}
-      <div className="p-4 nodrag">
-        {asset.status === 'processing' && (
-          <ProcessingCard type={asset.type} createdAt={asset.created_at} assetId={asset.id} />
-        )}
+      <div className="p-4 cursor-grab active:cursor-grabbing">
+        <div className="nodrag">
+          {asset.status === 'processing' && (
+            <ProcessingCard type={asset.type} createdAt={asset.created_at} assetId={asset.id} />
+          )}
 
-        {asset.status === 'error' && (
-          <div className="flex flex-col items-center py-4 gap-2">
-            <p className="text-xs text-red-400 text-center">{asset.error_msg || 'Erro ao gerar'}</p>
-            <button
-              onClick={() => onGenerate(asset.type, asset.input_params, asset.id)}
-              className="flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-2.5 py-1.5 rounded-lg transition-colors"
-            >
-              <RotateCcw size={11} /> Tentar novamente
-            </button>
-          </div>
-        )}
-
-        {asset.status === 'done' && asset.result_url && (
-          <div className="flex flex-col gap-2">
-            <ResultPreview type={asset.type} url={asset.result_url} params={asset.input_params} />
-            {asset.type === 'model' && (
-              <ModelDoneActions
-                asset={asset}
-                onRegenerate={() => onGenerate(asset.type, asset.input_params, asset.id)}
-              />
-            )}
-            {asset.type === 'lipsync' && <LipsyncGenerator initial={asset.input_params} onGenerate={(p: any) => { onUpdateParams(asset.id, p); onGenerate(asset.type, p, asset.id) }} />}
-            {asset.type !== 'script' && asset.type !== 'caption' && asset.type !== 'model' && asset.type !== 'lipsync' && (
+          {asset.status === 'error' && (
+            <div className="flex flex-col items-center py-4 gap-2">
+              <p className="text-xs text-red-400 text-center">{asset.error_msg || 'Erro ao gerar'}</p>
               <button
-                onClick={handleDownload}
-                className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-3 py-1.5 rounded-xl transition-colors w-full"
+                onClick={() => onGenerate(asset.type, asset.input_params, asset.id)}
+                className="flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-2.5 py-1.5 rounded-lg transition-colors"
               >
-                <Download size={12} /> Download
+                <RotateCcw size={11} /> Tentar novamente
               </button>
-            )}
-            <NextStepHint type={asset.type} />
-          </div>
-        )}
+            </div>
+          )}
 
-        {asset.status === 'idle' && !collapsed && (
-          <FormForType
-            type={asset.type}
-            initialParams={asset.input_params}
-            onGenerate={(params) => {
-              onUpdateParams(asset.id, params)
-              onGenerate(asset.type, params, asset.id)
-            }}
-          />
-        )}
+          {asset.status === 'done' && asset.result_url && (
+            <div className="flex flex-col gap-2">
+              <ResultPreview type={asset.type} url={asset.result_url} params={asset.input_params} />
+              {asset.type === 'model' && (
+                <ModelDoneActions
+                  asset={asset}
+                  onRegenerate={() => onGenerate(asset.type, asset.input_params, asset.id)}
+                />
+              )}
+              {asset.type === 'lipsync' && <LipsyncGenerator initial={asset.input_params} onGenerate={(p: any) => { onUpdateParams(asset.id, p); onGenerate(asset.type, p, asset.id) }} />}
+              {asset.type !== 'script' && asset.type !== 'caption' && asset.type !== 'model' && asset.type !== 'lipsync' && (
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-3 py-1.5 rounded-xl transition-colors w-full"
+                >
+                  <Download size={12} /> Download
+                </button>
+              )}
+              <NextStepHint type={asset.type} />
+            </div>
+          )}
 
-        {asset.status === 'idle' && collapsed && (
-          <button
-            onClick={() => setCollapsed(false)}
-            className="w-full text-[11px] text-zinc-500 hover:text-accent border border-dashed border-zinc-700 rounded-xl py-3 transition-colors"
-          >
-            Configurar e gerar
-          </button>
-        )}
+          {asset.status === 'idle' && !collapsed && (
+            <FormForType
+              type={asset.type}
+              initialParams={asset.input_params}
+              onGenerate={(params) => {
+                onUpdateParams(asset.id, params)
+                onGenerate(asset.type, params, asset.id)
+              }}
+            />
+          )}
+
+          {asset.status === 'idle' && collapsed && (
+            <button
+              onClick={() => setCollapsed(false)}
+              className="w-full text-[11px] text-zinc-500 hover:text-accent border border-dashed border-zinc-700 rounded-xl py-3 transition-colors"
+            >
+              Configurar e gerar
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
