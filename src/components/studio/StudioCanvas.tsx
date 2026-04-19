@@ -660,6 +660,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           if (isImage(s))        return 'source_url'
           break
 
+        case 'ugc_bundle':
+          if (isImage(s))        return 'source_url'
+          break
+
         case 'music':
           if (isImage(s))        return 'source_image_url'
           break

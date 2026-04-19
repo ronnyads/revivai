@@ -20,6 +20,7 @@ import LipsyncGenerator from '../LipsyncGenerator'
 import AngleGenerator from '../AngleGenerator'
 import MusicGenerator from '../MusicGenerator'
 import SceneGenerator from '../SceneGenerator'
+import UGCBundleGenerator from '../UGCBundleGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string; hint: string; output: string }> = {
   face:    { icon: <User size={14} />,     label: 'Rosto Real (Upload)', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Faça upload de uma foto', output: 'Foto salva →' },
@@ -427,7 +428,8 @@ function FormForType({ type, initialParams, onGenerate }: { type: AssetType; ini
   if (type === 'lipsync') return <LipsyncGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'angles')  return <AngleGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'music')   return <MusicGenerator   initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'scene')   return <SceneGenerator   initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'scene')      return <SceneGenerator      initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'ugc_bundle') return <UGCBundleGenerator  initial={initialParams} onGenerate={onGenerate} />
   return null
 }
 // ── Processing card com barra de progresso e timer ──────────────────────────────
