@@ -517,8 +517,8 @@ You receive:
 - Product key features to verify: ${featuresLine || 'none specified'}
 
 ## ZERO-TOLERANCE RULES — AUTO-REJECT regardless of any other score:
-- Extra or duplicate hands/arms visible (a person has exactly 2 hands — count them)
-- Disembodied hands that do not belong to the model
+- Extra or duplicate hands/arms visible — physically count every wrist, palm, and set of fingers in IMAGE 2. A human body has EXACTLY 2 hands. If you count 3 or more distinct hands/wrists, REJECT immediately.
+- Disembodied hands that do not belong to the model's connected arms
 - Collage, side-by-side layout, or split image
 
 Evaluate FIVE dimensions. Score each 0-100. APPROVED ONLY IF ALL dimensions are >= 70.
@@ -611,8 +611,8 @@ Respond with valid JSON only:
       weakest_dimension: parsed.weakest_dimension,
     }
   } catch (err: any) {
-    console.warn('[compose-qc] Gemini QC falhou — aprovando por padrão:', err.message)
-    return { approved: true, score: 80, issues: [] }
+    console.warn('[compose-qc] Gemini QC falhou — reprovando por segurança:', err.message)
+    return { approved: false, score: 0, issues: ['QC service unavailable — rejecting to prevent bad output'] }
   }
 }
 
