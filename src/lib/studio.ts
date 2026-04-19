@@ -853,27 +853,24 @@ Respond ONLY with valid JSON — no markdown, no explanation:
   }
 }
 
-function buildCompositionPrompt(profile: ProductProfile, userIntent: string): string {
-  const clothingRule = profile.category === 'wearable'
-    ? `The person may wear or display the [PRODUCT] — clothing interaction is expected.`
-    : `Keep the person's existing clothing EXACTLY as in [BASE PHOTO] — do NOT change any garment.`
-
-  return `You are a professional photo compositor. Produce ONE single unified photograph.
+function buildCompositionPrompt(_profile: ProductProfile, userIntent: string): string {
+  return `You are a professional high-end photo compositor. Produce ONE single unified photograph.
 
 You receive two images:
-[BASE PHOTO]: the UGC model
-[PRODUCT]: a client product — this is the EXACT product the client wants to showcase
+[BASE PHOTO]: The specific UGC model identity.
+[PRODUCT]: A client product — this is the EXACT product the client wants to showcase (can be a physical object, clothing, or accessory).
 
 Your task: ${userIntent}
 
 RULES — non-negotiable:
-1. FACE & IDENTITY: Preserve the person's face, skin tone, hair, makeup exactly — do not alter anything
-2. CLOTHING: ${clothingRule}
-3. PRODUCT FIDELITY — CRITICAL: Treat [PRODUCT] like a photo restoration. The client's product must appear in the final image with 100% fidelity — every shape, color, texture, label, logo, proportion, and detail preserved exactly as in [PRODUCT]. Do NOT reimagine, reinterpret, simplify, or substitute it. The client must recognize their own product immediately.
-4. INTERACTION: Analyze the product and determine the most natural way for the person to interact with it — wearing it, holding it, carrying it. Adjust arms and hands naturally. The person and product must be in the same physical space.
-5. COMPOSITION: ONE unified photo — not a collage, not side-by-side. A person has exactly 2 hands and 2 arms — do NOT generate extra hands, extra arms, or disembodied hands. Count them.
-6. BACKGROUND: Pure white (#FFFFFF) — no outdoor, no studio, no city scene.
-7. OUTPUT: Natural lighting and shadows that make the product look real in the scene. No watermarks or borders.`
+1. FACE & IDENTITY: Preserve the person's exact facial structure, features, skin tone, hair, and makeup exactly as seen in [BASE PHOTO] — do not alter her identity.
+2. PRODUCT FIDELITY — CRITICAL: Treat [PRODUCT] like a literal photo restoration. The client's product must appear with 100% fidelity. Every single shape, color, texture, precise text, label, logo, proportion, and detail must be preserved exactly as in [PRODUCT]. Do NOT reimagine, reinterpret, simplify, or substitute anything.
+3. CONDITIONAL CLOTHING & INTERACTION:
+   - IF [PRODUCT] IS A HELD OBJECT (e.g., mug, jar, device): The person must hold it naturally. Keep the person's existing clothing exactly as in [BASE PHOTO].
+   - IF [PRODUCT] IS CLOTHING OR ACCESSORY (e.g., shirt, coat, hat, full look): The person MUST WEAR the [PRODUCT]. Completely replace the relevant parts of the original clothing with the client's product. Fit the new clothing perfectly to her body shape with realistic fabric folds.
+4. COMPOSITION: ONE unified photo — not a collage, not side-by-side. Check anatomy strictly: a person has exactly 2 hands and 2 arms — do NOT generate extra hands, extra arms, or disembodied limbs. Adjust hands naturally around the product.
+5. BACKGROUND: Pure white (#FFFFFF) — no outdoor, no studio, no city scene.
+6. OUTPUT: Natural commercial lighting and shadows that make the product look real and grounded in the scene. No watermarks, borders, or text outside the product itself.`
 }
 
 function buildRetryPrompt(basePrompt: string, issues: string[], weakestDimension?: string): string {
