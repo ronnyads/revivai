@@ -362,12 +362,13 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     }
   }, [assets, project.id, startPolling])
 
-  const handleDuplicate = useCallback((id: string) => {
+  const handleDuplicate = useCallback(async (id: string) => {
     const original = assets.find(a => a.id === id)
     if (!original) return
+    const newId = crypto.randomUUID()
     const copy: StudioAsset = {
       ...original,
-      id: crypto.randomUUID(),
+      id: newId,
       status: 'idle',
       result_url: null,
       last_frame_url: null,
@@ -378,6 +379,27 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       isLocal: true,
     }
     setAssets(prev => [...prev, copy])
+
+    // Persiste no banco imediatamente para que "Regenerar" funcione
+    try {
+      const res = await fetch('/api/studio/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: original.project_id,
+          type: original.type,
+          status: 'idle',
+          frontend_id: newId,
+          input_params: original.input_params,
+          position_x: copy.position_x,
+          position_y: copy.position_y,
+        })
+      })
+      if (res.ok) {
+        const { asset } = await res.json()
+        if (asset) setAssets(prev => prev.map(a => a.id === newId ? { ...asset, isLocal: false } : a))
+      }
+    } catch { /* fica local se falhar */ }
   }, [assets])
 
   const nodeCallbacks = useMemo<Omit<AssetNodeData, 'asset'>>(() => ({

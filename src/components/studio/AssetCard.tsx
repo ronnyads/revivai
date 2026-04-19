@@ -31,6 +31,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   angles:  { icon: <Camera size={15} />,   label: 'Dir. de Cena',color: 'text-emerald-400' },
   music:   { icon: <Music size={15} />,    label: 'Trilha Sonora', color: 'text-amber-400' },
   ugc_bundle: { icon: <Sparkles size={15} />, label: 'Pacote 8 Poses UGC', color: 'text-indigo-400' },
+  scene:      { icon: <Camera size={15} />,   label: 'Cena Livre',         color: 'text-violet-400' },
 }
 
 // Mapeamento: tipo de origem → ações "Usar em..."
