@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Sparkles, Loader2, Image } from 'lucide-react'
+import { Sparkles, Loader2, Image, AlertTriangle } from 'lucide-react'
 
 interface Props {
   initial: Record<string, unknown>
@@ -49,6 +49,12 @@ export default function UGCBundleGenerator({ initial, onGenerate }: Props) {
         <p className="text-[10px] text-indigo-400 font-medium">O que será gerado</p>
         <p className="text-[10px] text-zinc-400 mt-0.5 leading-relaxed">
           8 fotos UGC da mesma modelo em ângulos e poses diferentes (frontal, perfil, ¾, dinâmica...)
+        </p>
+      </div>
+      <div className="flex items-start gap-2 bg-amber-500/5 border border-amber-500/20 rounded-xl px-3 py-2">
+        <AlertTriangle size={11} className="text-amber-400 shrink-0 mt-0.5" />
+        <p className="text-[10px] text-amber-300/80 leading-relaxed">
+          <span className="font-semibold text-amber-400">Dica:</span> Funciona melhor com Modelo UGC puro. Se a imagem tiver produto (Fusão), o produto pode variar entre as poses — prefira o card <span className="text-white font-medium">Cena Livre</span> para controle total.
         </p>
       </div>
       <button
