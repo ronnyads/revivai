@@ -958,6 +958,17 @@ export async function composeProductScene(params: {
     const vertexKey = process.env.GOOGLE_VERTEX_KEY
     if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não configurada para Fusão Inteligente')
 
+    let projectId = process.env.VERTEX_PROJECT_ID
+    if (!projectId) {
+       try {
+         const keyData = JSON.parse(vertexKey.startsWith('"') ? JSON.parse(vertexKey) : vertexKey)
+         projectId = keyData.project_id
+       } catch (e) {
+         console.warn('[studio] Não foi possível extrair ProjectID da chave JSON para smart composition')
+       }
+    }
+    if (!projectId) throw new Error('VERTEX_PROJECT_ID não configurado para Fusão Inteligente.')
+
     const portraitRes = await fetch(params.portrait_url)
     const portraitBuf = Buffer.from(await portraitRes.arrayBuffer())
     const portraitMeta = await sharp(portraitBuf).metadata()
@@ -974,10 +985,14 @@ export async function composeProductScene(params: {
     let top = Math.round(pH - maskH - 20)
 
     if (params.position === 'south') { left = Math.round((pW - maskW)/2); top = pH - maskH - 20; }
-    if (params.position === 'center') { left = Math.round((pW - maskW)/2); top = Math.round((pH - maskH)/2); }
+    if (params.position?.includes('center')) { left = Math.round((pW - maskW)/2); top = Math.round((pH - maskH)/2); }
     if (params.position === 'southwest') { left = 20; top = pH - maskH - 20; }
     if (params.position === 'west') { left = 20; top = Math.round((pH - maskH)/2); }
     if (params.position === 'east') { left = pW - maskW - 20; top = Math.round((pH - maskH)/2); }
+
+    // Garante que não saia do canvas
+    left = Math.max(0, Math.min(left, pW - maskW))
+    top = Math.max(0, Math.min(top, pH - maskH))
 
     const maskBuf = await sharp({
       create: {
@@ -998,12 +1013,14 @@ export async function composeProductScene(params: {
 
     // 2. Chamada ao Vertex AI (In-painting)
     const vertexToken = await getVertexAccessToken(vertexKey)
-    const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
     const location = process.env.VERTEX_LOCATION || 'us-central1'
     const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagegeneration@006:predict`
 
-    // Prompt agressivo para forçar a integração
-    const prompt = `A highly realistic professional product photography. A person is NATURALLY holding and interacting with a product jar. The person's fingers are realistically visible over the edges of the jar. Natural soft lighting, realistic shadows cast by the person onto the product and vice-versa. Integrated into the background. High resolution, 8k, cinematic photoshoot.`
+    console.log(`[studio] Chamando Smart Composition no projeto: ${projectId}`)
+
+    // Descritor do produto para ajudar a IA
+    const productDesc = "a creatine supplement jar with red label and black lid, highly detailed, photorealistic"
+    const prompt = `A highly realistic professional photo. A person is NATURALLY holding and interacting with a jar of ${productDesc}. The person's fingers are realistically visible over the edges of the jar, matching the lighting and texture of the scene. Natural soft lighting, realistic shadows, integrated into the background. High resolution, 8k.`
 
     const vertexRes = await fetch(vertexUrl, {
       method: 'POST',
@@ -1016,7 +1033,6 @@ export async function composeProductScene(params: {
           {
             image: { bytesBase64Encoded: portraitBuf.toString('base64') },
             mask: { 
-              maskConfig: { maskMode: 'mask_mode_user_provided' },
               image: { bytesBase64Encoded: maskBuf.toString('base64') }
             },
             prompt
@@ -1026,7 +1042,7 @@ export async function composeProductScene(params: {
           sampleCount: 1,
           editConfig: {
             editMode: 'inpainting-insert',
-            guidanceScale: 60 // Alta escala para seguir o prompt
+            guidanceScale: 60
           }
         }
       })
@@ -1034,6 +1050,7 @@ export async function composeProductScene(params: {
 
     if (!vertexRes.ok) {
       const err = await vertexRes.text()
+      console.error('[studio] Vertex Smart Error:', err)
       throw new Error(`Vertex Smart Composition falhou: ${err}`)
     }
 
