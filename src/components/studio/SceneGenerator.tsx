@@ -9,15 +9,18 @@ interface Props {
 }
 
 const SCENE_PRESETS = [
-  { id: 'cafe_paris',    label: 'Café Paris',     emoji: '☕', prompt: 'sitting at a cozy Parisian café terrace, golden hour sunlight, Eiffel Tower softly visible in the background' },
-  { id: 'beach_sunset',  label: 'Praia Sunset',   emoji: '🌅', prompt: 'standing on a tropical beach at sunset, warm golden light, gentle waves, luxury resort in background' },
-  { id: 'city_street',   label: 'Rua NY',         emoji: '🏙️', prompt: 'walking on a vibrant New York city street, bokeh city lights, dynamic urban atmosphere' },
-  { id: 'luxury_hotel',  label: 'Hotel Luxo',     emoji: '🏨', prompt: 'in a luxury 5-star hotel lobby, marble floors, chandelier lighting, elegant and sophisticated atmosphere' },
-  { id: 'nature_forest', label: 'Natureza',       emoji: '🌿', prompt: 'standing in a lush green forest, dappled sunlight through trees, fresh natural environment' },
-  { id: 'studio_clean',  label: 'Fundo Limpo',    emoji: '⬜', prompt: 'in a clean minimal photo studio, soft studio lighting, neutral grey gradient background, professional shoot' },
-  { id: 'rooftop_dubai', label: 'Dubai Rooftop',  emoji: '🌇', prompt: 'on a luxury rooftop in Dubai at sunset, panoramic city skyline view, warm golden hour light' },
-  { id: 'gym_sports',    label: 'Academia',       emoji: '💪', prompt: 'in a modern high-end gym, dramatic sports lighting, clean athletic environment, motivational atmosphere' },
-  { id: 'office_modern', label: 'Escritório',     emoji: '💼', prompt: 'in a modern minimalist office with floor-to-ceiling windows, city view, professional business setting' },
+  { id: 'eiffel_paris',    label: 'Torre Eiffel',    emoji: '🗼', prompt: 'standing in front of the Eiffel Tower in Paris, golden hour light, iconic landmark clearly visible, romantic Parisian atmosphere' },
+  { id: 'times_square',    label: 'Times Square',    emoji: '🗽', prompt: 'walking through Times Square New York at night, iconic neon billboards and city lights bokeh, vibrant urban energy' },
+  { id: 'dubai_burj',      label: 'Dubai Burj',      emoji: '🌇', prompt: 'on a luxury rooftop in Dubai with the Burj Khalifa visible in the background, golden sunset, panoramic skyline' },
+  { id: 'santorini',       label: 'Santorini',       emoji: '🏛️', prompt: 'in Santorini Greece, white-washed buildings with blue domes, crystal blue Aegean Sea, golden Mediterranean light' },
+  { id: 'tokyo_shibuya',   label: 'Tóquio',          emoji: '🗾', prompt: 'at Shibuya crossing in Tokyo at night, colorful neon lights, dynamic Japanese street atmosphere' },
+  { id: 'london_big_ben',  label: 'Londres',         emoji: '🎡', prompt: 'near Big Ben and the Thames River in London, classic British architecture, cloudy dramatic sky, elegant European setting' },
+  { id: 'maldives_beach',  label: 'Maldivas',        emoji: '🌊', prompt: 'standing on a pristine white sand beach in the Maldives, crystal turquoise water, overwater bungalows in background, tropical paradise' },
+  { id: 'rome_colosseum',  label: 'Roma',            emoji: '🏟️', prompt: 'near the Colosseum in Rome Italy, ancient architecture, warm afternoon Mediterranean light, historical atmosphere' },
+  { id: 'cafe_paris',      label: 'Café Paris',      emoji: '☕', prompt: 'sitting at a cozy Parisian café terrace, golden hour sunlight, Eiffel Tower softly visible in the background' },
+  { id: 'luxury_hotel',    label: 'Hotel Luxo',      emoji: '🏨', prompt: 'in a luxury 5-star hotel lobby, marble floors, chandelier lighting, elegant and sophisticated atmosphere' },
+  { id: 'studio_clean',    label: 'Fundo Limpo',     emoji: '⬜', prompt: 'in a clean minimal photo studio, soft studio lighting, neutral grey gradient background, professional shoot' },
+  { id: 'nature_forest',   label: 'Natureza',        emoji: '🌿', prompt: 'standing in a lush green forest, dappled sunlight through trees, fresh natural environment' },
 ]
 
 export default function SceneGenerator({ initial, onGenerate }: Props) {
@@ -101,7 +104,7 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
         <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1">
           <MapPin size={10} className="text-violet-500" /> Cenários Prontos
         </label>
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-4 gap-1.5">
           {SCENE_PRESETS.map(preset => (
             <button key={preset.id}
               onClick={() => { setSelectedPreset(selectedPreset === preset.id ? null : preset.id); if (selectedPreset !== preset.id) setCustomScene('') }}

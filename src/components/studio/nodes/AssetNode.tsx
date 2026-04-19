@@ -322,7 +322,7 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
       )}
     </div>
   )
-  if (type === 'image' || type === 'upscale' || type === 'compose' || type === 'face' || type === 'angles') return <img src={url} alt="" className="w-full rounded-xl object-contain bg-black/20" />
+  if (type === 'image' || type === 'upscale' || type === 'compose' || type === 'face' || type === 'angles' || type === 'scene') return <img src={url} alt="" className="w-full rounded-xl object-contain bg-black/20" />
   if (type === 'video' || type === 'render' || type === 'animate' || type === 'lipsync' || type === 'join') return <video src={url} controls className="w-full rounded-xl object-contain bg-black/20" playsInline />
   if (type === 'voice') return <audio src={url} controls className="w-full" />
   if (type === 'script') return <ScriptPreview text={String(params.script_text ?? '')} url={url} />
