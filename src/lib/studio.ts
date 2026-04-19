@@ -1892,36 +1892,36 @@ export async function generateMusic(params: {
 
 export const UGC_POSITIONS = {
   rosto_close: {
-    prompt: `Rosto bem próximo, close-up, olhando para câmera, expressão de surpresa/felicidade, mesma modelo, fundo desfocado`,
+    prompt: `Extreme close-up portrait, face filling the frame, looking directly at camera, natural smile, soft studio background. Hands NOT visible.`,
     description: 'Close-up rosto - máxima emoção'
   },
   rosto_lado: {
-    prompt: `Rosto de perfil/lado, olhando para frente pensativa, mesma modelo, cabelo visível, fundo neutro profissional`,
+    prompt: `Side profile portrait, face turned 90 degrees, looking forward with calm expression, hair visible, clean neutral background. Hands NOT visible.`,
     description: 'Perfil rosto - elegância'
   },
-  meia_pose_produto: {
-    prompt: `Meia pose, mão indicando para frente com palma aberta em primeiro plano, rosto visível sorrindo, fundo estúdio branco, lighting profissional`,
-    description: 'Meia pose com produto - CTA'
+  meia_pose_cta: {
+    prompt: `Medium shot waist-up, one hand extended toward camera with open palm gesture, other hand relaxed at side, smiling at camera, white studio background, professional lighting. Exactly 2 hands total, no extra limbs.`,
+    description: 'Meia pose CTA - chamada'
   },
   corpo_inteiro_pe: {
-    prompt: `Corpo inteiro de pé, postura confiante, mão na cintura, sorrisso natural, fundo minimalista branco`,
+    prompt: `Full body standing shot, confident posture, one hand on hip, natural smile, plain white minimalist background. Exactly 2 arms and 2 hands, anatomically correct.`,
     description: 'Corpo inteiro - confiança'
   },
   corpo_inteiro_sentada: {
-    prompt: `Corpo inteiro sentada em cadeira moderna, relaxada, olhando para câmera, pose natural confortável, fundo warm acolhedor`,
+    prompt: `Full body sitting on a simple modern stool, relaxed pose, legs crossed naturally, looking at camera, warm neutral background. Hands resting naturally on lap. No objects on the stool. Exactly 2 hands.`,
     description: 'Corpo inteiro sentada - casual'
   },
   movimento_dinamica: {
-    prompt: `Corpo em movimento dinâmico, cabelo esvoaçante, mãos em gesto de caminhada, expressão energética, fundo rua moderna dia`,
+    prompt: `Dynamic movement shot, walking confidently forward, hair flowing naturally, arms swinging naturally at sides in walking motion, energetic expression, modern urban background. Exactly 2 arms, 2 hands.`,
     description: 'Movimento dinâmico - energia'
   },
   plano_americano: {
-    prompt: `Plano americano cintura para cima, cruzando os braços, rosto visível natural, fundo escritório moderno de vidro`,
+    prompt: `American plan shot waist-up, arms crossed over chest, natural confident expression, modern glass office background. Exactly 2 arms crossed. No extra hands or limbs.`,
     description: 'Plano americano - profissional'
   },
-  detalhe_maos_produto: {
-    prompt: `Plano detalhe nas mãos segurando as pontas de um objeto imaginário, rosto visível ao fundo com desfoque bokeh suave, lighting natural cinematográfico`,
-    description: 'Detalhe mãos - foco produto'
+  detalhe_expressao: {
+    prompt: `Three-quarter shot, hands gently touching face or hair in natural casual gesture, genuine expressive smile, soft bokeh background, cinematic natural lighting. Exactly 2 hands, no floating limbs, no invented objects.`,
+    description: 'Expressão natural - autenticidade'
   }
 }
 
@@ -1978,7 +1978,7 @@ RULE 1 — FACIAL IDENTITY (non-negotiable): Identify the exact facial structure
 
 RULE 2 — OUTFIT FIDELITY (non-negotiable): Preserve the outfit and accessories seen in person[1] with 100% fidelity. All colors, fabric textures, logos, text and design details must be identical.
 
-RULE 2B — PRODUCT FIDELITY: If person[1] is holding, wearing or positioned with any product or object, preserve it with 100% fidelity in this pose — exact shape, color, label, logo and packaging details. The product must appear in the photo.
+RULE 2B — NO INVENTED OBJECTS: Do NOT add, invent or hallucinate any product, object, prop or accessory that is NOT visibly present in person[1]. If person[1] has no product in hand, generate NO product. If person[1] IS holding a product, preserve it with 100% fidelity — exact shape, color, label and packaging.
 
 RULE 3 — UNIFIED COMPOSITION & ANATOMY (critical): Generate ONE single photograph — no collages or side-by-side images. ANATOMY VERIFICATION: the human body has exactly 2 arms and 2 hands total. Count carefully — no extra limbs, no floating hands, no extra fingers. Each hand has exactly 5 fingers. Correct anatomical proportions throughout.
 
