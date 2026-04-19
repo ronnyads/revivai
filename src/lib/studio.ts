@@ -994,20 +994,18 @@ export async function composeProductScene(params: {
     left = Math.max(0, Math.min(left, pW - maskW))
     top = Math.max(0, Math.min(top, pH - maskH))
 
-    const maskBuf = await sharp({
-      create: {
-        width: pW,
-        height: pH,
-        channels: 3,
-        background: { r: 0, g: 0, b: 0 }
+    // Gera máscara usando raw pixels (mais confiável em serverless do que sharp.create)
+    // Cria um buffer RAW de pixels cinza (0=preto/fora, 255=branco/área a editar)
+    const rawPixels = Buffer.alloc(pW * pH, 0) // começa tudo preto
+    for (let y = top; y < top + maskH && y < pH; y++) {
+      for (let x = left; x < left + maskW && x < pW; x++) {
+        rawPixels[y * pW + x] = 255 // pinta de branco a área da máscara
       }
+    }
+
+    const maskBuf = await sharp(rawPixels, {
+      raw: { width: pW, height: pH, channels: 1 }
     })
-    .composite([{
-      input: await sharp({
-        create: { width: maskW, height: maskH, channels: 3, background: { r: 255, g: 255, b: 255 } }
-      }).toBuffer(),
-      top, left
-    }])
     .png()
     .toBuffer()
 
