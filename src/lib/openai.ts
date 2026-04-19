@@ -507,46 +507,69 @@ export async function assessCompositionQuality(
     ? '- (Surface/text check skipped — product has no visible text or logo)'
     : '- Any text or logo is blurred, missing, distorted, or altered\n- Label colors or layout changed'
 
-  const prompt = `You are an extremely strict quality analyst for UGC advertising photo compositions.
-You receive: FIRST IMAGE = original product. SECOND IMAGE = composed photo with model + product.
-Product category: ${profile?.category ?? 'unknown'}. ${featuresLine}
+  const prompt = `EXTREMELY STRICT QUALITY ANALYST FOR UGC AD COMPOSITIONS
 
-Evaluate FIVE dimensions. Score each 0-100. APPROVED = ALL dimensions ≥ 70.
+You receive:
+- IMAGE 1 = original product
+- IMAGE 2 = composed photo with model + product
+- Product category: ${profile?.category ?? 'unknown'}
+- Product key features to verify: ${featuresLine || 'none specified'}
 
-## DIMENSION 1 — COMPOSITION (unified photo?)
-REJECT if ANY:
-- Result is a collage, side-by-side, or split image
-- Product is floating or not physically connected to hands/body
-- Product appears pasted/overlaid without natural integration
-- Visible seams, borders, or unnatural edges around the product
-- Extra or duplicate hands visible (more hands than the person naturally has)
-- Disembodied hands holding the product that don't belong to the model
+Evaluate FIVE dimensions. Score each 0-100. APPROVED ONLY IF ALL dimensions are >= 70.
+
+## DIMENSION 1 — COMPOSITION UNITY
+Reject if ANY of the following is true:
+- The result is a collage, side-by-side layout, split image, or obvious composite
+- The product is floating or not physically connected to the hands/body
+- The product appears pasted, overlaid, or cut out without natural integration
+- Visible seams, borders, masks, or unnatural edges exist around the product
+- There are extra or duplicate hands visible
+- There are disembodied hands that do not belong to the model
 
 ## DIMENSION 2 — PRODUCT SHAPE FIDELITY
-REJECT if ANY:
-- Silhouette or overall shape changed (e.g. taser became a pistol, jar became a bottle)
-- Any physical feature from the key features list is missing, added, or altered
-- Product was replaced with a visually similar but different object
+Reject if ANY of the following is true:
+- The silhouette or overall shape changed
+- Any physical feature from the key features list is missing, added, moved, or altered
+- The product was replaced with a visually similar but different object
+- The product is no longer the same object as IMAGE 1
 
 ## DIMENSION 3 — PRODUCT SURFACE FIDELITY
-${textLogoRule}
-- Colors shifted significantly from original
+${profile?.has_text_logo === false
+  ? 'has_text_logo = false — skip text/logo validation'
+  : 'has_text_logo = true:\n- Reject if any text or logo is blurred, missing, distorted, mirrored, stretched, or altered\n- Reject if label colors, layout, or typography changed'}
+Reject if:
+- Colors shifted significantly from the original
+- Texture, finish, or surface details were materially changed
 
 ## DIMENSION 4 — CONTEXT COHERENCE
-REJECT if ANY:
-- Product makes no physical sense in the scene (impossible angle, wrong scale, floating)
-- Product and model exist in separate spatial planes
+Reject if ANY of the following is true:
+- The product makes no physical sense in the scene
+- The angle is impossible
+- The scale is wrong
+- The product appears to exist in a different spatial plane than the model
+- The product and model do not share the same physical space
 
 ## DIMENSION 5 — MODEL IDENTITY
-REJECT if ANY:
+Reject if ANY of the following is true:
 - Face, skin tone, hair style/color, or expression changed
-- Any clothing item added, removed, or changed
-- Body proportions noticeably altered
+- Any clothing item was added, removed, or changed
+- Body proportions changed noticeably
+- The model no longer matches IMAGE 2 reference identity
 
-Be extremely strict. When in doubt, REJECT. A client will compare original and result side by side.
+Be extremely strict. When in doubt, reject.
 
-Respond ONLY with valid JSON:
-{"score": <0-100>, "approved": <true|false>, "issues": [<string>...], "weakest_dimension": "<DIMENSION_NAME>"}`
+## APPROVAL RULE
+- If ANY dimension is below 70, REJECT
+- Only APPROVE if all dimensions are 70 or higher
+
+## OUTPUT
+Respond with valid JSON only:
+{
+  "score": 0-100,
+  "approved": true|false,
+  "issues": ["issue 1", "issue 2"],
+  "weakest_dimension": "DIMENSION_NAME"
+}`
 
   try {
     const res = await fetch(
