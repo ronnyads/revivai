@@ -519,6 +519,8 @@ REJECT if ANY:
 - Product is floating or not physically connected to hands/body
 - Product appears pasted/overlaid without natural integration
 - Visible seams, borders, or unnatural edges around the product
+- Extra or duplicate hands visible (more hands than the person naturally has)
+- Disembodied hands holding the product that don't belong to the model
 
 ## DIMENSION 2 — PRODUCT SHAPE FIDELITY
 REJECT if ANY:
