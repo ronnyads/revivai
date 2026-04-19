@@ -684,7 +684,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 
   if (!photoBuffer) throw new Error('Falha ao gerar o buffer da foto do modelo.')
 
-  const path = `${params.userId}/${params.assetId}-model.jpg`
+  const path = `${params.userId}/${params.assetId}-model-${Date.now()}.jpg`
   const { error } = await admin.storage
     .from('studio')
     .upload(path, photoBuffer, { contentType: 'image/jpeg', upsert: true })
