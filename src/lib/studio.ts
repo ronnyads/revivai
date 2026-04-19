@@ -1205,8 +1205,7 @@ export async function startVeo3DirectGoogle(params: {
           }],
         }],
         parameters: {
-          aspectRatio: '9:16',
-          personGeneration: 'ALLOW_ADULT'
+          aspectRatio: '9:16'
         },
       }),
     }
