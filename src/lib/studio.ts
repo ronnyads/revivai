@@ -1287,6 +1287,8 @@ export async function generateAngles(params: {
 
   const imgResSource = await fetch(urlToFetch)
   if (!imgResSource.ok) throw new Error(`Erro download: ${imgResSource.status} de ${urlToFetch}`)
+  
+  const mimeType = imgResSource.headers.get('content-type') || 'image/jpeg'
   const imgBuffer = Buffer.from(await imgResSource.arrayBuffer())
   const base64Image = imgBuffer.toString('base64')
 
@@ -1312,7 +1314,7 @@ export async function generateAngles(params: {
         contents: [{
           parts: [
             { text: "Just one word: Is the person in this image Male or Female?" },
-            { inline_data: { mime_type: 'image/jpeg', data: base64Image } }
+            { inline_data: { mime_type: mimeType, data: base64Image } }
           ]
         }]
       })
@@ -1350,7 +1352,7 @@ export async function generateAngles(params: {
           contents: [{
             parts: [
               { text: 'Describe ONLY the clothing and outfit of the person in this image. Be specific: colors, fabric, garment names. Max 2 sentences.' },
-              { inline_data: { mime_type: 'image/jpeg', data: base64Image } }
+              { inline_data: { mime_type: mimeType, data: base64Image } }
             ]
           }]
         })
@@ -1401,7 +1403,7 @@ export async function generateAngles(params: {
               referenceType: "REFERENCE_TYPE_RAW",
               referenceImage: {
                 bytesBase64Encoded: base64Image,
-                mimeType: 'image/jpeg'
+                mimeType: mimeType
               }
             }
           ]
