@@ -963,7 +963,7 @@ ABSOLUTE PRESERVATION RULES — treat this like a restoration, not a creation:
 
     const finalPrompt = compositionPrompt.replace('{instruction}', userIntent)
 
-    const MODEL = 'gemini-3.1-flash-image-preview'
+    const MODEL = 'gemini-3-pro-image-preview'
 
     console.log(`[studio] Gemini compose | model=${MODEL} | intent: ${userIntent.substring(0, 80)}`)
 
