@@ -863,92 +863,57 @@ export async function composeProductScene(params: {
       productRes.arrayBuffer().then(b => Buffer.from(b)),
     ])
 
-    const portraitMeta = await sharp(portraitBuf).metadata()
+    // ---- VALIDAÇÃO DOS BUFFERS ----
+    let portraitMeta = await sharp(portraitBuf).metadata().catch(() => null)
+    if (!portraitMeta) throw new Error('Imagem da modelo inválida ou corrompida')
+
     const portraitWidth = portraitMeta.width ?? 1024
     const portraitHeight = portraitMeta.height ?? 1024
     
     const scale = params.product_scale || 0.45
     const productTargetWidth = Math.round(portraitWidth * scale)
 
-    // Redimensiona o produto
+    // Redimensiona o produto e converte para PNG (com alpha)
     const productResized = await sharp(productBuf)
       .resize({ width: productTargetWidth, withoutEnlargement: true })
+      .ensureAlpha()
       .toBuffer()
 
     const productMeta = await sharp(productResized).metadata()
     const pW = productMeta.width ?? 0
     const pH = productMeta.height ?? 0
 
-    // ---- GERAÇÃO DE SOMBRA PROJETADA (Drop Shadow) ----
-    // Criamos uma versão preta do produto, borramos e colocamos atrás
-    const shadowOpacity = 0.5
-    const blurSigma = 15
-    const shadowOffset = 10
+    // ---- SOMBRA SIMPLES (sem sharp.create) ----
+    // Escurece o produto e borra -> vira a sombra
+    const shadowBuf = await sharp(productResized)
+      .modulate({ brightness: 0.1, saturation: 0 }) // quase preto
+      .blur(12)
+      .toBuffer()
 
-    let shadowMask: Buffer
-    try {
-      shadowMask = await sharp(productResized)
-        .ensureAlpha() // Garante canal alpha para não quebrar no extract
-        .extractChannel('alpha') 
-        .toBuffer()
-    } catch (e) {
-      console.warn('[studio] Falha ao extrair Alpha para sombra, usando máscara sólida:', e)
-      // Fallback: se falhar, usa a imagem inteira como máscara (sombra quadrada)
-      shadowMask = await sharp(productResized)
-        .stats()
-        .then(() => productResized) 
-    }
+    // ---- POSICIONAMENTO ----
+    let gravity: string | undefined = 'southeast'
+    let compositeTop: number | undefined = undefined
+    let compositeLeft: number | undefined = undefined
 
-    const shadowLayer = await sharp({
-      create: {
-        width: pW + (blurSigma * 2),
-        height: pH + (blurSigma * 2),
-        channels: 4,
-        background: { r: 0, g: 0, b: 0, alpha: 0 }
-      }
-    })
-    .composite([{
-      input: await sharp(shadowMask)
-        .linear(shadowOpacity, 0)
-        .toBuffer(),
-      blend: 'dest-in'
-    }])
-    .blur(blurSigma)
-    .toBuffer()
+    if (params.position === 'south')      { compositeTop = portraitHeight - pH - 20; compositeLeft = Math.round((portraitWidth - pW) / 2); gravity = undefined }
+    if (params.position?.includes('center')) { compositeTop = Math.round((portraitHeight - pH) / 2); compositeLeft = Math.round((portraitWidth - pW) / 2); gravity = undefined }
+    if (params.position === 'southwest')  { compositeTop = portraitHeight - pH - 20; compositeLeft = 20; gravity = undefined }
+    if (params.position === 'west')       { compositeTop = Math.round((portraitHeight - pH) / 2); compositeLeft = 20; gravity = undefined }
+    if (params.position === 'east')       { compositeTop = Math.round((portraitHeight - pH) / 2); compositeLeft = portraitWidth - pW - 20; gravity = undefined }
+    if (params.position === 'north')      { compositeTop = 20; compositeLeft = Math.round((portraitWidth - pW) / 2); gravity = undefined }
 
-    // ---- COMPOSIÇÃO FINAL ----
-    let gravity = 'southeast'
-    if (params.position === 'south') gravity = 'south'
-    if (params.position?.includes('center')) gravity = 'center'
-    if (params.position === 'southwest') gravity = 'southwest'
-    if (params.position === 'west') gravity = 'west'
-    if (params.position === 'east') gravity = 'east'
-    if (params.position === 'north') gravity = 'north'
+    const shadowOffset = 8
+    const shadowTop  = compositeTop  !== undefined ? compositeTop  + shadowOffset : undefined
+    const shadowLeft = compositeLeft !== undefined ? compositeLeft + shadowOffset : undefined
 
-    // Monta o produto em cima da sombra
-    const productWithShadow = await sharp({
-      create: {
-        width: pW + blurSigma * 2,
-        height: pH + blurSigma * 2,
-        channels: 4,
-        background: { r: 0, g: 0, b: 0, alpha: 0 }
-      }
-    })
-    .composite([
-      { input: shadowLayer, top: shadowOffset, left: shadowOffset },
-      { input: productResized, top: blurSigma, left: blurSigma }
-    ])
-    .toBuffer()
-
+    // ---- COMPOSIÇÃO FINAL (sombra atrás + produto na frente) ----
     resultBuffer = await sharp(portraitBuf)
-      .composite([{ 
-        input: productWithShadow, 
-        gravity,
-        // Se for sul, ajustamos um pouco para cima para não cortar
-        top: gravity === 'south' || gravity === 'southeast' || gravity === 'southwest' 
-             ? portraitHeight - (pH + blurSigma * 4) 
-             : undefined
-      }])
+      .composite([
+        // Sombra (ligeiramente deslocada para baixo-direita)
+        { input: shadowBuf, ...(gravity ? { gravity } : { top: shadowTop, left: shadowLeft }), blend: 'multiply' },
+        // Produto (posição exata)
+        { input: productResized, ...(gravity ? { gravity } : { top: compositeTop, left: compositeLeft }) }
+      ])
       .jpeg({ quality: 95 })
       .toBuffer()
 
