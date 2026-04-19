@@ -871,7 +871,7 @@ RULES — non-negotiable:
 2. CLOTHING: ${clothingRule}
 3. PRODUCT FIDELITY — CRITICAL: Treat [PRODUCT] like a photo restoration. The client's product must appear in the final image with 100% fidelity — every shape, color, texture, label, logo, proportion, and detail preserved exactly as in [PRODUCT]. Do NOT reimagine, reinterpret, simplify, or substitute it. The client must recognize their own product immediately.
 4. INTERACTION: Analyze the product and determine the most natural way for the person to interact with it — wearing it, holding it, carrying it. Adjust arms and hands naturally. The person and product must be in the same physical space.
-5. COMPOSITION: ONE unified photo — not a collage, not side-by-side. No extra or disembodied hands.
+5. COMPOSITION: ONE unified photo — not a collage, not side-by-side. A person has exactly 2 hands and 2 arms — do NOT generate extra hands, extra arms, or disembodied hands. Count them.
 6. BACKGROUND: Pure white (#FFFFFF) — no outdoor, no studio, no city scene.
 7. OUTPUT: Natural lighting and shadows that make the product look real in the scene. No watermarks or borders.`
 }

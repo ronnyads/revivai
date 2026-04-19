@@ -516,6 +516,11 @@ You receive:
 - Product category: ${profile?.category ?? 'unknown'}
 - Product key features to verify: ${featuresLine || 'none specified'}
 
+## ZERO-TOLERANCE RULES — AUTO-REJECT regardless of any other score:
+- Extra or duplicate hands/arms visible (a person has exactly 2 hands — count them)
+- Disembodied hands that do not belong to the model
+- Collage, side-by-side layout, or split image
+
 Evaluate FIVE dimensions. Score each 0-100. APPROVED ONLY IF ALL dimensions are >= 70.
 
 ## DIMENSION 1 — COMPOSITION UNITY
@@ -524,8 +529,8 @@ Reject if ANY of the following is true:
 - The product is floating or not physically connected to the hands/body
 - The product appears pasted, overlaid, or cut out without natural integration
 - Visible seams, borders, masks, or unnatural edges exist around the product
-- There are extra or duplicate hands visible
-- There are disembodied hands that do not belong to the model
+- More than 2 hands visible in the image
+- Any hand or arm that does not naturally belong to the model's body
 
 ## DIMENSION 2 — PRODUCT SHAPE FIDELITY
 Reject if ANY of the following is true:
