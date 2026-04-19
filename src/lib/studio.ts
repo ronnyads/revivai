@@ -935,6 +935,32 @@ export async function composeProductScene(params: {
       productRes.arrayBuffer().then(b => Buffer.from(b)),
     ])
 
+    // Auto-remove product background via Fal AI Bria
+    const falKey = process.env.FAL_KEY
+    let finalProductBuf = productBuf
+    if (falKey) {
+      try {
+        const bgRes = await fetch('https://fal.run/fal-ai/bria/background-removal', {
+          method: 'POST',
+          headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_url: params.product_url }),
+        })
+        if (bgRes.ok) {
+          const bgData = await bgRes.json()
+          const cleanUrl = bgData.image?.url
+          if (cleanUrl) {
+            const cleanRes = await fetch(cleanUrl)
+            if (cleanRes.ok) {
+              finalProductBuf = Buffer.from(await cleanRes.arrayBuffer())
+              console.log('[studio] product background removed')
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[studio] Bria falhou, usando produto original:', e)
+      }
+    }
+
     const userIntent = params.smart_prompt?.trim()
       || 'place the product naturally in the model\'s hands'
 
@@ -974,7 +1000,7 @@ ABSOLUTE PRESERVATION RULES — treat this like a restoration, not a creation:
         parts: [
           { text: finalPrompt },
           { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
-          { inlineData: { mimeType: 'image/jpeg', data: productBuf.toString('base64') } },
+          { inlineData: { mimeType: 'image/jpeg', data: finalProductBuf.toString('base64') } },
         ],
       }],
       generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
