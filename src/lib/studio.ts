@@ -1633,6 +1633,8 @@ export async function generateUGCPositions(params: {
   console.log('[studio] Downloading source for UGC Positions...')
   const imgRes = await fetch(params.sourceUrl)
   if (!imgRes.ok) throw new Error('Falha ao baixar imagem base para posições UGC')
+  
+  const mimeType = imgRes.headers.get('content-type') || 'image/jpeg'
   const buffer = Buffer.from(await imgRes.arrayBuffer())
   const base64 = buffer.toString('base64')
 
@@ -1678,7 +1680,7 @@ export async function generateUGCPositions(params: {
                 referenceType: "REFERENCE_TYPE_RAW",
                 referenceImage: {
                   bytesBase64Encoded: base64,
-                  mimeType: 'image/jpeg'
+                  mimeType: mimeType
                 }
               }
             ]
