@@ -919,15 +919,26 @@ export async function composeProductScene(params: {
       .toBuffer()
 
   } else if (params.compose_mode === 'gemini') {
-    // ---- FUSÃO GEMINI — 3 ETAPAS: Bria → Gemini Pose → Sharp Overlay ----
-    // Produto NUNCA passa por geração → 100% fidelidade pixel-perfect
+    // ---- FUSÃO GEMINI NATIVA (Composição por Prompt Livre) ----
     const apiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
-    if (!apiKey) throw new Error('GOOGLE_API_KEY / GEMINI_API_KEY não configurada')
-    const sharp = (await import('sharp')).default
+    if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
 
-    // ETAPA 1: Bria remove fundo do produto → PNG limpo
+    const [portraitRes, productRes] = await Promise.all([
+      fetch(params.portrait_url),
+      fetch(params.product_url),
+    ])
+    if (!portraitRes.ok || !productRes.ok)
+      throw new Error('Falha ao baixar imagens para composição Gemini')
+
+    const [portraitBuf, productBuf] = await Promise.all([
+      portraitRes.arrayBuffer().then(b => Buffer.from(b)),
+      productRes.arrayBuffer().then(b => Buffer.from(b)),
+    ])
+
+    // Auto-remove product background via Fal AI Bria
     const falKey = process.env.FAL_KEY
-    let productCleanUrl = params.product_url
+    let finalProductBuf = productBuf
+    let productMime = 'image/jpeg'
     if (falKey) {
       try {
         const bgRes = await fetch('https://fal.run/fal-ai/bria/background-removal', {
@@ -937,111 +948,97 @@ export async function composeProductScene(params: {
         })
         if (bgRes.ok) {
           const bgData = await bgRes.json()
-          if (bgData.image?.url) {
-            productCleanUrl = bgData.image.url
-            console.log('[studio] gemini: product background removed')
+          const cleanUrl = bgData.image?.url as string | undefined
+          if (cleanUrl) {
+            const cleanRes = await fetch(cleanUrl)
+            if (cleanRes.ok) {
+              finalProductBuf = Buffer.from(await cleanRes.arrayBuffer())
+              productMime = cleanUrl.includes('.png') ? 'image/png' : (cleanRes.headers.get('content-type') ?? 'image/png')
+              console.log('[studio] product background removed')
+            }
           }
         }
       } catch (e) {
-        console.warn('[studio] gemini: Bria falhou, usando produto original:', e)
+        console.warn('[studio] Bria falhou, usando produto original:', e)
       }
     }
-
-    // ETAPA 2: Gemini ajusta pose da modelo (SEM produto — só portrait entra)
-    const portraitRes = await fetch(params.portrait_url)
-    if (!portraitRes.ok) throw new Error('Falha ao baixar retrato da modelo')
-    const portraitBuf = Buffer.from(await portraitRes.arrayBuffer())
 
     const userIntent = params.smart_prompt?.trim()
-      || 'holding something naturally at chest level with both hands'
+      || 'place the product naturally in the model\'s hands, she is holding it'
 
-    const posePrompt = await getStudioPrompt(
+    const compositionPrompt = await getStudioPrompt(
       admin,
-      'compose_gemini_pose_prompt',
-      `You are a professional photo editor. Make MINIMAL changes to this portrait.
-TASK: Position this person's arms and hands naturally as if they are holding or displaying a product at chest or waist level.
-STRICT RULES:
-- Face, hair, skin tone, makeup, clothing, accessories: keep IDENTICAL — do not change anything
-- Background: pure white (#FFFFFF)
-- Only adjust arm/hand/wrist position — nothing else
-- Do NOT add any objects, products, or items to the image
-- Do NOT change body proportions, facial features, or clothing
-Pose instruction: {instruction}`
+      'compose_gemini_prompt',
+      `You are a professional photo compositor. Your ONLY job is to produce ONE single unified photograph — never a collage, never side-by-side, never split image.
+
+You receive two images:
+[BASE PHOTO]: the person/model — this is your canvas and must be preserved exactly
+[PRODUCT]: the item to be physically integrated into the base photo
+
+Your task: {instruction}
+
+OUTPUT RULES — non-negotiable:
+- ONE single unified photo. NOT a collage. NOT side-by-side. NOT two images merged. The person and product must exist in the same scene.
+- The product must appear PHYSICALLY HELD, WORN, or USED by the person — it must make contact with the person's hands, body, or be in their immediate scene
+- Preserve the person's face, skin tone, hair, makeup, expression PIXEL-PERFECT — do not alter anything
+- Preserve ALL clothing and accessories EXACTLY — do not swap, remove or change any garment
+- Preserve ALL product text, logos, labels and colors EXACTLY
+- Natural lighting and shadows — the product must cast realistic shadows consistent with the photo lighting
+- Pure white background (#FFFFFF)
+- No text, watermarks, borders, frames, or decorative elements`
     )
 
-    const finalPosePrompt = posePrompt.replace('{instruction}', userIntent)
+    const finalPrompt = compositionPrompt.replace('{instruction}', userIntent)
 
-    const POSE_MODELS = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview']
-    let poseImageBuf: Buffer | null = null
-    let poseModel = ''
+    const COMPOSE_MODELS = [
+      'gemini-2.5-flash-image',
+      'gemini-3.1-flash-image-preview',
+    ]
 
-    for (const model of POSE_MODELS) {
-      console.log(`[studio] gemini pose trying: ${model}`)
+    const requestBody = JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: '[BASE PHOTO] — preserve this person exactly:' },
+          { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
+          { text: '[PRODUCT] — place this into the base photo:' },
+          { inlineData: { mimeType: productMime, data: finalProductBuf.toString('base64') } },
+          { text: finalPrompt },
+        ],
+      }],
+      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+    })
+
+    let geminiJson: any = null
+    let usedModel = ''
+
+    for (const model of COMPOSE_MODELS) {
+      console.log(`[studio] Gemini compose trying: ${model}`)
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [
-              { text: finalPosePrompt },
-              { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
-            ]}],
-            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
-          }),
-        }
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: requestBody }
       )
-      if (!res.ok) { console.warn(`[studio] pose ${model} falhou (${res.status})`); continue }
-      const json = await res.json()
-      const parts = json.candidates?.[0]?.content?.parts ?? []
-      const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
-      if (imgPart?.inlineData?.data) {
-        poseImageBuf = Buffer.from(imgPart.inlineData.data, 'base64')
-        poseModel = model
-        console.log(`[studio] gemini pose OK | model=${model}`)
-        break
+      if (!res.ok) {
+        console.warn(`[studio] ${model} falhou (${res.status})`)
+        continue
       }
+      geminiJson = await res.json()
+      usedModel = model
+      break
     }
 
-    if (!poseImageBuf) throw new Error('Gemini não gerou pose para a modelo')
+    if (!geminiJson) throw new Error('Todos os modelos Gemini falharam na composição')
 
-    // ETAPA 3: Sharp overlay — produto real pixel-perfect sobre a pose
-    const productRes = await fetch(productCleanUrl)
-    if (!productRes.ok) throw new Error('Falha ao baixar produto limpo')
-    const productBuf = Buffer.from(await productRes.arrayBuffer())
+    const geminiParts = geminiJson.candidates?.[0]?.content?.parts ?? []
+    const geminiImagePart = geminiParts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
 
-    const poseMeta = await sharp(poseImageBuf).metadata()
-    const poseWidth  = poseMeta.width  ?? 1024
-    const poseHeight = poseMeta.height ?? 1024
+    if (!geminiImagePart?.inlineData?.data) {
+      const finishReason = geminiJson.candidates?.[0]?.finishReason
+      throw new Error(`Gemini não gerou imagem | model=${usedModel} | finishReason=${finishReason}`)
+    }
 
-    const scale = params.product_scale ?? 0.40
-    const productTargetWidth = Math.round(poseWidth * scale)
-
-    const productResized = await sharp(productBuf)
-      .resize({ width: productTargetWidth, withoutEnlargement: true })
-      .ensureAlpha()
-      .toBuffer()
-
-    const productMeta = await sharp(productResized).metadata()
-    const pW = productMeta.width ?? 0
-
-    const shadowBuf = await sharp(productResized)
-      .modulate({ brightness: 0.1, saturation: 0 })
-      .blur(12)
-      .toBuffer()
-
-    // Centro horizontal, 45% vertical (área de peito/cintura)
-    const compositeTop  = Math.round(poseHeight * 0.45)
-    const compositeLeft = Math.round((poseWidth - pW) / 2)
-
-    console.log(`[studio] gemini compose final | poseModel=${poseModel} | product=pixel-perfect`)
-    resultBuffer = await sharp(poseImageBuf)
-      .composite([
-        { input: shadowBuf,      top: compositeTop + 8, left: compositeLeft + 8, blend: 'multiply' },
-        { input: productResized, top: compositeTop,      left: compositeLeft },
-      ])
-      .jpeg({ quality: 95 })
-      .toBuffer()
+    console.log(`[studio] Gemini compose OK | model=${usedModel}`)
+    resultBuffer = Buffer.from(geminiImagePart.inlineData.data, 'base64')
 
   } else {
     // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON (Native Fetch) ----
