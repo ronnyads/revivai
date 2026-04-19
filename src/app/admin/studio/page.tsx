@@ -18,7 +18,7 @@ const TYPE_COLORS: Record<string, string> = {
 export default async function AdminStudioDebug() {
   const supabase = createAdminClient()
 
-  const { data: assets, count } = await supabase
+  const { data: assets, count, error: queryError } = await supabase
     .from('studio_assets')
     .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
@@ -39,6 +39,13 @@ export default async function AdminStudioDebug() {
           </p>
         </div>
       </div>
+
+      {queryError && (
+        <div className="mb-6 bg-red-950/40 border border-red-500/30 rounded-xl p-4">
+          <p className="text-xs text-red-400 font-bold mb-1">Erro na query Supabase:</p>
+          <pre className="text-[11px] text-red-300/80 whitespace-pre-wrap">{JSON.stringify(queryError, null, 2)}</pre>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-8">
