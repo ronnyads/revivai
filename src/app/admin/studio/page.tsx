@@ -16,6 +16,7 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 export default async function AdminStudioDebug() {
+  const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY
   const supabase = createAdminClient()
 
   const { data: assets, count, error: queryError } = await supabase
@@ -39,6 +40,12 @@ export default async function AdminStudioDebug() {
           </p>
         </div>
       </div>
+
+      {!hasServiceKey && (
+        <div className="mb-4 bg-yellow-950/40 border border-yellow-500/30 rounded-xl p-4">
+          <p className="text-xs text-yellow-400 font-bold">⚠️ SUPABASE_SERVICE_ROLE_KEY não está definida no Vercel — a query usa a anon key e retorna vazio por causa do RLS.</p>
+        </div>
+      )}
 
       {queryError && (
         <div className="mb-6 bg-red-950/40 border border-red-500/30 rounded-xl p-4">
