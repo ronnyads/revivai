@@ -487,25 +487,16 @@ export async function assessCompositionQuality(
   productUrl: string,
   composedImageBase64: string,
 ): Promise<CompositionQuality> {
-  const apiKey = process.env.OPENAI_API_KEY
+  const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
   if (!apiKey) return { approved: true, score: 80, issues: [] }
 
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a strict product quality analyst for UGC advertising photos.
-Your job: compare the ORIGINAL PRODUCT (image 1) with how it appears in the COMPOSED PHOTO (image 2).
-Check ONLY the product — not the model, not the background.
+  const prompt = `You are a strict product quality analyst for UGC advertising photos.
+Compare the FIRST IMAGE (original product) with the SECOND IMAGE (composed photo).
+Check ONLY the product appearance — not the model, not the background.
 
 APPROVE if:
 - All text, logos, brand names are readable and identical
-- Colors match the original (same red, same shades)
+- Colors match the original (same shades)
 - Overall shape and proportions are correct
 - Minor perspective/lighting changes are acceptable
 
@@ -516,45 +507,45 @@ REJECT if:
 - Product shape changed substantially
 - Product is not visible in the composition
 
-Be strict — a client will compare these side by side.`,
-          },
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: 'Image 1 — ORIGINAL PRODUCT:' },
-              { type: 'image_url', image_url: { url: productUrl, detail: 'high' } },
-              { type: 'text', text: 'Image 2 — COMPOSED PHOTO (check if product is preserved):' },
-              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${composedImageBase64}`, detail: 'high' } },
-            ],
-          },
-        ],
-        response_format: {
-          type: 'json_schema',
-          json_schema: {
-            name: 'composition_quality',
-            strict: true,
-            schema: {
-              type: 'object',
-              properties: {
-                score:    { type: 'number' },
-                approved: { type: 'boolean' },
-                issues:   { type: 'array', items: { type: 'string' } },
-              },
-              required: ['score', 'approved', 'issues'],
-              additionalProperties: false,
-            },
-          },
-        },
-      }),
-    })
+Respond ONLY with valid JSON in this exact format:
+{"score": <number 0-100>, "approved": <true|false>, "issues": [<string>, ...]}`
 
-    if (!response.ok) throw new Error(`OpenAI error: ${response.status}`)
-    const data = await response.json()
-    const parsed = JSON.parse(data.choices[0]?.message?.content ?? '{}') as CompositionQuality
-    console.log(`[compose-qc] score=${parsed.score} approved=${parsed.approved} issues=${parsed.issues.join(', ')}`)
-    return parsed
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: prompt },
+              { text: 'FIRST IMAGE — original product:' },
+              { inlineData: { mimeType: 'image/jpeg', data: await urlToBase64(productUrl) } },
+              { text: 'SECOND IMAGE — composed photo:' },
+              { inlineData: { mimeType: 'image/jpeg', data: composedImageBase64 } },
+            ],
+          }],
+          generationConfig: { responseMimeType: 'application/json' },
+        }),
+      }
+    )
+
+    if (!res.ok) throw new Error(`Gemini QC error: ${res.status}`)
+    const data = await res.json()
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
+    const parsed = JSON.parse(text) as CompositionQuality
+    console.log(`[compose-qc] score=${parsed.score} approved=${parsed.approved} issues=${(parsed.issues ?? []).join(', ')}`)
+    return { approved: parsed.approved ?? true, score: parsed.score ?? 80, issues: parsed.issues ?? [] }
   } catch (err: any) {
-    console.warn('[compose-qc] GPT falhou — aprovando por padrão:', err.message)
+    console.warn('[compose-qc] Gemini QC falhou — aprovando por padrão:', err.message)
     return { approved: true, score: 80, issues: [] }
   }
+}
+
+async function urlToBase64(url: string): Promise<string> {
+  const res = await fetch(url)
+  const buf = await res.arrayBuffer()
+  return Buffer.from(buf).toString('base64')
 }
