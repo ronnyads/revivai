@@ -1689,111 +1689,49 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    // Descreve a roupa atual via Gemini Vision para ancorar o prompt
-    let appearanceDesc = ''
-    try {
-      const descRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: 'Describe ONLY the clothing and outfit of the person in this image. Be specific: colors, fabric, garment names. Max 2 sentences.' },
-              { inline_data: { mime_type: mimeType, data: base64Image } }
-            ]
-          }]
-        })
-      })
-      const descData = await descRes.json()
-      appearanceDesc = descData.candidates?.[0]?.content?.parts?.[0]?.text || ''
-    } catch { /* silent */ }
+    // Gemini 3 Pro Image → Gemini 3.1 Flash Image (fallback)
+    const geminiPrompt = [
+      `You are a professional photo director. You receive a photo of a ${detectedGender} and must output a NEW photorealistic photo of the SAME person from a different camera angle.`,
+      `CHANGE ONLY: the camera angle to "${params.angle}" view — ${perspective}.`,
+      `PRESERVE EXACTLY: same face, same facial features, same skin tone, same hair color and style, same outfit and every clothing item with exact colors, patterns and details, same body proportions.`,
+      `Output: photorealistic commercial photo, natural lighting, white or neutral background, no watermarks.`,
+    ].join(' ')
 
-    const finalPrompt = [
-      `A photorealistic UGC photo of the ${detectedGender} {subject_id: 1}.`,
-      appearanceDesc ? `The ${detectedGender} is wearing: ${appearanceDesc}.` : '',
-      `Change ONLY the camera angle to ${params.angle} view (${perspective}).`,
-      `Preserve EXACTLY: same ${detectedGender} face, same hair color and style, same outfit and every clothing item with exact colors and patterns.`,
-      `DO NOT change gender. MUST be a ${detectedGender}.`,
-      `Photorealistic UGC photo, 8k, cinematic lighting.`,
-    ].filter(Boolean).join(' ')
+    const geminiChain = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
+    let geminiSuccess = false
 
-    try {
-      const vertexKey = process.env.GOOGLE_VERTEX_KEY
-      if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada nas variáveis de ambiente.')
-
-      let projectId = process.env.VERTEX_PROJECT_ID
-      if (!projectId) {
-         try {
-           const keyData = JSON.parse(vertexKey.startsWith('"') ? JSON.parse(vertexKey) : vertexKey)
-           projectId = keyData.project_id
-         } catch (e) {
-           console.warn('[studio] Não foi possível extrair ProjectID da chave JSON em angles')
-         }
+    for (const model of geminiChain) {
+      try {
+        console.log(`[angles] Tentando Gemini model=${model} angle=${params.angle}`)
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [
+                { text: geminiPrompt },
+                { inlineData: { mimeType, data: base64Image } },
+              ]}],
+              generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
+            }),
+          }
+        )
+        if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
+        const data = await res.json()
+        const parts = data.candidates?.[0]?.content?.parts ?? []
+        const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
+        if (!imgPart?.inlineData?.data) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
+        photoBuffer = Buffer.from(imgPart.inlineData.data, 'base64')
+        console.log(`[angles] Gemini sucesso: ${model}`)
+        geminiSuccess = true
+        break
+      } catch (e: any) {
+        console.warn(`[angles] ${model} falhou: ${e.message}`)
       }
-      if (!projectId) throw new Error('VERTEX_PROJECT_ID não configurado para angles.')
-
-      const location = process.env.VERTEX_LOCATION || 'us-central1'
-      const vertexToken = await getVertexAccessToken(vertexKey)
-      const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-capability-001:predict`
-
-      console.log(`[studio] Chamando Vertex AI Enterprise para asset ${params.assetId}...`)
-
-      const payload = {
-        instances: [{
-          prompt: `(IDENTITY LOCK: person[1]). A realistic UGC photo. ${prompt}. Angle: ${params.angle}.
-          The person MUST have the EXACT same facial features, EXACT same face shape, EXACT same eyes, and EXACT same hair style as person[1]. 
-          The OUTFIT must be IDENTICAL to the clothing seen in person[1]. 
-          High resolution, natural studio lighting, raw photography, consistent character.`,
-          referenceImages: [
-            {
-              referenceId: 1,
-              referenceType: "REFERENCE_TYPE_RAW",
-              referenceImage: {
-                bytesBase64Encoded: base64Image,
-                mimeType: mimeType
-              }
-            }
-          ]
-        }],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio: params.aspect_ratio === '1:1' ? '1:1' : '9:16'
-        }
-      }
-        
-        console.log('[Payload]', JSON.stringify(payload, null, 2))
-
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 45000) // 45s timeout
-
-        const vertexRes = await fetch(vertexUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${vertexToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal
-        }).finally(() => clearTimeout(timeoutId))
-
-      if (!vertexRes.ok) {
-        const errBody = await vertexRes.text()
-        console.error('[studio] ERRO DETALHADO DO VERTEX (IMAGEN):', vertexRes.status, errBody)
-        throw new Error(`Vertex AI Photo Error (${vertexRes.status}): ${errBody.slice(0, 500)}`)
-      }
-
-      const vertexData = await vertexRes.json()
-      const base64Res = vertexData.predictions?.[0]?.bytesBase64Encoded
-      if (!base64Res) {
-        console.error('[studio] Vertex não retornou imagem. Raw:', JSON.stringify(vertexData))
-        throw new Error('Response do Vertex não contém bytesBase64Encoded.')
-      }
-      photoBuffer = Buffer.from(base64Res, 'base64')
-
-    } catch (vertexError: any) {
-      console.error('[studio] Falha definitiva no Vertex AI (SEM FALLBACK):', vertexError.message)
-      throw vertexError
     }
+
+    if (!geminiSuccess) throw new Error('Todos os modelos Gemini falharam para angles.')
   } else {
     // ---- FLUX DEV (IMAGE-TO-IMAGE) - OPTIMIZED FOR IDENTITY ----
     const falKey = process.env.FAL_KEY
