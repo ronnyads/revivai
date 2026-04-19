@@ -877,6 +877,8 @@ MODEL IDENTITY PROTECTION: The person's face, skin tone, hair color, hair style,
 OUTPUT RULES — non-negotiable:
 - ONE single unified photo. NOT a collage. NOT side-by-side. The person and product must exist in the same scene.
 - The product must be PHYSICALLY HELD, WORN, or USED by the person — it must make contact with hands, body, or immediate scene
+- Use ONLY the model's existing hands — do NOT generate extra hands, duplicate hands, or disembodied hands
+- The number of visible hands must match the original portrait — never add more hands than the person naturally has
 - Natural lighting and shadows — the product must cast realistic shadows consistent with the photo
 - Pure white background (#FFFFFF)
 - No text overlays, watermarks, borders, or decorative elements`
