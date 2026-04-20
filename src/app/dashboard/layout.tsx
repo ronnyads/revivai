@@ -74,23 +74,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
           </Link>
         </nav>
 
-        {/* Premium Profile Footer */}
-        <div className="p-6 border-t border-zinc-900 bg-zinc-950/80 group/footer">
-          <div className="flex items-center justify-between gap-3 transition-all duration-500">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center font-bold text-white shadow-lg group-hover/footer:shadow-indigo-500/20 transition-all">
-                {user.email?.[0].toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-white truncate">{user.email?.split('@')[0]}</p>
-                <p className="text-[10px] text-zinc-500 truncate font-medium">{user.email}</p>
-              </div>
+        {/* Profile Footer */}
+        <div className="px-6 pt-5 pb-6 border-t border-zinc-900">
+          <div className="flex items-center gap-3 min-w-0 mb-4">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center font-bold text-white text-sm shadow-lg flex-shrink-0">
+              {user.email?.[0].toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-white truncate">{user.email?.split('@')[0]}</p>
+              <p className="text-[10px] text-zinc-500 truncate">{user.email}</p>
             </div>
           </div>
-          
-          <div className="mt-0 max-h-0 opacity-0 overflow-hidden group-hover/footer:mt-4 group-hover/footer:max-h-20 group-hover/footer:opacity-100 transition-all duration-500 ease-in-out">
-            <LogoutButton />
-          </div>
+          <LogoutButton />
         </div>
       </aside>
 
