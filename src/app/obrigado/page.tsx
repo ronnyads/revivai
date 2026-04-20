@@ -238,7 +238,7 @@ function ThankYouClient() {
 
           <p className="text-zinc-600 text-xs">
             Dúvidas? Fale conosco pelo{' '}
-            <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer" className="text-zinc-400 hover:text-white underline underline-offset-2 transition-colors">
+            <a href="https://wa.me/5511969656723" target="_blank" rel="noopener noreferrer" className="text-zinc-400 hover:text-white underline underline-offset-2 transition-colors">
               WhatsApp
             </a>
           </p>

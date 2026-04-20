@@ -57,7 +57,7 @@ export default function RefundEmail({ name, email, planName }: RefundEmailProps)
               Se tiver duvidas sobre o prazo ou o valor, entre em contato com nosso suporte.
             </Text>
 
-            <Button href="https://wa.me/5511999999999" style={ctaButton}>
+            <Button href="https://wa.me/5511969656723" style={ctaButton}>
               Falar com suporte
             </Button>
           </Section>
