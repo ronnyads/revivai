@@ -45,13 +45,12 @@ export async function POST(req: NextRequest) {
   }
 
   const isDraft = body.status === 'idle'
-  const { data: profile } = await supabase.from('users').select('credits').eq('id', user.id).single()
-  
+  const admin = createAdminClient()
+  const { data: profile } = await admin.from('users').select('credits').eq('id', user.id).single()
+
   if (!isDraft && (!profile || profile.credits < effectiveCost)) {
     return NextResponse.json({ error: `Saldo insuficiente. Necessário ${effectiveCost} cr.` }, { status: 402 })
   }
-
-  const admin = createAdminClient()
 
   // 2. Registro do Asset (Smart Upsert)
   let asset: any
