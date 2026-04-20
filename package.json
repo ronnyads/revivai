@@ -13,6 +13,7 @@
     "@google-cloud/vertexai": "^1.12.0",
     "@google/generative-ai": "^0.24.1",
     "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.0.7",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
     "@xyflow/react": "^12.10.2",

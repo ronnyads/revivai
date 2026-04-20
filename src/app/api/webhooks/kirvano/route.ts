@@ -130,12 +130,12 @@ export async function POST(req: NextRequest) {
       plan: plan.planId,
     }, { onConflict: 'id', ignoreDuplicates: false })
 
-    // Adiciona créditos
-    const { error: creditsErr } = await admin.rpc('add_credits', {
-      user_id: userId,
-      amount: plan.credits,
-    })
-    if (creditsErr) console.warn('[kirvano] add_credits falhou:', creditsErr.message)
+    // Adiciona créditos (fetch + update atômico)
+    const { data: currentUser } = await admin.from('users').select('credits').eq('id', userId).single()
+    const newCredits = (currentUser?.credits ?? 0) + plan.credits
+    const { error: creditsErr } = await admin.from('users').update({ credits: newCredits }).eq('id', userId)
+    if (creditsErr) console.warn('[kirvano] update credits falhou:', creditsErr.message)
+    else console.log(`[kirvano] Creditos adicionados: ${plan.credits} → total: ${newCredits}`)
 
     // Salva pedido (CPF parcialmente mascarado no external_id para deduplicação)
     const externalId = cpf
