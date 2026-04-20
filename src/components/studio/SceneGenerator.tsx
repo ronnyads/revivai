@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useId } from 'react'
 import { Sparkles, MapPin, Image as ImageIcon, Camera, Maximize, Upload, Loader2 } from 'lucide-react'
 
 interface Props {
@@ -29,7 +29,7 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
   const [aspectRatio, setAspectRatio]       = useState(String(initial.aspect_ratio ?? '9:16'))
   const [uploadedUrl, setUploadedUrl]       = useState<string | null>(null)
   const [uploading, setUploading]           = useState(false)
-  const fileRef                             = useRef<HTMLInputElement>(null)
+  const uploadId                            = useId()
 
   const sourceUrl = (uploadedUrl || initial.source_url) as string
   const resultUrl = initial.url as string
@@ -92,26 +92,25 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
           </div>
         ) : (
           <div className={`${aspectRatio === '9:16' ? 'aspect-[9/16]' : aspectRatio === '1:1' ? 'aspect-square' : 'aspect-[4/5]'} w-full rounded-2xl border-2 border-dashed border-white/5 bg-white/5 flex flex-col items-center justify-center gap-3 p-6 text-center`}>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
-            />
             <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-zinc-600">
               <Camera size={24} />
             </div>
             <p className="text-xs font-semibold text-zinc-400">Conecte um Modelo ou Fusão</p>
             <p className="text-[10px] text-zinc-600">Arraste a saída do card para cá</p>
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={uploading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-500/30 text-[10px] font-bold text-zinc-400 hover:text-white transition-all disabled:opacity-50"
+            <label
+              htmlFor={uploadId}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-500/30 text-[10px] font-bold text-zinc-400 hover:text-white transition-all cursor-pointer"
             >
               {uploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
               {uploading ? 'Enviando...' : 'Upload do PC / Celular'}
-            </button>
+            </label>
+            <input
+              id={uploadId}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
+            />
           </div>
         )}
       </div>
