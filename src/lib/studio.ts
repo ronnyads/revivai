@@ -727,7 +727,8 @@ export async function startVideoGeneration(params: {
 
   let falModelPath = FAL_KLING_PATH
   let endpoint = `https://queue.fal.run/${FAL_KLING_PATH}`
-  const requestedDuration = String(params.duration ?? config.duration ?? '5')
+  const rawDuration = Number(params.duration ?? config.duration ?? 5)
+  const requestedDuration = rawDuration >= 10 ? '10' : '5'
 
   let payload: any = {
     image_url: params.source_image_url,
