@@ -23,6 +23,8 @@ const SCENE_PRESETS = [
   { id: 'nature_forest',   label: 'Natureza',       prompt: 'standing in a lush green forest, dappled sunlight through trees, fresh natural environment' },
 ]
 
+const MAX_EXTRA = 5
+
 export default function SceneGenerator({ initial, onGenerate }: Props) {
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
   const [customScene, setCustomScene]       = useState(String(initial.scene_prompt ?? ''))
@@ -129,12 +131,12 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
         )}
       </div>
 
-      {/* Extra references */}
-      {sourceUrl && extraUrls.length < 2 && (
+      {/* Extra references — always visible when source exists */}
+      {sourceUrl && (
         <div className="flex flex-col gap-1.5">
           <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1">
             <Plus size={10} className="text-violet-500" /> Fotos Extras de Referência
-            <span className="ml-auto text-zinc-600 normal-case font-normal">até 2 · melhora fidelidade</span>
+            <span className="ml-auto text-zinc-600 normal-case font-normal">{extraUrls.length}/{MAX_EXTRA} · melhora fidelidade</span>
           </label>
           <div className="flex gap-2 flex-wrap">
             {extraUrls.map((url, i) => (
@@ -148,26 +150,30 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
                 </button>
               </div>
             ))}
-            <label
-              htmlFor={extraUploadId}
-              className="w-14 h-14 rounded-lg border-2 border-dashed border-white/10 hover:border-violet-500/40 bg-white/3 flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-colors"
-            >
-              {uploadingExtra
-                ? <Loader2 size={14} className="text-zinc-500 animate-spin" />
-                : <><Plus size={14} className="text-zinc-500" /><span className="text-[8px] text-zinc-600 font-bold">ADD</span></>
-              }
-            </label>
-            <input
-              id={extraUploadId}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={e => e.target.files?.[0] && uploadFile(
-                e.target.files[0],
-                url => setExtraUrls(prev => [...prev, url]),
-                setUploadingExtra
-              )}
-            />
+            {extraUrls.length < MAX_EXTRA && (
+              <>
+                <label
+                  htmlFor={extraUploadId}
+                  className="w-14 h-14 rounded-lg border-2 border-dashed border-white/10 hover:border-violet-500/40 bg-white/3 flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-colors"
+                >
+                  {uploadingExtra
+                    ? <Loader2 size={14} className="text-zinc-500 animate-spin" />
+                    : <><Plus size={14} className="text-zinc-500" /><span className="text-[8px] text-zinc-600 font-bold">ADD</span></>
+                  }
+                </label>
+                <input
+                  id={extraUploadId}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={e => e.target.files?.[0] && uploadFile(
+                    e.target.files[0],
+                    url => setExtraUrls(prev => [...prev, url]),
+                    setUploadingExtra
+                  )}
+                />
+              </>
+            )}
           </div>
         </div>
       )}

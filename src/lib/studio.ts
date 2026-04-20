@@ -2084,7 +2084,7 @@ export async function generateScene(params: {
 
   const primaryData = await fetchInlineData(params.source_url)
   const extraData = await Promise.all(
-    (params.extra_source_urls ?? []).slice(0, 2).map(u => fetchInlineData(u).catch(() => null))
+    (params.extra_source_urls ?? []).slice(0, 5).map(u => fetchInlineData(u).catch(() => null))
   ).then(r => r.filter(Boolean) as { mimeType: string; data: string }[])
 
   const hasMultiple = extraData.length > 0
