@@ -98,23 +98,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    // Re-upload para Supabase para garantir URL permanente (Replicate/Fal URLs expiram)
-    const videoUrl = await persistToStorage(admin, rawUrl, userId, assetId)
-
+    // Salva URL temporária imediatamente — garante que o vídeo fica visível
+    // mesmo se o upload pro Supabase Storage falhar ou timeout
     await admin.from('studio_assets').update({
       status: 'done',
-      result_url: videoUrl,
-      last_frame_url: videoUrl,
+      result_url: rawUrl,
+      last_frame_url: rawUrl,
     }).eq('id', assetId)
 
     // Debita créditos de forma atômica
     const cost = current?.credits_cost ?? 3
-    await admin.rpc('debit_credits_bulk', { 
-      user_id_param: userId, 
-      amount_param: cost 
+    await admin.rpc('debit_credits_bulk', {
+      user_id_param: userId,
+      amount_param: cost
     })
 
-    console.log(`[studio/webhook] ✅ Asset ${assetId} concluído: ${videoUrl}`)
+    console.log(`[studio/webhook] ✅ Asset ${assetId} concluído (URL temporária): ${rawUrl}`)
+
+    // Re-upload para Supabase em segundo plano para URL permanente
+    persistToStorage(admin, rawUrl, userId, assetId).then(permanentUrl => {
+      if (permanentUrl !== rawUrl) {
+        admin.from('studio_assets').update({
+          result_url: permanentUrl,
+          last_frame_url: permanentUrl,
+        }).eq('id', assetId)
+        console.log(`[studio/webhook] ✅ Asset ${assetId} persistido permanentemente: ${permanentUrl}`)
+      }
+    }).catch(e => console.warn(`[studio/webhook] persistToStorage falhou (não crítico):`, e))
   } else if (
     status === 'failed' || status === 'canceled' ||
     status === 'ERROR'  || status === 'FAILED'

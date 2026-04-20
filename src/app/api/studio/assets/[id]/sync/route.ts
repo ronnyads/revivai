@@ -231,17 +231,22 @@ export async function POST(
           return NextResponse.json({ status: 'processing', message: 'Resultado ainda não disponível no payload' })
         }
 
-        videoUrl = await persistToStorage(admin, videoUrl, user.id, id)
-        
-        // Extrai e salva o último frame para facilitar a continuação
-        const lastFrameUrl = await saveLastFrame(videoUrl, user.id, id)
-
+        // Salva URL temporária imediatamente — vídeo fica visível antes do upload pro Storage
         await admin.from('studio_assets').update({
           status: 'done',
           result_url: videoUrl,
-          last_frame_url: lastFrameUrl || videoUrl,
+          last_frame_url: videoUrl,
           error_msg: null,
         }).eq('id', id)
+
+        // Persiste pro Supabase Storage + extrai frame em segundo plano
+        persistToStorage(admin, videoUrl, user.id, id).then(async permanentUrl => {
+          const lastFrameUrl = await saveLastFrame(permanentUrl, user.id, id).catch(() => null)
+          await admin.from('studio_assets').update({
+            result_url: permanentUrl,
+            last_frame_url: lastFrameUrl || permanentUrl,
+          }).eq('id', id)
+        }).catch(e => console.warn(`[sync] persistToStorage falhou (não crítico):`, e))
 
         return NextResponse.json({ status: 'done', result_url: videoUrl })
       }
