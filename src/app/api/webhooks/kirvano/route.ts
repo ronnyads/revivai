@@ -15,8 +15,8 @@ const KIRVANO_PRODUCTS: Record<string, { planId: string; credits: number; name: 
   [process.env.KIRVANO_PRODUCT_FREE    ?? '8be0d9b0-c20d-471e-9988-0c5b1951c3b1']: { planId: 'free',    credits: 50,   name: 'Explorador', price: 0   },
   // Rookie
   [process.env.KIRVANO_PRODUCT_STARTER ?? '742d82bb-2ce1-4db6-88e6-f7da3a56897d']: { planId: 'starter', credits: 600,  name: 'Rookie',     price: 47  },
-  // Creator — adicionar ID quando disponível
-  [process.env.KIRVANO_PRODUCT_POPULAR ?? 'PRODUCT_ID_CREATOR']:                   { planId: 'popular', credits: 1100, name: 'Creator',    price: 79  },
+  // Creator
+  [process.env.KIRVANO_PRODUCT_POPULAR ?? '643c2622-c454-4dc5-a85e-da2276b7d944']: { planId: 'popular', credits: 1100, name: 'Creator',    price: 79  },
   // Pro
   [process.env.KIRVANO_PRODUCT_PRO     ?? '781f1a63-1608-4fcf-be7c-cc1cf1680348']: { planId: 'pro',     credits: 2100, name: 'Pro',        price: 149 },
   // Studio
