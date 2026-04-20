@@ -51,11 +51,27 @@ export async function POST(req: NextRequest) {
 
     // Identifica plano pelo primeiro produto
     const productId = body.products?.[0]?.id ?? body.product?.id ?? ''
-    const plan = KIRVANO_PRODUCTS[productId]
+    const offerName: string = (body.products?.[0]?.offer?.name ?? body.offer?.name ?? '').toLowerCase()
+    const offerPrice: number = body.products?.[0]?.offer?.price ?? body.offer?.price ?? 0
+
+    // Fallback: mapeia por nome da oferta ou preço quando ID não está configurado
+    let plan = KIRVANO_PRODUCTS[productId]
     if (!plan) {
-      console.warn(`[kirvano] Produto não mapeado: ${productId}`)
+      if (offerName.includes('rookie') || offerName.includes('starter') || (offerPrice >= 4700 && offerPrice < 7900))
+        plan = { planId: 'starter', credits: 600,  name: 'Rookie',  price: 47  }
+      else if (offerName.includes('creator') || offerName.includes('popular') || (offerPrice >= 7900 && offerPrice < 14900))
+        plan = { planId: 'popular', credits: 1100, name: 'Creator', price: 79  }
+      else if (offerName.includes(' pro') || (offerPrice >= 14900 && offerPrice < 39700))
+        plan = { planId: 'pro',     credits: 2100, name: 'Pro',     price: 149 }
+      else if (offerName.includes('studio') || offerName.includes('agency') || offerPrice >= 39700)
+        plan = { planId: 'agency',  credits: 5100, name: 'Studio',  price: 397 }
+    }
+
+    if (!plan) {
+      console.warn(`[kirvano] Produto não mapeado: ${productId} | oferta: "${offerName}" | preço: ${offerPrice} | payload: ${JSON.stringify(body).slice(0, 800)}`)
       return NextResponse.json({ ok: true })
     }
+    console.log(`[kirvano] Produto mapeado: ${productId} → ${plan.name}`)
 
     // Cria ou recupera usuário no Supabase
     let userId: string
