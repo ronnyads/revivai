@@ -222,15 +222,10 @@ function AssetNode({ data }: NodeProps) {
           )}
 
           {asset.status === 'error' && (
-            <div className="flex flex-col items-center py-4 gap-2">
-              <p className="text-xs text-red-400 text-center">{asset.error_msg || 'Erro ao gerar'}</p>
-              <button
-                onClick={() => onGenerate(asset.type, asset.input_params, asset.id)}
-                className="flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-2.5 py-1.5 rounded-lg transition-colors"
-              >
-                <RotateCcw size={11} /> Tentar novamente
-              </button>
-            </div>
+            <ErrorCard
+              asset={asset}
+              onGenerate={() => onGenerate(asset.type, asset.input_params, asset.id)}
+            />
           )}
 
           {asset.status === 'done' && asset.result_url && (
@@ -465,6 +460,60 @@ const LABELS: Partial<Record<AssetType, string>> = {
   music:   'Maestro Virtual compondo trilha sonora...',
   ugc_bundle: 'Renderizando 8 ângulos UGC em paralelo...',
   scene: 'Integrando modelo na cena descrita...',
+}
+
+const SYNC_TYPES: AssetType[] = ['video', 'animate', 'lipsync']
+
+function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: () => void }) {
+  const [syncing, setSyncing] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  const hasPrediction = !!(asset.input_params as any)?.prediction_id
+  const canSync = SYNC_TYPES.includes(asset.type) && hasPrediction
+
+  async function handleSync() {
+    setSyncing(true)
+    setMsg('')
+    try {
+      const res = await fetch(`/api/studio/assets/${asset.id}/sync`, { method: 'POST' })
+      const data = await res.json()
+      if (data.status === 'done') {
+        setMsg('Pronto! Recarregando...')
+        setTimeout(() => window.location.reload(), 1200)
+      } else if (data.status === 'error') {
+        setMsg(data.error ?? 'Erro no sync')
+      } else {
+        setMsg('Ainda processando...')
+      }
+    } catch {
+      setMsg('Erro ao verificar')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center py-4 gap-2">
+      <p className="text-xs text-red-400 text-center">{asset.error_msg || 'Erro ao gerar'}</p>
+      {canSync && (
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          className="flex items-center gap-1.5 text-[11px] text-amber-400 hover:text-white border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+        >
+          <RotateCcw size={11} className={syncing ? 'animate-spin' : ''} />
+          {syncing ? 'Verificando...' : 'Buscar resultado (sem custo)'}
+        </button>
+      )}
+      <button
+        onClick={onGenerate}
+        className="flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-2.5 py-1.5 rounded-lg transition-colors"
+      >
+        <RotateCcw size={11} /> {canSync ? 'Gerar novamente (cobra créditos)' : 'Tentar novamente'}
+      </button>
+      {msg && <p className="text-[10px] text-zinc-400 text-center">{msg}</p>}
+    </div>
+  )
 }
 
 function ProcessingCard({ type, createdAt, assetId }: { type: AssetType; createdAt: string; assetId: string }) {
