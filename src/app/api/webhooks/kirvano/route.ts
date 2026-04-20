@@ -10,12 +10,17 @@ import { sendPurchaseEmail, sendRefundEmail, sendAbandonedCartEmail } from '@/li
    Header: X-Kirvano-Token (validado contra KIRVANO_WEBHOOK_TOKEN)
 ───────────────────────────────────────────────────────────────────────────── */
 
-// Preencher após criar produtos no painel Kirvano
 const KIRVANO_PRODUCTS: Record<string, { planId: string; credits: number; name: string; price: number }> = {
-  [process.env.KIRVANO_PRODUCT_STARTER ?? 'PRODUCT_ID_STARTER']: { planId: 'starter', credits: 600,  name: 'Rookie',  price: 47  },
-  [process.env.KIRVANO_PRODUCT_POPULAR ?? 'PRODUCT_ID_POPULAR']: { planId: 'popular', credits: 1100, name: 'Creator', price: 79  },
-  [process.env.KIRVANO_PRODUCT_PRO     ?? 'PRODUCT_ID_PRO']:     { planId: 'pro',     credits: 2100, name: 'Pro',     price: 149 },
-  [process.env.KIRVANO_PRODUCT_AGENCY  ?? 'PRODUCT_ID_AGENCY']:  { planId: 'agency',  credits: 5100, name: 'Studio',  price: 397 },
+  // Explorador (free)
+  [process.env.KIRVANO_PRODUCT_FREE    ?? '8be0d9b0-c20d-471e-9988-0c5b1951c3b1']: { planId: 'free',    credits: 50,   name: 'Explorador', price: 0   },
+  // Rookie
+  [process.env.KIRVANO_PRODUCT_STARTER ?? '742d82bb-2ce1-4db6-88e6-f7da3a56897d']: { planId: 'starter', credits: 600,  name: 'Rookie',     price: 47  },
+  // Creator — adicionar ID quando disponível
+  [process.env.KIRVANO_PRODUCT_POPULAR ?? 'PRODUCT_ID_CREATOR']:                   { planId: 'popular', credits: 1100, name: 'Creator',    price: 79  },
+  // Pro
+  [process.env.KIRVANO_PRODUCT_PRO     ?? '781f1a63-1608-4fcf-be7c-cc1cf1680348']: { planId: 'pro',     credits: 2100, name: 'Pro',        price: 149 },
+  // Studio
+  [process.env.KIRVANO_PRODUCT_AGENCY  ?? 'bb19dade-47d9-4801-ac48-8a4b05bd4367']: { planId: 'agency',  credits: 5100, name: 'Studio',     price: 397 },
 }
 
 export async function POST(req: NextRequest) {
