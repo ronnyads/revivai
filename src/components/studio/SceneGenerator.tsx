@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Sparkles, MapPin, Image as ImageIcon, Camera, Maximize } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Sparkles, MapPin, Image as ImageIcon, Camera, Maximize, Upload, Loader2 } from 'lucide-react'
 
 interface Props {
   initial: Record<string, unknown>
@@ -27,9 +27,26 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
   const [customScene, setCustomScene]       = useState(String(initial.scene_prompt ?? ''))
   const [aspectRatio, setAspectRatio]       = useState(String(initial.aspect_ratio ?? '9:16'))
+  const [uploadedUrl, setUploadedUrl]       = useState<string | null>(null)
+  const [uploading, setUploading]           = useState(false)
+  const fileRef                             = useRef<HTMLInputElement>(null)
 
-  const sourceUrl = initial.source_url as string
+  const sourceUrl = (uploadedUrl || initial.source_url) as string
   const resultUrl = initial.url as string
+
+  async function handleUpload(file: File) {
+    setUploading(true)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      form.append('bucket', 'studio')
+      const res = await fetch('/api/studio/upload', { method: 'POST', body: form })
+      const { url } = await res.json()
+      if (url) setUploadedUrl(url)
+    } catch { /* silencioso */ } finally {
+      setUploading(false)
+    }
+  }
 
   const activePrompt = selectedPreset
     ? (SCENE_PRESETS.find(p => p.id === selectedPreset)?.prompt ?? customScene)
