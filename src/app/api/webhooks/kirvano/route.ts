@@ -114,6 +114,7 @@ export async function POST(req: NextRequest) {
     } else {
       const { data: newUser, error: createErr } = await admin.auth.admin.createUser({
         email,
+        password: '123456',
         email_confirm: true,
       })
       if (createErr || !newUser?.user) {
@@ -150,28 +151,15 @@ export async function POST(req: NextRequest) {
       external_id: externalId,
     }).select()
 
-    // Gera magic link para primeiro acesso
-    let magicLink = `${process.env.NEXT_PUBLIC_APP_URL}/auth/login`
-    try {
-      const { data: linkData } = await admin.auth.admin.generateLink({
-        type: 'magiclink',
-        email,
-        options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard` },
-      })
-      if (linkData?.properties?.action_link) {
-        magicLink = linkData.properties.action_link
-      }
-    } catch (e) {
-      console.warn('[kirvano] Falha ao gerar magic link:', e)
-    }
-
-    // Envia e-mail de boas-vindas
+    // Envia e-mail de boas-vindas com credenciais
+    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://revivads.com'}/auth/login`
     const { error: emailErr } = await sendPurchaseEmail({
       email,
       name,
       planName: plan.name,
       credits: plan.credits,
-      magicLink,
+      password: '123456',
+      loginUrl,
     })
     if (emailErr) console.warn('[kirvano] E-mail de compra falhou:', emailErr)
     else console.log(`[kirvano] ✅ E-mail enviado para ${email} — Plano ${plan.name}`)

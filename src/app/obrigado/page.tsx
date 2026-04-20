@@ -119,7 +119,7 @@ function ThankYouClient() {
   const count = useCountUp(credits)
   const [copied, setCopied] = useState(false)
 
-  const shareText = `Acabei de assinar o plano ${meta.name} da reviv.ai e já tenho ${credits.toLocaleString('pt-BR')} créditos para criar imagens e vídeos com IA! 🚀 reviv.ai`
+  const shareText = `Acabei de assinar o plano ${meta.name} da RevivAI e já tenho ${credits.toLocaleString('pt-BR')} créditos para criar imagens e vídeos com IA! revivads.com`
 
   function handleCopy() {
     navigator.clipboard.writeText(shareText).catch(() => {})

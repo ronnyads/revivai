@@ -12,12 +12,13 @@ export async function sendPurchaseEmail(opts: {
   name: string
   planName: string
   credits: number
-  magicLink: string
+  password: string
+  loginUrl: string
 }) {
   return resend.emails.send({
     from: FROM,
     to: opts.email,
-    subject: `✅ Sua conta RevivAI está pronta — Plano ${opts.planName}`,
+    subject: `Sua conta RevivAI está pronta — Plano ${opts.planName}`,
     react: createElement(PurchaseEmail, opts),
   })
 }

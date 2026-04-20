@@ -16,10 +16,11 @@ interface PurchaseEmailProps {
   email: string
   planName: string
   credits: number
-  magicLink: string
+  password: string
+  loginUrl: string
 }
 
-export default function PurchaseEmail({ name, email, planName, credits, magicLink }: PurchaseEmailProps) {
+export default function PurchaseEmail({ name, email, planName, credits, password, loginUrl }: PurchaseEmailProps) {
   const cfg = PLAN_CONFIG[planName] ?? PLAN_CONFIG['Creator']
   const firstName = name?.split(' ')[0] ?? 'criador'
   const images   = Math.floor(credits / 8)
@@ -73,18 +74,22 @@ export default function PurchaseEmail({ name, email, planName, credits, magicLin
               </div>
             </div>
 
-            {/* CTA */}
-            <Text style={ctaNote}>
-              Use o link abaixo para acessar sua conta pela primeira vez. Expira em 24 horas.
-            </Text>
-            <Button href={magicLink} style={{ ...ctaButton, backgroundColor: cfg.color }}>
+            {/* Credenciais */}
+            <div style={credentialsBlock}>
+              <div style={credRow}>
+                <Text style={credKey}>E-mail</Text>
+                <Text style={credVal}>{email}</Text>
+              </div>
+              <Hr style={innerDivider} />
+              <div style={credRow}>
+                <Text style={credKey}>Senha</Text>
+                <Text style={{ ...credVal, color: cfg.color, fontFamily: '"Courier New", monospace', letterSpacing: 2 }}>{password}</Text>
+              </div>
+            </div>
+
+            <Button href={loginUrl} style={{ ...ctaButton, backgroundColor: cfg.color }}>
               Acessar minha conta
             </Button>
-
-            <Text style={ctaAlt}>
-              Ou copie e cole este link no seu navegador:{' '}
-              <span style={{ color: cfg.color, wordBreak: 'break-all', fontSize: 11 }}>{magicLink}</span>
-            </Text>
           </Section>
 
           <Hr style={divider} />
@@ -209,12 +214,31 @@ const gridLabel: React.CSSProperties = {
   letterSpacing: 1,
   margin: 0,
 }
-const ctaNote: React.CSSProperties = {
+const credentialsBlock: React.CSSProperties = {
+  backgroundColor: '#141414',
+  border: '1px solid #1f1f1f',
+  borderRadius: 6,
+  padding: '0 20px',
+  marginBottom: 24,
+}
+const credRow: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: '14px 0',
+}
+const credKey: React.CSSProperties = {
   color: '#52525b',
   fontSize: 12,
-  margin: '0 0 12px',
-  lineHeight: 1.5,
+  margin: 0,
 }
+const credVal: React.CSSProperties = {
+  color: '#e4e4e7',
+  fontSize: 12,
+  fontWeight: 600,
+  margin: 0,
+}
+const innerDivider: React.CSSProperties = { borderColor: '#1f1f1f', margin: 0 }
 const ctaButton: React.CSSProperties = {
   color: '#000000',
   fontSize: 13,
