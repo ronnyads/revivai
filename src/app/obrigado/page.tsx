@@ -205,7 +205,7 @@ function ThankYouClient() {
 
           {/* CTA */}
           <Link
-            href="/login"
+            href="/auth/login"
             className="w-full py-3.5 rounded-xl bg-white text-zinc-900 font-bold text-sm hover:bg-zinc-100 transition-colors text-center"
           >
             Acessar minha conta →
