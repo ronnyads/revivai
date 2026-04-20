@@ -9,18 +9,18 @@ interface Props {
 }
 
 const SCENE_PRESETS = [
-  { id: 'eiffel_paris',    label: 'Torre Eiffel',    emoji: '🗼', prompt: 'standing in front of the Eiffel Tower in Paris, golden hour light, iconic landmark clearly visible, romantic Parisian atmosphere' },
-  { id: 'times_square',    label: 'Times Square',    emoji: '🗽', prompt: 'walking through Times Square New York at night, iconic neon billboards and city lights bokeh, vibrant urban energy' },
-  { id: 'dubai_burj',      label: 'Dubai Burj',      emoji: '🌇', prompt: 'on a luxury rooftop in Dubai with the Burj Khalifa visible in the background, golden sunset, panoramic skyline' },
-  { id: 'santorini',       label: 'Santorini',       emoji: '🏛️', prompt: 'in Santorini Greece, white-washed buildings with blue domes, crystal blue Aegean Sea, golden Mediterranean light' },
-  { id: 'tokyo_shibuya',   label: 'Tóquio',          emoji: '🗾', prompt: 'at Shibuya crossing in Tokyo at night, colorful neon lights, dynamic Japanese street atmosphere' },
-  { id: 'london_big_ben',  label: 'Londres',         emoji: '🎡', prompt: 'near Big Ben and the Thames River in London, classic British architecture, cloudy dramatic sky, elegant European setting' },
-  { id: 'maldives_beach',  label: 'Maldivas',        emoji: '🌊', prompt: 'standing on a pristine white sand beach in the Maldives, crystal turquoise water, overwater bungalows in background, tropical paradise' },
-  { id: 'rome_colosseum',  label: 'Roma',            emoji: '🏟️', prompt: 'near the Colosseum in Rome Italy, ancient architecture, warm afternoon Mediterranean light, historical atmosphere' },
-  { id: 'cafe_paris',      label: 'Café Paris',      emoji: '☕', prompt: 'sitting at a cozy Parisian café terrace, golden hour sunlight, Eiffel Tower softly visible in the background' },
-  { id: 'luxury_hotel',    label: 'Hotel Luxo',      emoji: '🏨', prompt: 'in a luxury 5-star hotel lobby, marble floors, chandelier lighting, elegant and sophisticated atmosphere' },
-  { id: 'studio_clean',    label: 'Fundo Limpo',     emoji: '⬜', prompt: 'in a clean minimal photo studio, soft studio lighting, neutral grey gradient background, professional shoot' },
-  { id: 'nature_forest',   label: 'Natureza',        emoji: '🌿', prompt: 'standing in a lush green forest, dappled sunlight through trees, fresh natural environment' },
+  { id: 'eiffel_paris',    label: 'Torre Eiffel',   prompt: 'standing in front of the Eiffel Tower in Paris, golden hour light, iconic landmark clearly visible, romantic Parisian atmosphere' },
+  { id: 'times_square',    label: 'Times Square',   prompt: 'walking through Times Square New York at night, iconic neon billboards and city lights bokeh, vibrant urban energy' },
+  { id: 'dubai_burj',      label: 'Dubai Burj',     prompt: 'on a luxury rooftop in Dubai with the Burj Khalifa visible in the background, golden sunset, panoramic skyline' },
+  { id: 'santorini',       label: 'Santorini',      prompt: 'in Santorini Greece, white-washed buildings with blue domes, crystal blue Aegean Sea, golden Mediterranean light' },
+  { id: 'tokyo_shibuya',   label: 'Tóquio',         prompt: 'at Shibuya crossing in Tokyo at night, colorful neon lights, dynamic Japanese street atmosphere' },
+  { id: 'london_big_ben',  label: 'Londres',        prompt: 'near Big Ben and the Thames River in London, classic British architecture, cloudy dramatic sky, elegant European setting' },
+  { id: 'maldives_beach',  label: 'Maldivas',       prompt: 'standing on a pristine white sand beach in the Maldives, crystal turquoise water, overwater bungalows in background, tropical paradise' },
+  { id: 'rome_colosseum',  label: 'Roma',           prompt: 'near the Colosseum in Rome Italy, ancient architecture, warm afternoon Mediterranean light, historical atmosphere' },
+  { id: 'cafe_paris',      label: 'Café Paris',     prompt: 'sitting at a cozy Parisian café terrace, golden hour sunlight, Eiffel Tower softly visible in the background' },
+  { id: 'luxury_hotel',    label: 'Hotel Luxo',     prompt: 'in a luxury 5-star hotel lobby, marble floors, chandelier lighting, elegant and sophisticated atmosphere' },
+  { id: 'studio_clean',    label: 'Fundo Limpo',    prompt: 'in a clean minimal photo studio, soft studio lighting, neutral grey gradient background, professional shoot' },
+  { id: 'nature_forest',   label: 'Natureza',       prompt: 'standing in a lush green forest, dappled sunlight through trees, fresh natural environment' },
 ]
 
 export default function SceneGenerator({ initial, onGenerate }: Props) {
@@ -53,7 +53,7 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
         <button
           onClick={() => onGenerate({ source_url: sourceUrl, scene_prompt: activePrompt, aspect_ratio: aspectRatio })}
           className="text-[10px] text-zinc-500 hover:text-violet-400 font-bold transition-colors uppercase tracking-widest text-center">
-          🔄 Gerar outra variação
+          Gerar outra variação
         </button>
       </div>
     )
@@ -113,8 +113,7 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
                   ? 'bg-violet-500/10 border-violet-500/50 ring-1 ring-violet-500/20'
                   : 'bg-white/2 border-white/5 hover:bg-white/5 hover:border-white/10'
               }`}>
-              <span className="text-base leading-none">{preset.emoji}</span>
-              <span className={`text-[9px] font-bold leading-tight ${selectedPreset === preset.id ? 'text-white' : 'text-zinc-400'}`}>{preset.label}</span>
+              <span className={`text-[9px] font-bold leading-tight text-center ${selectedPreset === preset.id ? 'text-white' : 'text-zinc-400'}`}>{preset.label}</span>
             </button>
           ))}
         </div>
