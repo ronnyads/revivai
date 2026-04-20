@@ -165,10 +165,10 @@ export async function POST(
 
     let modelPath: string
     if (asset.type === 'video') {
-      const engine = (asset.input_params as any)?.engine
-      modelPath = engine === 'veo'
-        ? 'fal-ai/veo3.1/image-to-video'
-        : 'fal-ai/kling-video/o3/pro/image-to-video'
+      const savedPath = (asset.input_params as any)?.fal_model_path as string | undefined
+      const engine    = (asset.input_params as any)?.engine
+      modelPath = savedPath
+        ?? (engine === 'veo' ? 'fal-ai/veo3.1/image-to-video' : 'fal-ai/kling-video/v1.5/pro/image-to-video')
     } else if (asset.type === 'animate') {
       modelPath = 'fal-ai/live-portrait'
     } else {
@@ -177,7 +177,7 @@ export async function POST(
 
     // Para video sem engine salvo, tenta os dois endpoints como fallback
     const altModelPath = asset.type === 'video'
-      ? (modelPath.includes('veo') ? 'fal-ai/kling-video/o3/pro/image-to-video' : 'fal-ai/veo3.1/image-to-video')
+      ? (modelPath.includes('veo') ? 'fal-ai/kling-video/v1.5/pro/image-to-video' : 'fal-ai/veo3.1/image-to-video')
       : null
 
     async function fetchFalStatus(path: string) {

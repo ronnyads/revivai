@@ -722,23 +722,29 @@ export async function startVideoGeneration(params: {
     : ''
   const finalMotion = modelContext + (params.motion_prompt || 'smooth product showcase motion')
 
-  let endpoint = 'https://queue.fal.run/fal-ai/kling-video/v1.5/pro/image-to-video'
+  const FAL_KLING_PATH = 'fal-ai/kling-video/v1.5/pro/image-to-video'
+  const FAL_VEO_PATH   = 'fal-ai/veo3.1/image-to-video'
+
+  let falModelPath = FAL_KLING_PATH
+  let endpoint = `https://queue.fal.run/${FAL_KLING_PATH}`
+  const requestedDuration = String(params.duration ?? config.duration ?? '5')
+
   let payload: any = {
     image_url: params.source_image_url,
+    ...config,
     prompt: finalMotion,
-    duration: config.duration || '5',
+    duration: requestedDuration,
     aspect_ratio: '9:16',
     webhook_url: webhookUrl,
-    ...config // Permite sobrescrever qualquer parâmetro via JSON Admin
   }
 
-  // Se o usuário selecionou o motor do Google Veo 3
   if (params.engine === 'veo') {
-    endpoint = 'https://queue.fal.run/fal-ai/veo3.1/image-to-video'
+    falModelPath = FAL_VEO_PATH
+    endpoint = `https://queue.fal.run/${FAL_VEO_PATH}`
     payload = {
       image_url: params.source_image_url,
       prompt: finalMotion,
-      duration: config.veo_duration || '8s', 
+      duration: config.veo_duration || `${requestedDuration}s`,
       aspect_ratio: '9:16',
       webhook_url: webhookUrl,
       ...config
@@ -762,9 +768,8 @@ export async function startVideoGeneration(params: {
   const { request_id } = await queueRes.json()
   if (!request_id) throw new Error('Fal AI não retornou request_id para video')
 
-  // Salva prediction_id para permitir sync manual e rastreamento
   await admin.from('studio_assets')
-    .update({ input_params: { prediction_id: request_id, provider: 'fal', engine: params.engine ?? 'kling', source_image_url: params.source_image_url, motion_prompt: params.motion_prompt, duration: params.duration } })
+    .update({ input_params: { prediction_id: request_id, provider: 'fal', engine: params.engine ?? 'kling', fal_model_path: falModelPath, source_image_url: params.source_image_url, motion_prompt: params.motion_prompt, duration: requestedDuration } })
     .eq('id', params.assetId)
 }
 
