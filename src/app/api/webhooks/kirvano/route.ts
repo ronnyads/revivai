@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
     }).select()
 
     // Envia e-mail de boas-vindas com credenciais
-    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://revivads.com'}/auth/login`
+    const loginUrl = 'https://revivads.com/auth/login'
     const { error: emailErr } = await sendPurchaseEmail({
       email,
       name,
