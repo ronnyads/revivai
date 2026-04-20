@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendPurchaseEmail, sendRefundEmail, sendAbandonedCartEmail } from '@/lib/email'
+import { isDisposableEmail } from '@/lib/disposableEmails'
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/webhooks/kirvano
@@ -54,6 +55,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
+    // Camada 1 — bloqueia e-mails descartáveis
+    if (isDisposableEmail(email)) {
+      console.warn(`[kirvano] E-mail descartável bloqueado: ${email}`)
+      return NextResponse.json({ ok: true })
+    }
+
     // Identifica plano pelo primeiro produto
     const productId = body.products?.[0]?.id ?? body.product?.id ?? ''
     const offerName: string = (body.products?.[0]?.offer?.name ?? body.offer?.name ?? '').toLowerCase()
@@ -79,6 +86,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true })
     }
     console.log(`[kirvano] Produto mapeado: ${productId} → ${plan.name}`)
+
+    // Camada 2 — deduplicação por CPF para plano free
+    const cpf = (body.customer?.document ?? body.customer?.cpf ?? '').replace(/\D/g, '')
+    if (plan.planId === 'free' && cpf) {
+      const { data: existingOrder } = await admin
+        .from('orders')
+        .select('id')
+        .eq('type', 'free')
+        .eq('provider', 'kirvano')
+        .like('external_id', `%${cpf.slice(0, 6)}%`)
+        .maybeSingle()
+
+      if (existingOrder) {
+        console.warn(`[kirvano] CPF já usou plano free: ${cpf.slice(0, 3)}***. Bloqueado.`)
+        return NextResponse.json({ ok: true })
+      }
+    }
 
     // Cria ou recupera usuário no Supabase
     let userId: string
@@ -113,14 +137,17 @@ export async function POST(req: NextRequest) {
     })
     if (creditsErr) console.warn('[kirvano] add_credits falhou:', creditsErr.message)
 
-    // Salva pedido
+    // Salva pedido (CPF parcialmente mascarado no external_id para deduplicação)
+    const externalId = cpf
+      ? `${body.sale_id ?? body.id ?? 'kirvano'}|cpf:${cpf.slice(0, 6)}***`
+      : (body.sale_id ?? body.id ?? null)
     await admin.from('orders').insert({
       user_id: userId,
       type: plan.planId,
       amount: plan.price * 100,
       status: 'paid',
       provider: 'kirvano',
-      external_id: body.sale_id ?? body.id ?? null,
+      external_id: externalId,
     }).select()
 
     // Gera magic link para primeiro acesso
