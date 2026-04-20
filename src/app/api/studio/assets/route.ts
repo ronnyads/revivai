@@ -283,8 +283,12 @@ export async function POST(req: NextRequest) {
         throw new Error(`Falha no Bundle UGC: ${bundleErr.message}`)
       }
     } else if (type === 'scene') {
+      const extraUrls = Array.isArray(input_params.extra_source_urls)
+        ? (input_params.extra_source_urls as string[]).filter(u => typeof u === 'string' && u.startsWith('http'))
+        : []
       resultUrl = await generateScene({
         source_url: String(input_params.source_url ?? ''),
+        extra_source_urls: extraUrls,
         scene_prompt: String(input_params.scene_prompt ?? ''),
         aspect_ratio: String(input_params.aspect_ratio ?? '9:16'),
         assetId: asset.id,

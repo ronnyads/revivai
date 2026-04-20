@@ -2061,6 +2061,7 @@ FINAL CHECK — ABSOLUTE PROHIBITIONS: NO bottles, NO cans, NO skincare products
 // ── Cena Livre — coloca o modelo em qualquer ambiente descrito ────────────────
 export async function generateScene(params: {
   source_url: string
+  extra_source_urls?: string[]
   scene_prompt: string
   aspect_ratio?: string
   assetId: string
@@ -2072,11 +2073,21 @@ export async function generateScene(params: {
 
   if (!params.source_url?.startsWith('http')) throw new Error('URL da imagem fonte inválida')
 
-  const imgRes = await fetch(params.source_url)
-  if (!imgRes.ok) throw new Error(`Erro download: ${imgRes.status}`)
-  const mimeType = imgRes.headers.get('content-type') || 'image/jpeg'
-  const imgBuffer = Buffer.from(await imgRes.arrayBuffer())
-  const base64Image = imgBuffer.toString('base64')
+  // Download da imagem principal + extras (até 2 extras)
+  async function fetchInlineData(url: string) {
+    const r = await fetch(url)
+    if (!r.ok) throw new Error(`Download falhou: ${r.status}`)
+    const mime = r.headers.get('content-type') || 'image/jpeg'
+    const data = Buffer.from(await r.arrayBuffer()).toString('base64')
+    return { mimeType: mime, data }
+  }
+
+  const primaryData = await fetchInlineData(params.source_url)
+  const extraData = await Promise.all(
+    (params.extra_source_urls ?? []).slice(0, 2).map(u => fetchInlineData(u).catch(() => null))
+  ).then(r => r.filter(Boolean) as { mimeType: string; data: string }[])
+
+  const hasMultiple = extraData.length > 0
 
   const aspectLabel: Record<string, string> = {
     '9:16': 'vertical 9:16 portrait', '1:1': 'square 1:1', '4:5': 'vertical 4:5 portrait',
@@ -2086,7 +2097,9 @@ export async function generateScene(params: {
 
   const geminiPrompt = [
     `You are a professional photo director and visual effects artist.`,
-    `You receive a photo of a person and must place them EXACTLY into a new scene or environment.`,
+    hasMultiple
+      ? `You receive ${extraData.length + 1} reference photos of the same person from different angles. Use ALL of them together to build the most accurate identity possible.`
+      : `You receive a photo of a person and must place them EXACTLY into a new scene or environment.`,
     `NEW SCENE: ${params.scene_prompt}.`,
     `PRESERVE EXACTLY: same face, same facial features, same skin tone, same hair color and style, same outfit with exact colors and details, same body proportions.`,
     `The person must look naturally integrated into the new scene — realistic lighting matching the environment, natural shadows, correct perspective.`,
@@ -2094,12 +2107,17 @@ export async function generateScene(params: {
     `Output: photorealistic commercial photo, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, no watermarks.`,
   ].join(' ')
 
+  const imageParts = [
+    { inlineData: primaryData },
+    ...extraData.map(d => ({ inlineData: d })),
+  ]
+
   let photoBuffer: Buffer | null = null
   const geminiChain = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
 
   for (const model of geminiChain) {
     try {
-      console.log(`[scene] Tentando ${model} para asset ${params.assetId}`)
+      console.log(`[scene] Tentando ${model} para asset ${params.assetId} (${imageParts.length} referência(s))`)
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`,
         {
@@ -2108,7 +2126,7 @@ export async function generateScene(params: {
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [
               { text: geminiPrompt },
-              { inlineData: { mimeType, data: base64Image } },
+              ...imageParts,
             ]}],
             generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
           }),

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useId } from 'react'
-import { Sparkles, MapPin, Image as ImageIcon, Camera, Maximize, Upload, Loader2 } from 'lucide-react'
+import { Sparkles, MapPin, Image as ImageIcon, Camera, Maximize, Upload, Loader2, X, Plus } from 'lucide-react'
 
 interface Props {
   initial: Record<string, unknown>
@@ -28,29 +28,43 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
   const [customScene, setCustomScene]       = useState(String(initial.scene_prompt ?? ''))
   const [aspectRatio, setAspectRatio]       = useState(String(initial.aspect_ratio ?? '9:16'))
   const [uploadedUrl, setUploadedUrl]       = useState<string | null>(null)
+  const [extraUrls, setExtraUrls]           = useState<string[]>([])
   const [uploading, setUploading]           = useState(false)
-  const uploadId                            = useId()
+  const [uploadingExtra, setUploadingExtra] = useState(false)
+  const primaryUploadId                     = useId()
+  const extraUploadId                       = useId()
 
   const sourceUrl = (uploadedUrl || initial.source_url) as string
   const resultUrl = initial.url as string
 
-  async function handleUpload(file: File) {
-    setUploading(true)
+  async function uploadFile(file: File, onDone: (url: string) => void, setLoading: (v: boolean) => void) {
+    setLoading(true)
     try {
       const form = new FormData()
       form.append('file', file)
       form.append('bucket', 'studio')
       const res = await fetch('/api/studio/upload', { method: 'POST', body: form })
       const { url } = await res.json()
-      if (url) setUploadedUrl(url)
+      if (url) onDone(url)
     } catch { /* silencioso */ } finally {
-      setUploading(false)
+      setLoading(false)
     }
   }
 
   const activePrompt = selectedPreset
     ? (SCENE_PRESETS.find(p => p.id === selectedPreset)?.prompt ?? customScene)
     : customScene
+
+  const allSourceUrls = [sourceUrl, ...extraUrls].filter(Boolean)
+
+  function handleGenerate() {
+    onGenerate({
+      source_url: sourceUrl,
+      extra_source_urls: extraUrls,
+      scene_prompt: activePrompt,
+      aspect_ratio: aspectRatio,
+    })
+  }
 
   if (resultUrl) {
     return (
@@ -68,7 +82,7 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
           <Maximize size={14} /> ABRIR EM TELA CHEIA
         </a>
         <button
-          onClick={() => onGenerate({ source_url: sourceUrl, scene_prompt: activePrompt, aspect_ratio: aspectRatio })}
+          onClick={handleGenerate}
           className="text-[10px] text-zinc-500 hover:text-violet-400 font-bold transition-colors uppercase tracking-widest text-center">
           Gerar outra variação
         </button>
@@ -98,22 +112,65 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
             <p className="text-xs font-semibold text-zinc-400">Conecte um Modelo ou Fusão</p>
             <p className="text-[10px] text-zinc-600">Arraste a saída do card para cá</p>
             <label
-              htmlFor={uploadId}
+              htmlFor={primaryUploadId}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-violet-500/30 text-[10px] font-bold text-zinc-400 hover:text-white transition-all cursor-pointer"
             >
               {uploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
               {uploading ? 'Enviando...' : 'Upload do PC / Celular'}
             </label>
             <input
-              id={uploadId}
+              id={primaryUploadId}
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])}
+              onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0], setUploadedUrl, setUploading)}
             />
           </div>
         )}
       </div>
+
+      {/* Extra references */}
+      {sourceUrl && extraUrls.length < 2 && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1">
+            <Plus size={10} className="text-violet-500" /> Fotos Extras de Referência
+            <span className="ml-auto text-zinc-600 normal-case font-normal">até 2 · melhora fidelidade</span>
+          </label>
+          <div className="flex gap-2 flex-wrap">
+            {extraUrls.map((url, i) => (
+              <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-white/10">
+                <img src={url} alt={`ref ${i + 1}`} className="w-full h-full object-cover" />
+                <button
+                  onClick={() => setExtraUrls(prev => prev.filter((_, j) => j !== i))}
+                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 flex items-center justify-center text-white hover:bg-red-500 transition-colors"
+                >
+                  <X size={8} />
+                </button>
+              </div>
+            ))}
+            <label
+              htmlFor={extraUploadId}
+              className="w-14 h-14 rounded-lg border-2 border-dashed border-white/10 hover:border-violet-500/40 bg-white/3 flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-colors"
+            >
+              {uploadingExtra
+                ? <Loader2 size={14} className="text-zinc-500 animate-spin" />
+                : <><Plus size={14} className="text-zinc-500" /><span className="text-[8px] text-zinc-600 font-bold">ADD</span></>
+              }
+            </label>
+            <input
+              id={extraUploadId}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => e.target.files?.[0] && uploadFile(
+                e.target.files[0],
+                url => setExtraUrls(prev => [...prev, url]),
+                setUploadingExtra
+              )}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Aspect ratio */}
       <div className="flex flex-col gap-1.5">
@@ -167,14 +224,14 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
       {/* Generate */}
       <button
         disabled={!sourceUrl || !activePrompt.trim()}
-        onClick={() => onGenerate({ source_url: sourceUrl, scene_prompt: activePrompt, aspect_ratio: aspectRatio })}
+        onClick={handleGenerate}
         className={`relative mt-1 w-full py-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all overflow-hidden group/btn ${
           !sourceUrl || !activePrompt.trim()
             ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
             : 'bg-violet-600 text-white hover:bg-violet-500 shadow-[0_0_20px_rgba(139,92,246,0.3)] active:scale-95'
         }`}>
         <Sparkles size={14} />
-        COLOCAR NA CENA
+        {allSourceUrls.length > 1 ? `COLOCAR NA CENA · ${allSourceUrls.length} REFERÊNCIAS` : 'COLOCAR NA CENA'}
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/btn:animate-shimmer" />
       </button>
       <p className="text-[9px] text-zinc-600 text-center font-medium">Preserva identidade, rosto e roupa 100%</p>
