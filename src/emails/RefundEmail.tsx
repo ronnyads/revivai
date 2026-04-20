@@ -1,6 +1,6 @@
 import {
-  Body, Button, Container, Head, Heading, Hr, Html,
-  Link, Preview, Section, Text,
+  Body, Button, Container, Head, Hr, Html,
+  Preview, Section, Text,
 } from '@react-email/components'
 
 interface RefundEmailProps {
@@ -15,37 +15,62 @@ export default function RefundEmail({ name, email, planName }: RefundEmailProps)
   return (
     <Html lang="pt-BR">
       <Head />
-      <Preview>Seu reembolso do plano {planName} foi processado</Preview>
+      <Preview>Reembolso do plano {planName} processado com sucesso.</Preview>
       <Body style={body}>
         <Container style={container}>
 
-          <Section style={{ textAlign: 'center', padding: '32px 0 16px' }}>
-            <Text style={logo}>reviv.ai</Text>
+          {/* Top bar neutral */}
+          <div style={{ height: 3, background: '#27272a', borderRadius: '4px 4px 0 0' }} />
+
+          <Section style={header}>
+            <Text style={wordmark}>reviv<span style={{ color: '#71717a' }}>.ai</span></Text>
           </Section>
 
-          <Heading style={h1}>Reembolso confirmado</Heading>
-          <Text style={subtitle}>Olá, {firstName}. Seu pedido de reembolso do plano <strong style={{ color: '#fff' }}>{planName}</strong> foi processado com sucesso.</Text>
+          <Hr style={divider} />
 
-          <Section style={infoBox}>
-            <Text style={infoRow}><span style={infoLabel}>Plano</span><span style={infoValue}>{planName}</span></Text>
-            <Hr style={innerDivider} />
-            <Text style={infoRow}><span style={infoLabel}>Status</span><span style={{ ...infoValue, color: '#10b981' }}>Reembolsado</span></Text>
-            <Hr style={innerDivider} />
-            <Text style={infoRow}><span style={infoLabel}>Prazo de estorno</span><span style={infoValue}>5–7 dias úteis</span></Text>
-          </Section>
+          <Section style={content}>
+            <Text style={greeting}>Ola, {firstName}.</Text>
+            <Text style={headline}>Reembolso confirmado.</Text>
+            <Text style={body_text}>
+              Seu pedido de cancelamento do plano <strong style={{ color: '#e4e4e7' }}>{planName}</strong> foi processado. O valor sera estornado no metodo de pagamento utilizado.
+            </Text>
 
-          <Text style={note}>O valor será estornado no método de pagamento utilizado. Em caso de dúvidas, entre em contato pelo nosso suporte.</Text>
+            {/* Status block */}
+            <div style={statusBlock}>
+              <div style={statusRow}>
+                <Text style={statusKey}>Plano cancelado</Text>
+                <Text style={statusVal}>{planName}</Text>
+              </div>
+              <Hr style={innerDivider} />
+              <div style={statusRow}>
+                <Text style={statusKey}>Status</Text>
+                <Text style={{ ...statusVal, color: '#22c55e' }}>Reembolsado</Text>
+              </div>
+              <Hr style={innerDivider} />
+              <div style={statusRow}>
+                <Text style={statusKey}>Prazo de estorno</Text>
+                <Text style={statusVal}>5 a 7 dias uteis</Text>
+              </div>
+            </div>
 
-          <Section style={{ textAlign: 'center', margin: '24px 0 32px' }}>
+            <Text style={note}>
+              Se tiver duvidas sobre o prazo ou o valor, entre em contato com nosso suporte.
+            </Text>
+
             <Button href="https://wa.me/5511999999999" style={ctaButton}>
-              Falar com suporte →
+              Falar com suporte
             </Button>
           </Section>
 
           <Hr style={divider} />
-          <Text style={footer}>
-            E-mail enviado para <Link href={`mailto:${email}`} style={{ color: '#71717a' }}>{email}</Link>
-          </Text>
+
+          <Section style={footer}>
+            <Text style={footerText}>
+              E-mail enviado para {email} referente a uma compra em revivads.com.
+            </Text>
+            <Text style={footerMeta}>RevivAI — Geracao de conteudo com inteligencia artificial</Text>
+          </Section>
+
         </Container>
       </Body>
     </Html>
@@ -53,71 +78,97 @@ export default function RefundEmail({ name, email, planName }: RefundEmailProps)
 }
 
 const body: React.CSSProperties = {
-  backgroundColor: '#09090b',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  backgroundColor: '#050505',
+  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  margin: 0,
+  padding: '40px 16px',
 }
 const container: React.CSSProperties = {
-  maxWidth: 480,
+  maxWidth: 520,
   margin: '0 auto',
-  backgroundColor: '#18181b',
-  borderRadius: 16,
-  border: '1px solid #27272a',
+  backgroundColor: '#0f0f0f',
+  borderRadius: 8,
+  border: '1px solid #1f1f1f',
+  overflow: 'hidden',
 }
-const logo: React.CSSProperties = {
-  fontSize: 28,
-  fontWeight: 900,
+const header: React.CSSProperties = { padding: '28px 36px 20px' }
+const wordmark: React.CSSProperties = {
+  fontSize: 22,
+  fontWeight: 800,
   color: '#ffffff',
-  letterSpacing: '-1px',
+  letterSpacing: '-0.5px',
   margin: 0,
 }
-const h1: React.CSSProperties = {
+const divider: React.CSSProperties = { borderColor: '#1f1f1f', margin: 0 }
+const content: React.CSSProperties = { padding: '32px 36px' }
+const greeting: React.CSSProperties = { color: '#71717a', fontSize: 13, margin: '0 0 4px' }
+const headline: React.CSSProperties = {
   color: '#ffffff',
-  fontSize: 24,
-  fontWeight: 800,
-  textAlign: 'center',
-  margin: '0 24px 8px',
+  fontSize: 26,
+  fontWeight: 700,
+  letterSpacing: '-0.5px',
+  margin: '0 0 16px',
+  lineHeight: 1.2,
 }
-const subtitle: React.CSSProperties = {
-  color: '#71717a',
+const body_text: React.CSSProperties = {
+  color: '#a1a1aa',
   fontSize: 14,
-  textAlign: 'center',
-  margin: '0 24px 24px',
+  lineHeight: 1.6,
+  margin: '0 0 24px',
 }
-const infoBox: React.CSSProperties = {
-  margin: '0 24px',
-  backgroundColor: '#09090b',
-  borderRadius: 12,
-  border: '1px solid #27272a',
-  padding: '0 16px',
+const statusBlock: React.CSSProperties = {
+  backgroundColor: '#141414',
+  border: '1px solid #1f1f1f',
+  borderRadius: 6,
+  padding: '0 20px',
+  marginBottom: 24,
 }
-const infoRow: React.CSSProperties = {
+const statusRow: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
-  fontSize: 13,
-  margin: '12px 0',
+  alignItems: 'center',
+  padding: '14px 0',
 }
-const infoLabel: React.CSSProperties = { color: '#71717a' }
-const infoValue: React.CSSProperties = { color: '#e4e4e7', fontWeight: 600 }
-const innerDivider: React.CSSProperties = { borderColor: '#27272a', margin: 0 }
+const statusKey: React.CSSProperties = {
+  color: '#52525b',
+  fontSize: 12,
+  margin: 0,
+}
+const statusVal: React.CSSProperties = {
+  color: '#e4e4e7',
+  fontSize: 12,
+  fontWeight: 600,
+  margin: 0,
+}
+const innerDivider: React.CSSProperties = { borderColor: '#1f1f1f', margin: 0 }
 const note: React.CSSProperties = {
   color: '#52525b',
   fontSize: 12,
-  textAlign: 'center',
-  margin: '16px 24px 0',
+  margin: '0 0 16px',
+  lineHeight: 1.5,
 }
 const ctaButton: React.CSSProperties = {
-  backgroundColor: '#27272a',
+  backgroundColor: '#1f1f1f',
   color: '#e4e4e7',
-  fontSize: 14,
+  fontSize: 13,
   fontWeight: 600,
-  padding: '12px 28px',
-  borderRadius: 10,
+  padding: '11px 22px',
+  borderRadius: 6,
   textDecoration: 'none',
+  display: 'inline-block',
+  border: '1px solid #27272a',
 }
-const divider: React.CSSProperties = { borderColor: '#27272a', margin: '0 24px' }
-const footer: React.CSSProperties = {
-  color: '#52525b',
-  fontSize: 12,
-  textAlign: 'center',
-  margin: '12px 24px 24px',
+const footer: React.CSSProperties = { padding: '20px 36px 24px' }
+const footerText: React.CSSProperties = {
+  color: '#3f3f46',
+  fontSize: 11,
+  margin: '0 0 4px',
+  lineHeight: 1.6,
+}
+const footerMeta: React.CSSProperties = {
+  color: '#27272a',
+  fontSize: 10,
+  letterSpacing: 1,
+  textTransform: 'uppercase',
+  margin: 0,
 }
