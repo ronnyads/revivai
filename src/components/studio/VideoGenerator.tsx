@@ -23,7 +23,7 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
   const isContinuation = !!initial.continuation_frame && !AUDIO_EXTS.test(String(initial.continuation_frame))
   const [imageUrl, setImageUrl] = useState(resolveImageUrl(initial))
   const [motion,   setMotion]   = useState(String(initial.motion_prompt ?? ''))
-  const [duration, setDuration] = useState(Number(initial.duration      ?? 5))
+  const [duration, setDuration] = useState<5 | 10>(([5,10].includes(Number(initial.duration)) ? Number(initial.duration) : 5) as 5 | 10)
   const [engine,   setEngine]   = useState(String(initial.engine        ?? 'veo'))
   const [quality,  setQuality]  = useState(String(initial.quality       ?? '720p'))
 
@@ -144,23 +144,27 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
       </div>
 
       <div className="space-y-2.5 bg-zinc-900/40 border border-zinc-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between px-1">
-          <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Duração do Clipe</label>
-          <span className={`text-[11px] font-black ${engine === 'veo' ? 'text-zinc-400' : 'text-blue-400'}`}>
-            {engine === 'veo' ? '8s (Fixo Google)' : `${duration} Segundos`}
-          </span>
-        </div>
-        {engine !== 'veo' && (
-          <div className="px-1">
-            <input
-              type="range" 
-              min="3" 
-              max="10" 
-              step="1"
-              value={duration}
-              onChange={e => setDuration(Number(e.target.value))}
-              className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
+        <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1">Duração do Clipe</label>
+        {engine === 'veo' ? (
+          <div className="flex items-center justify-between px-1 py-1">
+            <span className="text-[11px] font-black text-blue-400">8 Segundos (Google Veo)</span>
+            <span className="text-[9px] text-amber-400 font-bold">Máx. 8s</span>
+          </div>
+        ) : (
+          <div className="flex gap-2 mt-1">
+            {[5, 10].map(s => (
+              <button
+                key={s}
+                onClick={() => setDuration(s as 5 | 10)}
+                className={`flex-1 py-2 rounded-xl text-[11px] font-bold border transition-all ${
+                  duration === s
+                    ? 'bg-zinc-800 border-zinc-700 text-white'
+                    : 'bg-transparent border-transparent text-zinc-600 hover:text-zinc-400'
+                }`}
+              >
+                {s}s
+              </button>
+            ))}
           </div>
         )}
       </div>
