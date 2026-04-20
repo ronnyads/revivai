@@ -1,14 +1,14 @@
 import {
-  Body, Button, Container, Head, Hr, Html,
-  Preview, Section, Text,
+  Body, Button, Column, Container, Head, Hr, Html,
+  Preview, Row, Section, Text,
 } from '@react-email/components'
 
-const PLAN_CONFIG: Record<string, { color: string; accent: string; tier: string }> = {
-  Explorador: { color: '#22c55e', accent: '#16a34a', tier: '00' },
-  Rookie:     { color: '#71717a', accent: '#52525b', tier: '01' },
-  Creator:    { color: '#3b82f6', accent: '#2563eb', tier: '02' },
-  Pro:        { color: '#a855f7', accent: '#9333ea', tier: '03' },
-  Studio:     { color: '#f59e0b', accent: '#d97706', tier: '04' },
+const PLAN_CONFIG: Record<string, { color: string; accent: string }> = {
+  Explorador: { color: '#22c55e', accent: '#16a34a' },
+  Rookie:     { color: '#71717a', accent: '#52525b' },
+  Creator:    { color: '#3b82f6', accent: '#2563eb' },
+  Pro:        { color: '#a855f7', accent: '#9333ea' },
+  Studio:     { color: '#f59e0b', accent: '#d97706' },
 }
 
 interface PurchaseEmailProps {
@@ -35,7 +35,7 @@ export default function PurchaseEmail({ name, email, planName, credits, password
         <Container style={container}>
 
           {/* Top bar */}
-          <div style={{ height: 3, background: `linear-gradient(90deg, ${cfg.color}, ${cfg.accent})`, borderRadius: '4px 4px 0 0' }} />
+          <div style={{ height: 4, background: `linear-gradient(90deg, ${cfg.color}, ${cfg.accent})`, borderRadius: '4px 4px 0 0' }} />
 
           {/* Header */}
           <Section style={header}>
@@ -58,33 +58,43 @@ export default function PurchaseEmail({ name, email, planName, credits, password
               <Text style={{ ...creditsNumber, color: cfg.color }}>{credits.toLocaleString('pt-BR')}</Text>
             </div>
 
-            {/* Capacity grid */}
-            <div style={grid}>
-              <div style={gridItem}>
-                <Text style={gridValue}>{images.toLocaleString('pt-BR')}</Text>
-                <Text style={gridLabel}>Imagens</Text>
-              </div>
-              <div style={{ ...gridItem, borderLeft: `1px solid #27272a`, borderRight: `1px solid #27272a` }}>
-                <Text style={gridValue}>{videos.toLocaleString('pt-BR')}</Text>
-                <Text style={gridLabel}>Videos</Text>
-              </div>
-              <div style={gridItem}>
-                <Text style={gridValue}>{upscales.toLocaleString('pt-BR')}</Text>
-                <Text style={gridLabel}>Upscales 4K</Text>
-              </div>
+            {/* Capacity grid — table-based for email compatibility */}
+            <div style={{ border: '1px solid #1f1f1f', borderRadius: 6, overflow: 'hidden', marginBottom: 28, marginTop: 4 }}>
+              <Row>
+                <Column style={gridItem}>
+                  <Text style={gridValue}>{images.toLocaleString('pt-BR')}</Text>
+                  <Text style={gridLabel}>Imagens</Text>
+                </Column>
+                <Column style={{ ...gridItem, borderLeft: '1px solid #27272a', borderRight: '1px solid #27272a' }}>
+                  <Text style={gridValue}>{videos.toLocaleString('pt-BR')}</Text>
+                  <Text style={gridLabel}>Videos</Text>
+                </Column>
+                <Column style={gridItem}>
+                  <Text style={gridValue}>{upscales.toLocaleString('pt-BR')}</Text>
+                  <Text style={gridLabel}>Upscales 4K</Text>
+                </Column>
+              </Row>
             </div>
 
-            {/* Credenciais */}
+            {/* Credenciais — table-based */}
             <div style={credentialsBlock}>
-              <div style={credRow}>
-                <Text style={credKey}>E-mail</Text>
-                <Text style={credVal}>{email}</Text>
-              </div>
+              <Row style={{ padding: '16px 0' }}>
+                <Column style={{ width: '30%' }}>
+                  <Text style={credKey}>E-mail</Text>
+                </Column>
+                <Column>
+                  <Text style={credVal}>{email}</Text>
+                </Column>
+              </Row>
               <Hr style={innerDivider} />
-              <div style={credRow}>
-                <Text style={credKey}>Senha</Text>
-                <Text style={{ ...credVal, color: cfg.color, fontFamily: '"Courier New", monospace', letterSpacing: 2 }}>{password}</Text>
-              </div>
+              <Row style={{ padding: '16px 0' }}>
+                <Column style={{ width: '30%' }}>
+                  <Text style={credKey}>Senha</Text>
+                </Column>
+                <Column>
+                  <Text style={{ ...credVal, color: cfg.color, fontFamily: '"Courier New", monospace', letterSpacing: 3, fontSize: 14 }}>{password}</Text>
+                </Column>
+              </Row>
             </div>
 
             <Button href={loginUrl} style={{ ...ctaButton, backgroundColor: cfg.color }}>
@@ -110,8 +120,6 @@ export default function PurchaseEmail({ name, email, planName, credits, password
   )
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────────
-
 const body: React.CSSProperties = {
   backgroundColor: '#050505',
   fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -126,9 +134,7 @@ const container: React.CSSProperties = {
   border: '1px solid #1f1f1f',
   overflow: 'hidden',
 }
-const header: React.CSSProperties = {
-  padding: '28px 36px 20px',
-}
+const header: React.CSSProperties = { padding: '28px 36px 20px' }
 const wordmark: React.CSSProperties = {
   fontSize: 22,
   fontWeight: 800,
@@ -136,18 +142,9 @@ const wordmark: React.CSSProperties = {
   letterSpacing: '-0.5px',
   margin: 0,
 }
-const divider: React.CSSProperties = {
-  borderColor: '#1f1f1f',
-  margin: 0,
-}
-const content: React.CSSProperties = {
-  padding: '32px 36px',
-}
-const greeting: React.CSSProperties = {
-  color: '#71717a',
-  fontSize: 13,
-  margin: '0 0 4px',
-}
+const divider: React.CSSProperties = { borderColor: '#1f1f1f', margin: 0 }
+const content: React.CSSProperties = { padding: '32px 36px' }
+const greeting: React.CSSProperties = { color: '#71717a', fontSize: 13, margin: '0 0 4px' }
 const headline: React.CSSProperties = {
   color: '#ffffff',
   fontSize: 26,
@@ -185,25 +182,16 @@ const creditsNumber: React.CSSProperties = {
   lineHeight: 1,
   fontFamily: '"Courier New", monospace',
 }
-const grid: React.CSSProperties = {
-  display: 'flex',
-  border: '1px solid #1f1f1f',
-  borderRadius: 6,
-  overflow: 'hidden',
-  marginBottom: 28,
-  marginTop: 4,
-}
 const gridItem: React.CSSProperties = {
-  flex: 1,
-  padding: '14px 0',
+  padding: '16px 8px',
   textAlign: 'center',
   backgroundColor: '#141414',
 }
 const gridValue: React.CSSProperties = {
   color: '#ffffff',
-  fontSize: 18,
+  fontSize: 20,
   fontWeight: 700,
-  margin: '0 0 2px',
+  margin: '0 0 4px',
   fontFamily: '"Courier New", monospace',
 }
 const gridLabel: React.CSSProperties = {
@@ -221,12 +209,6 @@ const credentialsBlock: React.CSSProperties = {
   padding: '0 20px',
   marginBottom: 24,
 }
-const credRow: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: '14px 0',
-}
 const credKey: React.CSSProperties = {
   color: '#52525b',
   fontSize: 12,
@@ -243,21 +225,13 @@ const ctaButton: React.CSSProperties = {
   color: '#000000',
   fontSize: 13,
   fontWeight: 700,
-  padding: '12px 24px',
+  padding: '12px 28px',
   borderRadius: 6,
   textDecoration: 'none',
   display: 'inline-block',
   letterSpacing: '0.2px',
 }
-const ctaAlt: React.CSSProperties = {
-  color: '#3f3f46',
-  fontSize: 11,
-  margin: '16px 0 0',
-  lineHeight: 1.6,
-}
-const footer: React.CSSProperties = {
-  padding: '20px 36px 24px',
-}
+const footer: React.CSSProperties = { padding: '20px 36px 24px' }
 const footerText: React.CSSProperties = {
   color: '#3f3f46',
   fontSize: 11,
