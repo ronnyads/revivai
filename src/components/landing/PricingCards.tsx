@@ -6,38 +6,42 @@ import { Check, Copy, CheckCheck } from 'lucide-react'
 const STUDIO_PLANS = [
   {
     id: 'starter',
+    name: 'Rookie',
     price: 47,
     base: 500,
     bonus: 100,
     popular: false,
-    coupon: 'ZAYRA500',
+    coupon: 'REVIVAI',
     perks: ['Gera imagens, vídeos e áudios.'],
   },
   {
     id: 'popular',
+    name: 'Creator',
     price: 79,
     base: 1000,
     bonus: 100,
     popular: true,
-    coupon: 'ZAYRA1000',
+    coupon: 'REVIVAI',
     perks: ['Gera imagens, vídeos e áudios.'],
   },
   {
     id: 'pro',
+    name: 'Pro',
     price: 149,
     base: 2000,
     bonus: 100,
     popular: false,
-    coupon: 'ZAYRA2000',
+    coupon: 'REVIVAI',
     perks: ['Gera imagens, vídeos e áudios.'],
   },
   {
     id: 'agency',
+    name: 'Studio',
     price: 397,
     base: 5000,
     bonus: 100,
     popular: false,
-    coupon: 'ZAYRA5000',
+    coupon: 'REVIVAI',
     perks: ['Gera imagens, vídeos e áudios.'],
   },
 ]
@@ -110,6 +114,7 @@ export default function PricingCards({ prices }: { prices: Prices }) {
 
               {/* Preço */}
               <div className={plan.popular ? 'mt-3' : 'mt-0'}>
+                <p className="text-[11px] font-black uppercase tracking-widest text-zinc-500 mb-1">{plan.name}</p>
                 <p className="text-3xl font-bold text-white">
                   R$ {price.toFixed(0).replace('.', ',')},00
                 </p>
