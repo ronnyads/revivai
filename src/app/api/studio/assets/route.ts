@@ -46,7 +46,14 @@ export async function POST(req: NextRequest) {
 
   const isDraft = body.status === 'idle'
   const admin = createAdminClient()
-  const { data: profile } = await admin.from('users').select('credits').eq('id', user.id).single()
+  const { data: profile } = await admin.from('users').select('credits, plan').eq('id', user.id).single()
+
+  // Bloqueia vídeo/animação/lipsync para plano Explorador (free)
+  const PAID_PLANS = ['starter', 'popular', 'pro', 'agency']
+  const VIDEO_TYPES = ['video', 'animate', 'lipsync']
+  if (VIDEO_TYPES.includes(type) && !PAID_PLANS.includes(profile?.plan ?? '')) {
+    return NextResponse.json({ error: 'Geração de vídeo disponível apenas nos planos pagos. Faça upgrade para continuar.' }, { status: 403 })
+  }
 
   if (!isDraft && (!profile || profile.credits < effectiveCost)) {
     return NextResponse.json({ error: `Saldo insuficiente. Necessário ${effectiveCost} cr.` }, { status: 402 })

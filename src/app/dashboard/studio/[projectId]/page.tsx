@@ -55,10 +55,10 @@ export default async function BoardPage({ params }: Props) {
     .select('*')
     .eq('project_id', projectId)
 
-  // Créditos do usuário
+  // Créditos e plano do usuário
   const { data: profile } = await supabase
     .from('users')
-    .select('credits')
+    .select('credits, plan')
     .eq('id', user.id)
     .single()
 
@@ -68,6 +68,7 @@ export default async function BoardPage({ params }: Props) {
       initialAssets={(assets ?? []) as StudioAsset[]}
       initialConnections={(connections ?? []) as StudioConnection[]}
       userCredits={profile?.credits ?? 0}
+      userPlan={profile?.plan ?? 'free'}
     />
   )
 }

@@ -2,7 +2,7 @@
 
 import { memo, useState, useEffect } from 'react'
 import { Handle, Position, NodeProps } from '@xyflow/react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, Music, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2, CopyPlus, Camera, GripHorizontal } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, Music, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2, CopyPlus, Camera, GripHorizontal, Lock } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import FaceGenerator from '../FaceGenerator'
 import JoinGenerator from '../JoinGenerator'
@@ -84,8 +84,12 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
   scene:   [{ id: 'source_url', label: 'Modelo/Fusão' }],
 }
 
+const PAID_PLANS = ['starter', 'popular', 'pro', 'agency']
+const VIDEO_LOCKED_TYPES: AssetType[] = ['video', 'animate', 'lipsync']
+
 export interface AssetNodeData {
   asset: StudioAsset
+  userPlan: string
   onDelete:       (id: string) => void
   onGenerate:     (type: AssetType, params: Record<string, unknown>, existingId: string) => void
   onUpdateParams: (id: string, params: Record<string, unknown>) => void
@@ -94,7 +98,8 @@ export interface AssetNodeData {
 }
 
 function AssetNode({ data }: NodeProps) {
-  const { asset, onDelete, onGenerate, onUpdateParams, onDuplicate } = data as AssetNodeData
+  const { asset, userPlan, onDelete, onGenerate, onUpdateParams, onDuplicate } = data as AssetNodeData
+  const isVideoLocked = VIDEO_LOCKED_TYPES.includes(asset.type) && !PAID_PLANS.includes(userPlan ?? '')
   const meta = TYPE_META[asset.type]
   const inputHandles = INPUT_HANDLES[asset.type] ?? []
   const [collapsed, setCollapsed] = useState(asset.status === 'done')
@@ -217,6 +222,26 @@ function AssetNode({ data }: NodeProps) {
       {/* Body */}
       <div className="p-4 cursor-grab active:cursor-grabbing">
         <div className="nodrag">
+          {isVideoLocked && (
+            <div className="flex flex-col items-center justify-center gap-3 py-8 px-4 text-center">
+              <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+                <Lock size={18} className="text-zinc-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-zinc-300">Disponível nos planos pagos</p>
+                <p className="text-xs text-zinc-500 mt-1">Vídeo, Animação e Lip Sync são exclusivos para Rookie+</p>
+              </div>
+              <a
+                href="/#precos"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="nodrag text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl transition-colors"
+              >
+                Ver planos →
+              </a>
+            </div>
+          )}
+          {!isVideoLocked && (<>
           {asset.status === 'processing' && (
             <ProcessingCard type={asset.type} createdAt={asset.created_at} assetId={asset.id} />
           )}
@@ -269,6 +294,7 @@ function AssetNode({ data }: NodeProps) {
               Configurar e gerar
             </button>
           )}
+          </>)}
         </div>
         {/* Grip strip — arrastar pelo fundo do card */}
         <div className="flex items-center justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing opacity-30 hover:opacity-60 transition-opacity">

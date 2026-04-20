@@ -57,7 +57,9 @@ export async function POST(req: NextRequest) {
     // Fallback: mapeia por nome da oferta ou preço quando ID não está configurado
     let plan = KIRVANO_PRODUCTS[productId]
     if (!plan) {
-      if (offerName.includes('rookie') || offerName.includes('starter') || (offerPrice >= 4700 && offerPrice < 7900))
+      if (offerName.includes('explorador') || offerName.includes('free') || offerName.includes('gratuito') || offerPrice === 0)
+        plan = { planId: 'free',    credits: 50,   name: 'Explorador', price: 0   }
+      else if (offerName.includes('rookie') || offerName.includes('starter') || (offerPrice >= 4700 && offerPrice < 7900))
         plan = { planId: 'starter', credits: 600,  name: 'Rookie',  price: 47  }
       else if (offerName.includes('creator') || offerName.includes('popular') || (offerPrice >= 7900 && offerPrice < 14900))
         plan = { planId: 'popular', credits: 1100, name: 'Creator', price: 79  }

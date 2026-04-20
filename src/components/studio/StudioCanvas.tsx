@@ -69,6 +69,7 @@ interface Props {
   initialAssets: StudioAsset[]
   initialConnections: StudioConnection[]
   userCredits: number
+  userPlan: string
 }
 
 function buildNodes(assets: StudioAsset[], callbacks: Omit<AssetNodeData, 'asset'>): Node[] {
@@ -96,7 +97,7 @@ function buildEdges(connections: StudioConnection[]): Edge[] {
   }))
 }
 
-function StudioCanvasInner({ project, initialAssets, initialConnections, userCredits }: Props) {
+function StudioCanvasInner({ project, initialAssets, initialConnections, userCredits, userPlan }: Props) {
   const [assets,      setAssets]      = useState<StudioAsset[]>(initialAssets)
   const [connections, setConnections] = useState<StudioConnection[]>(initialConnections)
   const [credits,     setCredits]     = useState(userCredits)
@@ -407,7 +408,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     onGenerate: handleGenerate,
     onUpdateParams: handleUpdateParams,
     onDuplicate: handleDuplicate,
-  }), [handleDelete, handleGenerate, handleUpdateParams, handleDuplicate])
+    userPlan,
+  }), [handleDelete, handleGenerate, handleUpdateParams, handleDuplicate, userPlan])
 
   // ── React Flow state ─────────────────────────────────────────────────────
   const [nodes, setNodes, onNodesChange] = useNodesState(buildNodes(assets, nodeCallbacks))
