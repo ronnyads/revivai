@@ -14,6 +14,13 @@ const PLAN_META: Record<string, {
   ring: string
   badge: string
 }> = {
+  free: {
+    name: 'Explorador',
+    credits: 50,
+    gradient: 'from-green-700 via-emerald-600 to-green-700',
+    ring: 'ring-green-500',
+    badge: 'bg-green-900/60 text-green-300',
+  },
   starter: {
     name: 'Rookie',
     credits: 600,
