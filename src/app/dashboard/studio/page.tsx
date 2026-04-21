@@ -21,5 +21,5 @@ export default async function StudioPage() {
     asset_count: p.studio_assets?.[0]?.count ?? 0,
   }))
 
-  return <StudioPageContent projects={projects} />
+  return <StudioPageContent />
 }
