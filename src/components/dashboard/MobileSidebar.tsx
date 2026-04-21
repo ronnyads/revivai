@@ -3,100 +3,113 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X, Image as ImageIcon, Sparkles, CreditCard, Megaphone } from 'lucide-react'
+import { Menu, X, Images, Upload, CreditCard, Megaphone } from 'lucide-react'
 import LogoutButton from './LogoutButton'
 import { useT } from '@/contexts/LanguageContext'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 
-export default function MobileSidebar({ userEmail, children }: { userEmail: string, children: React.ReactNode }) {
+const NAV = [
+  { href: '/dashboard',         icon: Images,     labelKey: 'nav_photos',  label: 'Galeria' },
+  { href: '/dashboard/upload',  icon: Upload,     labelKey: 'nav_restore', label: 'Nova restauração' },
+  { href: '/dashboard/studio',  icon: Megaphone,  labelKey: 'nav_studio',  label: 'Ad Studio', badge: 'PRO' },
+  { href: '/dashboard/billing', icon: CreditCard, labelKey: 'nav_billing', label: 'Planos' },
+]
+
+export default function MobileSidebar({ userEmail, children }: { userEmail: string; children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
   const t = useT()
 
-  // Close sidebar on route change
-  useEffect(() => {
-    setIsOpen(false)
-  }, [pathname])
+  useEffect(() => { setIsOpen(false) }, [pathname])
 
-  // Prevent scroll when open
   useEffect(() => {
-    if (isOpen) document.body.style.overflow = 'hidden'
-    else document.body.style.overflow = 'unset'
+    document.body.style.overflow = isOpen ? 'hidden' : 'unset'
     return () => { document.body.style.overflow = 'unset' }
   }, [isOpen])
 
   return (
     <>
-      {/* ── Top Nav for Mobile ── */}
-      <div className="md:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md px-6 py-4 border-b border-[#E8E8E8] flex justify-between items-center shadow-sm">
-        <Link href="/dashboard" className="font-display text-xl font-semibold">
-          reviv<span className="text-accent">.</span>ai
+      {/* ── Mobile Top Bar ── */}
+      <div className="md:hidden sticky top-0 z-30 bg-white border-b border-neutral-100 px-6 py-4 flex justify-between items-center">
+        <Link href="/dashboard" className="font-display font-bold text-lg tracking-tighter text-neutral-900">
+          REVIV<span className="text-[#D4FF00] [text-shadow:0_0_12px_#D4FF00]">.</span>AI
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {children}
           <LanguageSwitcher compact />
           <button
             onClick={() => setIsOpen(true)}
-            className="p-1.5 text-ink hover:bg-surface rounded-md transition-colors"
+            className="p-2 text-neutral-600 hover:bg-neutral-50 border border-neutral-100 transition-colors"
           >
-            <Menu size={22} />
+            <Menu size={20} />
           </button>
         </div>
       </div>
 
-      {/* ── Auto-dismiss overlay ── */}
+      {/* ── Overlay ── */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-ink/30 backdrop-blur-sm z-50 md:hidden transition-opacity"
+        <div
+          className="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm z-50 md:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
 
-      {/* ── Premium Drawer ── */}
-      <div className={`fixed inset-y-0 right-0 w-[85vw] max-w-sm bg-white shadow-2xl z-50 md:hidden transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        
+      {/* ── Drawer ── */}
+      <div className={`fixed inset-y-0 right-0 w-[80vw] max-w-xs bg-white z-50 md:hidden transform transition-transform duration-300 ease-out flex flex-col border-l border-neutral-100 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+
         {/* Header */}
-        <div className="p-6 flex items-center justify-between border-b border-[#E8E8E8]">
-           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-accent-light text-accent flex items-center justify-center font-bold text-sm">
+        <div className="p-6 flex items-center justify-between border-b border-neutral-100">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-neutral-900 flex items-center justify-center font-bold text-white text-sm">
               {userEmail?.[0].toUpperCase()}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-ink truncate max-w-[150px]">{userEmail?.split('@')[0]}</p>
+              <p className="text-sm font-bold text-neutral-900 truncate max-w-[120px]">{userEmail?.split('@')[0]}</p>
+              <p className="text-[10px] text-neutral-400 truncate max-w-[120px]">{userEmail}</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => setIsOpen(false)}
-            className="p-1.5 text-muted hover:text-ink hover:bg-surface rounded-md transition-colors"
+            className="p-1.5 text-neutral-400 hover:text-neutral-900 transition-colors"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Navigation */}
-        <div className="flex-1 overflow-y-auto py-6 px-4 flex flex-col gap-2">
-          <Link href="/dashboard" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all ${pathname === '/dashboard' ? 'bg-surface text-ink' : 'text-muted hover:text-ink hover:bg-surface/50'}`}>
-            <ImageIcon size={18} className={pathname === '/dashboard' ? 'text-accent' : ''} />
-            {t('nav_photos')}
-          </Link>
-          <Link href="/dashboard/upload" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all mt-2 ${pathname === '/dashboard/upload' ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'bg-ink text-white hover:bg-accent'}`}>
-            <Sparkles size={18} />
-            {t('nav_restore')}
-          </Link>
-          <Link href="/dashboard/studio" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all ${pathname.startsWith('/dashboard/studio') ? 'bg-surface text-ink' : 'text-muted hover:text-ink hover:bg-surface/50'}`}>
-            <Megaphone size={18} className={pathname.startsWith('/dashboard/studio') ? 'text-accent' : ''} />
-            {t('nav_studio')}
-          </Link>
-          <div className="my-3 border-b border-[#E8E8E8]" />
-          <Link href="/dashboard/billing" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all ${pathname === '/dashboard/billing' ? 'bg-surface text-ink' : 'text-muted hover:text-ink hover:bg-surface/50'}`}>
-            <CreditCard size={18} />
-            {t('nav_billing')}
-          </Link>
-        </div>
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-4 px-4 flex flex-col gap-1">
+          {NAV.map(({ href, icon: Icon, labelKey, label, badge }) => {
+            const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 px-4 py-3.5 text-sm font-medium transition-all ${
+                  active
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50'
+                }`}
+              >
+                <Icon size={16} />
+                {t(labelKey) ?? label}
+                {badge && (
+                  <span className={`ml-auto text-[8px] font-black uppercase px-1.5 py-0.5 ${
+                    active ? 'bg-white/20 text-white' : 'bg-neutral-100 text-neutral-500'
+                  }`}>
+                    {badge}
+                  </span>
+                )}
+              </Link>
+            )
+          })}
+        </nav>
 
         {/* Footer */}
-        <div className="p-6 border-t border-[#E8E8E8] bg-surface">
-          <LogoutButton />
+        <div className="p-6 border-t border-neutral-100">
+          <LanguageSwitcher />
+          <div className="mt-3">
+            <LogoutButton />
+          </div>
         </div>
       </div>
     </>
