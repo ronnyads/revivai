@@ -1,4 +1,6 @@
-import { Plus, Camera, Layout, FileText, Image as ImageIcon, Send, Sparkles, ArrowRight } from 'lucide-react'
+'use client'
+import { useState } from 'react'
+import { Plus, Camera, Layout, FileText, Image as ImageIcon, Send, Sparkles, ArrowRight, Globe } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { StudioProject } from '@/types'
 
@@ -26,6 +28,9 @@ export default function StudioPageContent({ initialProjects }: { initialProjects
       setIsCreating(false)
     }
   }
+
+  return (
+    <div className="p-6 md:p-12 lg:p-16 max-w-7xl mx-auto min-h-screen">
       {/* Header Editorial */}
       <div className="mb-20 flex flex-col md:flex-row justify-between items-start md:items-end gap-10">
         <div className="editorial-asymmetry">
@@ -96,7 +101,7 @@ export default function StudioPageContent({ initialProjects }: { initialProjects
                      <tpl.icon size={22} />
                    </div>
                    
-                   <h3 className="text-3xl font-bold font-display leading-[0.9] text-white mb-6 group-hover:text-[#7C0DF2] transition-colors z-10 italic">{tpl.title}</h3>
+                   <h3 className="text-3xl font-bold font-display leading-[0.9] text-white mb-6 group-hover:text-[#7C0DF2] transition-colors z-10 italic uppercase">{tpl.title}</h3>
                    <p className="text-sm font-sans text-white/30 group-hover:text-white/50 leading-relaxed mb-10 flex-1 transition-colors z-10">{tpl.desc}</p>
                    
                    <div className="flex items-center gap-3 text-[10px] font-bold text-white/10 uppercase tracking-[0.4em] group-hover:text-white transition-all duration-500 z-10">
@@ -120,7 +125,7 @@ export default function StudioPageContent({ initialProjects }: { initialProjects
                      <FileText size={22} />
                    </div>
                    
-                   <h3 className="text-3xl font-bold font-display leading-[0.9] text-white mb-6 group-hover:text-[#7C0DF2] transition-colors z-10 italic uppercase">{p.title}</h3>
+                   <h3 className="text-3xl font-bold font-display leading-[0.9] text-white mb-6 group-hover:text-[#7C0DF2] transition-colors z-10 italic uppercase truncate">{p.title}</h3>
                    <p className="text-sm font-sans text-white/30 group-hover:text-white/50 leading-relaxed mb-10 flex-1 transition-colors z-10">
                       {p.template} • {p.asset_count} assets
                    </p>
@@ -142,8 +147,8 @@ export default function StudioPageContent({ initialProjects }: { initialProjects
           )}
 
           {activeTab === 'published' && (
-            <div className="flex flex-col items-center justify-center py-32 px-4 tonal-layer-1">
-               <div className="w-20 h-20 tonal-layer-2 flex items-center justify-center text-white/10 mb-8">
+            <div className="flex flex-col items-center justify-center py-32 px-4 tonal-layer-1 text-center">
+               <div className="w-20 h-20 tonal-layer-2 flex items-center justify-center text-white/10 mb-8 mx-auto">
                  <Globe size={28} />
                </div>
                <p className="text-white/30 text-xs font-bold uppercase tracking-[0.4em]">Nenhum publicado</p>
@@ -175,11 +180,11 @@ export default function StudioPageContent({ initialProjects }: { initialProjects
              </div>
            </div>
 
-          <div className="mt-12 pt-8 border-t border-white/5">
-            <form 
-              onSubmit={(e) => { e.preventDefault(); console.log('Copilot instruction sent'); }}
-              className="relative group/input"
-            >
+           <div className="mt-12 pt-8 border-t border-white/5">
+             <form 
+               onSubmit={(e) => { e.preventDefault(); console.log('Copilot instruction sent'); }}
+               className="relative group/input"
+             >
                 <input 
                   type="text" 
                   placeholder="Instrua o Copilot..."
@@ -188,8 +193,8 @@ export default function StudioPageContent({ initialProjects }: { initialProjects
                 <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 text-white/20 hover:text-[#7C0DF2] transition-colors p-2">
                   <Send size={18} />
                 </button>
-            </form>
-          </div>
+             </form>
+           </div>
         </div>
 
       </div>
