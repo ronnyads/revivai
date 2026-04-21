@@ -1,73 +1,59 @@
 'use client'
-import { PencilLine, Cpu, Sparkles, ShoppingBag } from 'lucide-react'
 
-export default function HowItWorks() {
-  const steps = [
-    {
-      icon: <PencilLine size={24} />,
-      n: '01',
-      title: 'CROQUI & CONCEITO',
-      desc: 'Suba seus esboços, fotos de referência ou simples descrições de texto. A IA entende a essência do seu design.',
-    },
-    {
-      icon: <Cpu size={24} />,
-      n: '02',
-      title: 'RENDERIZAÇÃO MAGION',
-      desc: 'Nossa tecnologia Flux-1 processa as fibragens têxteis e a iluminação volumétrica para criar o look ideal.',
-    },
-    {
-      icon: <Sparkles size={24} />,
-      n: '03',
-      title: 'DIREÇÃO DE ARTE',
-      desc: 'Ajuste poses, troque ambientes e defina a etnia das modelos para garantir que a campanha tenha a cara da sua marca.',
-    },
-    {
-      icon: <ShoppingBag size={24} />,
-      n: '04',
-      title: 'PRONTO PARA VENDER',
-      desc: 'Exporte lookbooks e anúncios otimizados para conversão em redes sociais e e-commerce em segundos.',
-    },
-  ]
-
+export default function Economics() {
   return (
-    <section id="como-funciona" className="py-32 bg-[#131315] border-y border-white/5 relative">
-      <div className="max-w-7xl mx-auto px-6">
+    <section className="py-32 px-6 lg:px-20 bg-[#131315] relative overflow-hidden border-y border-white/5">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-[#D4FF00]/5 blur-[120px] pointer-events-none" />
+      
+      <div className="max-w-7xl mx-auto relative z-10 flex flex-col lg:flex-row gap-16 items-center">
         
-        {/* Header */}
-        <div className="mb-24 flex flex-col md:flex-row md:items-end justify-between gap-10">
-          <div className="max-w-2xl">
-            <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4FF00] mb-6">THE PROCESS</p>
-            <h2 className="text-5xl md:text-[5.5rem] font-bold font-display uppercase tracking-tighter leading-[0.95]">
-              DO CROQUI <br /><span className="text-white/20">À PASSARELA</span>
-            </h2>
-          </div>
-          <div className="hidden md:block pb-5 text-[#D4FF00]/30 font-display text-8xl font-bold opacity-10">
-            WORKFLOW
-          </div>
+        <div className="flex-1 text-center lg:text-left">
+          <p className="text-[10px] uppercase tracking-[0.4em] font-bold mb-6 text-[#D4FF00]">
+            VANTAGEM COMPETITIVA
+          </p>
+          <h2 className="font-display text-5xl md:text-[5rem] font-bold uppercase tracking-tighter leading-[0.95] mb-8">
+            QUANTO VOCÊ <br /><span className="text-white/20">ECONOMIZA COM REVIVAI?</span>
+          </h2>
+          <p className="text-lg text-white/50 leading-relaxed font-sans max-w-xl mx-auto lg:mx-0">
+            Esqueça o orçamento astronômico de uma campanha física offline. O futuro da marcação e do branding editorial digital permite escalar seu conteúdo pagando uma fração.
+          </p>
         </div>
 
-        {/* Steps Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-white/5">
-          {steps.map((step) => (
-            <div key={step.n} className="bg-[#131315] p-12 flex flex-col group hover:bg-[#201f22] transition-colors duration-700">
-               <div className="flex items-center justify-between mb-16">
-                  <div className="w-14 h-14 bg-white/5 border border-white/10 flex items-center justify-center text-white/40 group-hover:bg-[#D4FF00] group-hover:text-[#131315] transition-all duration-700">
-                    {step.icon}
-                  </div>
-                  <span className="text-4xl font-bold font-display opacity-5 group-hover:opacity-100 group-hover:text-[#D4FF00] transition-all duration-700">
-                    {step.n}
-                  </span>
-               </div>
-               
-               <h3 className="text-xl font-bold font-display uppercase tracking-tight mb-4 text-white">
-                  {step.title}
-               </h3>
-               
-               <p className="text-sm text-white/40 font-sans leading-relaxed">
-                  {step.desc}
-               </p>
-            </div>
-          ))}
+        <div className="w-full lg:w-[500px]">
+          <div className="bg-[#201f22] border border-white/10 p-10 relative">
+             <div className="absolute -top-3 -right-3 z-20">
+               <span className="bg-[#D4FF00] text-[#131315] text-[9px] font-bold uppercase tracking-[0.3em] px-4 py-2 shadow-lg">
+                 ESTIMATIVA LOCAL
+               </span>
+             </div>
+             
+             <h3 className="text-white font-bold font-display tracking-widest uppercase mb-8 pb-4 border-b border-white/10">Custos Tradicionais</h3>
+             
+             <div className="space-y-6">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-white/60 uppercase tracking-wider font-bold">Fotógrafo & Equipe</span>
+                  <span className="text-white font-mono opacity-80">R$ 15.000</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-white/60 uppercase tracking-wider font-bold">Modelos & Casting</span>
+                  <span className="text-white font-mono opacity-80">R$ 8.000</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-white/60 uppercase tracking-wider font-bold">Locação & Estúdio</span>
+                  <span className="text-white font-mono opacity-80">R$ 5.000</span>
+                </div>
+             </div>
+
+             <div className="mt-8 pt-8 border-t border-white/10 flex justify-between items-end">
+                <span className="text-xs text-white/40 font-bold uppercase tracking-widest">Custo Tradicional</span>
+                <span className="text-3xl text-white font-display font-bold tracking-tighter">R$ 28.000</span>
+             </div>
+             
+             <div className="mt-6 p-4 bg-[#D4FF00]/10 border border-[#D4FF00]/20 flex justify-between items-center">
+                <span className="text-xs text-[#D4FF00] font-bold uppercase tracking-widest">Custo RevivAI</span>
+                 <span className="text-xl text-[#D4FF00] font-display font-bold tracking-tighter">R$ 149</span>
+             </div>
+          </div>
         </div>
 
       </div>

@@ -1,50 +1,60 @@
-import { createAdminClient } from '@/lib/supabase/admin'
+'use client'
 
-const DEFAULTS = [
-  { id: '1', name: 'Maria Aparecida', role: 'Cliente premium', quote: 'Restaurei fotos da minha avó de 1960. Fiquei em lágrimas com o resultado. A qualidade é impressionante.' },
-  { id: '2', name: 'Ricardo Pimentel', role: 'Fotógrafo profissional', quote: 'Uso o reviv.ai para restaurar acervos de clientes. A colorização é absurdamente fiel ao contexto original.' },
-  { id: '3', name: 'Carla Souza', role: 'Diretora Criativa', quote: 'Rapidez e qualidade que não encontrei em nenhum outro serviço. O Ad Studio mudou nossa produção.' },
+const TESTIMONIALS = [
+  {
+    author: "Juliana Mendes",
+    role: "Diretora Criativa",
+    content: "A RevivAI reduziu nosso tempo de produção de lookbooks de semanas para horas. A qualidade é indistinguível de fotos reais."
+  },
+  {
+    author: "Lucas Rocha",
+    role: "Fundador de Marca",
+    content: "Poder testar coleções inteiras antes mesmo de fabricar as peças é o futuro da sustentabilidade na moda. Incrível."
+  },
+  {
+    author: "Beatriz Lima",
+    role: "Fashion Designer",
+    content: "Interface impecável e resultados que superam as melhores agências de casting de São Paulo e Milão."
+  }
 ]
 
-function getInitials(name: string) {
-  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
-}
-
-export default async function Testimonials() {
-  let reviews = DEFAULTS
-  try {
-    const supabase = createAdminClient()
-    const { data } = await supabase.from('testimonials').select('id, name, role, quote').eq('active', true).order('order')
-    if (data && data.length > 0) reviews = data
-  } catch {}
-
+export default function Testimonials() {
   return (
-    <section id="depoimentos" className="bg-[#131315] py-32 border-b border-white/5">
-      <div className="max-w-7xl mx-auto px-6">
-        <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4FF00] mb-6">FEEDBACK</p>
-        <h2 className="font-display text-5xl md:text-7xl font-bold uppercase tracking-tighter leading-[0.95] mb-20 max-w-4xl text-white">
-          O QUE NOSSOS <br /><span className="text-white/20">CLIENTES DIZEM</span>
-        </h2>
+    <section className="py-32 px-6 lg:px-20 bg-[#131315] relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#D4FF00]/5 blur-[120px] pointer-events-none" />
+      
+      <div className="max-w-7xl mx-auto relative z-10">
         
-        <div className="grid md:grid-cols-3 gap-px bg-white/5 border border-white/5">
-          {reviews.map(r => (
-            <div key={r.id} className="bg-[#131315] p-10 flex flex-col group hover:bg-[#201f22] transition-colors duration-500">
-              <div className="flex gap-1 mb-8">
-                {[...Array(5)].map((_, i) => <div key={i} className="w-1 h-1 bg-[#D4FF00]" />)}
+        {/* Header */}
+        <div className="mb-24 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4FF00] mb-6">PROVA SOCIAL</p>
+          <h2 className="text-5xl md:text-[5.5rem] font-bold font-display uppercase tracking-tighter leading-[0.95] mb-6">
+            QUEM USA, <br /><span className="text-white/20">REVOLUCIONA</span>
+          </h2>
+          <p className="text-lg text-white/50 font-sans max-w-xl mx-auto">
+            Diretores criativos e fundadores de marcas globais.
+          </p>
+        </div>
+
+        {/* Testimonials Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/5 border border-white/5">
+          {TESTIMONIALS.map((t, idx) => (
+            <div key={idx} className="bg-[#131315] p-12 hover:bg-[#201f22] transition-colors duration-500 flex flex-col justify-between">
+              <div>
+                 <div className="flex gap-1 text-[#D4FF00] mb-8">
+                   {[1, 2, 3, 4, 5].map(star => (
+                     <svg key={star} width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                     </svg>
+                   ))}
+                 </div>
+                 <p className="text-lg text-white/80 leading-relaxed font-sans mb-12">
+                   "{t.content}"
+                 </p>
               </div>
-              
-              <blockquote className="text-xl font-medium font-sans leading-relaxed text-white/70 mb-10 italic">
-                "{r.quote}"
-              </blockquote>
-              
-              <div className="mt-auto flex items-center gap-4">
-                <div className="w-12 h-12 flex items-center justify-center text-xs font-bold bg-white/5 border border-white/10 text-white group-hover:border-[#D4FF00] transition-colors">
-                  {getInitials(r.name)}
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-white">{r.name}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#D4FF00]/40">{r.role}</p>
-                </div>
+              <div>
+                 <p className="font-display text-xl font-bold uppercase tracking-tight text-white">{t.author}</p>
+                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">{t.role}</p>
               </div>
             </div>
           ))}

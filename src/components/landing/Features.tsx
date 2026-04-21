@@ -1,30 +1,30 @@
 'use client'
-import { ArrowRight, Box, Camera, Layers, Share2 } from 'lucide-react'
+import { ArrowRight, Box, Camera, Layers, Share2, ScanFace, Globe, Shirt, Maximize } from 'lucide-react'
 
 const FEATURES = [
   {
-    tag: 'CONSISTÊNCIA DE ROSTO',
-    title: 'MANTENHA A IDENTIDADE DA SUA MARCA EM TODAS AS FOTOS',
-    desc: 'Nossa IA garante que o rosto da sua modelo ou influenciadora seja preservado com 100% de fidelidade em diferentes poses e cenários.',
-    icon: <Camera size={24} />,
+    tag: 'CASTING IA',
+    title: 'CASTING VIRTUAL',
+    desc: 'Escolha entre milhares de modelos gerados por IA ou crie o seu próprio com traços específicos e consistentes.',
+    icon: <ScanFace size={24} />,
   },
   {
-    tag: 'TEXTURAS 8K',
-    title: 'DETALHES DE TECIDO QUE VOCÊ PODE QUASE TOCAR',
-    desc: 'Renderize seda, couro, algodão e texturas complexas com definição ultra-realista. A iluminação volumétrica destaca cada fibra.',
-    icon: <Layers size={24} />,
+    tag: 'CENÁRIOS',
+    title: 'ESTÚDIO INFINITO',
+    desc: 'Coloque suas modelos em qualquer lugar do mundo, do topo de uma montanha às ruas futuristas de Tóquio.',
+    icon: <Globe size={24} />,
   },
   {
-    tag: 'AMBIENTES GLOBAIS',
-    title: 'TRANSPORTE SUA COLEÇÃO PARA QUALQUER LUGAR DO MUNDO',
-    desc: 'De Milão a Tóquio, gere cenários cinematográficos para seus produtos sem sair do estúdio.',
-    icon: <Box size={24} />,
+    tag: 'FÍSICA REAL',
+    title: 'IA DE TECIDOS',
+    desc: 'Nossa IA entende a física dos tecidos: seda, couro, denim e malha reagem de forma realista à luz e ao movimento.',
+    icon: <Shirt size={24} />,
   },
   {
-    tag: 'MULTI-CANAL',
-    title: 'PRONTO PARA E-COMMERCE, REELS E OUTDOORS',
-    desc: 'Exporte em múltiplos formatos com qualidade de impressão. Da tela do celular ao painel de led.',
-    icon: <Share2 size={24} />,
+    tag: 'CONVERSÃO',
+    title: 'PROVADOR VIRTUAL',
+    desc: 'Aumente sua conversão em até 40% permitindo que seus clientes vejam as roupas em avatares com suas medidas reais.',
+    icon: <Maximize size={24} />,
   },
 ]
 
