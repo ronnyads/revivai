@@ -1,121 +1,129 @@
 'use client'
+import { useState } from 'react'
+import { Plus, Camera, Layout, FileText, Image as ImageIcon, Send, Sparkles } from 'lucide-react'
 
-import { Megaphone, Sparkles, Layout, MessageSquare, ShoppingBag, Layers, Plus } from 'lucide-react'
-import { StudioProject } from '@/types'
-import NewProjectButton from '@/components/studio/NewProjectButton'
-import ProjectCard from '@/components/studio/ProjectCard'
-import { useT } from '@/contexts/LanguageContext'
-
-interface Props {
-  projects: StudioProject[]
-}
-
-export default function StudioPageContent({ projects }: Props) {
-  const t = useT()
-
-  const templateLabels: Record<string, string> = {
-    blank:            t('tpl_blank'),
-    before_after:     t('tpl_before_after'),
-    testimonial:      t('tpl_testimonial'),
-    product_showcase: t('tpl_product_showcase'),
-  }
-
-  const templates = [
-    {
-      id: 'blank',
-      icon: <Layers className="w-6 h-6 text-neutral-600" />,
-      label: t('studio_tpl_blank_label'),
-      desc: t('studio_tpl_blank_desc'),
-    },
-    {
-      id: 'before_after',
-      icon: <Sparkles className="w-6 h-6 text-neutral-600" />,
-      label: t('studio_tpl_ba_label'),
-      desc: t('studio_tpl_ba_desc'),
-    },
-    {
-      id: 'testimonial',
-      icon: <MessageSquare className="w-6 h-6 text-neutral-600" />,
-      label: t('studio_tpl_ugc_label'),
-      desc: t('studio_tpl_ugc_desc'),
-    },
-    {
-      id: 'product_showcase',
-      icon: <ShoppingBag className="w-6 h-6 text-neutral-600" />,
-      label: t('studio_tpl_showcase_label'),
-      desc: t('studio_tpl_showcase_desc'),
-    },
-  ]
+export default function StudioPageContent() {
+  const [activeTab, setActiveTab] = useState('templates')
 
   return (
-    <div className="min-h-screen bg-[#F8F6F1] font-sans">
-
-      {/* Page Header */}
-      <div className="bg-white border-b border-neutral-100 px-8 md:px-12 py-10 mb-10">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400 mb-2">REVIVAI — AD STUDIO</p>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-neutral-900 font-display">Criar Novo Projeto</h1>
-              <span className="text-[9px] bg-neutral-900 text-white px-2 py-1 font-bold tracking-widest uppercase">PRO</span>
-            </div>
-            <p className="text-sm text-neutral-500 mt-1">{t('studio_subtitle')}</p>
-          </div>
-          <NewProjectButton />
+    <div className="p-6 md:p-12 lg:p-16 max-w-7xl mx-auto min-h-screen">
+      {/* Header */}
+      <div className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div>
+          <p className="text-[10px] uppercase font-bold tracking-[0.4em] text-[#D4FF00] mb-4">WORKSPACE</p>
+          <h1 className="text-4xl md:text-5xl font-bold font-display uppercase tracking-tight text-white mb-4">Ad Studio</h1>
+          <p className="text-white/50 text-base max-w-xl font-sans">
+            Crie campanhas e editoriais completos. Selecione um template ou inicie do zero usando a inteligência artificial.
+          </p>
         </div>
+        <button className="flex items-center justify-center gap-2 px-8 py-4 bg-[#D4FF00] text-[#020617] font-bold text-xs uppercase tracking-[0.2em] hover:bg-white transition-all w-full md:w-auto">
+          <Plus size={16} /> NOVO PROJETO
+        </button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 md:px-12">
+      {/* Tabs */}
+      <div className="flex items-center gap-8 border-b border-white/10 mb-10 overflow-x-auto">
+        {[
+          { id: 'templates', label: 'Templates' },
+          { id: 'drafts', label: 'Rascunhos' },
+          { id: 'published', label: 'Publicados' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`pb-4 text-[11px] font-bold uppercase tracking-[0.2em] whitespace-nowrap transition-all relative ${
+              activeTab === tab.id ? 'text-[#D4FF00]' : 'text-white/40 hover:text-white/80'
+            }`}
+          >
+            {tab.label}
+            {activeTab === tab.id && (
+              <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#D4FF00] rounded-t-full shadow-[0_0_10px_#D4FF00]" />
+            )}
+          </button>
+        ))}
+      </div>
 
-      {/* Templates Grid */}
-      <div className="mb-16">
-        <p className="text-[10px] font-bold text-neutral-400 tracking-[0.3em] uppercase mb-6">{t('studio_create_section')}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {templates.map((tpl) => (
-            <NewProjectButton key={tpl.id} template={tpl.id} variant="card">
-              <div className="h-full bg-white border border-neutral-100 p-8 group hover:border-neutral-900 hover:shadow-md transition-all duration-500 text-left">
-                <div className="w-12 h-12 bg-neutral-50 border border-neutral-100 flex items-center justify-center mb-6 group-hover:bg-neutral-900 transition-colors duration-500">
-                  {tpl.icon}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        
+        {/* Main Grid Window */}
+        <div className="lg:col-span-3">
+          {activeTab === 'templates' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                { title: 'Lookbook Editorial', icon: Camera, desc: 'Ideal para alta costura e coleções.', tag: 'Recomendado' },
+                { title: 'Social Ads', icon: Layout, desc: 'Formatos 9:16 e 4:5 otimizados para Meta e TikTok.' },
+                { title: 'E-commerce B2C', icon: ImageIcon, desc: 'Fundo neutro, iluminação de estúdio natural.' },
+                { title: 'Casting Virtual', icon: Sparkles, desc: 'Crie seu modelo consistente a partir de atributos.' },
+              ].map((tpl, i) => (
+                <div key={i} className="group relative bg-[#0F172A] border border-white/5 hover:border-[#D4FF00]/50 p-8 transition-all duration-500 cursor-pointer flex flex-col h-full min-h-[250px]">
+                   {tpl.tag && (
+                     <span className="absolute top-4 right-4 bg-[#D4FF00] text-[#020617] text-[8px] font-bold uppercase tracking-widest px-2 py-1">
+                       {tpl.tag}
+                     </span>
+                   )}
+                   <div className="w-12 h-12 bg-white/5 border border-white/10 flex items-center justify-center text-white/50 group-hover:text-[#D4FF00] group-hover:bg-[#D4FF00]/10 mb-8 transition-all">
+                     <tpl.icon size={20} />
+                   </div>
+                   <h3 className="text-lg font-bold font-display uppercase text-white mb-3 group-hover:text-[#D4FF00] transition-colors">{tpl.title}</h3>
+                   <p className="text-sm font-sans text-white/40 leading-relaxed mb-6 flex-1">{tpl.desc}</p>
+                   
+                   <div className="flex items-center gap-2 text-[9px] font-bold text-white/20 uppercase tracking-[0.2em] group-hover:text-white/60">
+                     Usar Template <ArrowRightIcon className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                   </div>
                 </div>
-                <h3 className="text-base font-bold text-neutral-900 mb-2 uppercase tracking-tight">
-                  {tpl.label}
-                </h3>
-                <p className="text-xs text-neutral-400 leading-relaxed">
-                  {tpl.desc}
-                </p>
-              </div>
-            </NewProjectButton>
-          ))}
-        </div>
-      </div>
-
-      {/* Projects Grid */}
-      <div className="pb-16">
-        <p className="text-[10px] font-bold text-neutral-400 tracking-[0.3em] uppercase mb-6">{t('studio_projects_section')}</p>
-
-        {projects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map(project => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                templateLabel={templateLabels[project.template] ?? project.template}
-                templateColor="bg-neutral-50"
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-neutral-200 bg-white">
-            <div className="w-20 h-20 bg-neutral-50 border border-neutral-100 flex items-center justify-center mx-auto mb-6">
-              <Megaphone size={32} className="text-neutral-300" />
+              ))}
             </div>
-            <h3 className="text-xl font-bold text-neutral-900 mb-2 font-display">{t('studio_empty_title')}</h3>
-            <p className="text-neutral-400 text-sm max-w-xs mx-auto mb-8">{t('studio_empty_sub')}</p>
-            <NewProjectButton />
-          </div>
-        )}
+          )}
+
+          {activeTab !== 'templates' && (
+            <div className="flex flex-col items-center justify-center py-20 px-4 border border-white/5 border-dashed bg-[#0F172A]/30">
+               <div className="w-16 h-16 bg-white/5 border border-white/10 flex items-center justify-center text-white/30 mb-6">
+                 <FileText size={24} />
+               </div>
+               <p className="text-white/50 text-sm font-sans text-center">Nenhum projeto encontrado nesta categoria.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Generative Chat Assistant Sidebar */}
+        <div className="lg:col-span-1 border border-white/5 bg-[#0F172A] p-6 flex flex-col h-[600px] sticky top-8">
+           <div className="flex items-center gap-3 mb-6 pb-6 border-b border-white/5">
+             <div className="w-8 h-8 bg-[#D4FF00]/10 flex items-center justify-center">
+               <Sparkles size={14} className="text-[#D4FF00]" />
+             </div>
+             <div>
+               <h3 className="text-[10px] font-bold text-white uppercase tracking-widest">Creative Copilot</h3>
+               <p className="text-[#D4FF00] text-[8px] uppercase tracking-widest font-mono">Online</p>
+             </div>
+           </div>
+
+           <div className="flex-1 overflow-y-auto pr-2 mb-6 space-y-4 font-sans text-sm">
+             <div className="bg-[#1E293B] p-4 rounded-br-none border border-white/5 text-white/80 self-start w-[90%]">
+               Olá! Qual o tema da campanha de hoje? Quer criar um lookbook de alto verão estilo Riviera Francesa?
+             </div>
+           </div>
+
+           <div className="relative mt-auto">
+             <input 
+               type="text" 
+               placeholder="Descreva a sua ideia..."
+               className="w-full bg-[#020617] border border-white/10 px-4 py-4 pr-12 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#D4FF00]/50 transition-colors"
+             />
+             <button className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-[#D4FF00] transition-colors p-1">
+               <Send size={16} />
+             </button>
+           </div>
+        </div>
+
       </div>
     </div>
-    </div>
+  )
+}
+
+function ArrowRightIcon(props: any) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
   )
 }

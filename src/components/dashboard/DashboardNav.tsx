@@ -1,44 +1,40 @@
 'use client'
-
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Images, Wand2, CreditCard, Megaphone, Upload } from 'lucide-react'
-import { useT } from '@/contexts/LanguageContext'
+import { Image as ImageIcon, Camera, Wand2, CreditCard } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { href: '/dashboard',         icon: Images,    labelKey: 'nav_photos',   label: 'Galeria' },
-  { href: '/dashboard/upload',  icon: Upload,    labelKey: 'nav_restore',  label: 'Nova restauração' },
-  { href: '/dashboard/studio',  icon: Megaphone, labelKey: 'nav_studio',   label: 'Ad Studio', badge: 'PRO' },
-  { href: '/dashboard/billing', icon: CreditCard,labelKey: 'nav_billing',  label: 'Planos' },
+  { href: '/dashboard', label: 'Galeria', icon: ImageIcon },
+  { href: '/dashboard/upload', label: 'Restauração', icon: Wand2 },
+  { href: '/dashboard/studio', label: 'Ad Studio', icon: Camera },
+  { href: '/dashboard/billing', label: 'Planos', icon: CreditCard },
 ]
 
 export default function DashboardNav() {
-  const t = useT()
   const pathname = usePathname()
 
   return (
-    <nav className="flex-1 px-4 py-4 flex flex-col gap-1 overflow-y-auto">
-      {NAV_ITEMS.map(({ href, icon: Icon, labelKey, label, badge }) => {
-        const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+    <nav className="flex flex-col gap-2">
+      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        const isActive = pathname === href
         return (
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all group relative ${
-              isActive
-                ? 'bg-neutral-900 text-white'
-                : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-50'
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all group relative ${
+              isActive 
+                ? 'bg-white/10 text-white' 
+                : 'text-white/50 hover:bg-white/5 hover:text-white'
             }`}
           >
-            <Icon size={16} className={isActive ? 'text-white' : 'text-neutral-400 group-hover:text-neutral-700'} />
-            <span>{t(labelKey) ?? label}</span>
-            {badge && (
-              <span className={`ml-auto text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 ${
-                isActive ? 'bg-white/20 text-white' : 'bg-neutral-100 text-neutral-500'
-              }`}>
-                {badge}
-              </span>
+            {isActive && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#D4FF00] rounded-r-full shadow-[0_0_10px_#D4FF00]" />
             )}
+            <Icon 
+              size={18} 
+              className={`transition-colors ${isActive ? 'text-[#D4FF00]' : 'group-hover:text-[#D4FF00]'}`} 
+            />
+            <span className="text-sm font-sans tracking-wide">{label}</span>
           </Link>
         )
       })}

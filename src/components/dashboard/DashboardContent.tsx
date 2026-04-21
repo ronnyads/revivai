@@ -1,185 +1,92 @@
 'use client'
+import { useState } from 'react'
+import { Download, Share2, Trash2, Camera, Clock } from 'lucide-react'
 
-import Link from 'next/link'
-import { Plus, Clock, CheckCircle, Loader2, Upload, Images, Wand2, CreditCard, Megaphone } from 'lucide-react'
-import PhotoCard from '@/components/ui/PhotoCard'
-import { useT } from '@/contexts/LanguageContext'
+// Placeholder data since Supabase fetches might be done elsewhere, keeping the component visual
+const GALLERY = [
+  { id: 1, title: 'Retrato de Família 1954', time: 'Restaurado há 2 horas', img: 'https://images.unsplash.com/photo-1544281679-bba911f4d990?q=80&w=800' },
+  { id: 2, title: 'Vovô em São Paulo', time: 'Restaurado há 5 horas', img: 'https://images.unsplash.com/photo-1550927311-6ee08f0aabd3?q=80&w=800' },
+  { id: 3, title: 'Infância 1982', time: 'Restaurado ontem', img: 'https://images.unsplash.com/photo-1533088924009-edb37ce21c27?q=80&w=800' },
+  { id: 4, title: 'Casamento Prata', time: 'Restaurado há 3 dias', img: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=800' },
+]
 
-interface Photo {
-  id: string
-  status: string
-  restored_url: string | null
-  created_at: string
-  original_url?: string
-  [key: string]: unknown
-}
-
-interface Props {
-  userHandle: string
-  photos: Photo[]
-  credits: number
-  totalPhotos: number
-  donePhotos: number
-}
-
-function timeAgo(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-  if (days > 0) return `há ${days} dia${days > 1 ? 's' : ''}`
-  if (hours > 0) return `há ${hours} hora${hours > 1 ? 's' : ''}`
-  if (mins > 0) return `há ${mins} min`
-  return 'agora mesmo'
-}
-
-export default function DashboardContent({ userHandle, photos, credits, totalPhotos, donePhotos }: Props) {
-  const t = useT()
-  const pending = photos.filter(p => p.status === 'pending' || p.status === 'processing').length
+export default function DashboardContent() {
+  const [hoverId, setHoverId] = useState<number | null>(null)
 
   return (
-    <div className="min-h-screen bg-[#F8F6F1] font-sans">
-
-      {/* ── Page Header ── */}
-      <div className="bg-white border-b border-neutral-100 px-8 md:px-12 py-10">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400 mb-2">REVIVAI — DASHBOARD</p>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-neutral-900 font-display">
-              Minha Galeria Ethereal
-            </h1>
-            <p className="text-sm text-neutral-500 mt-1">
-              Gerencie suas memórias restauradas com a potência da Inteligência Artificial RevivAI.
-            </p>
-          </div>
-
-          <Link
-            href="/dashboard/upload"
-            className="inline-flex items-center gap-2 bg-neutral-900 text-white text-xs font-bold uppercase tracking-[0.2em] px-8 py-4 hover:bg-neutral-700 transition-colors shrink-0"
-          >
-            <Plus size={14} /> Nova Restauração
-          </Link>
-        </div>
-      </div>
-
-      {/* ── Stats Bar ── */}
-      <div className="bg-white border-b border-neutral-100">
-        <div className="max-w-7xl mx-auto px-8 md:px-12 py-6 flex flex-wrap gap-10">
-          {[
-            { label: 'Total de fotos', value: totalPhotos, icon: <Images size={16} className="text-neutral-400" /> },
-            { label: 'Concluídas', value: donePhotos, icon: <CheckCircle size={16} className="text-emerald-500" /> },
-            { label: 'Em processo', value: pending, icon: <Loader2 size={16} className="text-amber-500" /> },
-            { label: 'Créditos', value: credits, icon: <CreditCard size={16} className="text-neutral-400" /> },
-          ].map(s => (
-            <div key={s.label} className="flex items-center gap-3">
-              {s.icon}
-              <div>
-                <div className="text-2xl font-bold font-display text-neutral-900 leading-none">{s.value.toLocaleString('pt-BR')}</div>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mt-0.5">{s.label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Main Content ── */}
-      <div className="max-w-7xl mx-auto px-8 md:px-12 py-10">
-        {photos.length > 0 ? (
-          <>
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400 mb-6">
-              SUAS MEMÓRIAS — {photos.length} {photos.length === 1 ? 'FOTO' : 'FOTOS'}
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {photos.map(photo => (
-                <PhtoCardLight key={photo.id} photo={photo} credits={credits} />
-              ))}
-            </div>
-          </>
-        ) : (
-          /* ── Empty State ── */
-          <div className="flex flex-col items-center justify-center py-32 text-center">
-            <div className="w-24 h-24 bg-neutral-100 flex items-center justify-center mb-8">
-              <Upload size={32} className="text-neutral-300" />
-            </div>
-            <h2 className="text-2xl font-bold font-display text-neutral-900 mb-3">
-              Dê vida a mais memórias
-            </h2>
-            <p className="text-sm text-neutral-500 max-w-sm mb-10 leading-relaxed">
-              Arraste e solte fotos antigas aqui ou use o botão abaixo para começar uma nova restauração cinematográfica.
-            </p>
-            <Link
-              href="/dashboard/upload"
-              className="inline-flex items-center gap-2 bg-neutral-900 text-white text-xs font-bold uppercase tracking-[0.2em] px-10 py-4 hover:bg-neutral-700 transition-colors"
-            >
-              <Plus size={14} /> Começar Agora
-            </Link>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ── Inline Light PhotoCard ── */
-function PhtoCardLight({ photo, credits }: { photo: Photo; credits: number }) {
-  const displayUrl = photo.status === 'done'
-    ? (photo.restored_url || photo.original_url)
-    : photo.original_url
-
-  const statusMap: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-    pending:    { label: 'Aguardando', color: 'text-neutral-400', icon: <Clock size={12} /> },
-    processing: { label: 'Restaurando...', color: 'text-amber-500', icon: <Loader2 size={12} className="animate-spin" /> },
-    done:       { label: 'Concluída', color: 'text-emerald-600', icon: <CheckCircle size={12} /> },
-    error:      { label: 'Erro', color: 'text-red-500', icon: null },
-  }
-
-  const s = statusMap[photo.status] ?? statusMap.error
-
-  return (
-    <div className="bg-white group overflow-hidden hover:shadow-lg transition-shadow duration-500">
-      <div className="relative aspect-[4/3] bg-neutral-50 overflow-hidden">
-        {displayUrl ? (
-          <img
-            src={displayUrl}
-            alt="Foto restaurada"
-            className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-neutral-200">
-            <Images size={32} />
-          </div>
-        )}
-        {photo.status === 'processing' && (
-          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm flex items-center justify-center">
-            <Loader2 size={24} className="text-neutral-700 animate-spin" />
-          </div>
-        )}
-      </div>
-
-      <div className="p-4">
-        <p className="text-xs font-bold text-neutral-900 truncate mb-1">
-          {(photo.original_url as string)?.split('/').pop()?.split('.')[0] ?? 'Foto restaurada'}
+    <div className="p-6 md:p-12 lg:p-16 max-w-7xl mx-auto min-h-screen">
+      
+      {/* Page Header */}
+      <div className="mb-16">
+        <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4FF00] mb-4">WORKSPACE</p>
+        <h1 className="text-4xl md:text-5xl font-bold font-display uppercase tracking-tight text-white mb-4">
+          Galeria de Restaurações
+        </h1>
+        <p className="text-white/50 text-base md:text-lg max-w-2xl font-sans leading-relaxed">
+          Gerencie suas memórias revitalizadas com precisão de IA e qualidade cinematográfica.
         </p>
-        <div className={`flex items-center gap-1.5 text-[11px] font-medium ${s.color}`}>
-          {s.icon} {s.label}
-          {photo.status === 'done' && (
-            <span className="ml-auto text-[10px] text-neutral-400">
-              {timeAgo(photo.created_at)}
-            </span>
-          )}
-        </div>
+      </div>
 
-        {photo.status === 'done' && photo.restored_url && (
-          <a
-            href={photo.restored_url}
-            download
-            target="_blank"
-            rel="noreferrer"
-            className="mt-3 flex items-center justify-center gap-1 w-full py-2 bg-neutral-900 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-700 transition-colors"
+      {/* Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+        
+        {/* Call to action "Add Photo" Card */}
+        <a href="/dashboard/upload" className="group flex flex-col items-center justify-center p-12 bg-[#1E293B]/30 border border-white/5 hover:border-[#D4FF00]/50 border-dashed transition-all duration-500 min-h-[400px]">
+          <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[#D4FF00]/10 group-hover:border-[#D4FF00]/20 transition-all duration-500">
+             <Camera size={24} className="text-white/50 group-hover:text-[#D4FF00] transition-colors" />
+          </div>
+          <h3 className="text-lg font-bold text-white uppercase tracking-widest mb-2 font-display">Pronto para mais?</h3>
+          <p className="text-xs text-white/40 text-center uppercase tracking-wider font-sans">
+            Transforme antigas fotos usando <br/> seus 50 créditos disponíveis
+          </p>
+        </a>
+
+        {GALLERY.map((item) => (
+          <div 
+            key={item.id}
+            className="group relative bg-[#0F172A] border border-white/5 overflow-hidden transition-all duration-500 min-h-[400px]"
+            onMouseEnter={() => setHoverId(item.id)}
+            onMouseLeave={() => setHoverId(null)}
           >
-            Baixar
-          </a>
-        )}
+            {/* Image */}
+            <div className="absolute inset-0 overflow-hidden">
+               <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/40 to-transparent z-10 opacity-80" />
+               <img 
+                 src={item.img} 
+                 alt={item.title}
+                 className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105 opacity-60 group-hover:opacity-100"
+               />
+            </div>
+
+            {/* Hover Actions */}
+            <div className={`absolute top-4 right-4 z-20 flex gap-2 transition-all duration-300 ${hoverId === item.id ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}>
+              <button className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-[#D4FF00] hover:text-black transition-colors tooltipwrap">
+                <Share2 size={16} />
+              </button>
+              <button className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-[#D4FF00] hover:text-black transition-colors">
+                <Download size={16} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="absolute bottom-0 left-0 right-0 p-8 z-20">
+               <div className="flex items-center gap-2 text-[#D4FF00] mb-3">
+                 <Clock size={12} className="opacity-80" />
+                 <span className="text-[9px] font-bold uppercase tracking-[0.2em]">{item.time}</span>
+               </div>
+               <h3 className="text-xl font-bold font-display uppercase tracking-wider text-white mb-4">
+                 {item.title}
+               </h3>
+               
+               <div className="flex items-center gap-4 opacity-0 -translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                 <button className="text-[10px] font-bold text-white/50 hover:text-white uppercase tracking-[0.2em] transition-colors">Ver Comparação</button>
+                 <button className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-[0.2em] transition-colors ml-auto flex items-center gap-1">
+                   <Trash2 size={12} /> Excluir
+                 </button>
+               </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
