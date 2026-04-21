@@ -63,11 +63,14 @@ export default function StudioChatPanel({ projectId, userId }: Props) {
           projectId,
           agentType: agent,
           message: text,
-          history: messages.slice(-20), // últimas 20 mensagens como contexto
+          history: messages.filter(m => m.content.trim()).slice(-20),
         }),
       })
 
-      if (!res.ok || !res.body) throw new Error('Erro na resposta')
+      if (!res.ok || !res.body) {
+        const errBody = await res.json().catch(() => ({}))
+        throw new Error(errBody?.error ?? `Erro ${res.status}`)
+      }
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -83,10 +86,10 @@ export default function StudioChatPanel({ projectId, userId }: Props) {
           return updated
         })
       }
-    } catch {
+    } catch (e: any) {
       setMessages(prev => {
         const updated = [...prev]
-        updated[updated.length - 1] = { role: 'assistant', content: 'Erro ao conectar com a IA. Tente novamente.' }
+        updated[updated.length - 1] = { role: 'assistant', content: `Erro: ${e?.message ?? 'falha desconhecida'}` }
         return updated
       })
     } finally {
