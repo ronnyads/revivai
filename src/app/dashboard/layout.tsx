@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import LogoutButton from '@/components/dashboard/LogoutButton'
-import { Image as ImageIcon, Sparkles, CreditCard, Megaphone, Home } from 'lucide-react'
+import { Images, Wand2, CreditCard, Megaphone, ChevronRight } from 'lucide-react'
 import CreditBadge from '@/components/ui/CreditBadge'
 import MobileSidebar from '@/components/dashboard/MobileSidebar'
 import { LanguageProvider } from '@/contexts/LanguageContext'
@@ -20,46 +20,44 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <LanguageProvider>
-      <div className="min-h-screen bg-black flex flex-col md:flex-row font-sans">
+      <div className="min-h-screen bg-[#F8F6F1] flex flex-col md:flex-row font-sans">
         <style dangerouslySetInnerHTML={{ __html: `
-          @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap');
-          .font-sans { font-family: 'DM Sans', sans-serif; }
+          @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap');
+          .font-display { font-family: 'Space Grotesk', sans-serif; }
+          .font-sans { font-family: 'Manrope', sans-serif; }
         `}} />
 
-        {/* ── Sidebar Premium (PC) ── */}
-        <aside className="hidden md:flex w-72 bg-zinc-950/50 backdrop-blur-xl border-r border-zinc-900 flex-shrink-0 flex-col z-40 sticky top-0 h-screen">
+        {/* ── Sidebar Light (PC) ── */}
+        <aside className="hidden md:flex w-64 bg-white border-r border-neutral-100 flex-shrink-0 flex-col z-40 sticky top-0 h-screen">
 
           {/* Logo */}
-          <div className="p-8 pb-10">
-            <Link href="/dashboard" className="group flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shadow-[0_0_20px_-5px_#6366f1]">
-                <span className="text-white font-black text-xl">R</span>
-              </div>
-              <span className="font-bold text-2xl tracking-tight text-white group-hover:text-indigo-400 transition-colors">
-                reviv<span className="text-indigo-500">.</span>ai
+          <div className="px-8 py-8 border-b border-neutral-100">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <span className="font-display font-bold text-xl tracking-tighter text-neutral-900">
+                REVIV<span className="text-[#D4FF00] [text-shadow:0_0_20px_#D4FF00]">.</span>AI
               </span>
             </Link>
           </div>
 
           {/* Credits */}
-          <div className="px-6 mb-8">
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-5 hover:border-zinc-700 transition-all group">
+          <div className="px-6 py-6 border-b border-neutral-100">
+            <div className="bg-neutral-50 p-4 border border-neutral-100">
               <CreditBadge credits={profile?.credits ?? 0} plan={profile?.plan ?? 'free'} />
             </div>
           </div>
 
-          {/* Nav — Client Component com traduções */}
+          {/* Nav */}
           <DashboardNav />
 
           {/* Profile Footer */}
-          <div className="px-6 pt-5 pb-6 border-t border-zinc-900">
-            <div className="flex items-center gap-3 min-w-0 mb-4">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center font-bold text-white text-sm shadow-lg flex-shrink-0">
+          <div className="px-6 py-6 border-t border-neutral-100 mt-auto">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 bg-neutral-900 flex items-center justify-center font-bold text-white text-sm flex-shrink-0">
                 {user.email?.[0].toUpperCase()}
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-white truncate">{user.email?.split('@')[0]}</p>
-                <p className="text-[10px] text-zinc-500 truncate">{user.email}</p>
+                <p className="text-sm font-bold text-neutral-900 truncate">{user.email?.split('@')[0]}</p>
+                <p className="text-[10px] text-neutral-400 truncate">{user.email}</p>
               </div>
             </div>
             <div className="flex flex-col gap-2">
@@ -70,13 +68,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </aside>
 
         {/* ── Main Content ── */}
-        <main className="flex-1 w-full relative overflow-y-auto bg-black">
+        <main className="flex-1 w-full relative overflow-y-auto bg-[#F8F6F1]">
           <MobileSidebar userEmail={user.email!}>
             <CreditBadge credits={profile?.credits ?? 0} plan={profile?.plan ?? 'free'} />
           </MobileSidebar>
-          <div className="relative">
-            {children}
-          </div>
+          {children}
         </main>
       </div>
     </LanguageProvider>
