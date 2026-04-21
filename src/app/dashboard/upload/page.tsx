@@ -151,10 +151,16 @@ export default function UploadPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface">
-      <main className="max-w-4xl mx-auto px-6 py-10 md:py-14">
-        <h1 className="font-display text-5xl font-normal tracking-tight mb-1">{t('upload_title')}</h1>
-        <p className="text-muted text-sm mb-10">{t('upload_subtitle')}</p>
+    <div className="min-h-screen bg-[#F8F6F1]">
+      {/* Page Header */}
+      <div className="bg-white border-b border-neutral-100 px-8 md:px-12 py-10 mb-10">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400 mb-2">REVIVAI — RESTAURAÇÃO</p>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-neutral-900 font-display">Restaure a História</h1>
+          <p className="text-sm text-neutral-500 mt-1">Escolha o algoritmo e revitalize cada pixel com inteligência artificial.</p>
+        </div>
+      </div>
+      <main className="max-w-4xl mx-auto px-6 py-4 md:py-6">
 
         {/* UPLOAD STEP */}
         {step === 'upload' && (
@@ -162,7 +168,7 @@ export default function UploadPage() {
             {/* Mode selection */}
             {modes.length > 0 && (
               <div className="mb-10">
-                <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-5">{t('upload_mode_label')}</p>
+                <p className="text-[10px] font-bold text-neutral-400 tracking-[0.3em] uppercase mb-5">{t('upload_mode_label')}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {modes.map(mode => {
                     const isSelected = selectedMode === mode.id
@@ -173,10 +179,10 @@ export default function UploadPage() {
                       <button
                         key={mode.id}
                         onClick={() => setSelectedMode(mode.id)}
-                        className={`w-full text-left rounded-2xl border-2 transition-all duration-200 overflow-hidden group ${
+                        className={`w-full text-left border transition-all duration-200 overflow-hidden group ${
                           isSelected
-                            ? 'border-accent shadow-lg shadow-accent/15 scale-[1.01]'
-                            : 'border-[#E8E8E8] bg-white hover:border-accent/50 hover:shadow-md hover:scale-[1.005]'
+                            ? 'border-neutral-900 shadow-lg scale-[1.01]'
+                            : 'border-neutral-100 bg-white hover:border-neutral-300 hover:shadow-md'
                         }`}
                       >
                         {/* Before/After — full width, tall */}
@@ -246,15 +252,15 @@ export default function UploadPage() {
               </div>
             )}
 
-            <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-4">{t('upload_send_label')}</p>
+            <p className="text-[10px] font-bold text-neutral-400 tracking-[0.3em] uppercase mb-4">{t('upload_send_label')}</p>
             <UploadZone onFile={f => setFile(f)} />
 
             {file && (
               <button
                 onClick={handleRestore}
-                className="mt-5 w-full flex items-center justify-center gap-2 bg-accent text-white py-4 rounded-xl text-base font-medium hover:bg-accent-dark transition-all hover:-translate-y-0.5 shadow-lg shadow-accent/20"
+                className="mt-5 w-full flex items-center justify-center gap-2 bg-neutral-900 text-white py-5 text-xs font-bold uppercase tracking-[0.2em] hover:bg-neutral-700 transition-all"
               >
-                <Sparkles size={18} /> {t('upload_btn')}
+                <Sparkles size={16} /> {t('upload_btn')}
               </button>
             )}
           </>
@@ -262,21 +268,21 @@ export default function UploadPage() {
 
         {/* DIAGNOSING */}
         {step === 'diagnosing' && (
-          <div className="bg-white rounded-2xl border border-[#E8E8E8] p-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-accent-light flex items-center justify-center text-accent mx-auto mb-6 animate-pulse">
+          <div className="bg-white border border-neutral-100 p-12 text-center">
+            <div className="w-16 h-16 bg-neutral-50 border border-neutral-100 flex items-center justify-center text-neutral-600 mx-auto mb-6 animate-pulse">
               <Sparkles size={24} />
             </div>
-            <h2 className="font-display text-3xl font-normal mb-2">{t('upload_diag_title')}</h2>
-            <p className="text-muted text-sm mb-8">{t('upload_diag_sub')}</p>
-            <div className="w-full bg-[#E8E8E8] rounded-full h-1.5">
-              <div className="bg-accent h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+            <h2 className="font-display text-3xl font-bold mb-2 text-neutral-900">{t('upload_diag_title')}</h2>
+            <p className="text-neutral-500 text-sm mb-8">{t('upload_diag_sub')}</p>
+            <div className="w-full bg-neutral-100 h-1">
+              <div className="bg-neutral-900 h-1 transition-all duration-500" style={{ width: `${progress}%` }} />
             </div>
           </div>
         )}
 
         {/* RESTORING */}
         {step === 'restoring' && diagnosis && (
-          <div className="bg-white rounded-2xl border border-[#E8E8E8] p-12 text-center">
+          <div className="bg-white border border-neutral-100 p-12 text-center">
             <div className="inline-flex items-center gap-2 bg-accent-light border border-accent/30 text-accent rounded-full px-4 py-1.5 text-xs font-medium mb-6">
               <span>{diagnosis.icon}</span> {diagnosis.label}
               <span className="bg-accent text-white text-[10px] px-2 py-0.5 rounded-full ml-1">{diagnosis.confidence}%</span>
@@ -332,8 +338,8 @@ export default function UploadPage() {
         {/* DONE */}
         {step === 'done' && originalUrl && restoredUrl && (
           <div className="flex flex-col gap-6">
-            <div className="bg-white rounded-2xl border border-[#E8E8E8] p-6">
-              <div className="flex items-center gap-2 text-green-600 text-sm font-medium mb-5">
+            <div className="bg-white border border-neutral-100 p-6">
+              <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium mb-5">
                 <span className="w-2 h-2 rounded-full bg-green-500" /> {t('upload_done_label')}
               </div>
               <BeforeAfterSlider before={originalUrl} after={restoredUrl} />
@@ -370,12 +376,12 @@ export default function UploadPage() {
 
             <div className="flex gap-3">
               <a href={colorizationUrl || restoredUrl} download target="_blank" rel="noreferrer"
-                className="flex-1 flex items-center justify-center gap-2 bg-ink text-white py-3.5 rounded-xl text-sm font-medium hover:bg-accent transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 bg-neutral-900 text-white py-4 text-xs font-bold uppercase tracking-widest hover:bg-neutral-700 transition-colors">
                 {t('upload_download')}
               </a>
               <button
                 onClick={() => { setStep('upload'); setFile(null); setRestoredUrl(''); setOriginalUrl(''); setColorizationSuggested(false); setColorizationUrl(null) }}
-                className="flex-1 border border-[#E8E8E8] text-ink py-3.5 rounded-xl text-sm font-medium hover:border-accent hover:text-accent transition-colors">
+                className="flex-1 border border-neutral-200 text-neutral-700 py-4 text-xs font-bold uppercase tracking-widest hover:border-neutral-900 hover:text-neutral-900 transition-colors">
                 {t('upload_restore_another')}
               </button>
             </div>
@@ -384,13 +390,13 @@ export default function UploadPage() {
 
         {/* ERROR */}
         {step === 'error' && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-10 text-center">
+          <div className="bg-red-50 border border-red-200 p-10 text-center">
             <AlertCircle size={32} className="text-red-500 mx-auto mb-4" />
-            <h2 className="font-display text-2xl font-normal mb-2 text-red-700">{t('upload_error_title')}</h2>
+            <h2 className="font-display text-2xl font-bold mb-2 text-red-700">{t('upload_error_title')}</h2>
             <p className="text-red-500 text-sm mb-6">{error}</p>
             <button
               onClick={() => { setStep('upload'); setFile(null) }}
-              className="bg-ink text-white px-8 py-3 rounded-lg text-sm font-medium hover:bg-accent transition-colors">
+              className="bg-neutral-900 text-white px-8 py-4 text-xs font-bold uppercase tracking-widest hover:bg-neutral-700 transition-colors">
               {t('upload_error_retry')}
             </button>
           </div>

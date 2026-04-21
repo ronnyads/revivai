@@ -23,103 +23,66 @@ export default function StudioPageContent({ projects }: Props) {
   const templates = [
     {
       id: 'blank',
-      icon: <Layers className="w-6 h-6 text-indigo-400" />,
+      icon: <Layers className="w-6 h-6 text-neutral-600" />,
       label: t('studio_tpl_blank_label'),
       desc: t('studio_tpl_blank_desc'),
-      color: 'from-indigo-500/20 to-violet-500/20',
-      border: 'border-indigo-500/30'
     },
     {
       id: 'before_after',
-      icon: <Sparkles className="w-6 h-6 text-violet-400" />,
+      icon: <Sparkles className="w-6 h-6 text-neutral-600" />,
       label: t('studio_tpl_ba_label'),
       desc: t('studio_tpl_ba_desc'),
-      color: 'from-violet-500/10 to-transparent'
     },
     {
       id: 'testimonial',
-      icon: <MessageSquare className="w-6 h-6 text-emerald-400" />,
+      icon: <MessageSquare className="w-6 h-6 text-neutral-600" />,
       label: t('studio_tpl_ugc_label'),
       desc: t('studio_tpl_ugc_desc'),
-      color: 'from-emerald-500/10 to-transparent'
     },
     {
       id: 'product_showcase',
-      icon: <ShoppingBag className="w-6 h-6 text-amber-400" />,
+      icon: <ShoppingBag className="w-6 h-6 text-neutral-600" />,
       label: t('studio_tpl_showcase_label'),
       desc: t('studio_tpl_showcase_desc'),
-      color: 'from-amber-500/10 to-transparent'
     },
   ]
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 md:p-12 font-sans selection:bg-indigo-500/30">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap');
-        .font-sans { font-family: 'DM Sans', sans-serif; }
-        .nebula-glow {
-          position: absolute;
-          top: -100px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 600px;
-          height: 300px;
-          background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, rgba(139,92,246,0.05) 50%, transparent 100%);
-          filter: blur(80px);
-          pointer-events: none;
-          z-index: 0;
-        }
-      `}} />
+    <div className="min-h-screen bg-[#F8F6F1] font-sans">
 
-      <div className="nebula-glow" />
-
-      {/* Header */}
-      <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 mb-16">
-        <div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-              <Megaphone size={20} className="text-indigo-400" />
+      {/* Page Header */}
+      <div className="bg-white border-b border-neutral-100 px-8 md:px-12 py-10 mb-10">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400 mb-2">REVIVAI — AD STUDIO</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-neutral-900 font-display">Criar Novo Projeto</h1>
+              <span className="text-[9px] bg-neutral-900 text-white px-2 py-1 font-bold tracking-widest uppercase">PRO</span>
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-white to-zinc-500 bg-clip-text text-transparent">
-                  Ad Studio
-                </h1>
-                <span className="text-[10px] bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-bold tracking-widest uppercase">BETA PRO</span>
-              </div>
-            </div>
+            <p className="text-sm text-neutral-500 mt-1">{t('studio_subtitle')}</p>
           </div>
-          <p className="text-zinc-500 text-lg max-w-xl leading-relaxed">
-            {t('studio_subtitle')}
-          </p>
+          <NewProjectButton />
         </div>
-        <NewProjectButton />
       </div>
 
-      {/* Bento Grid Creation Hub */}
-      <div className="relative z-10 mb-20">
-        <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-          <Layout size={14} /> {t('studio_create_section')}
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          {templates.map((tpl, idx) => (
-            <NewProjectButton key={tpl.id} template={tpl.id} variant="card" className={`${idx === 0 ? 'md:col-span-3' : 'md:col-span-1'}`}>
-              <div className={`h-full relative group overflow-hidden rounded-3xl border ${tpl.border || 'border-zinc-800'} bg-zinc-950 p-8 transition-all duration-500 hover:border-indigo-500/50 hover:shadow-[0_0_40px_-15px_rgba(99,102,241,0.3)]`}>
-                <div className={`absolute inset-0 bg-gradient-to-br ${tpl.color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-                <div className="relative z-10 flex flex-col h-full">
-                  <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center mb-6 shadow-inner group-hover:scale-110 transition-transform duration-500">
-                    {tpl.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                      {tpl.label}
-                      <Plus size={16} className="opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-indigo-400" />
-                    </h3>
-                    <p className="text-sm text-zinc-500 max-w-[200px] group-hover:text-zinc-400 transition-colors">
-                      {tpl.desc}
-                    </p>
-                  </div>
+      <div className="max-w-7xl mx-auto px-8 md:px-12">
+
+      {/* Templates Grid */}
+      <div className="mb-16">
+        <p className="text-[10px] font-bold text-neutral-400 tracking-[0.3em] uppercase mb-6">{t('studio_create_section')}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {templates.map((tpl) => (
+            <NewProjectButton key={tpl.id} template={tpl.id} variant="card">
+              <div className="h-full bg-white border border-neutral-100 p-8 group hover:border-neutral-900 hover:shadow-md transition-all duration-500 text-left">
+                <div className="w-12 h-12 bg-neutral-50 border border-neutral-100 flex items-center justify-center mb-6 group-hover:bg-neutral-900 transition-colors duration-500">
+                  {tpl.icon}
                 </div>
+                <h3 className="text-base font-bold text-neutral-900 mb-2 uppercase tracking-tight">
+                  {tpl.label}
+                </h3>
+                <p className="text-xs text-neutral-400 leading-relaxed">
+                  {tpl.desc}
+                </p>
               </div>
             </NewProjectButton>
           ))}
@@ -127,36 +90,32 @@ export default function StudioPageContent({ projects }: Props) {
       </div>
 
       {/* Projects Grid */}
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-8">
-          <h2 className="text-sm font-bold text-zinc-500 uppercase tracking-[0.2em] flex items-center gap-2">
-            <Layers size={14} /> {t('studio_projects_section')}
-          </h2>
-          <div className="h-px flex-1 mx-6 bg-gradient-to-r from-zinc-800 to-transparent opacity-50" />
-        </div>
+      <div className="pb-16">
+        <p className="text-[10px] font-bold text-neutral-400 tracking-[0.3em] uppercase mb-6">{t('studio_projects_section')}</p>
 
         {projects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {projects.map(project => (
               <ProjectCard
                 key={project.id}
                 project={project}
                 templateLabel={templateLabels[project.template] ?? project.template}
-                templateColor="bg-zinc-950/50"
+                templateColor="bg-neutral-50"
               />
             ))}
           </div>
         ) : (
-          <div className="text-center py-24 rounded-3xl border border-dashed border-zinc-800 bg-zinc-950/30 backdrop-blur-sm">
-            <div className="w-20 h-20 bg-indigo-500/5 border border-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Megaphone size={32} className="text-indigo-400/50" />
+          <div className="flex flex-col items-center justify-center py-32 text-center border border-dashed border-neutral-200 bg-white">
+            <div className="w-20 h-20 bg-neutral-50 border border-neutral-100 flex items-center justify-center mx-auto mb-6">
+              <Megaphone size={32} className="text-neutral-300" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">{t('studio_empty_title')}</h3>
-            <p className="text-zinc-500 text-sm max-w-xs mx-auto mb-8">{t('studio_empty_sub')}</p>
+            <h3 className="text-xl font-bold text-neutral-900 mb-2 font-display">{t('studio_empty_title')}</h3>
+            <p className="text-neutral-400 text-sm max-w-xs mx-auto mb-8">{t('studio_empty_sub')}</p>
             <NewProjectButton />
           </div>
         )}
       </div>
+    </div>
     </div>
   )
 }
