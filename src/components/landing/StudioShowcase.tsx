@@ -1,104 +1,99 @@
 'use client'
-import { Play, Sparkles, Video, Mic } from 'lucide-react'
+import { Plus, Maximize2, Layers, Cpu } from 'lucide-react'
 
-const FEATURES = [
+const SHOWCASE_ITEMS = [
   {
-    badge: 'UGC COM IA',
-    title: 'IMITE MOVIMENTOS REAIS COM QUALQUER ROSTO',
-    desc: 'Faça qualquer foto falar, dançar ou se mover com expressões realistas. Perfeito para UGC, anúncios e conteúdo para redes sociais — sem câmera, sem ator.',
-    tags: ['Animate', 'Lipsync', 'Live Portrait'],
-    icon: <Sparkles size={20} />,
-    videoId: null,
+    badge: 'TECNOLOGIA FLUX-1',
+    title: 'LOOKBOOK EDITORIAL',
+    desc: 'Explore a qualidade inigualável das gerações Magion. Detalhes de tecido, iluminação natural e texturas realistas que definem o novo padrão da moda digital.',
+    tags: ['Hiper-Realismo', 'Lookbook', 'Editorial'],
+    icon: <Layers size={20} />,
   },
   {
-    badge: 'VÍDEO PUBLICITÁRIO',
-    title: 'VÍDEOS DE PRODUTO QUE VENDEM',
-    desc: 'Gere vídeos cinematográficos do seu produto com IA. Do prompt ao vídeo em segundos — com Kling o3 Pro ou Google Veo em qualidade profissional.',
-    tags: ['Kling o3 Pro', 'Google Veo', '8 segundos'],
-    icon: <Video size={20} />,
-    videoId: null,
-  },
-  {
-    badge: 'AVATAR COM VOZ',
-    title: 'VOZ E ROSTO SINCRONIZADOS',
-    desc: 'Clone qualquer voz e sincronize com o avatar do seu influenciador ou modelo. Escale conteúdo sem gravar nada — em qualquer idioma.',
-    tags: ['ElevenLabs', 'LatentSync', '29 vozes'],
-    icon: <Mic size={20} />,
-    videoId: null,
+    badge: 'CONTROLE TOTAL',
+    title: 'ONDE A MÁGICA ACONTECE',
+    desc: 'Nossa interface intuitiva permite que você controle cada variável da sua imagem. Da direção de luz à etnia da modelo, tudo está ao alcance de um clique.',
+    tags: ['Consistência de Marca', 'Texturas 8K', 'Upscaling 4K'],
+    icon: <Cpu size={20} />,
   },
 ]
 
-function VideoPlaceholder({ videoId }: { videoId: string | null }) {
-  return (
-    <div
-      className="relative aspect-[9/16] w-full max-w-[280px] bg-[#201f22] border border-white/10 overflow-hidden group"
-    >
-      <div className="absolute inset-0 bg-gradient-to-t from-[#131315] to-transparent opacity-40 group-hover:opacity-20 transition-opacity duration-700" />
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-        <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/5 backdrop-blur-sm group-hover:scale-110 transition-transform duration-500">
-           <Play size={18} className="text-[#D4FF00] ml-1" />
-        </div>
-        <span className="text-[10px] font-bold tracking-[0.2em] text-white/30 uppercase">Prévias em breve</span>
-      </div>
-    </div>
-  )
-}
-
 export default function StudioShowcase() {
   return (
-    <section className="py-32 px-6 lg:px-20 bg-[#131315] relative">
-      <div className="max-w-7xl mx-auto">
+    <section className="py-32 px-6 lg:px-20 bg-[#131315] relative overflow-hidden">
+      {/* Decorative Blur */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-[#D4FF00]/5 blur-[120px] pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto relative z-10">
         
         {/* Header */}
-        <div className="mb-24">
-          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4FF00] mb-6">RECURSOS DO STUDIO</p>
-          <h2 className="text-5xl md:text-7xl font-bold font-display uppercase tracking-tighter leading-[0.95] max-w-4xl">
-            CRIE ANÚNCIOS REAIS <br />
-            <span className="text-white/20">COM POUCOS CLIQUES</span>
+        <div className="mb-24 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4FF00] mb-6">EXCELÊNCIA VISUAL</p>
+          <h2 className="text-5xl md:text-[5.5rem] font-bold font-display uppercase tracking-tighter leading-[0.95]">
+            QUALIDADE <br /><span className="text-white/20">CINEMATOGRÁFICA</span>
           </h2>
         </div>
 
-        {/* Feature Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-white/5 border border-white/5">
-          {/* Main Feature - Spans 2 rows? Regular for now but with different styling */}
-          {FEATURES.map((feat, i) => (
-            <div 
-              key={feat.badge}
-              className={`p-10 md:p-16 bg-[#131315] flex flex-col md:flex-row gap-12 items-center ${i === 0 ? 'lg:col-span-2' : ''}`}
-            >
-              <div className="flex-grow flex flex-col items-start">
-                <div className="flex items-center gap-3 mb-6 text-[#D4FF00]">
-                  {feat.icon}
-                  <span className="text-[10px] font-bold uppercase tracking-[0.3em]">{feat.badge}</span>
+        {/* Lookbook Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-px bg-white/5 border border-white/5 mb-24">
+          
+          {/* Main Showcase Card */}
+          <div className="lg:col-span-12 p-12 lg:p-24 bg-[#131315] flex flex-col lg:flex-row gap-16 items-center">
+             <div className="flex-1">
+                <div className="flex items-center gap-3 text-[#D4FF00] mb-8">
+                  <Maximize2 size={24} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.4em]">{SHOWCASE_ITEMS[0].badge}</span>
                 </div>
-                
-                <h3 className="text-3xl md:text-5xl font-bold font-display uppercase tracking-tight leading-tight mb-6">
-                  {feat.title}
+                <h3 className="text-4xl md:text-6xl font-bold font-display uppercase tracking-tight mb-8">
+                  {SHOWCASE_ITEMS[0].title}
                 </h3>
-                
-                <p className="text-base text-white/50 mb-8 max-w-xl font-sans leading-relaxed">
-                  {feat.desc}
+                <p className="text-lg text-white/50 leading-relaxed font-sans max-w-2xl">
+                  {SHOWCASE_ITEMS[0].desc}
                 </p>
-
-                <div className="flex flex-wrap gap-2 mb-10">
-                  {feat.tags.map(tag => (
-                    <span key={tag} className="text-[9px] font-bold px-3 py-1 bg-white/5 border border-white/10 uppercase tracking-widest text-white/60">
-                      {tag}
-                    </span>
-                  ))}
+             </div>
+             
+             <div className="w-full lg:w-[400px] aspect-[3/4] bg-[#201f22] relative group overflow-hidden border border-white/10">
+                <div className="absolute inset-0 bg-gradient-to-t from-[#131315] to-transparent opacity-60" />
+                <div className="absolute bottom-8 left-8 right-8">
+                   <p className="text-[10px] font-bold text-[#D4FF00] tracking-[0.3em] uppercase mb-2">SAMPLE 01</p>
+                   <p className="text-white font-bold tracking-widest uppercase">SUMMER EDITORIAL</p>
                 </div>
+             </div>
+          </div>
 
-                <a 
-                  href="/dashboard/studio" 
-                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-white border-b border-[#D4FF00] pb-1 hover:text-[#D4FF00] transition-colors"
-                >
-                  Experimentar Recurso
-                </a>
-              </div>
+          {/* Secondary Showcase Card */}
+          <div className="lg:col-span-12 p-12 lg:p-24 bg-[#131315] flex flex-col lg:flex-row-reverse gap-16 items-center border-t border-white/5">
+             <div className="flex-1">
+                <div className="flex items-center gap-3 text-[#D4FF00] mb-8">
+                  <Cpu size={24} />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.4em]">{SHOWCASE_ITEMS[1].badge}</span>
+                </div>
+                <h3 className="text-4xl md:text-6xl font-bold font-display uppercase tracking-tight mb-8">
+                  {SHOWCASE_ITEMS[1].title}
+                </h3>
+                <p className="text-lg text-white/50 leading-relaxed font-sans max-w-2xl">
+                  {SHOWCASE_ITEMS[1].desc}
+                </p>
+                
+                <div className="flex flex-wrap gap-3 mt-10">
+                   {SHOWCASE_ITEMS[1].tags.map(tag => (
+                     <div key={tag} className="px-4 py-2 bg-white/5 border border-white/10 text-[9px] font-bold uppercase tracking-[0.2em] text-white/60">
+                       {tag}
+                     </div>
+                   ))}
+                </div>
+             </div>
+             
+             <div className="w-full lg:w-[400px] aspect-[4/3] bg-[#201f22] relative border border-white/10 flex items-center justify-center">
+                <div className="w-24 h-24 border border-white/5 flex items-center justify-center">
+                   <Plus size={32} className="text-white/10" />
+                </div>
+                <div className="absolute bottom-8 left-8">
+                   <p className="text-[10px] font-bold text-white/40 tracking-[0.3em] uppercase">VIRTUAL ATELIER</p>
+                </div>
+             </div>
+          </div>
 
-              <VideoPlaceholder videoId={feat.videoId} />
-            </div>
-          ))}
         </div>
 
       </div>

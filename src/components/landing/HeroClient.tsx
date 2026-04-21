@@ -1,6 +1,6 @@
 'use client'
 import { useEffect } from 'react'
-import { Play, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 type Stats = { photos: number; models: number; satisfaction: number; avgTime: number }
 
@@ -29,111 +29,77 @@ export default function HeroClient({ stats }: { stats: Stats }) {
 
   return (
     <>
-      <section className="relative px-6 md:px-20 pt-40 pb-20 min-h-[90vh] overflow-hidden flex flex-col justify-center bg-[#131315]">
-        {/* Decorative Grid - Neo-Couture style */}
+      <section className="relative px-6 md:px-20 pt-40 pb-20 min-h-[95vh] overflow-hidden flex flex-col justify-center bg-[#131315]">
+        {/* Editorial Grid Background */}
         <div 
-          className="absolute inset-0 pointer-events-none opacity-[0.05]" 
+          className="absolute inset-0 pointer-events-none opacity-[0.03]" 
           style={{ 
             backgroundImage: 'linear-gradient(#D4FF00 1px, transparent 1px), linear-gradient(90deg, #D4FF00 1px, transparent 1px)',
-            backgroundSize: '100px 100px'
+            backgroundSize: '120px 120px'
           }} 
         />
         
-        {/* Large Background Text for Editorial Feel */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none overflow-hidden w-full whitespace-nowrap">
-           <span className="text-[25vw] font-bold opacity-[0.02] font-display uppercase tracking-tighter">
-             MAGION STUDIO
+        {/* Foreground Large Text */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none w-full text-center">
+           <span className="text-[22vw] font-bold opacity-[0.015] font-display uppercase tracking-[-0.05em] leading-none">
+             ESTHETIQUE
            </span>
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+          <div className="flex flex-col items-center text-center max-w-5xl mx-auto">
             
-            {/* Left Column — 7/12 width */}
-            <div className="lg:col-span-8 flex flex-col items-start px-4">
-              <div className="inline-flex items-center gap-2 mb-8 bg-[#D4FF00]/10 border border-[#D4FF00]/20 px-3 py-1 rounded-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#D4FF00] animate-pulse" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#D4FF00]">
-                  THE NEO-COUTURE SYNTHESIS
-                </span>
-              </div>
-
-              <h1 className="text-6xl md:text-[5.5rem] font-bold leading-[0.95] tracking-tighter mb-8 font-display uppercase">
-                SEU ESTÚDIO VISUAL <br />
-                <span className="text-[#D4FF00]">COM IA PARA MODA</span>
-              </h1>
-
-              <p className="text-lg md:text-xl font-light leading-relaxed mb-12 max-w-2xl text-white/50 font-sans">
-                Crie campanhas, restaure fotos e gerencie seus projetos com a tecnologia 
-                mais avançada de IA. O futuro da imagem está aqui.
-              </p>
-
-              <div className="flex flex-wrap gap-6 items-center">
-                <a
-                  href="/dashboard/studio"
-                  className="group relative px-10 py-5 bg-[#D4FF00] text-[#131315] font-bold text-sm tracking-widest uppercase hover:bg-white transition-all duration-500 overflow-hidden"
-                >
-                  <span className="relative z-10 flex items-center gap-2">
-                    ABRIR O STUDIO <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                  </span>
-                </a>
-                
-                <a
-                  href="#como-funciona"
-                  className="px-10 py-5 border border-white/10 text-white font-bold text-sm tracking-widest uppercase hover:bg-white/5 transition-all duration-300"
-                >
-                  VER RECURSOS
-                </a>
-              </div>
+            <div className="inline-flex items-center gap-3 mb-10 bg-white/5 border border-white/10 px-4 py-1.5 backdrop-blur-md">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#D4FF00] animate-pulse" />
+              <span className="text-[9px] font-bold uppercase tracking-[0.4em] text-white/60">
+                LANÇAMENTO ETHEREAL PULSE V2.0
+              </span>
             </div>
 
-            {/* Right Column — 4/12 width */}
-            <div className="lg:col-span-4 hidden lg:flex justify-end">
-              <div className="relative group">
-                {/* Visual Accent - Neon Box */}
-                <div className="absolute -inset-4 border border-[#D4FF00]/30 group-hover:inset-0 transition-all duration-700" />
-                
-                <div 
-                  className="relative w-80 aspect-[3/4] bg-[#201f22] overflow-hidden grayscale hover:grayscale-0 transition-all duration-1000"
-                  style={{ border: '1px solid rgba(255,255,255,0.05)' }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#131315] to-transparent opacity-60" />
-                  
-                  {/* Studio Interface Placeholder */}
-                  <div className="absolute bottom-8 left-8 right-8 space-y-4">
-                    <div className="h-1 w-20 bg-[#D4FF00]" />
-                    <p className="text-xs font-bold tracking-widest uppercase text-white">AD STUDIO V3.0</p>
-                    <div className="flex items-center gap-2 text-[10px] text-white/40 tracking-widest uppercase">
-                      <span className="w-1 h-1 rounded-full bg-white/20" />
-                      REAL-TIME RENDERING
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <h1 className="text-6xl md:text-[7rem] font-bold leading-[0.9] tracking-tighter mb-10 font-display uppercase">
+              SEU ESTÚDIO VISUAL <br />
+              <span className="text-[#D4FF00]">COM IA PARA MODA</span>
+            </h1>
 
+            <p className="text-lg md:text-2xl font-light leading-relaxed mb-14 max-w-3xl text-white/50 font-sans">
+              Crie ensaios profissionais, lookbooks de alta costura e campanhas globais em segundos. 
+              A Magion transforma croquis e fotos simples em editoriais cinematográficos.
+            </p>
+
+            <div className="flex flex-wrap justify-center gap-8 items-center">
+              <a
+                href="/dashboard/studio"
+                className="group relative px-12 py-5 bg-[#D4FF00] text-[#131315] font-bold text-xs tracking-[0.3em] uppercase hover:bg-white transition-all duration-500"
+              >
+                CRIAR MEU PRIMEIRO LOOK
+              </a>
+              
+              <a
+                href="#demo"
+                className="group flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-white/60 hover:text-white transition-colors"
+              >
+                VER DEMO <ArrowRight size={16} className="text-[#D4FF00] group-hover:translate-x-2 transition-transform" />
+              </a>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Stats Section — Boutique Style */}
-      <div className="w-full py-16 bg-[#131315] border-y border-white/5">
+      {/* Boutique Metrics */}
+      <div className="w-full py-20 bg-[#131315] border-y border-white/5">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             {[
-              { count: stats.photos,       suffix: '+', label: 'Restaurações' },
-              { count: stats.models,       suffix: '',  label: 'Modelos IA' },
-              { count: stats.satisfaction, suffix: '%', label: 'Satisfação' },
-              { count: stats.avgTime,      suffix: 's', label: 'Tempo Médio' },
+              { count: stats.photos,       suffix: '+', label: 'Campaigns' },
+              { count: stats.models,       suffix: '',  label: 'AI Models' },
+              { count: stats.satisfaction, suffix: '%', label: 'Precision' },
+              { count: stats.avgTime,      suffix: 's', label: 'Delivery' },
             ].map(({ count, suffix, label }, i) => (
-              <div
-                key={label}
-                className="flex flex-col items-center md:items-start"
-              >
-                <div className="flex items-baseline gap-1 mb-2">
-                   <span className="text-4xl md:text-5xl font-bold font-display" data-count={count} data-suffix={suffix}>0</span>
+              <div key={label} className="flex flex-col items-center md:items-start group">
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4FF00]/40 mb-3 group-hover:text-[#D4FF00] transition-colors">{label}</span>
+                <div className="flex items-baseline gap-1">
+                   <span className="text-5xl font-bold font-display text-white" data-count={count} data-suffix={suffix}>0</span>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4FF00]/60">{label}</span>
               </div>
             ))}
           </div>
