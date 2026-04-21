@@ -6,15 +6,9 @@ const SYSTEM_PROMPTS: Record<string, string> = {
   video: 'Você é um especialista em vídeos virais para TikTok, Reels e YouTube Shorts. Ajude com conceitos visuais, storyboards e roteiros de vídeo. Seja inspirador, visual e sempre responda em português.',
 }
 
-const GEMINI_MODEL = 'gemini-1.0-pro'
+const GEMINI_MODEL = 'gemini-2.5-flash'
 const GEMINI_API = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent`
 
-export async function GET() {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`)
-  const data = await res.json()
-  const names = (data.models ?? []).map((m: any) => m.name)
-  return NextResponse.json({ available: names, keyPresent: !!process.env.GEMINI_API_KEY })
-}
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -44,13 +38,9 @@ export async function POST(req: NextRequest) {
     parts: [{ text: m.content }],
   }))
 
-  const systemMsg = { role: 'user', parts: [{ text: SYSTEM_PROMPTS[agentType] ?? SYSTEM_PROMPTS.ugc }] }
-  const systemAck = { role: 'model', parts: [{ text: 'Entendido. Estou pronto para ajudar.' }] }
-
   const geminiBody = {
+    system_instruction: { parts: [{ text: SYSTEM_PROMPTS[agentType] ?? SYSTEM_PROMPTS.ugc }] },
     contents: [
-      systemMsg,
-      systemAck,
       ...geminiHistory,
       { role: 'user', parts: [{ text: message }] },
     ],
