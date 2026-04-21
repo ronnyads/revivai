@@ -4,11 +4,11 @@
 @theme {
   /* Colors */
   --color-accent:       #7C0DF2;
-  --color-accent-light: #f4ffb0;
-  --color-accent-dark:  #b0d500;
-  --color-surface:      #1c1b1d;
-  --color-border:       #444932;
-  --color-muted:        #8f9378;
+  --color-accent-light: #9d4df6;
+  --color-accent-dark:  #5a09b3;
+  --color-surface-0:    #131315; /* Base */
+  --color-surface-1:    #1c1b1d; /* Section Layer */
+  --color-surface-2:    #201f22; /* Interaction Layer */
   --color-ink:          #e5e1e4;
   --color-space:        #131315;
   --color-space-2:      #201f22;
@@ -43,7 +43,25 @@ body {
   overflow-x: hidden;
 }
 
-.font-display { font-family: var(--font-display); }
+.font-display { 
+  font-family: var(--font-display); 
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+
+.editorial-asymmetry {
+  padding-left: 10%;
+  padding-right: 5%;
+}
+
+.tonal-layer-0 { background-color: var(--color-surface-0); }
+.tonal-layer-1 { background-color: var(--color-surface-1); }
+.tonal-layer-2 { background-color: var(--color-surface-2); }
 
 /* ── Material Symbols ── */
 .material-symbols-outlined {

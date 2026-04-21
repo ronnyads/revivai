@@ -78,50 +78,53 @@ export default function PricingCards({ prices }: { prices: Prices }) {
 
   return (
     <div className="max-w-7xl mx-auto px-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {STUDIO_PLANS.map((plan) => {
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {STUDIO_PLANS.map((plan, i) => {
           const price = prices[plan.id]?.price ?? plan.price
           const features = planFeatures(plan.base, plan.bonus, plan.id)
           return (
             <div
               key={plan.id}
-              className={`relative flex flex-col p-10 group transition-all duration-700 bg-white/5 backdrop-blur-[2px] border ${
-                plan.popular ? 'border-[#7C0DF2]/40 shadow-[0_0_40px_rgba(124,13,242,0.05)]' : 'border-white/5 hover:border-white/10 hover:bg-white/10'
+              className={`relative flex flex-col p-12 group transition-all duration-1000 cursor-default ${
+                plan.popular 
+                  ? 'tonal-layer-2 scale-[1.05] z-10 shadow-[0_0_80px_rgba(124,13,242,0.05)]' 
+                  : i % 2 === 0 ? 'tonal-layer-1' : 'tonal-layer-2'
               }`}
             >
-              <div className="absolute inset-0 bg-gradient-to-tr from-[#7C0DF2]/0 via-[#7C0DF2]/0 to-[#7C0DF2]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+              <div className="absolute inset-0 bg-[#7C0DF2]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+              
               {plan.popular && (
-                <div className="absolute -top-3 left-10">
-                  <span className="bg-[#7C0DF2] text-white text-[9px] font-bold uppercase tracking-[0.3em] px-4 py-1.5 shadow-[0_0_20px_rgba(124,13,242,0.3)]">
-                    RECOMENDADO
+                <div className="absolute -top-4 right-8">
+                  <span className="bg-[#7C0DF2] text-white text-[9px] font-bold uppercase tracking-[0.4em] px-6 py-2 shadow-[0_0_30px_rgba(124,13,242,0.3)]">
+                    FAVORITO
                   </span>
                 </div>
               )}
 
-              <div className="mb-10">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#7C0DF2]/60 mb-2">{plan.name}</h3>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-bold font-display text-white">R$ {price.toFixed(0)}</span>
-                  <span className="text-[10px] text-white/30 uppercase tracking-widest font-sans ml-1">/fatura</span>
+              <div className="mb-14">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.5em] text-[#7C0DF2] mb-6">{plan.name}</h3>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-5xl font-bold font-display text-white">R$ {price.toFixed(0)}</span>
+                  <span className="text-[10px] text-white/20 uppercase tracking-[0.3em] font-sans">/mo</span>
                 </div>
               </div>
 
-              <div className="mb-10 flex flex-col gap-1 pr-4">
+              <div className="mb-14 flex flex-col gap-1 pr-4">
                 <div className="flex justify-between items-end">
-                   <span className="text-2xl font-bold text-white tracking-tighter">
+                   <span className="text-3xl font-bold text-white tracking-tighter leading-none italic">
                      {(plan.base + plan.bonus).toLocaleString('pt-BR')}
                    </span>
-                   <span className="text-[9px] font-bold text-white/40 mb-1 uppercase tracking-widest">créditos</span>
+                   <span className="text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">créditos</span>
                 </div>
-                <div className="h-1 w-full bg-white/5 mt-2 overflow-hidden">
-                   <div className="h-full bg-[#7C0DF2] w-2/3 opacity-30" />
+                <div className="h-px w-full bg-white/5 mt-6 relative overflow-hidden">
+                   <div className="absolute inset-0 bg-[#7C0DF2] w-1/3 opacity-30 transform -translate-x-full group-hover:translate-x-[200%] transition-transform duration-2000 ease-in-out" />
                 </div>
               </div>
 
-              <ul className="space-y-4 mb-12 flex-grow">
+              <ul className="space-y-6 mb-16 flex-grow">
                 {features.map((f) => (
-                  <li key={f} className="flex items-start gap-3 text-[11px] font-medium tracking-tight text-white/50">
-                    <Check size={14} className="text-[#7C0DF2] shrink-0 mt-0.5" />
+                  <li key={f} className="flex items-start gap-4 text-xs font-medium text-white/40 group-hover:text-white/70 transition-colors">
+                    <Check size={16} className="text-[#7C0DF2] shrink-0 mt-0.5" />
                     {f}
                   </li>
                 ))}
@@ -130,22 +133,18 @@ export default function PricingCards({ prices }: { prices: Prices }) {
               <button
                 onClick={() => handleCheckout(plan.id)}
                 disabled={loading === plan.id}
-                className={`group/btn relative w-full py-5 text-[10px] font-bold uppercase tracking-[0.3em] transition-all duration-700 overflow-hidden flex items-center justify-center gap-3 rounded-full ${
+                className={`group/btn relative w-full py-6 text-[10px] font-bold uppercase tracking-[0.4em] transition-all duration-700 overflow-hidden flex items-center justify-center gap-4 rounded-full ${
                   plan.popular
-                    ? 'bg-[#7C0DF2] text-white hover:bg-white hover:text-[#131313] shadow-[0_0_20px_rgba(124,13,242,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]'
-                    : 'bg-white/5 text-white hover:bg-white/10 backdrop-blur-md border border-white/5'
+                    ? 'bg-[#7C0DF2] text-white hover:bg-white hover:text-[#131313]'
+                    : 'tonal-layer-0 text-white hover:bg-white hover:text-[#131313]'
                 }`}
               >
-                {loading === plan.id ? 'PROCESSANDO...' : (
+                {loading === plan.id ? 'PROCESSING...' : (
                   <>
-                    SELECIONAR <ArrowRight size={14} className="group-hover/btn:translate-x-2 transition-transform duration-500" />
+                    SELECT PLAN <ArrowRight size={14} className="group-hover/btn:translate-x-3 transition-transform duration-700" />
                   </>
                 )}
               </button>
-              
-              <div className="mt-6 text-center">
-                 <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.2em]">Custo por imagem: ~R$ {(price / ((plan.base + plan.bonus)/8)).toFixed(2)}</p>
-              </div>
             </div>
           )
         })}

@@ -30,20 +30,12 @@ const FEATURES = [
 
 export default function Features() {
   return (
-    <section id="recursos" className="py-32 bg-[#131315]">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto px-6 mb-24 text-center lg:text-left">
-        <p className="text-[10px] uppercase tracking-[0.4em] font-bold mb-6 text-[#7C0DF2]">
-          RECURSOS AVANÇADOS
-        </p>
-        <h2 className="font-display text-5xl md:text-[6rem] font-bold uppercase tracking-tighter leading-[0.95] max-w-5xl">
-          TECNOLOGIA DE PONTA <br /><span className="text-white/20">PARA MARCAS DE ELITE</span>
-        </h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 border-y border-white/5">
-        {FEATURES.map((f) => (
-          <div key={f.tag} className="bg-[#131315] p-12 flex flex-col hover:bg-white/[0.02] transition-all duration-700 group relative overflow-hidden cursor-default">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-6">
+        {FEATURES.map((f, i) => (
+          <div key={f.tag} className={`p-12 flex flex-col transition-all duration-700 group relative overflow-hidden cursor-default ${i % 2 === 0 ? 'tonal-layer-1' : 'tonal-layer-2'}`}>
+
             {/* Ambient Hover Glow */}
             <div className="absolute inset-0 bg-gradient-to-tr from-[#7C0DF2]/0 via-[#7C0DF2]/0 to-[#7C0DF2]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
             

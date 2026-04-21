@@ -29,41 +29,25 @@ export default function HeroClient({ stats }: { stats: Stats }) {
 
   return (
     <>
-      <section className="relative px-6 md:px-20 pt-40 pb-20 min-h-[95vh] overflow-hidden flex flex-col justify-center bg-[#131315]">
-        {/* Editorial Grid Background */}
-        <div 
-          className="absolute inset-0 pointer-events-none opacity-[0.02]" 
-          style={{ 
-            backgroundImage: 'linear-gradient(#7C0DF2 1px, transparent 1px), linear-gradient(90deg, #7C0DF2 1px, transparent 1px)',
-            backgroundSize: '120px 120px'
-          }} 
-        />
-        
-        {/* Foreground Large Text */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none w-full text-center">
-           <span className="text-[22vw] font-bold opacity-[0.015] font-display uppercase tracking-[-0.05em] leading-none">
-             ESTHETIQUE
-           </span>
-        </div>
-
-        <div className="relative z-10 max-w-7xl mx-auto w-full">
-          <div className="flex flex-col items-center text-center max-w-5xl mx-auto">
+      <section className="relative pt-40 pb-20 min-h-[95vh] overflow-hidden flex flex-col justify-center bg-[#131315]">
+        <div className="relative z-10 max-w-7xl mx-auto w-full editorial-asymmetry">
+          <div className="flex flex-col items-start text-left max-w-5xl">
             
-            <div className="inline-flex items-center gap-3 mb-10 bg-white/5 border border-white/10 px-4 py-1.5 backdrop-blur-md">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#7C0DF2] animate-pulse shadow-[0_0_8px_#7C0DF2]" />
-              <span className="text-[9px] font-bold uppercase tracking-[0.4em] text-white/60">
+            <div className="inline-flex items-center gap-3 mb-12 bg-white/5 px-6 py-2 backdrop-blur-3xl">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#7C0DF2] animate-pulse" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/50">
                 CYBER-ATELIER V4.0
               </span>
             </div>
 
-            <h1 className="text-6xl md:text-[7rem] font-bold leading-[0.9] tracking-tighter mb-10 font-display uppercase italic">
+            <h1 className="text-7xl md:text-[9rem] font-bold leading-[0.85] mb-12 font-display italic">
               SEU ESTÚDIO <span className="text-[#7C0DF2]">RevivAI</span> <br />
-              <span className="text-white/20">A NOVA MODA</span>
+              <span className="text-white/10">A NOVA MODA</span>
             </h1>
 
-            <p className="text-lg md:text-2xl font-light leading-relaxed mb-14 max-w-3xl text-white/50 font-sans">
-              Crie ensaios profissionais, lookbooks de alta costura e campanhas globais em segundos. 
-              A RevivAI transforma croquis e fotos simples em editoriais cinematográficos.
+            <p className="text-xl md:text-2xl font-light mb-16 max-w-2xl text-white/40 font-sans">
+              Crie ensaios profissionais e campanhas globais em segundos. 
+              A RevivAI transforma croquis em editoriais cinematográficos através de algoritmos de alta costura.
             </p>
 
             <div className="flex flex-wrap justify-center gap-8 items-center">
