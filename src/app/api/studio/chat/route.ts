@@ -9,6 +9,13 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 const GEMINI_MODEL = 'gemini-1.0-pro'
 const GEMINI_API = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent`
 
+export async function GET() {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`)
+  const data = await res.json()
+  const names = (data.models ?? []).map((m: any) => m.name)
+  return NextResponse.json({ available: names, keyPresent: !!process.env.GEMINI_API_KEY })
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
