@@ -1,12 +1,31 @@
-'use client'
-import { useState } from 'react'
-import { Plus, Camera, Layout, FileText, Image as ImageIcon, Send, Sparkles } from 'lucide-react'
+import { Plus, Camera, Layout, FileText, Image as ImageIcon, Send, Sparkles, ArrowRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { StudioProject } from '@/types'
 
-export default function StudioPageContent() {
+export default function StudioPageContent({ initialProjects }: { initialProjects: StudioProject[] }) {
   const [activeTab, setActiveTab] = useState('templates')
+  const [projects, setProjects] = useState(initialProjects)
+  const [isCreating, setIsCreating] = useState(false)
+  const router = useRouter()
 
-  return (
-    <div className="p-6 md:p-12 lg:p-16 max-w-7xl mx-auto min-h-screen">
+  const handleCreateProject = async (template = 'blank', title = 'Novo Projeto') => {
+    setIsCreating(true)
+    try {
+      const res = await fetch('/api/studio/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, template })
+      })
+      const data = await res.json()
+      if (data.project) {
+        router.push(`/dashboard/studio/${data.project.id}`)
+      }
+    } catch (err) {
+      console.error('Erro ao criar projeto:', err)
+    } finally {
+      setIsCreating(false)
+    }
+  }
       {/* Header Editorial */}
       <div className="mb-20 flex flex-col md:flex-row justify-between items-start md:items-end gap-10">
         <div className="editorial-asymmetry">
@@ -16,8 +35,13 @@ export default function StudioPageContent() {
             Crie campanhas e editoriais completos. Selecione um template de alta costura ou inicie um rascunho do zero.
           </p>
         </div>
-        <button className="flex items-center justify-center gap-3 px-12 py-6 rounded-full bg-[#7C0DF2] text-white font-bold text-xs uppercase tracking-[0.3em] hover:bg-white hover:text-[#131313] transition-all duration-700 shadow-[0_0_30px_rgba(124,13,242,0.15)] w-full md:w-auto active:scale-95 group">
-          <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" /> NOVO PROJETO
+        <button 
+          onClick={() => handleCreateProject()}
+          disabled={isCreating}
+          className="flex items-center justify-center gap-3 px-12 py-6 rounded-full bg-[#7C0DF2] text-white font-bold text-xs uppercase tracking-[0.3em] hover:bg-white hover:text-[#131313] transition-all duration-700 shadow-[0_0_30px_rgba(124,13,242,0.15)] w-full md:w-auto active:scale-95 group disabled:opacity-50"
+        >
+          <Plus size={18} className="group-hover:rotate-90 transition-transform duration-500" /> 
+          {isCreating ? 'CRIANDO...' : 'NOVO PROJETO'}
         </button>
       </div>
 
@@ -50,12 +74,16 @@ export default function StudioPageContent() {
           {activeTab === 'templates' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {[
-                { title: 'Casting Editorial', icon: Camera, desc: 'Escolha modelos e poses para campanhas de luxo.', tag: 'Recomendado' },
-                { title: 'Social Cinema', icon: Layout, desc: 'Editoriais 9:16 otimizados para impacto mobile.' },
-                { title: 'Product Vision', icon: ImageIcon, desc: 'Integração de produtos em cenários 3D reais.' },
-                { title: 'Brand Identity', icon: Sparkles, desc: 'Gere assets consistentes para toda a marca.' },
+                { id: 'testimonial', title: 'Casting Editorial', icon: Camera, desc: 'Escolha modelos e poses para campanhas de luxo.', tag: 'Recomendado' },
+                { id: 'before_after', title: 'Social Cinema', icon: Layout, desc: 'Editoriais 9:16 otimizados para impacto mobile.' },
+                { id: 'product_showcase', title: 'Product Vision', icon: ImageIcon, desc: 'Integração de produtos em cenários 3D reais.' },
+                { id: 'blank', title: 'Brand Identity', icon: Sparkles, desc: 'Gere assets consistentes para toda a marca.' },
               ].map((tpl, i) => (
-                <div key={i} className={`group relative p-12 transition-all duration-1000 cursor-pointer flex flex-col h-full min-h-[320px] overflow-hidden ${i % 2 === 0 ? 'tonal-layer-1' : 'tonal-layer-2'}`}>
+                <div 
+                  key={i} 
+                  onClick={() => handleCreateProject(tpl.id, tpl.title)}
+                  className={`group relative p-12 transition-all duration-1000 cursor-pointer flex flex-col h-full min-h-[320px] overflow-hidden ${i % 2 === 0 ? 'tonal-layer-1' : 'tonal-layer-2'} ${isCreating ? 'opacity-50 pointer-events-none' : ''}`}>
+
                    <div className="absolute inset-0 bg-gradient-to-tr from-[#7C0DF2]/0 to-[#7C0DF2]/[0.03] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                    
                    {tpl.tag && (
@@ -79,12 +107,46 @@ export default function StudioPageContent() {
             </div>
           )}
 
-          {activeTab !== 'templates' && (
+          {activeTab === 'drafts' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {projects.map((p, i) => (
+                <div 
+                  key={p.id} 
+                  onClick={() => router.push(`/dashboard/studio/${p.id}`)}
+                  className={`group relative p-12 transition-all duration-1000 cursor-pointer flex flex-col h-full min-h-[320px] overflow-hidden ${i % 2 === 0 ? 'tonal-layer-1' : 'tonal-layer-2'}`}>
+                   <div className="absolute inset-0 bg-gradient-to-tr from-[#7C0DF2]/0 to-[#7C0DF2]/[0.03] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+                   
+                   <div className="w-14 h-14 tonal-layer-0 flex items-center justify-center text-white/20 group-hover:text-white group-hover:bg-[#7C0DF2] mb-12 transition-all duration-700 z-10">
+                     <FileText size={22} />
+                   </div>
+                   
+                   <h3 className="text-3xl font-bold font-display leading-[0.9] text-white mb-6 group-hover:text-[#7C0DF2] transition-colors z-10 italic uppercase">{p.title}</h3>
+                   <p className="text-sm font-sans text-white/30 group-hover:text-white/50 leading-relaxed mb-10 flex-1 transition-colors z-10">
+                      {p.template} • {p.asset_count} assets
+                   </p>
+                   
+                   <div className="flex items-center gap-3 text-[10px] font-bold text-white/10 uppercase tracking-[0.4em] group-hover:text-white transition-all duration-500 z-10">
+                     CONTINUAR <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-3 transition-transform duration-700" />
+                   </div>
+                </div>
+              ))}
+              {projects.length === 0 && (
+                <div className="col-span-2 flex flex-col items-center justify-center py-32 px-4 tonal-layer-1">
+                   <div className="w-20 h-20 tonal-layer-2 flex items-center justify-center text-white/10 mb-8">
+                     <FileText size={28} />
+                   </div>
+                   <p className="text-white/30 text-xs font-bold uppercase tracking-[0.4em]">Nenhum rascunho</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'published' && (
             <div className="flex flex-col items-center justify-center py-32 px-4 tonal-layer-1">
                <div className="w-20 h-20 tonal-layer-2 flex items-center justify-center text-white/10 mb-8">
-                 <FileText size={28} />
+                 <Globe size={28} />
                </div>
-               <p className="text-white/30 text-xs font-bold uppercase tracking-[0.4em]">Arquivos Inexistentes</p>
+               <p className="text-white/30 text-xs font-bold uppercase tracking-[0.4em]">Nenhum publicado</p>
             </div>
           )}
         </div>
@@ -113,18 +175,21 @@ export default function StudioPageContent() {
              </div>
            </div>
 
-           <div className="mt-12 pt-8 border-t border-white/5">
-             <div className="relative group/input">
+          <div className="mt-12 pt-8 border-t border-white/5">
+            <form 
+              onSubmit={(e) => { e.preventDefault(); console.log('Copilot instruction sent'); }}
+              className="relative group/input"
+            >
                 <input 
                   type="text" 
                   placeholder="Instrua o Copilot..."
                   className="w-full bg-transparent border-b border-white/10 py-6 px-2 text-sm text-white placeholder:text-white/10 focus:outline-none focus:border-[#7C0DF2] transition-colors font-sans"
                 />
-                <button className="absolute right-2 top-1/2 -translate-y-1/2 text-white/20 hover:text-[#7C0DF2] transition-colors p-2">
+                <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 text-white/20 hover:text-[#7C0DF2] transition-colors p-2">
                   <Send size={18} />
                 </button>
-             </div>
-           </div>
+            </form>
+          </div>
         </div>
 
       </div>
