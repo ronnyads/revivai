@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, ArrowRight } from 'lucide-react'
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -19,34 +19,33 @@ export default function Navbar() {
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 md:px-12 py-5 transition-all duration-300"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 md:px-20 py-6 transition-all duration-500"
       style={{
-        backgroundColor: scrolled ? 'rgba(14,14,14,0.95)' : 'rgba(14,14,14,0.8)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: scrolled ? '1px solid rgba(45,126,255,0.15)' : '1px solid transparent',
+        backgroundColor: scrolled ? 'rgba(19,19,21,0.95)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(16px)' : 'none',
+        borderBottom: scrolled ? '1px solid rgba(255,255,255,0.05)' : '1px solid transparent',
       }}
     >
       <Link
         href="/"
-        style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', fontSize: '1.25rem', color: '#e5e2e1' }}
+        className="font-display font-bold text-2xl tracking-tighter uppercase flex items-center gap-1"
+        style={{ color: '#fff' }}
       >
-        reviv<span style={{ color: '#2D7EFF' }}>.</span>ai
+        REVIV<span className="text-[#D4FF00]">.</span>AI
       </Link>
 
-      <ul className="hidden md:flex gap-9 list-none">
+      <ul className="hidden lg:flex gap-12 list-none m-0 p-0">
         {[
-          ['#como-funciona', 'Como funciona'],
+          ['#como-funciona', 'Recursos'],
           ['/dashboard/studio', 'Studio'],
-          ['#pricing', 'Preços'],
-          ['#depoimentos', 'Depoimentos'],
+          ['#pricing', 'Assinaturas'],
+          ['#faq', 'Suporte'],
         ].map(([href, label]) => (
           <li key={href}>
             <a
               href={href}
-              className="text-sm transition-colors duration-200"
-              style={{ color: 'rgba(229,226,225,0.6)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#2D7EFF')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'rgba(229,226,225,0.6)')}
+              className="text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300 hover:text-[#D4FF00]"
+              style={{ color: 'rgba(255,255,255,0.5)' }}
             >
               {label}
             </a>
@@ -54,68 +53,68 @@ export default function Navbar() {
         ))}
       </ul>
 
-      <div className="hidden md:flex items-center gap-4">
+      <div className="hidden md:flex items-center gap-8">
         {user ? (
           <Link
             href="/dashboard"
-            className="text-sm font-medium px-6 py-2.5 transition-all duration-200"
-            style={{ backgroundColor: '#2D7EFF', color: '#fff' }}
+            className="group text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 text-white"
           >
-            Dashboard →
+            MEU DASHBOARD <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform text-[#D4FF00]" />
           </Link>
         ) : (
           <>
             <Link
               href="/auth/login"
-              className="text-sm transition-colors"
-              style={{ color: 'rgba(229,226,225,0.6)' }}
+              className="text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300 hover:text-white"
+              style={{ color: 'rgba(255,255,255,0.5)' }}
             >
               Entrar
             </Link>
             <Link
               href="/#pricing"
-              className="text-sm font-medium px-6 py-2.5 transition-all duration-200"
-              style={{ backgroundColor: '#2D7EFF', color: '#fff' }}
+              className="px-6 py-3 bg-white text-[#131315] text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-[#D4FF00] transition-all duration-300"
             >
-              Restaurar agora →
+              COMEÇAR AGORA
             </Link>
           </>
         )}
       </div>
 
-      <button className="md:hidden" onClick={() => setMenuOpen(!menuOpen)} style={{ color: '#e5e2e1' }}>
-        {menuOpen ? <X size={22} /> : <Menu size={22} />}
+      <button className="lg:hidden" onClick={() => setMenuOpen(!menuOpen)} style={{ color: '#fff' }}>
+        {menuOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
+      {/* Mobile Menu */}
       {menuOpen && (
         <div
-          className="absolute top-full left-0 right-0 p-6 flex flex-col gap-4 md:hidden"
-          style={{ backgroundColor: '#0e0e0e', borderBottom: '1px solid rgba(45,126,255,0.15)' }}
+          className="fixed inset-0 top-[88px] bg-[#131315] z-40 p-10 flex flex-col gap-8 lg:hidden animate-fade-in"
         >
           {[
-            ['#como-funciona', 'Como funciona'],
-            ['#modelos', 'Tecnologia'],
-            ['#pricing', 'Preços'],
-            ['#depoimentos', 'Depoimentos'],
+            ['#como-funciona', 'Recursos'],
+            ['/dashboard/studio', 'Studio'],
+            ['#pricing', 'Assinaturas'],
+            ['#faq', 'Suporte'],
           ].map(([href, label]) => (
             <a
               key={href}
               href={href}
-              className="text-sm"
-              style={{ color: 'rgba(229,226,225,0.6)' }}
+              className="text-4xl font-bold font-display uppercase tracking-tight"
+              style={{ color: '#fff' }}
               onClick={() => setMenuOpen(false)}
             >
               {label}
             </a>
           ))}
-          <Link href="/auth/login" className="text-sm font-medium" style={{ color: '#e5e2e1' }}>Entrar</Link>
-          <Link
-            href="/#pricing"
-            className="text-sm text-center font-medium px-6 py-3"
-            style={{ backgroundColor: '#2D7EFF', color: '#fff' }}
-          >
-            Restaurar agora →
-          </Link>
+          <div className="mt-auto flex flex-col gap-4">
+             <Link href="/auth/login" className="text-xl font-medium text-white/50" onClick={() => setMenuOpen(false)}>Entrar</Link>
+             <Link
+                href="/#pricing"
+                className="w-full py-5 bg-[#D4FF00] text-[#131315] text-center font-bold uppercase tracking-[0.2em]"
+                onClick={() => setMenuOpen(false)}
+             >
+                COMEÇAR AGORA
+             </Link>
+          </div>
         </div>
       )}
     </nav>

@@ -1,34 +1,35 @@
 'use client'
 import BeforeAfterSlider from '@/components/ui/BeforeAfterSlider'
+import { ArrowRight } from 'lucide-react'
 
 const BASE = 'https://uuulhirkggwraklmegdb.supabase.co/storage/v1/object/public/photos/c4e1b0fa-66a9-41ba-a34b-625480a7d9e3'
 
 const FEATURES = [
   {
-    tag: 'Reparação de Danos',
-    title: 'Repare arranhões, manchas e rasgos instantaneamente',
+    tag: 'REPARAÇÃO DE DANOS',
+    title: 'REPARE ARRANHÕES, MANCHAS E RASGOS INSTANTANEAMENTE',
     desc: 'Nossa IA detecta e remove automaticamente riscos, rasgos, manchas de mofo e deterioração física. Sem trabalho manual — resultado profissional em segundos.',
     before: `${BASE}/1775696325720.jpg`,
     after:  `${BASE}/1775696341762_restored.jpg`,
   },
   {
-    tag: 'Restauração de Rostos',
-    title: 'Revele cada detalhe do rosto com clareza natural',
-    desc: 'Tecnologia de ponta para reconstruir rostos desfocados, danificados ou degradados. Os modelos de IA preservam a identidade e a expressão da pessoa, tornando o resultado indistinguível de uma foto original.',
+    tag: 'RESTAURAÇÃO DE ROSTOS',
+    title: 'REVELE CADA DETALHE DO ROSTO COM CLAREZA NATURAL',
+    desc: 'Tecnologia de ponta para reconstruir rostos desfocados, danificados ou degradados com precisão cirúrgica.',
     before: `${BASE}/1775740634445.jpg`,
     after:  `${BASE}/1775740648406_restored.jpg`,
   },
   {
-    tag: 'Colorização Automática',
-    title: 'Adicione cores vibrantes com precisão de IA',
-    desc: 'Transforme fotos em preto e branco ou sépia em imagens coloridas e realistas. Nosso modelo analisa o contexto histórico e aplica cores naturais em pele, roupas, cenário e objetos.',
+    tag: 'COLORIZAÇÃO AUTOMÁTICA',
+    title: 'ADICIONE CORES VIBRANTES COM PRECISÃO DE IA',
+    desc: 'Transforme fotos em preto e branco ou sépia em imagens coloridas e realistas analisando o contexto histórico.',
     before: `${BASE}/1775683275662.jpg`,
     after:  `${BASE}/1775683301851_restored.jpg`,
   },
   {
-    tag: 'Upscaling 4x',
-    title: 'Amplie sem perder qualidade — até 4x a resolução original',
-    desc: 'Fotos antigas têm resolução baixa. Nossa IA de nova geração aumenta a resolução em até 4x, recuperando detalhes que pareciam perdidos para sempre.',
+    tag: 'UPSCALING 4X',
+    title: 'AMPLIE SEM PERDER QUALIDADE — ATÉ 4X A RESOLUÇÃO',
+    desc: 'Recupere detalhes que pareciam perdidos aumentando a resolução da imagem em até 400%.',
     before: `${BASE}/1775730116128.jpg`,
     after:  `${BASE}/1775730143782_restored.jpg`,
   },
@@ -36,47 +37,47 @@ const FEATURES = [
 
 export default function Features() {
   return (
-    <section id="recursos" className="py-24 overflow-hidden">
+    <section id="recursos" className="py-32 bg-[#131315]">
       {/* Header */}
-      <div className="max-w-7xl mx-auto px-8 md:px-12 mb-20 text-center">
-        <p className="flex items-center justify-center gap-3 text-xs tracking-[2px] uppercase text-accent font-medium mb-4">
-          <span className="w-6 h-px bg-accent" />Recursos<span className="w-6 h-px bg-accent" />
+      <div className="max-w-7xl mx-auto px-6 mb-24 lg:text-left">
+        <p className="text-[10px] uppercase tracking-[0.4em] font-bold mb-6 text-[#D4FF00]">
+          RESTAURAÇÃO PROFISSIONAL
         </p>
-        <h2 className="font-display text-5xl md:text-6xl font-normal tracking-tight leading-tight">
-          Tudo que sua foto precisa,<br /><em className="italic text-accent">em um só lugar</em>
+        <h2 className="font-display text-5xl md:text-7xl font-bold uppercase tracking-tighter leading-[0.95] max-w-4xl">
+          TUDO QUE SUA FOTO PRECISA,<br /><span className="text-white/20">EM UM SÓ LUGAR</span>
         </h2>
       </div>
 
       {/* Feature rows */}
-      {FEATURES.map((f, i) => (
-        <div key={f.tag} className={`max-w-7xl mx-auto px-8 md:px-12 py-16 border-t border-[#E8E8E8] ${i === FEATURES.length - 1 ? 'border-b' : ''}`}>
-          <div className={`grid md:grid-cols-2 gap-16 items-center ${i % 2 === 1 ? 'md:[&>*:first-child]:order-2' : ''}`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-white/5 border-y border-white/5">
+        {FEATURES.map((f, i) => (
+          <div key={f.tag} className="bg-[#131315] p-10 md:p-16 flex flex-col gap-10">
             {/* Text */}
-            <div>
-              <span className="inline-flex items-center gap-2 text-xs font-medium text-accent tracking-widest uppercase mb-5 bg-accent-light px-3 py-1.5 rounded-full">
+            <div className="order-2 md:order-1">
+              <span className="inline-block text-[10px] font-bold text-[#D4FF00] tracking-[0.2em] uppercase mb-6">
                 {f.tag}
               </span>
-              <h3 className="font-display text-3xl md:text-4xl font-normal tracking-tight leading-tight mb-5">
+              <h3 className="font-display text-2xl md:text-3xl font-bold uppercase tracking-tight leading-tight mb-6">
                 {f.title}
               </h3>
-              <p className="text-base text-muted leading-relaxed mb-8">{f.desc}</p>
+              <p className="text-base text-white/50 leading-relaxed max-w-md mb-8">{f.desc}</p>
               <a
                 href="/#pricing"
-                className="inline-flex items-center gap-2 bg-ink text-white text-sm font-medium px-6 py-3 rounded border-[1.5px] border-ink hover:bg-accent hover:border-accent transition-all duration-200"
+                className="group flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white hover:text-[#D4FF00] transition-colors"
               >
-                Restaurar minha foto →
+                RESTAURAR AGORA <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </a>
             </div>
 
             {/* Before/After */}
-            <div className="flex justify-center">
-              <div className="w-full max-w-sm">
+            <div className="order-1 md:order-2 flex justify-center grayscale hover:grayscale-0 transition-all duration-700">
+              <div className="w-full max-w-sm aspect-square relative overflow-hidden border border-white/5">
                 <BeforeAfterSlider before={f.before} after={f.after} lazy />
               </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </section>
   )
 }

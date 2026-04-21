@@ -22,20 +22,20 @@ export default async function Pricing() {
   } catch {}
 
   return (
-    <section id="pricing" className="py-28 px-6" style={{ backgroundColor: '#131313' }}>
+    <section id="pricing" className="py-32 px-6 bg-[#131315]">
       {/* Cabeçalho */}
-      <div className="text-center mb-20 max-w-2xl mx-auto">
-        <p className="text-xs uppercase tracking-[0.4em] font-medium mb-6" style={{ color: '#D94F2E' }}>
-          Preços
+      <div className="text-center mb-24 max-w-4xl mx-auto">
+        <p className="text-[10px] uppercase tracking-[0.4em] font-bold mb-6 text-[#D4FF00]">
+          PLANOS E ASSINATURAS
         </p>
         <h2
-          className="text-5xl md:text-6xl tracking-tight mb-4"
-          style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', color: '#e5e2e1' }}
+          className="text-5xl md:text-7xl font-bold tracking-tighter mb-6 font-display uppercase"
         >
-          Simples e sem surpresas
+          INVESTIMENTO <span className="text-white/20">HONESTO</span>
         </h2>
-        <p className="text-base" style={{ color: 'rgba(229,226,225,0.5)' }}>
-          Sem assinatura obrigatória. Pague com PIX, cartão ou boleto.
+        <p className="text-base text-white/40 max-w-xl mx-auto font-sans leading-relaxed">
+          Sem contratos de longo prazo. Escolha o pacote de créditos que melhor se adapta 
+          ao seu volume de criação.
         </p>
       </div>
 

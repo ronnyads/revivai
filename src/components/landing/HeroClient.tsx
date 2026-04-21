@@ -1,6 +1,6 @@
 'use client'
 import { useEffect } from 'react'
-import { Play } from 'lucide-react'
+import { Play, ArrowRight } from 'lucide-react'
 
 type Stats = { photos: number; models: number; satisfaction: number; avgTime: number }
 
@@ -29,151 +29,114 @@ export default function HeroClient({ stats }: { stats: Stats }) {
 
   return (
     <>
-      {/* ── Hero ── */}
-      <section
-        className="relative px-6 md:px-20 pt-32 pb-0 min-h-[100vh] overflow-hidden"
-        style={{ backgroundColor: '#020209' }}
-      >
-        {/* Animated dot grid */}
-        <div
-          className="absolute inset-0 pointer-events-none animate-grid-pulse"
-          style={{
-            backgroundImage: 'radial-gradient(circle, rgba(45,126,255,0.55) 1px, transparent 1px)',
-            backgroundSize: '32px 32px',
-          }}
+      <section className="relative px-6 md:px-20 pt-40 pb-20 min-h-[90vh] overflow-hidden flex flex-col justify-center bg-[#131315]">
+        {/* Decorative Grid - Neo-Couture style */}
+        <div 
+          className="absolute inset-0 pointer-events-none opacity-[0.05]" 
+          style={{ 
+            backgroundImage: 'linear-gradient(#D4FF00 1px, transparent 1px), linear-gradient(90deg, #D4FF00 1px, transparent 1px)',
+            backgroundSize: '100px 100px'
+          }} 
         />
+        
+        {/* Large Background Text for Editorial Feel */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none overflow-hidden w-full whitespace-nowrap">
+           <span className="text-[25vw] font-bold opacity-[0.02] font-display uppercase tracking-tighter">
+             MAGION STUDIO
+           </span>
+        </div>
 
-        {/* Radial glows */}
-        <div className="absolute pointer-events-none" style={{ top: '10%', left: '5%', width: 500, height: 500, borderRadius: 9999, backgroundColor: 'rgba(45,126,255,0.07)', filter: 'blur(130px)' }} />
-        <div className="absolute pointer-events-none" style={{ bottom: '20%', right: '5%', width: 400, height: 400, borderRadius: 9999, backgroundColor: 'rgba(45,126,255,0.05)', filter: 'blur(110px)' }} />
-
-        {/* Split layout */}
-        <div className="relative z-10 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-12 items-center min-h-[85vh]">
-
-          {/* Left — Text */}
-          <div className="flex flex-col items-start">
-            {/* Badge */}
-            <div
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium tracking-widest uppercase mb-7"
-              style={{ border: '1px solid rgba(45,126,255,0.3)', color: '#7AAAFF', backgroundColor: 'rgba(45,126,255,0.06)' }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: '#2D7EFF' }} />
-              Studio UGC com IA
-            </div>
-
-            {/* Headline */}
-            <h1
-              className="text-5xl md:text-7xl leading-[1.05] tracking-tight mb-6"
-              style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', color: '#E8ECFF' }}
-            >
-              Imite movimentos.<br />
-              Crie conteúdo que<br />
-              <span style={{ color: '#2D7EFF' }}>vende de verdade.</span>
-            </h1>
-
-            {/* Subtitle */}
-            <p
-              className="text-base md:text-lg leading-relaxed font-light mb-10 max-w-lg"
-              style={{ color: 'rgba(232,236,255,0.5)' }}
-            >
-              Faça qualquer foto falar, dançar e se mover com IA.
-              Gere vídeos, vozes e anúncios — tudo no Studio.
-            </p>
-
-            {/* CTAs */}
-            <div className="flex flex-wrap gap-4 mb-10">
-              <a
-                href="/dashboard/studio"
-                className="px-8 py-4 text-sm font-semibold tracking-tight transition-all hover:opacity-90 active:scale-95"
-                style={{ backgroundColor: '#2D7EFF', color: '#fff', borderRadius: 4 }}
-              >
-                Abrir o Studio →
-              </a>
-              <a
-                href="#como-funciona"
-                className="px-8 py-4 text-sm font-semibold tracking-tight transition-all hover:opacity-80"
-                style={{ border: '1px solid rgba(45,126,255,0.35)', color: '#E8ECFF', backgroundColor: 'transparent', borderRadius: 4 }}
-              >
-                Ver como funciona
-              </a>
-            </div>
-
-            {/* Tags */}
-            <div className="flex flex-wrap gap-2">
-              {['Animate', 'Lipsync', 'Vídeo IA', 'Voz Clonada', 'Upscale 4K'].map(tag => (
-                <span
-                  key={tag}
-                  className="text-[11px] px-3 py-1 rounded-full"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(45,126,255,0.15)', color: 'rgba(232,236,255,0.45)' }}
-                >
-                  {tag}
+        <div className="relative z-10 max-w-7xl mx-auto w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            {/* Left Column — 7/12 width */}
+            <div className="lg:col-span-8 flex flex-col items-start px-4">
+              <div className="inline-flex items-center gap-2 mb-8 bg-[#D4FF00]/10 border border-[#D4FF00]/20 px-3 py-1 rounded-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D4FF00] animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#D4FF00]">
+                  THE NEO-COUTURE SYNTHESIS
                 </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Right — Reels video placeholder */}
-          <div className="flex justify-center md:justify-end">
-            <div
-              className="animate-float-y relative rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-4"
-              style={{
-                aspectRatio: '9/16',
-                width: '100%',
-                maxWidth: 300,
-                backgroundColor: 'rgba(45,126,255,0.04)',
-                border: '1px solid rgba(45,126,255,0.2)',
-              }}
-            >
-              {/* Glow behind */}
-              <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 40%, rgba(45,126,255,0.12) 0%, transparent 70%)' }} />
-
-              <div
-                className="relative w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: 'rgba(45,126,255,0.15)', border: '1px solid rgba(45,126,255,0.3)' }}
-              >
-                <Play size={24} style={{ color: '#2D7EFF', marginLeft: 3 }} />
               </div>
-              <div className="relative text-center px-6">
-                <p className="text-sm font-semibold mb-1" style={{ color: '#E8ECFF' }}>Imitar Movimentos</p>
-                <p className="text-xs" style={{ color: 'rgba(232,236,255,0.35)' }}>Vídeo demo em breve</p>
-              </div>
-              {/* Reels label */}
-              <div
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full"
-                style={{ backgroundColor: 'rgba(45,126,255,0.1)', border: '1px solid rgba(45,126,255,0.2)' }}
-              >
-                <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#2D7EFF' }} />
-                <span className="text-[10px] font-medium" style={{ color: '#7AAAFF' }}>9:16 · Reels</span>
+
+              <h1 className="text-6xl md:text-[5.5rem] font-bold leading-[0.95] tracking-tighter mb-8 font-display uppercase">
+                SEU ESTÚDIO VISUAL <br />
+                <span className="text-[#D4FF00]">COM IA PARA MODA</span>
+              </h1>
+
+              <p className="text-lg md:text-xl font-light leading-relaxed mb-12 max-w-2xl text-white/50 font-sans">
+                Crie campanhas, restaure fotos e gerencie seus projetos com a tecnologia 
+                mais avançada de IA. O futuro da imagem está aqui.
+              </p>
+
+              <div className="flex flex-wrap gap-6 items-center">
+                <a
+                  href="/dashboard/studio"
+                  className="group relative px-10 py-5 bg-[#D4FF00] text-[#131315] font-bold text-sm tracking-widest uppercase hover:bg-white transition-all duration-500 overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    ABRIR O STUDIO <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </a>
+                
+                <a
+                  href="#como-funciona"
+                  className="px-10 py-5 border border-white/10 text-white font-bold text-sm tracking-widest uppercase hover:bg-white/5 transition-all duration-300"
+                >
+                  VER RECURSOS
+                </a>
               </div>
             </div>
-          </div>
 
+            {/* Right Column — 4/12 width */}
+            <div className="lg:col-span-4 hidden lg:flex justify-end">
+              <div className="relative group">
+                {/* Visual Accent - Neon Box */}
+                <div className="absolute -inset-4 border border-[#D4FF00]/30 group-hover:inset-0 transition-all duration-700" />
+                
+                <div 
+                  className="relative w-80 aspect-[3/4] bg-[#201f22] overflow-hidden grayscale hover:grayscale-0 transition-all duration-1000"
+                  style={{ border: '1px solid rgba(255,255,255,0.05)' }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#131315] to-transparent opacity-60" />
+                  
+                  {/* Studio Interface Placeholder */}
+                  <div className="absolute bottom-8 left-8 right-8 space-y-4">
+                    <div className="h-1 w-20 bg-[#D4FF00]" />
+                    <p className="text-xs font-bold tracking-widest uppercase text-white">AD STUDIO V3.0</p>
+                    <div className="flex items-center gap-2 text-[10px] text-white/40 tracking-widest uppercase">
+                      <span className="w-1 h-1 rounded-full bg-white/20" />
+                      REAL-TIME RENDERING
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
       </section>
 
-      {/* ── Stats Bar ── */}
-      <div className="w-full py-10 px-6 md:px-20" style={{ backgroundColor: '#06070F', borderTop: '1px solid rgba(45,126,255,0.08)' }}>
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4">
-          {[
-            { count: stats.photos,       suffix: '+', label: 'Fotos restauradas' },
-            { count: stats.models,       suffix: '',  label: 'Modelos de IA' },
-            { count: stats.satisfaction, suffix: '%', label: 'Satisfação' },
-            { count: stats.avgTime,      suffix: 's', label: 'Tempo médio' },
-          ].map(({ count, suffix, label }, i) => (
-            <div
-              key={label}
-              className="flex flex-col items-center py-4 px-4 md:px-8"
-              style={{ borderLeft: i > 0 ? '1px solid rgba(45,126,255,0.1)' : 'none' }}
-            >
-              <span
-                className="mb-1"
-                style={{ fontFamily: "'Newsreader', serif", fontStyle: 'italic', fontSize: '2rem', lineHeight: 1, color: '#E8ECFF' }}
-                data-count={count}
-                data-suffix={suffix}
-              >0</span>
-              <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'rgba(232,236,255,0.35)' }}>{label}</span>
-            </div>
-          ))}
+      {/* Stats Section — Boutique Style */}
+      <div className="w-full py-16 bg-[#131315] border-y border-white/5">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {[
+              { count: stats.photos,       suffix: '+', label: 'Restaurações' },
+              { count: stats.models,       suffix: '',  label: 'Modelos IA' },
+              { count: stats.satisfaction, suffix: '%', label: 'Satisfação' },
+              { count: stats.avgTime,      suffix: 's', label: 'Tempo Médio' },
+            ].map(({ count, suffix, label }, i) => (
+              <div
+                key={label}
+                className="flex flex-col items-center md:items-start"
+              >
+                <div className="flex items-baseline gap-1 mb-2">
+                   <span className="text-4xl md:text-5xl font-bold font-display" data-count={count} data-suffix={suffix}>0</span>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4FF00]/60">{label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </>

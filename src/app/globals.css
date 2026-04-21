@@ -3,19 +3,19 @@
 /* ── Tailwind v4 Theme ── */
 @theme {
   /* Colors */
-  --color-accent:       #2D7EFF;
-  --color-accent-light: #EEF3FF;
-  --color-accent-dark:  #1A5FCC;
-  --color-surface:      #F7F7F7;
-  --color-border:       #E8E8E8;
-  --color-muted:        #6B6B6B;
-  --color-ink:          #0C0C0C;
-  --color-space:        #020209;
-  --color-space-2:      #06070F;
+  --color-accent:       #D4FF00;
+  --color-accent-light: #f4ffb0;
+  --color-accent-dark:  #b0d500;
+  --color-surface:      #1c1b1d;
+  --color-border:       #444932;
+  --color-muted:        #8f9378;
+  --color-ink:          #e5e1e4;
+  --color-space:        #131315;
+  --color-space-2:      #201f22;
 
   /* Fonts — variables injected by next/font/google in layout.tsx */
-  --font-display: var(--font-display-gf), Georgia, serif;
-  --font-sans:    var(--font-sans-gf), system-ui, sans-serif;
+  --font-display: var(--font-display-gf), 'Space Grotesk', system-ui, sans-serif;
+  --font-sans:    var(--font-sans-gf), 'Manrope', system-ui, sans-serif;
 
   /* Animations */
   --animate-fade-up:   fadeUp 0.6s ease forwards;
@@ -33,12 +33,12 @@
 
 /* ── Base ── */
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; overflow-x: hidden; }
+html { scroll-behavior: smooth; overflow-x: hidden; background: #131315; }
 
 body {
   font-family: var(--font-sans);
-  background: #fff;
-  color: #0C0C0C;
+  background: #131315;
+  color: #e5e1e4;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }

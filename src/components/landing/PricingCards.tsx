@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, Copy, CheckCheck } from 'lucide-react'
+import { Check, ArrowRight } from 'lucide-react'
 
 const STUDIO_PLANS = [
   {
@@ -11,7 +11,6 @@ const STUDIO_PLANS = [
     base: 500,
     bonus: 100,
     popular: false,
-    coupon: 'REVIVAI',
     perks: ['Gera imagens, vídeos e áudios.'],
   },
   {
@@ -21,7 +20,6 @@ const STUDIO_PLANS = [
     base: 1000,
     bonus: 100,
     popular: true,
-    coupon: 'REVIVAI',
     perks: ['Gera imagens, vídeos e áudios.'],
   },
   {
@@ -31,7 +29,6 @@ const STUDIO_PLANS = [
     base: 2000,
     bonus: 100,
     popular: false,
-    coupon: 'REVIVAI',
     perks: ['Gera imagens, vídeos e áudios.'],
   },
   {
@@ -41,7 +38,6 @@ const STUDIO_PLANS = [
     base: 5000,
     bonus: 100,
     popular: false,
-    coupon: 'REVIVAI',
     perks: ['Gera imagens, vídeos e áudios.'],
   },
 ]
@@ -49,10 +45,10 @@ const STUDIO_PLANS = [
 function planFeatures(base: number, bonus: number, isAgency: boolean) {
   const total = base + bonus
   return [
-    `Até ${Math.floor(total / 8)} imagens em alta qualidade`,
+    `Até ${Math.floor(total / 8)} imagens HQ`,
     `Até ${Math.floor(total / 15)} vídeos animados`,
-    `Até ${Math.floor(total / 3)} upscales em 4K`,
-    isAgency ? 'Suporte exclusivo no WhatsApp' : 'Combinação livre entre mídias',
+    `Upscale 4K nativo`,
+    isAgency ? 'Suporte VIP WhatsApp' : 'Uso flexível entre mídias',
   ]
 }
 
@@ -61,112 +57,73 @@ type Prices = Record<string, { price: number }>
 export default function PricingCards({ prices }: { prices: Prices }) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
-  const [copied, setCopied] = useState<string | null>(null)
 
   const handleCheckout = (planId: string) => {
     setLoading(planId)
     router.push(`/checkout?plan=${planId}`)
   }
 
-  const handleCopy = (coupon: string, planId: string) => {
-    navigator.clipboard.writeText(coupon).catch(() => {})
-    setCopied(planId)
-    setTimeout(() => setCopied(null), 2000)
-  }
-
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="text-center mb-4">
-        <span className="inline-flex items-center gap-2 border border-blue-500/40 text-blue-400 text-xs px-4 py-1.5 rounded-full">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-          Créditos bônus em todos os pacotes
-        </span>
-      </div>
-
-      <div className="flex items-center justify-center gap-2 text-xs text-zinc-500 mb-6">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
-        Pagamento seguro via Pix ou Cartão
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="max-w-7xl mx-auto px-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {STUDIO_PLANS.map((plan) => {
           const price = prices[plan.id]?.price ?? plan.price
           const features = planFeatures(plan.base, plan.bonus, plan.id === 'agency')
           return (
             <div
               key={plan.id}
-              className={`relative flex flex-col rounded-2xl p-5 ${
-                plan.popular
-                  ? 'bg-zinc-900 border-2 border-blue-500/60 shadow-lg shadow-blue-500/10'
-                  : 'bg-zinc-900/60 border border-zinc-800'
+              className={`relative flex flex-col p-8 group transition-all duration-500 bg-[#201f22] border ${
+                plan.popular ? 'border-[#D4FF00]' : 'border-white/5'
               }`}
             >
               {plan.popular && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                  <span className="bg-zinc-100 text-zinc-900 text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
-                    MAIS POPULAR
+                <div className="absolute -top-3 left-8">
+                  <span className="bg-[#D4FF00] text-[#131315] text-[9px] font-bold uppercase tracking-[0.2em] px-3 py-1">
+                    MAIS RECOMENDADO
                   </span>
                 </div>
               )}
 
-              {/* Preço */}
-              <div className={plan.popular ? 'mt-3' : 'mt-0'}>
-                <p className="text-[11px] font-black uppercase tracking-widest text-zinc-500 mb-1">{plan.name}</p>
-                <p className="text-3xl font-bold text-white">
-                  R$ {price.toFixed(0).replace('.', ',')},00
-                </p>
-
-                {/* Créditos */}
-                <p className="text-lg font-semibold text-white mt-1">
-                  {plan.base.toLocaleString('pt-BR')} créditos
-                </p>
-                <p className="text-xs text-blue-400 font-medium mb-3">
-                  + {plan.bonus} créditos bônus
-                </p>
-
-                {/* Perks */}
-                <p className="text-xs text-zinc-400 mb-4">{plan.perks[0]}</p>
-
-                {/* Features */}
-                <ul className="space-y-2 mb-5">
-                  {features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-xs text-zinc-300">
-                      <Check size={13} className="text-blue-400 shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
+              <div className="mb-8">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4FF00]/60 mb-2">{plan.name}</h3>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold font-display text-white">R$ {price.toFixed(0)}</span>
+                  <span className="text-xs text-white/30 lowercase font-sans">/pacote</span>
+                </div>
               </div>
 
-              {/* Coupon */}
-              <button
-                onClick={() => handleCopy(plan.coupon, plan.id)}
-                className="flex items-center justify-between w-full mb-3 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 hover:border-zinc-500 transition-colors group"
-              >
-                <span className="text-[11px] text-zinc-400">
-                  <span className="text-zinc-500 mr-1.5">20% OFF</span>
-                  <span className="font-mono font-semibold text-zinc-200">{plan.coupon}</span>
+              <div className="mb-8 flex flex-col gap-1">
+                <span className="text-xl font-bold text-white tracking-tight">
+                  {plan.base.toLocaleString('pt-BR')} Créditos
                 </span>
-                {copied === plan.id
-                  ? <CheckCheck size={13} className="text-blue-400" />
-                  : <Copy size={13} className="text-zinc-600 group-hover:text-zinc-400 transition-colors" />
-                }
-              </button>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#D4FF00]">
+                  + {plan.bonus} BÔNUS INCLUSO
+                </span>
+              </div>
 
-              {/* CTA */}
+              <ul className="space-y-4 mb-10 flex-grow">
+                {features.map((f) => (
+                  <li key={f} className="flex items-start gap-3 text-xs tracking-tight text-white/50">
+                    <Check size={14} className="text-[#D4FF00] shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
               <button
                 onClick={() => handleCheckout(plan.id)}
                 disabled={loading === plan.id}
-                className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-60 mt-auto ${
+                className={`group/btn relative w-full py-4 text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-2 ${
                   plan.popular
-                    ? 'bg-white text-zinc-900 hover:bg-zinc-100'
-                    : 'bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700'
+                    ? 'bg-[#D4FF00] text-[#131315]'
+                    : 'bg-white/5 text-white hover:bg-white/10'
                 }`}
               >
-                {loading === plan.id ? 'Aguarde...' : 'Comprar →'}
+                {loading === plan.id ? 'PROCESSANDO...' : (
+                  <>
+                    SELECIONAR PLANO <ArrowRight size={14} className="group-hover/btn:translate-x-1 transition-transform" />
+                  </>
+                )}
               </button>
             </div>
           )

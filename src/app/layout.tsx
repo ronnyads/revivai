@@ -1,30 +1,21 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
-import { Cormorant_Garamond, DM_Sans, Newsreader } from 'next/font/google'
+import { Space_Grotesk, Manrope } from 'next/font/google'
 import './globals.css'
 import MetaPixelLoader from '@/components/MetaPixelLoader'
 
-const cormorant = Cormorant_Garamond({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  style: ['normal', 'italic'],
+  weight: ['400', '500', '600', '700'],
   display: 'swap',
   variable: '--font-display-gf',
 })
 
-const dmSans = DM_Sans({
+const manrope = Manrope({
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
+  weight: ['300', '400', '500', '600', '700'],
   display: 'swap',
   variable: '--font-sans-gf',
-})
-
-const newsreader = Newsreader({
-  subsets: ['latin'],
-  weight: ['400'],
-  style: ['italic'],
-  display: 'optional',
-  variable: '--font-hero-gf',
 })
 
 export const metadata: Metadata = {
@@ -40,7 +31,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${cormorant.variable} ${dmSans.variable} ${newsreader.variable}`}>
+    <html lang="pt-BR" className={`${spaceGrotesk.variable} ${manrope.variable}`}>
       <head>
         {/* Material Symbols loaded async after paint — 3.8MB icon font must not block FCP */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){var l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=block';document.head.appendChild(l)})()` }} />
