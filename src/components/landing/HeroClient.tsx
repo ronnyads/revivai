@@ -63,7 +63,7 @@ export default function HeroClient({ stats }: { stats: Stats }) {
 
             <p className="text-lg md:text-2xl font-light leading-relaxed mb-14 max-w-3xl text-white/50 font-sans">
               Crie ensaios profissionais, lookbooks de alta costura e campanhas globais em segundos. 
-              A Magion transforma croquis e fotos simples em editoriais cinematográficos.
+              A RevivAI transforma croquis e fotos simples em editoriais cinematográficos.
             </p>
 
             <div className="flex flex-wrap justify-center gap-8 items-center">

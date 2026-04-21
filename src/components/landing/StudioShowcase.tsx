@@ -5,7 +5,7 @@ const SHOWCASE_ITEMS = [
   {
     badge: 'TECNOLOGIA FLUX-1',
     title: 'LOOKBOOK EDITORIAL',
-    desc: 'Explore a qualidade inigualável das gerações Magion. Detalhes de tecido, iluminação natural e texturas realistas que definem o novo padrão da moda digital.',
+    desc: 'Explore a qualidade inigualável das gerações RevivAI. Detalhes de tecido, iluminação natural e texturas realistas que definem o novo padrão da moda digital.',
     tags: ['Hiper-Realismo', 'Lookbook', 'Editorial'],
     icon: <Layers size={20} />,
   },
