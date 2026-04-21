@@ -14,8 +14,15 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { projectId, agentType = 'ugc', message, history = [] } = await req.json()
-  if (!message?.trim()) return NextResponse.json({ error: 'Empty message' }, { status: 400 })
+  let body: any
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+  const { projectId, agentType = 'ugc', message, history = [] } = body
+  console.log('[chat] received:', { agentType, messageLen: message?.length, historyLen: history?.length })
+  if (!message?.trim()) return NextResponse.json({ error: 'Empty message', received: body }, { status: 400 })
 
   await supabase.from('studio_chat_messages').insert({
     user_id: user.id,
