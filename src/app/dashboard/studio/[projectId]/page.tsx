@@ -69,6 +69,7 @@ export default async function BoardPage({ params }: Props) {
       initialConnections={(connections ?? []) as StudioConnection[]}
       userCredits={profile?.credits ?? 0}
       userPlan={profile?.plan ?? 'free'}
+      userId={user.id}
     />
   )
 }

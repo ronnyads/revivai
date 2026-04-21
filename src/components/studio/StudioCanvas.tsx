@@ -8,7 +8,7 @@ import {
   MarkerType, ReactFlowProvider, useReactFlow
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ArrowLeft, Edit2, Check, Plus, Wand2, LayoutGrid, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Edit2, Check, Plus, Wand2, LayoutGrid, RotateCcw, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { StudioAsset, StudioConnection, StudioProject, AssetType } from '@/types'
 import AssetNode, { AssetNodeData } from './nodes/AssetNode'
@@ -17,6 +17,7 @@ import AddCardMenu from './AddCardMenu'
 import CanvasQuickAdd from './CanvasQuickAdd'
 import CampaignWizard, { WizardResult } from './CampaignWizard'
 import TemplateGallery, { WorkflowTemplate } from './TemplateGallery'
+import StudioChatPanel from './StudioChatPanel'
 
 const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
@@ -70,6 +71,7 @@ interface Props {
   initialConnections: StudioConnection[]
   userCredits: number
   userPlan: string
+  userId: string
 }
 
 function buildNodes(assets: StudioAsset[], callbacks: Omit<AssetNodeData, 'asset'>): Node[] {
@@ -97,7 +99,7 @@ function buildEdges(connections: StudioConnection[]): Edge[] {
   }))
 }
 
-function StudioCanvasInner({ project, initialAssets, initialConnections, userCredits, userPlan }: Props) {
+function StudioCanvasInner({ project, initialAssets, initialConnections, userCredits, userPlan, userId }: Props) {
   const [assets,      setAssets]      = useState<StudioAsset[]>(initialAssets)
   const [connections, setConnections] = useState<StudioConnection[]>(initialConnections)
   const [credits,     setCredits]     = useState(userCredits)
@@ -106,6 +108,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [editing,     setEditing]     = useState(false)
   const [showWizard,  setShowWizard]  = useState(false)
   const [showGallery, setShowGallery] = useState(initialAssets.length === 0)
+  const [chatOpen,    setChatOpen]    = useState(false)
   const pollingRef        = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
   const startPollingRef   = useRef<(id: string) => void>(() => {})
   
@@ -1070,7 +1073,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   }
 
   return (
-    <div className="w-full h-screen bg-[#f4f4f5] flex flex-col">
+    <div className="w-full h-screen flex flex-row overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col bg-[#f4f4f5]">
       {/* Top bar */}
       <div className="shrink-0 z-10 bg-white/90 backdrop-blur-md border-b border-zinc-200 px-6 py-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -1104,6 +1108,12 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
             className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 bg-white border border-zinc-200 hover:border-accent/50 hover:shadow-sm px-3 py-1.5 rounded-xl transition-all"
           >
             <Plus size={13} /> Templates
+          </button>
+          <button
+            onClick={() => setChatOpen(o => !o)}
+            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl border transition-all ${chatOpen ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-zinc-500 border-zinc-200 hover:border-indigo-400 hover:text-indigo-600 hover:shadow-sm'}`}
+          >
+            <MessageSquare size={13} /> Chat IA
           </button>
           <AddCardMenu onAdd={addCard} />
         </div>
@@ -1228,6 +1238,12 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           </button>
           <span className="text-zinc-600 text-[10px]">Ctrl+Z</span>
         </div>
+      )}
+      </div>{/* end flex-col canvas area */}
+
+      {/* Chat IA Panel */}
+      {chatOpen && (
+        <StudioChatPanel projectId={project.id} userId={userId} />
       )}
     </div>
   )
