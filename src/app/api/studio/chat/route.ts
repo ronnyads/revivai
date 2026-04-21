@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     parts: [{ text: m.content }],
   }))
 
-  const body = {
+  const geminiBody = {
     system_instruction: { parts: [{ text: SYSTEM_PROMPTS[agentType] ?? SYSTEM_PROMPTS.ugc }] },
     contents: [
       ...geminiHistory,
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   const geminiRes = await fetch(`${GEMINI_API}?key=${process.env.GEMINI_API_KEY}&alt=sse`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(geminiBody),
   })
 
   if (!geminiRes.ok || !geminiRes.body) {
