@@ -25,7 +25,7 @@ export default async function Pricing() {
     <section id="pricing" className="py-32 px-6 bg-[#131315]">
       {/* Cabeçalho */}
       <div className="text-center mb-24 max-w-4xl mx-auto">
-        <p className="text-[10px] uppercase tracking-[0.4em] font-bold mb-6 text-[#D4FF00]">
+        <p className="text-[10px] uppercase tracking-[0.4em] font-bold mb-6 text-[#7C0DF2]">
           PLANOS E ASSINATURAS
         </p>
         <h2

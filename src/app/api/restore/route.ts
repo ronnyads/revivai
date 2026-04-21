@@ -24,7 +24,7 @@ function getReplicate() {
 
 async function getBaseUrlFromHeaders(): Promise<string> {
   const headers    = await import('next/headers').then(m => m.headers())
-  const host       = headers.get('x-forwarded-host') || headers.get('host') || 'revivai.vercel.app'
+  const host       = headers.get('x-forwarded-host') || headers.get('host') || 'RevivAI.vercel.app'
   const protocol   = headers.get('x-forwarded-proto') || 'https'
   return `${protocol}://${host}`
 }

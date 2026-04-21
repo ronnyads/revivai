@@ -155,7 +155,7 @@ export default function UploadPage() {
       {/* Page Header */}
       <div className="bg-[#0F172A] border-b border-white/5 px-8 md:px-12 py-10 mb-10">
         <div className="max-w-4xl mx-auto">
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4FF00] mb-2">REVIVAI — RESTAURAÇÃO</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#7C0DF2] mb-2">RevivAI — RESTAURAÇÃO</p>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white font-display uppercase">Painel de Restauração</h1>
           <p className="text-sm text-white/50 mt-1 font-sans">Escolha o algoritmo e revitalize cada pixel com inteligência artificial.</p>
         </div>
@@ -181,7 +181,7 @@ export default function UploadPage() {
                         onClick={() => setSelectedMode(mode.id)}
                         className={`w-full text-left border transition-all duration-200 overflow-hidden group ${
                           isSelected
-                            ? 'border-[#D4FF00] shadow-[0_0_15px_rgba(212,255,0,0.15)] scale-[1.01]'
+                            ? 'border-[#7C0DF2] shadow-[0_0_15px_rgba(124,13,242,0.15)] scale-[1.01]'
                             : 'border-white/5 bg-[#0F172A] hover:border-white/20 hover:shadow-md'
                         }`}
                       >
@@ -208,7 +208,7 @@ export default function UploadPage() {
                             )}
                             {/* Selected overlay */}
                             {isSelected && (
-                              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-[#D4FF00] text-[#020617] text-[10px] font-bold px-3 py-1 uppercase tracking-widest shadow-md">
+                              <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-[#7C0DF2] text-[#020617] text-[10px] font-bold px-3 py-1 uppercase tracking-widest shadow-md">
                                 ✓ Selecionado
                               </div>
                             )}
@@ -216,7 +216,7 @@ export default function UploadPage() {
                             <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white z-10 pointer-events-none" />
                           </div>
                         ) : (
-                          <div className={`h-28 flex items-center justify-center text-4xl relative ${isSelected ? 'bg-[#D4FF00]/10' : 'bg-[#1E293B]/50'}`}>
+                          <div className={`h-28 flex items-center justify-center text-4xl relative ${isSelected ? 'bg-[#7C0DF2]/10' : 'bg-[#1E293B]/50'}`}>
                             {isEmoji ? mode.icon : '✨'}
                             {mode.badge && (
                               <span className={`absolute top-2.5 left-2.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full text-white shadow ${
@@ -227,12 +227,12 @@ export default function UploadPage() {
                         )}
 
                         {/* Info */}
-                        <div className={`flex items-start gap-3 px-4 py-4 ${isSelected ? 'bg-[#D4FF00]/5' : 'bg-[#0F172A]'}`}>
+                        <div className={`flex items-start gap-3 px-4 py-4 ${isSelected ? 'bg-[#7C0DF2]/5' : 'bg-[#0F172A]'}`}>
                           {isEmoji && (
                             <span className="text-xl flex-shrink-0 mt-0.5">{mode.icon}</span>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-bold uppercase tracking-wider leading-tight font-display ${isSelected ? 'text-[#D4FF00]' : 'text-white'}`}>
+                            <p className={`text-sm font-bold uppercase tracking-wider leading-tight font-display ${isSelected ? 'text-[#7C0DF2]' : 'text-white'}`}>
                               {mode.name}
                             </p>
                             {mode.description && (
@@ -240,7 +240,7 @@ export default function UploadPage() {
                             )}
                           </div>
                           <div className={`w-5 h-5 flex-shrink-0 flex items-center justify-center mt-0.5 transition-all ${
-                            isSelected ? 'bg-[#D4FF00]' : 'border border-white/20'
+                            isSelected ? 'bg-[#7C0DF2]' : 'border border-white/20'
                           }`}>
                             {isSelected && <span className="text-[#020617] text-[10px] font-bold leading-none">✓</span>}
                           </div>
@@ -258,7 +258,7 @@ export default function UploadPage() {
             {file && (
               <button
                 onClick={handleRestore}
-                className="mt-5 w-full flex items-center justify-center gap-2 bg-[#D4FF00] text-[#020617] py-5 text-xs font-bold uppercase tracking-[0.2em] hover:bg-white transition-all"
+                className="mt-5 w-full flex items-center justify-center gap-2 bg-[#7C0DF2] text-[#020617] py-5 text-xs font-bold uppercase tracking-[0.2em] hover:bg-white transition-all"
               >
                 <Sparkles size={16} /> RESTAURAR AGORA
               </button>
@@ -269,13 +269,13 @@ export default function UploadPage() {
         {/* DIAGNOSING */}
         {step === 'diagnosing' && (
           <div className="bg-[#0F172A] border border-white/5 p-12 text-center">
-            <div className="w-16 h-16 bg-white/5 border border-white/10 flex items-center justify-center text-[#D4FF00] mx-auto mb-6 animate-pulse">
+            <div className="w-16 h-16 bg-white/5 border border-white/10 flex items-center justify-center text-[#7C0DF2] mx-auto mb-6 animate-pulse">
               <Sparkles size={24} />
             </div>
             <h2 className="font-display text-3xl uppercase font-bold mb-2 text-white">{t('upload_diag_title')}</h2>
             <p className="text-white/50 font-sans text-sm mb-8">{t('upload_diag_sub')}</p>
             <div className="w-full bg-[#1E293B] h-1 overflow-hidden">
-              <div className="bg-[#D4FF00] h-1 transition-all duration-500 shadow-[0_0_10px_#D4FF00]" style={{ width: `${progress}%` }} />
+              <div className="bg-[#7C0DF2] h-1 transition-all duration-500 shadow-[0_0_10px_#7C0DF2]" style={{ width: `${progress}%` }} />
             </div>
           </div>
         )}
@@ -283,9 +283,9 @@ export default function UploadPage() {
         {/* RESTORING */}
         {step === 'restoring' && diagnosis && (
           <div className="bg-[#0F172A] border border-white/5 p-12 text-center">
-            <div className="inline-flex items-center gap-2 bg-[#D4FF00]/10 border border-[#D4FF00]/20 text-[#D4FF00] uppercase tracking-widest px-4 py-1.5 text-[10px] font-bold mb-6">
+            <div className="inline-flex items-center gap-2 bg-[#7C0DF2]/10 border border-[#7C0DF2]/20 text-[#7C0DF2] uppercase tracking-widest px-4 py-1.5 text-[10px] font-bold mb-6">
               <span>{diagnosis.icon}</span> {diagnosis.label}
-              <span className="bg-[#D4FF00] text-[#020617] text-[10px] px-2 py-0.5 ml-1">{diagnosis.confidence}%</span>
+              <span className="bg-[#7C0DF2] text-[#020617] text-[10px] px-2 py-0.5 ml-1">{diagnosis.confidence}%</span>
             </div>
             {imageInfo && (
               <p className="text-[10px] uppercase tracking-widest text-white/50 mb-2 font-mono">
@@ -314,8 +314,8 @@ export default function UploadPage() {
                   return (
                     <div key={i} className="flex items-center gap-2">
                       <div className={`flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-widest px-3 py-1.5 transition-all ${
-                        isDone   ? 'bg-[#D4FF00]/10 text-[#D4FF00]' :
-                        isActive ? 'bg-[#D4FF00] text-[#020617] animate-pulse' :
+                        isDone   ? 'bg-[#7C0DF2]/10 text-[#7C0DF2]' :
+                        isActive ? 'bg-[#7C0DF2] text-[#020617] animate-pulse' :
                         'bg-white/5 text-white/40'
                       }`}>
                         {isDone ? '✓' : isActive ? '⟳' : '○'} {label}
@@ -328,9 +328,9 @@ export default function UploadPage() {
             )}
 
             <div className="w-full bg-[#1E293B] h-1.5 mb-3 overflow-hidden">
-              <div className="bg-[#D4FF00] h-1.5 transition-all duration-1000 shadow-[0_0_10px_#D4FF00]" style={{ width: `${progress}%` }} />
+              <div className="bg-[#7C0DF2] h-1.5 transition-all duration-1000 shadow-[0_0_10px_#7C0DF2]" style={{ width: `${progress}%` }} />
             </div>
-            <p className="text-[10px] uppercase tracking-widest font-bold text-[#D4FF00] mb-1">{progress}{t('upload_progress_suffix')}</p>
+            <p className="text-[10px] uppercase tracking-widest font-bold text-[#7C0DF2] mb-1">{progress}{t('upload_progress_suffix')}</p>
             <p className="text-[11px] text-muted font-mono opacity-50">{diagnosis.model}</p>
           </div>
         )}
@@ -339,8 +339,8 @@ export default function UploadPage() {
         {step === 'done' && originalUrl && restoredUrl && (
           <div className="flex flex-col gap-6">
             <div className="bg-[#0F172A] border border-white/5 p-6">
-              <div className="flex items-center gap-2 text-[#D4FF00] text-[10px] font-bold tracking-widest uppercase mb-5">
-                <span className="w-2 h-2 bg-[#D4FF00] shadow-[0_0_10px_#D4FF00]" /> {t('upload_done_label')}
+              <div className="flex items-center gap-2 text-[#7C0DF2] text-[10px] font-bold tracking-widest uppercase mb-5">
+                <span className="w-2 h-2 bg-[#7C0DF2] shadow-[0_0_10px_#7C0DF2]" /> {t('upload_done_label')}
               </div>
               <BeforeAfterSlider before={originalUrl} after={restoredUrl} />
             </div>
@@ -376,12 +376,12 @@ export default function UploadPage() {
 
             <div className="flex gap-3">
               <a href={colorizationUrl || restoredUrl} download target="_blank" rel="noreferrer"
-                className="flex-1 flex items-center justify-center gap-2 bg-[#D4FF00] text-[#020617] py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 bg-[#7C0DF2] text-[#020617] py-4 text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-colors">
                 {t('upload_download')}
               </a>
               <button
                 onClick={() => { setStep('upload'); setFile(null); setRestoredUrl(''); setOriginalUrl(''); setColorizationSuggested(false); setColorizationUrl(null) }}
-                className="flex-1 border border-white/20 text-white/70 py-4 text-[10px] font-bold uppercase tracking-widest hover:border-[#D4FF00] hover:text-[#D4FF00] transition-colors">
+                className="flex-1 border border-white/20 text-white/70 py-4 text-[10px] font-bold uppercase tracking-widest hover:border-[#7C0DF2] hover:text-[#7C0DF2] transition-colors">
                 {t('upload_restore_another')}
               </button>
             </div>

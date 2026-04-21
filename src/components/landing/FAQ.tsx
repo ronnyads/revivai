@@ -21,7 +21,7 @@ export default async function FAQ() {
     <section id="faq" className="bg-[#131315] py-32 px-6">
       <div className="max-w-4xl mx-auto">
         <div className="text-center lg:text-left mb-20">
-          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4FF00] mb-6">FAQ</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#7C0DF2] mb-6">FAQ</p>
           <h2 className="font-display text-5xl md:text-7xl font-bold uppercase tracking-tighter leading-[0.95] text-white">
             RESPONDEMOS <br /><span className="text-white/20">QUASE TUDO</span>
           </h2>

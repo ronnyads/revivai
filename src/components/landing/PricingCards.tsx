@@ -86,20 +86,20 @@ export default function PricingCards({ prices }: { prices: Prices }) {
             <div
               key={plan.id}
               className={`relative flex flex-col p-10 group transition-all duration-700 bg-white/5 backdrop-blur-[2px] border ${
-                plan.popular ? 'border-[#D94F2E]/40 shadow-[0_0_40px_rgba(217,79,46,0.05)]' : 'border-white/5 hover:border-white/10 hover:bg-white/10'
+                plan.popular ? 'border-[#7C0DF2]/40 shadow-[0_0_40px_rgba(124,13,242,0.05)]' : 'border-white/5 hover:border-white/10 hover:bg-white/10'
               }`}
             >
-              <div className="absolute inset-0 bg-gradient-to-tr from-[#D94F2E]/0 via-[#D94F2E]/0 to-[#D94F2E]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-[#7C0DF2]/0 via-[#7C0DF2]/0 to-[#7C0DF2]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
               {plan.popular && (
                 <div className="absolute -top-3 left-10">
-                  <span className="bg-[#D94F2E] text-white text-[9px] font-bold uppercase tracking-[0.3em] px-4 py-1.5 shadow-[0_0_20px_rgba(217,79,46,0.3)]">
+                  <span className="bg-[#7C0DF2] text-white text-[9px] font-bold uppercase tracking-[0.3em] px-4 py-1.5 shadow-[0_0_20px_rgba(124,13,242,0.3)]">
                     RECOMENDADO
                   </span>
                 </div>
               )}
 
               <div className="mb-10">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4FF00]/60 mb-2">{plan.name}</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#7C0DF2]/60 mb-2">{plan.name}</h3>
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl font-bold font-display text-white">R$ {price.toFixed(0)}</span>
                   <span className="text-[10px] text-white/30 uppercase tracking-widest font-sans ml-1">/fatura</span>
@@ -114,14 +114,14 @@ export default function PricingCards({ prices }: { prices: Prices }) {
                    <span className="text-[9px] font-bold text-white/40 mb-1 uppercase tracking-widest">créditos</span>
                 </div>
                 <div className="h-1 w-full bg-white/5 mt-2 overflow-hidden">
-                   <div className="h-full bg-[#D94F2E] w-2/3 opacity-30" />
+                   <div className="h-full bg-[#7C0DF2] w-2/3 opacity-30" />
                 </div>
               </div>
 
               <ul className="space-y-4 mb-12 flex-grow">
                 {features.map((f) => (
                   <li key={f} className="flex items-start gap-3 text-[11px] font-medium tracking-tight text-white/50">
-                    <Check size={14} className="text-[#D94F2E] shrink-0 mt-0.5" />
+                    <Check size={14} className="text-[#7C0DF2] shrink-0 mt-0.5" />
                     {f}
                   </li>
                 ))}
@@ -132,7 +132,7 @@ export default function PricingCards({ prices }: { prices: Prices }) {
                 disabled={loading === plan.id}
                 className={`group/btn relative w-full py-5 text-[10px] font-bold uppercase tracking-[0.3em] transition-all duration-700 overflow-hidden flex items-center justify-center gap-3 rounded-full ${
                   plan.popular
-                    ? 'bg-[#D94F2E] text-white hover:bg-white hover:text-[#131313] shadow-[0_0_20px_rgba(217,79,46,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]'
+                    ? 'bg-[#7C0DF2] text-white hover:bg-white hover:text-[#131313] shadow-[0_0_20px_rgba(124,13,242,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]'
                     : 'bg-white/5 text-white hover:bg-white/10 backdrop-blur-md border border-white/5'
                 }`}
               >

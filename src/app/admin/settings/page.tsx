@@ -28,7 +28,7 @@ export default async function SettingsPage() {
         {/* Stats & PIX */}
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#D94F2E' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#7C0DF2' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             </div>
             <div>

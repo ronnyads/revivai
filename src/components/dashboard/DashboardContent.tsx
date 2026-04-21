@@ -18,7 +18,7 @@ export default function DashboardContent() {
       
       {/* Page Header */}
       <div className="mb-16">
-        <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4FF00] mb-4">WORKSPACE</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#7C0DF2] mb-4">WORKSPACE</p>
         <h1 className="text-4xl md:text-5xl font-bold font-display uppercase tracking-tight text-white mb-4">
           Galeria de Restaurações
         </h1>
@@ -31,10 +31,10 @@ export default function DashboardContent() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         
         {/* Call to action "Add Photo" Card */}
-        <a href="/dashboard/upload" className="group flex flex-col items-center justify-center p-12 bg-white/5 border border-white/10 hover:border-[#D4FF00]/60 border-dashed transition-all duration-500 min-h-[400px] hover:bg-[#D4FF00]/5 relative overflow-hidden backdrop-blur-sm">
-          <div className="absolute inset-0 bg-gradient-to-tr from-[#D4FF00]/0 via-[#D4FF00]/0 to-[#D4FF00]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-          <div className="w-16 h-16 rounded-full bg-[#131315] border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:border-[#D4FF00]/40 transition-all duration-700 shadow-[0_0_40px_rgba(212,255,0,0)] group-hover:shadow-[0_0_40px_rgba(212,255,0,0.15)] relative z-10">
-             <Camera size={24} className="text-white/50 group-hover:text-[#D4FF00] transition-colors duration-500" />
+        <a href="/dashboard/upload" className="group flex flex-col items-center justify-center p-12 bg-white/5 border border-white/10 hover:border-[#7C0DF2]/60 border-dashed transition-all duration-500 min-h-[400px] hover:bg-[#7C0DF2]/5 relative overflow-hidden backdrop-blur-sm">
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#7C0DF2]/0 via-[#7C0DF2]/0 to-[#7C0DF2]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          <div className="w-16 h-16 rounded-full bg-[#131315] border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:border-[#7C0DF2]/40 transition-all duration-700 shadow-[0_0_40px_rgba(124,13,242,0)] group-hover:shadow-[0_0_40px_rgba(124,13,242,0.15)] relative z-10">
+             <Camera size={24} className="text-white/50 group-hover:text-[#7C0DF2] transition-colors duration-500" />
           </div>
           <h3 className="text-lg font-bold text-white uppercase tracking-widest mb-3 font-display relative z-10">Pronto para mais?</h3>
           <p className="text-[11px] text-white/40 text-center uppercase tracking-[0.2em] font-sans relative z-10 leading-relaxed">
@@ -61,17 +61,17 @@ export default function DashboardContent() {
 
             {/* Hover Actions */}
             <div className={`absolute top-4 right-4 z-20 flex gap-2 transition-all duration-300 ${hoverId === item.id ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'}`}>
-              <button className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-[#D4FF00] hover:text-black transition-colors tooltipwrap">
+              <button className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-[#7C0DF2] hover:text-black transition-colors tooltipwrap">
                 <Share2 size={16} />
               </button>
-              <button className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-[#D4FF00] hover:text-black transition-colors">
+              <button className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-[#7C0DF2] hover:text-black transition-colors">
                 <Download size={16} />
               </button>
             </div>
 
             {/* Content */}
             <div className="absolute bottom-0 left-0 right-0 p-8 z-20">
-               <div className="flex items-center gap-2 text-[#D4FF00] mb-3">
+               <div className="flex items-center gap-2 text-[#7C0DF2] mb-3">
                  <Clock size={12} className="opacity-80" />
                  <span className="text-[9px] font-bold uppercase tracking-[0.2em]">{item.time}</span>
                </div>

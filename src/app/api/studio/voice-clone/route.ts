@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const payload = new FormData()
   payload.append('name', name)
   payload.append('files', audio)
-  payload.append('description', `Clone de voz criado pelo revivai Ad Studio`)
+  payload.append('description', `Clone de voz criado pelo RevivAI Ad Studio`)
 
   const res = await fetch('https://api.elevenlabs.io/v1/voices/add', {
     method: 'POST',

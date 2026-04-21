@@ -21,25 +21,25 @@ export default function PlanForm({ plan, badge }: Props) {
       <div>
         <label className="text-xs text-white/40 mb-1 block uppercase tracking-wide">Nome</label>
         <input name="name" defaultValue={plan.name} required
-          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D94F2E]/60 transition-colors" />
+          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C0DF2]/60 transition-colors" />
       </div>
 
       <div>
         <label className="text-xs text-white/40 mb-1 block uppercase tracking-wide">Preço (R$)</label>
         <input name="price" type="number" step="0.01" min="0" defaultValue={plan.price} required
-          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D94F2E]/60 transition-colors" />
+          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C0DF2]/60 transition-colors" />
       </div>
 
       <div>
         <label className="text-xs text-white/40 mb-1 block uppercase tracking-wide">Créditos incluídos</label>
         <input name="credits" type="number" min="1" defaultValue={plan.credits} required
-          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D94F2E]/60 transition-colors" />
+          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C0DF2]/60 transition-colors" />
       </div>
 
       <div>
         <label className="text-xs text-white/40 mb-1 block uppercase tracking-wide">Descrição curta</label>
         <input name="description" defaultValue={plan.description}
-          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D94F2E]/60 transition-colors" />
+          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C0DF2]/60 transition-colors" />
       </div>
 
       {state?.ok === true && (
@@ -54,7 +54,7 @@ export default function PlanForm({ plan, badge }: Props) {
       )}
 
       <button type="submit" disabled={pending}
-        className="w-full py-2.5 rounded-lg bg-[#D94F2E] text-white text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50">
+        className="w-full py-2.5 rounded-lg bg-[#7C0DF2] text-white text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50">
         {pending ? 'Salvando...' : 'Salvar plano'}
       </button>
     </form>

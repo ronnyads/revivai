@@ -55,7 +55,7 @@ export default function AbandonedCartEmail({ name, email, planName, credits, pri
             {/* Coupon */}
             <div style={couponBlock}>
               <Text style={couponPre}>CUPOM DE DESCONTO</Text>
-              <Text style={couponCode}>REVIVAI</Text>
+              <Text style={couponCode}>RevivAI</Text>
               <Text style={couponDesc}>20% de desconto — aplicar no checkout</Text>
             </div>
 

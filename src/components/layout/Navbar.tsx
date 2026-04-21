@@ -31,7 +31,7 @@ export default function Navbar() {
         className="font-display font-bold text-2xl tracking-tighter uppercase flex items-center gap-1"
         style={{ color: '#fff' }}
       >
-        REVIV<span className="text-[#D4FF00]">.</span>AI
+        REVIV<span className="text-[#7C0DF2]">.</span>AI
       </Link>
 
       <ul className="hidden lg:flex gap-12 list-none m-0 p-0">
@@ -44,7 +44,7 @@ export default function Navbar() {
           <li key={href}>
             <a
               href={href}
-              className="text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300 hover:text-[#D4FF00]"
+              className="text-[10px] font-bold uppercase tracking-[0.2em] transition-all duration-300 hover:text-[#7C0DF2]"
               style={{ color: 'rgba(255,255,255,0.5)' }}
             >
               {label}
@@ -59,7 +59,7 @@ export default function Navbar() {
             href="/dashboard"
             className="group text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 text-white"
           >
-            MEU DASHBOARD <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform text-[#D4FF00]" />
+            MEU DASHBOARD <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform text-[#7C0DF2]" />
           </Link>
         ) : (
           <>
@@ -72,7 +72,7 @@ export default function Navbar() {
             </Link>
             <Link
               href="/#pricing"
-              className="px-8 py-3 rounded-full bg-[#D94F2E] text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-[#131313] transition-all duration-300 shadow-[0_0_20px_rgba(217,79,46,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+              className="px-8 py-3 rounded-full bg-[#7C0DF2] text-white text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white hover:text-[#131313] transition-all duration-300 shadow-[0_0_20px_rgba(124,13,242,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]"
             >
               COMEÇAR AGORA
             </Link>
@@ -109,7 +109,7 @@ export default function Navbar() {
              <Link href="/auth/login" className="text-xl font-medium text-white/50" onClick={() => setMenuOpen(false)}>Entrar</Link>
              <Link
                 href="/#pricing"
-                className="w-full py-5 rounded-full bg-[#D94F2E] text-white text-center font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(217,79,46,0.1)] active:scale-95 transition-transform"
+                className="w-full py-5 rounded-full bg-[#7C0DF2] text-white text-center font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(124,13,242,0.1)] active:scale-95 transition-transform"
                 onClick={() => setMenuOpen(false)}
              >
                 COMEÇAR AGORA

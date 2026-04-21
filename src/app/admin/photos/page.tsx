@@ -28,7 +28,7 @@ export default async function AdminPhotos() {
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
           { label: 'Concluídas', value: done, color: 'text-green-400' },
-          { label: 'Processando', value: processing, color: 'text-[#D94F2E]' },
+          { label: 'Processando', value: processing, color: 'text-[#7C0DF2]' },
           { label: 'Com erro', value: error, color: 'text-red-400' },
         ].map(s => (
           <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-5">
@@ -60,7 +60,7 @@ export default async function AdminPhotos() {
                     </div>
                     {p.restored_url && (
                       <a href={p.restored_url} target="_blank" rel="noreferrer"
-                        className="text-[10px] text-[#D94F2E] hover:underline">Ver restaurada →</a>
+                        className="text-[10px] text-[#7C0DF2] hover:underline">Ver restaurada →</a>
                     )}
                   </div>
                 </td>
@@ -70,7 +70,7 @@ export default async function AdminPhotos() {
                 <td className="px-6 py-3">
                   <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${
                     p.status === 'done'       ? 'bg-green-500/20 text-green-400'
-                    : p.status === 'processing' ? 'bg-[#D94F2E]/20 text-[#D94F2E]'
+                    : p.status === 'processing' ? 'bg-[#7C0DF2]/20 text-[#7C0DF2]'
                     : p.status === 'error'      ? 'bg-red-500/20 text-red-400'
                     : 'bg-white/10 text-white/40'
                   }`}>{p.status}</span>

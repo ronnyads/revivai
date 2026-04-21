@@ -3,7 +3,7 @@
 /* ── Tailwind v4 Theme ── */
 @theme {
   /* Colors */
-  --color-accent:       #D4FF00;
+  --color-accent:       #7C0DF2;
   --color-accent-light: #f4ffb0;
   --color-accent-dark:  #b0d500;
   --color-surface:      #1c1b1d;
@@ -86,7 +86,7 @@ body {
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #06070F; }
-::-webkit-scrollbar-thumb { background: #D4FF00; border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #7C0DF2; border-radius: 3px; }
 
 /* ── Space / Futuristic Animations ── */
 @keyframes gridPulse {

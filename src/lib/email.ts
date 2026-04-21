@@ -4,7 +4,7 @@ import PurchaseEmail from '@/emails/PurchaseEmail'
 import RefundEmail from '@/emails/RefundEmail'
 import AbandonedCartEmail from '@/emails/AbandonedCartEmail'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder_for_build')
 const FROM = 'RevivAI <noreply@adsliberty.com>'
 
 export async function sendPurchaseEmail(opts: {

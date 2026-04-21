@@ -45,11 +45,11 @@ export default function HomePage() {
         <section className="py-40 px-6">
           <div className="max-w-7xl mx-auto relative overflow-hidden bg-white/[0.02] backdrop-blur-3xl border border-white/5 p-16 md:p-32 text-center group">
             {/* Visual Accents */}
-            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#D4FF00]/10 blur-[150px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#D4FF00]/5 blur-[150px] pointer-events-none" />
+            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#7C0DF2]/10 blur-[150px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#7C0DF2]/5 blur-[150px] pointer-events-none" />
             
             <div className="relative z-10 max-w-4xl mx-auto">
-              <p className="text-[9px] font-bold uppercase tracking-[0.5em] text-[#D4FF00] mb-10 shadow-[0_0_15px_rgba(212,255,0,0.2)] inline-block">
+              <p className="text-[9px] font-bold uppercase tracking-[0.5em] text-[#7C0DF2] mb-10 shadow-[0_0_15px_rgba(124,13,242,0.2)] inline-block">
                 ETHEREAL PERFORMANCE
               </p>
               
@@ -64,7 +64,7 @@ export default function HomePage() {
  
               <a
                 href="/dashboard/studio"
-                className="inline-flex items-center gap-4 px-16 py-6 rounded-full bg-[#D4FF00] text-[#131315] font-bold text-xs uppercase tracking-[0.3em] hover:bg-white transition-all duration-700 shadow-[0_0_40px_rgba(212,255,0,0.15)] hover:shadow-[0_0_50px_rgba(255,255,255,0.2)]"
+                className="inline-flex items-center gap-4 px-16 py-6 rounded-full bg-[#7C0DF2] text-[#131315] font-bold text-xs uppercase tracking-[0.3em] hover:bg-white transition-all duration-700 shadow-[0_0_40px_rgba(124,13,242,0.15)] hover:shadow-[0_0_50px_rgba(255,255,255,0.2)]"
               >
                 COMEÇAR AGORA <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform duration-500" />
               </a>

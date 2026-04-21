@@ -171,7 +171,7 @@ function CheckoutForm() {
       <div className="min-h-screen bg-surface flex items-center justify-center px-6 py-12">
         <div className="bg-white rounded-2xl border border-[#E8E8E8] p-8 max-w-sm w-full text-center">
           <div className="w-12 h-12 rounded-full bg-accent-light flex items-center justify-center mx-auto mb-4">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D94F2E" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7C0DF2" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <h2 className="font-display text-2xl mb-2">PIX gerado!</h2>
           <p className="text-sm text-muted mb-6">Escaneie o QR code ou copie o código. Após o pagamento você será redirecionado automaticamente.</p>

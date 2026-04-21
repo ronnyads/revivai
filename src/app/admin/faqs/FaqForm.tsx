@@ -14,18 +14,18 @@ function FaqRow({ f }: { f: Faq }) {
       <div>
         <label className="text-xs text-white/40 mb-1 block uppercase tracking-wide">Pergunta</label>
         <input name="question" defaultValue={f.question} required
-          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D94F2E]/60 transition-colors" />
+          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C0DF2]/60 transition-colors" />
       </div>
       <div>
         <label className="text-xs text-white/40 mb-1 block uppercase tracking-wide">Resposta</label>
         <textarea name="answer" defaultValue={f.answer} required rows={3}
-          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D94F2E]/60 transition-colors resize-none" />
+          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C0DF2]/60 transition-colors resize-none" />
       </div>
       <div className="flex items-center gap-3">
         <div className="w-20">
           <label className="text-xs text-white/40 mb-1 block uppercase tracking-wide">Ordem</label>
           <input name="order" type="number" defaultValue={f.order}
-            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D94F2E]/60 transition-colors" />
+            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C0DF2]/60 transition-colors" />
         </div>
         <div className="flex-1" />
         {state?.ok === true && <span className="text-xs text-green-400">✓ Salvo</span>}
@@ -36,7 +36,7 @@ function FaqRow({ f }: { f: Faq }) {
         </button>
         <button type="submit" disabled={pending}
           className="px-5 py-2 rounded-lg text-white text-xs font-bold uppercase tracking-widest hover:opacity-90 disabled:opacity-50 transition-opacity"
-          style={{ backgroundColor: '#D94F2E' }}>
+          style={{ backgroundColor: '#7C0DF2' }}>
           {pending ? '...' : 'Salvar'}
         </button>
       </div>
@@ -53,25 +53,25 @@ function NewFaqForm() {
       <div>
         <label className="text-xs text-white/40 mb-1 block uppercase tracking-wide">Pergunta</label>
         <input name="question" required placeholder="Ex: Como funciona?"
-          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D94F2E]/60 transition-colors placeholder:text-white/20" />
+          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C0DF2]/60 transition-colors placeholder:text-white/20" />
       </div>
       <div>
         <label className="text-xs text-white/40 mb-1 block uppercase tracking-wide">Resposta</label>
         <textarea name="answer" required rows={3} placeholder="Resposta completa..."
-          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D94F2E]/60 transition-colors resize-none placeholder:text-white/20" />
+          className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C0DF2]/60 transition-colors resize-none placeholder:text-white/20" />
       </div>
       <div className="flex items-center gap-3">
         <div className="w-20">
           <label className="text-xs text-white/40 mb-1 block uppercase tracking-wide">Ordem</label>
           <input name="order" type="number" defaultValue={99}
-            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#D94F2E]/60 transition-colors" />
+            className="w-full bg-white/[0.05] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#7C0DF2]/60 transition-colors" />
         </div>
         <div className="flex-1" />
         {state?.ok === true && <span className="text-xs text-green-400">✓ Adicionado</span>}
         {state?.ok === false && <span className="text-xs text-red-400">✗ {state.error}</span>}
         <button type="submit" disabled={pending}
           className="px-5 py-2 rounded-lg text-white text-xs font-bold uppercase tracking-widest hover:opacity-90 disabled:opacity-50 transition-opacity"
-          style={{ backgroundColor: '#D94F2E' }}>
+          style={{ backgroundColor: '#7C0DF2' }}>
           {pending ? '...' : 'Adicionar'}
         </button>
       </div>

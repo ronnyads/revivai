@@ -2162,4 +2162,4 @@ export async function generateScene(params: {
 
   const { data: urlData } = admin.storage.from('studio').getPublicUrl(filePath)
   return urlData.publicUrl
-}
+}

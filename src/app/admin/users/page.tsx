@@ -32,14 +32,14 @@ export default async function AdminUsers() {
             {users?.map(u => (
               <tr key={u.id} className="hover:bg-white/[0.04] transition-colors">
                 <td className="px-6 py-4 text-white/80 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#D94F2E]/20 flex items-center justify-center text-[#D94F2E] text-xs font-bold flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#7C0DF2]/20 flex items-center justify-center text-[#7C0DF2] text-xs font-bold flex-shrink-0">
                     {u.email?.[0]?.toUpperCase()}
                   </div>
                   {u.email}
                 </td>
                 <td className="px-6 py-4">
                   <span className={`text-[10px] px-2.5 py-1 rounded-full font-semibold uppercase tracking-wide ${
-                    u.plan === 'subscription' ? 'bg-[#D94F2E]/20 text-[#D94F2E]'
+                    u.plan === 'subscription' ? 'bg-[#7C0DF2]/20 text-[#7C0DF2]'
                     : u.plan === 'package'    ? 'bg-blue-500/20 text-blue-400'
                     : 'bg-white/10 text-white/40'
                   }`}>{u.plan}</span>

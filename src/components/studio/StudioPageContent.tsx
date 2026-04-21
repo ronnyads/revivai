@@ -10,13 +10,13 @@ export default function StudioPageContent() {
       {/* Header */}
       <div className="mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div>
-          <p className="text-[10px] uppercase font-bold tracking-[0.4em] text-[#D4FF00] mb-4">WORKSPACE</p>
+          <p className="text-[10px] uppercase font-bold tracking-[0.4em] text-[#7C0DF2] mb-4">WORKSPACE</p>
           <h1 className="text-4xl md:text-5xl font-bold font-display uppercase tracking-tight text-white mb-4">Ad Studio</h1>
           <p className="text-white/50 text-base max-w-xl font-sans">
             Crie campanhas e editoriais completos. Selecione um template ou inicie do zero usando a inteligência artificial.
           </p>
         </div>
-        <button className="flex items-center justify-center gap-2 px-8 py-5 rounded-full bg-[#D94F2E] text-white font-bold text-xs uppercase tracking-[0.2em] hover:bg-white hover:text-[#131313] transition-all duration-700 shadow-[0_0_30px_rgba(217,79,46,0.15)] w-full md:w-auto active:scale-95">
+        <button className="flex items-center justify-center gap-2 px-8 py-5 rounded-full bg-[#7C0DF2] text-white font-bold text-xs uppercase tracking-[0.2em] hover:bg-white hover:text-[#131313] transition-all duration-700 shadow-[0_0_30px_rgba(124,13,242,0.2)] w-full md:w-auto active:scale-95">
           <Plus size={16} /> NOVO PROJETO
         </button>
       </div>
@@ -32,12 +32,12 @@ export default function StudioPageContent() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`pb-4 text-[11px] font-bold uppercase tracking-[0.2em] whitespace-nowrap transition-all relative ${
-              activeTab === tab.id ? 'text-[#D4FF00]' : 'text-white/40 hover:text-white/80'
+              activeTab === tab.id ? 'text-[#7C0DF2]' : 'text-white/40 hover:text-white/80'
             }`}
           >
             {tab.label}
             {activeTab === tab.id && (
-              <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#D4FF00] rounded-t-full shadow-[0_0_10px_#D4FF00]" />
+              <div className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-[#7C0DF2] rounded-t-full shadow-[0_0_10px_#7C0DF2]" />
             )}
           </button>
         ))}
@@ -56,19 +56,19 @@ export default function StudioPageContent() {
                 { title: 'Casting Virtual', icon: Sparkles, desc: 'Crie seu modelo consistente a partir de atributos.' },
               ].map((tpl, i) => (
                 <div key={i} className="group relative bg-[#131313] border border-white/5 hover:border-white/10 p-8 transition-all duration-700 cursor-pointer flex flex-col h-full min-h-[250px] overflow-hidden">
-                   <div className="absolute inset-0 bg-gradient-to-tr from-[#D94F2E]/0 to-[#D94F2E]/[0.05] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+                   <div className="absolute inset-0 bg-gradient-to-tr from-[#7C0DF2]/0 to-[#7C0DF2]/[0.05] opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
                    {tpl.tag && (
-                     <span className="absolute top-4 right-4 bg-[#D94F2E] text-white text-[8px] font-bold uppercase tracking-[0.3em] px-3 py-1.5 shadow-[0_0_15px_rgba(217,79,46,0.2)] z-10">
+                     <span className="absolute top-4 right-4 bg-[#7C0DF2] text-white text-[8px] font-bold uppercase tracking-[0.3em] px-3 py-1.5 shadow-[0_0_15px_rgba(124,13,242,0.3)] z-10">
                        {tpl.tag}
                      </span>
                    )}
-                   <div className="w-12 h-12 bg-white/5 border border-white/10 flex items-center justify-center text-white/50 group-hover:text-white group-hover:bg-[#D94F2E] mb-8 transition-all duration-700 group-hover:shadow-[0_0_20px_rgba(217,79,46,0.3)] z-10">
+                   <div className="w-12 h-12 bg-white/5 border border-white/10 flex items-center justify-center text-white/50 group-hover:text-white group-hover:bg-[#7C0DF2] mb-8 transition-all duration-700 group-hover:shadow-[0_0_20px_rgba(124,13,242,0.4)] z-10">
                      <tpl.icon size={20} />
                    </div>
                    <h3 className="text-xl font-bold font-display uppercase tracking-tight text-white mb-3 group-hover:text-white transition-colors z-10 italic">{tpl.title}</h3>
                    <p className="text-sm font-sans text-white/30 group-hover:text-white/50 leading-relaxed mb-6 flex-1 transition-colors z-10">{tpl.desc}</p>
                    
-                   <div className="flex items-center gap-2 text-[9px] font-bold text-white/20 uppercase tracking-[0.3em] group-hover:text-[#D94F2E] transition-all duration-500 z-10">
+                   <div className="flex items-center gap-2 text-[9px] font-bold text-white/20 uppercase tracking-[0.3em] group-hover:text-[#7C0DF2] transition-all duration-500 z-10">
                      INICIAR PROJETO <ArrowRightIcon className="w-3 h-3 group-hover:translate-x-2 transition-transform duration-500" />
                    </div>
                 </div>
@@ -89,12 +89,12 @@ export default function StudioPageContent() {
         {/* Generative Chat Assistant Sidebar */}
         <div className="lg:col-span-1 border border-white/5 bg-white/[0.02] backdrop-blur-3xl p-6 flex flex-col h-[600px] sticky top-8 group/chat">
            <div className="flex items-center gap-3 mb-6 pb-6 border-b border-white/5">
-             <div className="w-10 h-10 bg-[#D94F2E]/10 rounded-full flex items-center justify-center group-hover/chat:shadow-[0_0_15px_rgba(217,79,46,0.1)] transition-all duration-700">
-               <Sparkles size={16} className="text-[#D94F2E]" />
+             <div className="w-10 h-10 bg-[#7C0DF2]/10 rounded-full flex items-center justify-center group-hover/chat:shadow-[0_0_15px_rgba(124,13,242,0.2)] transition-all duration-700">
+               <Sparkles size={16} className="text-[#7C0DF2]" />
              </div>
              <div>
                <h3 className="text-[10px] font-bold text-white uppercase tracking-[0.3em]">Creative Copilot</h3>
-               <p className="text-[#D94F2E] text-[8px] uppercase tracking-[0.4em] font-mono mt-0.5 animate-pulse">Status: Online</p>
+               <p className="text-[#7C0DF2] text-[8px] uppercase tracking-[0.4em] font-mono mt-0.5 animate-pulse">Status: Online</p>
              </div>
            </div>
 
@@ -108,9 +108,9 @@ export default function StudioPageContent() {
              <input 
                type="text" 
                placeholder="Descreva a sua ideia ao Copilot..."
-               className="w-full bg-[#131313] border border-white/5 rounded-full px-6 py-4 pr-14 text-[13px] text-white placeholder-white/20 focus:outline-none focus:border-[#D94F2E]/40 transition-all duration-500 shadow-inner group-hover/chat:bg-black/40"
+               className="w-full bg-[#131313] border border-white/5 rounded-full px-6 py-4 pr-14 text-[13px] text-white placeholder-white/20 focus:outline-none focus:border-[#7C0DF2]/40 transition-all duration-500 shadow-inner group-hover/chat:bg-black/40"
              />
-             <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[#D94F2E] hover:text-white transition-all duration-500 p-2 bg-[#D94F2E]/10 hover:bg-[#D94F2E]/20 rounded-full">
+             <button className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7C0DF2] hover:text-white transition-all duration-500 p-2 bg-[#7C0DF2]/10 hover:bg-[#7C0DF2]/20 rounded-full">
                <Send size={16} />
              </button>
            </div>

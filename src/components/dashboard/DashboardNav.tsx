@@ -23,16 +23,16 @@ export default function DashboardNav() {
             href={href}
             className={`flex items-center gap-3 px-6 py-4 rounded-full font-bold uppercase tracking-[0.2em] text-[10px] transition-all duration-500 group relative ${
               isActive 
-                ? 'bg-[#D4FF00]/10 text-white border border-[#D4FF00]/20' 
+                ? 'bg-[#7C0DF2]/10 text-white border border-[#7C0DF2]/20' 
                 : 'text-white/30 hover:bg-white/5 hover:text-white'
             }`}
           >
             {isActive && (
-              <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-[#D4FF00] rounded-r-full shadow-[0_0_15px_rgba(212,255,0,0.5)] z-20" />
+              <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-[#7C0DF2] rounded-r-full shadow-[0_0_15px_rgba(124,13,242,0.5)] z-20" />
             )}
             <Icon 
               size={16} 
-              className={`transition-all duration-700 ${isActive ? 'text-[#D4FF00] scale-110' : 'group-hover:text-[#D4FF00] group-hover:scale-110'}`} 
+              className={`transition-all duration-700 ${isActive ? 'text-[#7C0DF2] scale-110' : 'group-hover:text-[#7C0DF2] group-hover:scale-110'}`} 
             />
             <span className="font-display">{label}</span>
           </Link>

@@ -41,7 +41,7 @@ export default function AddCreditsButton({ userId, currentCredits }: { userId: s
           key={n}
           onClick={() => add(n)}
           disabled={loading}
-          className="text-[10px] px-2 py-1 rounded bg-white/10 hover:bg-[#D94F2E]/30 hover:text-[#D94F2E] text-white/50 transition-colors disabled:opacity-40"
+          className="text-[10px] px-2 py-1 rounded bg-white/10 hover:bg-[#7C0DF2]/30 hover:text-[#7C0DF2] text-white/50 transition-colors disabled:opacity-40"
         >
           +{n}
         </button>

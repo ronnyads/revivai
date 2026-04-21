@@ -41,7 +41,7 @@ export default async function AdminOrders() {
                     {o.type === 'per_photo' ? 'Pay-per-foto' : o.type === 'subscription' ? 'Assinatura' : 'Pacote'}
                   </span>
                 </td>
-                <td className="px-6 py-4 font-semibold text-[#D94F2E]">{formatCurrency(o.amount)}</td>
+                <td className="px-6 py-4 font-semibold text-[#7C0DF2]">{formatCurrency(o.amount)}</td>
                 <td className="px-6 py-4">
                   <span className={`text-[10px] px-2.5 py-1 rounded-full font-medium ${
                     o.status === 'paid'    ? 'bg-green-500/20 text-green-400'

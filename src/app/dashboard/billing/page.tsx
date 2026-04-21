@@ -8,7 +8,7 @@ export default function BillingPage() {
       {/* Page Header */}
       <div className="bg-[#0F172A] border-b border-white/5 px-8 md:px-12 py-12 mb-10">
         <div className="max-w-7xl mx-auto">
-          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4FF00] mb-3">REVIVAI — PLANOS</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#7C0DF2] mb-3">RevivAI — PLANOS</p>
           <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-white font-display uppercase">Investimento <span className="text-white/20">Honesto</span></h1>
           <p className="text-sm text-white/50 mt-4 max-w-xl font-sans leading-relaxed">
             Sem contratos. Escolha o pacote de créditos que melhor se adapta ao seu volume. Faça upgrade, downgrade ou cancele a qualquer momento.
