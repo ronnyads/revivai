@@ -30,8 +30,7 @@ const FEATURES = [
 
 export default function Features() {
   return (
-      </div>
-
+    <section className="py-32 tonal-layer-0">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-6">
         {FEATURES.map((f, i) => (
           <div key={f.tag} className={`p-12 flex flex-col transition-all duration-700 group relative overflow-hidden cursor-default ${i % 2 === 0 ? 'tonal-layer-1' : 'tonal-layer-2'}`}>

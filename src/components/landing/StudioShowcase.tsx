@@ -32,10 +32,6 @@ export default function StudioShowcase() {
       </div>
 
       <div className="max-w-7xl mx-auto relative z-10 px-6 lg:px-20">
-        
-            QUALIDADE <br /><span className="text-white/10 text-5xl md:text-[6rem]">CINEMATOGRÁFICA</span>
-          </h2>
-        </div>
 
         {/* Studio Grid Asymmetric */}
         <div className="flex flex-col gap-32">
