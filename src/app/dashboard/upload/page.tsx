@@ -7,12 +7,14 @@ import Link from 'next/link'
 import UploadZone from '@/components/ui/UploadZone'
 import BeforeAfterSlider from '@/components/ui/BeforeAfterSlider'
 import { ArrowLeft, Sparkles, AlertCircle, ChevronDown } from 'lucide-react'
+import { useT } from '@/contexts/LanguageContext'
 
 type Step  = 'upload' | 'diagnosing' | 'restoring' | 'done' | 'error'
 type Mode  = { id: string; name: string; description: string; icon: string; model: string; example_before_url: string | null; example_after_url: string | null; badge: string | null }
 
 export default function UploadPage() {
   const router     = useRouter()
+  const t          = useT()
   const [step, setStep]           = useState<Step>('upload')
   const [file, setFile]           = useState<File | null>(null)
   const [diagnosis, setDiagnosis] = useState<{ label: string; description: string; icon: string; confidence: number; model: string } | null>(null)
@@ -151,8 +153,8 @@ export default function UploadPage() {
   return (
     <div className="min-h-screen bg-surface">
       <main className="max-w-4xl mx-auto px-6 py-10 md:py-14">
-        <h1 className="font-display text-5xl font-normal tracking-tight mb-1">Restaure sua foto antiga</h1>
-        <p className="text-muted text-sm mb-10">Escolha como quer restaurar — a IA cuida do resto em segundos.</p>
+        <h1 className="font-display text-5xl font-normal tracking-tight mb-1">{t('upload_title')}</h1>
+        <p className="text-muted text-sm mb-10">{t('upload_subtitle')}</p>
 
         {/* UPLOAD STEP */}
         {step === 'upload' && (
@@ -160,7 +162,7 @@ export default function UploadPage() {
             {/* Mode selection */}
             {modes.length > 0 && (
               <div className="mb-10">
-                <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-5">Qual é o tipo da sua foto?</p>
+                <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-5">{t('upload_mode_label')}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {modes.map(mode => {
                     const isSelected = selectedMode === mode.id
@@ -184,13 +186,13 @@ export default function UploadPage() {
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={mode.example_before_url!} alt="Antes" className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                              <span className="absolute bottom-3 left-3 text-[10px] font-bold text-white/90 tracking-[2px] uppercase">Antes</span>
+                              <span className="absolute bottom-3 left-3 text-[10px] font-bold text-white/90 tracking-[2px] uppercase">{t('upload_selected') === '✓ Selecionado' ? 'Antes' : 'Before'}</span>
                             </div>
                             <div className="relative bg-[#f0eeec] overflow-hidden flex items-center justify-center border-l-2 border-white">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={mode.example_after_url!} alt="Depois" className="max-w-full max-h-full object-contain group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                              <span className="absolute bottom-3 right-3 text-[10px] font-bold text-white/90 tracking-[2px] uppercase">Depois ✦</span>
+                              <span className="absolute bottom-3 right-3 text-[10px] font-bold text-white/90 tracking-[2px] uppercase">After ✦</span>
                             </div>
                             {/* Badge pill */}
                             {mode.badge && (
@@ -244,7 +246,7 @@ export default function UploadPage() {
               </div>
             )}
 
-            <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-4">Agora envie a foto</p>
+            <p className="text-xs font-semibold text-muted tracking-widest uppercase mb-4">{t('upload_send_label')}</p>
             <UploadZone onFile={f => setFile(f)} />
 
             {file && (
@@ -252,7 +254,7 @@ export default function UploadPage() {
                 onClick={handleRestore}
                 className="mt-5 w-full flex items-center justify-center gap-2 bg-accent text-white py-4 rounded-xl text-base font-medium hover:bg-accent-dark transition-all hover:-translate-y-0.5 shadow-lg shadow-accent/20"
               >
-                <Sparkles size={18} /> Restaurar foto →
+                <Sparkles size={18} /> {t('upload_btn')}
               </button>
             )}
           </>
@@ -264,8 +266,8 @@ export default function UploadPage() {
             <div className="w-16 h-16 rounded-full bg-accent-light flex items-center justify-center text-accent mx-auto mb-6 animate-pulse">
               <Sparkles size={24} />
             </div>
-            <h2 className="font-display text-3xl font-normal mb-2">Analisando imagem...</h2>
-            <p className="text-muted text-sm mb-8">Detectando resolução, cores e tipo de dano.</p>
+            <h2 className="font-display text-3xl font-normal mb-2">{t('upload_diag_title')}</h2>
+            <p className="text-muted text-sm mb-8">{t('upload_diag_sub')}</p>
             <div className="w-full bg-[#E8E8E8] rounded-full h-1.5">
               <div className="bg-accent h-1.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
             </div>
@@ -281,23 +283,23 @@ export default function UploadPage() {
             </div>
             {imageInfo && (
               <p className="text-xs text-muted mb-2 font-mono">
-                {imageInfo.width}×{imageInfo.height}px {imageInfo.isGrayscale ? '· Preto e branco' : '· Colorida'}
+                {imageInfo.width}×{imageInfo.height}px {imageInfo.isGrayscale ? `· ${t('upload_grayscale')}` : `· ${t('upload_color_img')}`}
               </p>
             )}
-            <h2 className="font-display text-3xl font-normal mb-2">Restaurando sua memória...</h2>
-            <p className="text-muted text-sm mb-6">{diagnosis.description || 'Processando com IA em 3 etapas...'}</p>
+            <h2 className="font-display text-3xl font-normal mb-2">{t('upload_restore_title')}</h2>
+            <p className="text-muted text-sm mb-6">{diagnosis.description || t('upload_restore_default')}</p>
 
             {/* Pipeline stage indicator */}
             {pipeline.length > 0 && (
               <div className="flex items-center justify-center flex-wrap gap-2 mb-6">
                 {pipeline.map((model, i) => {
                   const LABELS: Record<string, string> = {
-                    'microsoft/bringing-old-photos-back-to-life': '✂️ Danos',
-                    'megvii-research/nafnet':  '🔍 Desfoque',
-                    'jingyunliang/swinir':     '🗜️ JPEG',
-                    'nightmareai/real-esrgan': '📐 Upscale',
-                    'sczhou/codeformer':       '👤 Rostos',
-                    'piddnad/ddcolor':         '🎨 Cores',
+                    'microsoft/bringing-old-photos-back-to-life': t('pipe_damage'),
+                    'megvii-research/nafnet':  t('pipe_blur'),
+                    'jingyunliang/swinir':     t('pipe_jpeg'),
+                    'nightmareai/real-esrgan': t('pipe_upscale'),
+                    'sczhou/codeformer':       t('pipe_faces'),
+                    'piddnad/ddcolor':         t('pipe_color'),
                   }
                   const label = LABELS[model] || model.split('/')[1]
                   const currentStage = Math.floor(((progress - 35) / 55) * pipeline.length)
@@ -322,7 +324,7 @@ export default function UploadPage() {
             <div className="w-full bg-[#E8E8E8] rounded-full h-1.5 mb-3">
               <div className="bg-accent h-1.5 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
             </div>
-            <p className="text-xs text-muted mb-1">{progress}% concluído</p>
+            <p className="text-xs text-muted mb-1">{progress}{t('upload_progress_suffix')}</p>
             <p className="text-[11px] text-muted font-mono opacity-50">{diagnosis.model}</p>
           </div>
         )}
@@ -332,7 +334,7 @@ export default function UploadPage() {
           <div className="flex flex-col gap-6">
             <div className="bg-white rounded-2xl border border-[#E8E8E8] p-6">
               <div className="flex items-center gap-2 text-green-600 text-sm font-medium mb-5">
-                <span className="w-2 h-2 rounded-full bg-green-500" /> Restauração concluída!
+                <span className="w-2 h-2 rounded-full bg-green-500" /> {t('upload_done_label')}
               </div>
               <BeforeAfterSlider before={originalUrl} after={restoredUrl} />
             </div>
@@ -340,12 +342,12 @@ export default function UploadPage() {
             {colorizationUrl && (
               <div className="bg-white rounded-2xl border border-[#E8E8E8] p-6 mt-2">
                 <div className="flex items-center gap-2 text-amber-600 text-sm font-medium mb-4">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" /> Colorização concluída!
+                  <span className="w-2 h-2 rounded-full bg-amber-500" /> {t('upload_colorize_done')}
                 </div>
                 <BeforeAfterSlider before={restoredUrl} after={colorizationUrl} />
                 <a href={colorizationUrl} download target="_blank" rel="noreferrer"
                   className="mt-4 w-full flex items-center justify-center gap-2 bg-amber-500 text-white py-3 rounded-xl text-sm font-medium hover:bg-amber-600 transition-colors">
-                  ↓ Baixar foto colorizada
+                  {t('upload_download_colorized')}
                 </a>
               </div>
             )}
@@ -354,14 +356,14 @@ export default function UploadPage() {
             {colorizationSuggested && !colorizationUrl && (
               <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center justify-between gap-4">
                 <div>
-                  <p className="font-semibold text-amber-800 text-sm mb-1">🎨 Quer ver ela em cores?</p>
-                  <p className="text-amber-700 text-xs">A IA vai colorir sua foto restaurada preservando todos os detalhes originais.</p>
+                  <p className="font-semibold text-amber-800 text-sm mb-1">{t('upload_colorize_title')}</p>
+                  <p className="text-amber-700 text-xs">{t('upload_colorize_sub')}</p>
                 </div>
                 <button
                   onClick={handleColorize}
                   disabled={colorizing}
                   className="shrink-0 bg-amber-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-amber-600 transition-colors disabled:opacity-60 disabled:cursor-wait">
-                  {colorizing ? 'Colorindo...' : 'Colorizar — 1 crédito'}
+                  {colorizing ? t('upload_colorizing') : t('upload_colorize_btn')}
                 </button>
               </div>
             )}
@@ -369,12 +371,12 @@ export default function UploadPage() {
             <div className="flex gap-3">
               <a href={colorizationUrl || restoredUrl} download target="_blank" rel="noreferrer"
                 className="flex-1 flex items-center justify-center gap-2 bg-ink text-white py-3.5 rounded-xl text-sm font-medium hover:bg-accent transition-colors">
-                ↓ Baixar foto restaurada
+                {t('upload_download')}
               </a>
               <button
                 onClick={() => { setStep('upload'); setFile(null); setRestoredUrl(''); setOriginalUrl(''); setColorizationSuggested(false); setColorizationUrl(null) }}
                 className="flex-1 border border-[#E8E8E8] text-ink py-3.5 rounded-xl text-sm font-medium hover:border-accent hover:text-accent transition-colors">
-                Restaurar outra
+                {t('upload_restore_another')}
               </button>
             </div>
           </div>
@@ -384,12 +386,12 @@ export default function UploadPage() {
         {step === 'error' && (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-10 text-center">
             <AlertCircle size={32} className="text-red-500 mx-auto mb-4" />
-            <h2 className="font-display text-2xl font-normal mb-2 text-red-700">Algo deu errado</h2>
+            <h2 className="font-display text-2xl font-normal mb-2 text-red-700">{t('upload_error_title')}</h2>
             <p className="text-red-500 text-sm mb-6">{error}</p>
             <button
               onClick={() => { setStep('upload'); setFile(null) }}
               className="bg-ink text-white px-8 py-3 rounded-lg text-sm font-medium hover:bg-accent transition-colors">
-              Tentar novamente
+              {t('upload_error_retry')}
             </button>
           </div>
         )}

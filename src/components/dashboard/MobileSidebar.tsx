@@ -5,10 +5,13 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, X, Image as ImageIcon, Sparkles, CreditCard, Megaphone } from 'lucide-react'
 import LogoutButton from './LogoutButton'
+import { useT } from '@/contexts/LanguageContext'
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 
 export default function MobileSidebar({ userEmail, children }: { userEmail: string, children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
+  const t = useT()
 
   // Close sidebar on route change
   useEffect(() => {
@@ -29,9 +32,10 @@ export default function MobileSidebar({ userEmail, children }: { userEmail: stri
         <Link href="/dashboard" className="font-display text-xl font-semibold">
           reviv<span className="text-accent">.</span>ai
         </Link>
-        <div className="flex items-center gap-3">
-          {children} {/* Pass CreditBadge here */}
-          <button 
+        <div className="flex items-center gap-2">
+          {children}
+          <LanguageSwitcher compact />
+          <button
             onClick={() => setIsOpen(true)}
             className="p-1.5 text-ink hover:bg-surface rounded-md transition-colors"
           >
@@ -73,21 +77,20 @@ export default function MobileSidebar({ userEmail, children }: { userEmail: stri
         <div className="flex-1 overflow-y-auto py-6 px-4 flex flex-col gap-2">
           <Link href="/dashboard" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all ${pathname === '/dashboard' ? 'bg-surface text-ink' : 'text-muted hover:text-ink hover:bg-surface/50'}`}>
             <ImageIcon size={18} className={pathname === '/dashboard' ? 'text-accent' : ''} />
-            Minhas fotos
+            {t('nav_photos')}
           </Link>
           <Link href="/dashboard/upload" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all mt-2 ${pathname === '/dashboard/upload' ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'bg-ink text-white hover:bg-accent'}`}>
             <Sparkles size={18} />
-            Nova restauração
+            {t('nav_restore')}
           </Link>
           <Link href="/dashboard/studio" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all ${pathname.startsWith('/dashboard/studio') ? 'bg-surface text-ink' : 'text-muted hover:text-ink hover:bg-surface/50'}`}>
             <Megaphone size={18} className={pathname.startsWith('/dashboard/studio') ? 'text-accent' : ''} />
-            Ad Studio
-            <span className="ml-auto text-[10px] bg-accent text-white px-2 py-0.5 rounded-full leading-none">Novo</span>
+            {t('nav_studio')}
           </Link>
           <div className="my-3 border-b border-[#E8E8E8]" />
           <Link href="/dashboard/billing" className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all ${pathname === '/dashboard/billing' ? 'bg-surface text-ink' : 'text-muted hover:text-ink hover:bg-surface/50'}`}>
             <CreditCard size={18} />
-            Planos e Créditos
+            {t('nav_billing')}
           </Link>
         </div>
 
