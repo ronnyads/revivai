@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Clock, MoreVertical, Trash2, Copy, Loader2, Layers, Calendar } from 'lucide-react'
 import { StudioProject } from '@/types'
+import { useT, useLanguage } from '@/contexts/LanguageContext'
 
 interface Props {
   project: StudioProject
@@ -14,6 +15,8 @@ interface Props {
 
 export default function ProjectCard({ project, templateLabel, templateColor }: Props) {
   const router = useRouter()
+  const t = useT()
+  const { lang } = useLanguage()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDuplicating, setIsDuplicating] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -32,7 +35,7 @@ export default function ProjectCard({ project, templateLabel, templateColor }: P
   async function handleDelete(e: React.MouseEvent) {
     e.preventDefault()
     setMenuOpen(false)
-    if (!confirm('Excluir este projeto permanentemente?')) return
+    if (!confirm(t('studio_card_delete_confirm'))) return
 
     setIsDeleting(true)
     try {
@@ -40,7 +43,7 @@ export default function ProjectCard({ project, templateLabel, templateColor }: P
       if (!res.ok) throw new Error()
       router.refresh()
     } catch {
-      alert('Erro ao excluir projeto.')
+      alert(t('studio_card_delete_error'))
       setIsDeleting(false)
     }
   }
@@ -54,7 +57,7 @@ export default function ProjectCard({ project, templateLabel, templateColor }: P
       if (!res.ok) throw new Error()
       router.refresh()
     } catch {
-      alert('Erro ao duplicar projeto.')
+      alert(t('studio_card_duplicate_error'))
     } finally {
       setIsDuplicating(false)
     }
@@ -88,13 +91,13 @@ export default function ProjectCard({ project, templateLabel, templateColor }: P
                 onClick={handleDuplicate}
                 className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white rounded-xl transition-colors"
               >
-                <Copy size={14} className="text-indigo-400" /> Duplicar Projeto
+                <Copy size={14} className="text-indigo-400" /> {t('studio_card_duplicate')}
               </button>
               <button
                 onClick={handleDelete}
                 className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition-colors"
               >
-                <Trash2 size={14} /> Excluir permanentemente
+                <Trash2 size={14} /> {t('studio_card_delete')}
               </button>
             </div>
           )}
@@ -107,7 +110,7 @@ export default function ProjectCard({ project, templateLabel, templateColor }: P
             </div>
             <div>
               <h3 className="text-lg font-bold text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-zinc-500 transition-all truncate max-w-[150px]">
-                {project.title || 'Sem título'}
+                {project.title || t('studio_card_untitled')}
               </h3>
               <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
                 {templateLabel}
@@ -117,14 +120,14 @@ export default function ProjectCard({ project, templateLabel, templateColor }: P
 
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-zinc-950/50 rounded-2xl p-3 border border-zinc-800 group-hover:border-zinc-700/50 transition-colors">
-              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1">Conteúdo</p>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1">{t('studio_card_content')}</p>
               <p className="text-sm font-bold text-white">{project.asset_count} cards</p>
             </div>
             <div className="bg-zinc-950/50 rounded-2xl p-3 border border-zinc-800 group-hover:border-zinc-700/50 transition-colors">
-              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1">Criado em</p>
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mb-1">{t('studio_card_created')}</p>
               <div className="flex items-center gap-1.5 text-sm font-bold text-white">
                 <Calendar size={12} className="text-zinc-500" />
-                {new Date(project.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                {new Date(project.created_at).toLocaleDateString(lang === 'en' ? 'en-US' : lang === 'es' ? 'es-ES' : 'pt-BR', { day: '2-digit', month: '2-digit' })}
               </div>
             </div>
           </div>
