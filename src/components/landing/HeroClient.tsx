@@ -32,9 +32,9 @@ export default function HeroClient({ stats }: { stats: Stats }) {
       <section className="relative px-6 md:px-20 pt-40 pb-20 min-h-[95vh] overflow-hidden flex flex-col justify-center bg-[#131315]">
         {/* Editorial Grid Background */}
         <div 
-          className="absolute inset-0 pointer-events-none opacity-[0.03]" 
+          className="absolute inset-0 pointer-events-none opacity-[0.02]" 
           style={{ 
-            backgroundImage: 'linear-gradient(#D4FF00 1px, transparent 1px), linear-gradient(90deg, #D4FF00 1px, transparent 1px)',
+            backgroundImage: 'linear-gradient(#D94F2E 1px, transparent 1px), linear-gradient(90deg, #D94F2E 1px, transparent 1px)',
             backgroundSize: '120px 120px'
           }} 
         />
@@ -50,15 +50,15 @@ export default function HeroClient({ stats }: { stats: Stats }) {
           <div className="flex flex-col items-center text-center max-w-5xl mx-auto">
             
             <div className="inline-flex items-center gap-3 mb-10 bg-white/5 border border-white/10 px-4 py-1.5 backdrop-blur-md">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#D4FF00] animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#D94F2E] animate-pulse" />
               <span className="text-[9px] font-bold uppercase tracking-[0.4em] text-white/60">
-                LANÇAMENTO ETHEREAL PULSE V2.0
+                PROXIMA GERAÇÃO: CINEMA CORE V3
               </span>
             </div>
 
-            <h1 className="text-6xl md:text-[7rem] font-bold leading-[0.9] tracking-tighter mb-10 font-display uppercase">
-              SEU ESTÚDIO VISUAL <br />
-              <span className="text-[#D4FF00]">COM IA PARA MODA</span>
+            <h1 className="text-6xl md:text-[7rem] font-bold leading-[0.9] tracking-tighter mb-10 font-display uppercase italic">
+              SEU ESTÚDIO <span className="text-[#D94F2E]">CINEMATOGRÁFICO</span> <br />
+              <span className="text-white/20">DO SEU JEITO</span>
             </h1>
 
             <p className="text-lg md:text-2xl font-light leading-relaxed mb-14 max-w-3xl text-white/50 font-sans">
@@ -69,7 +69,7 @@ export default function HeroClient({ stats }: { stats: Stats }) {
             <div className="flex flex-wrap justify-center gap-8 items-center">
               <a
                 href="/dashboard/studio"
-                className="group relative px-12 py-6 rounded-full bg-[#D4FF00] text-[#131315] font-bold text-xs tracking-[0.3em] uppercase hover:bg-white transition-all duration-700 shadow-[0_0_30px_rgba(212,255,0,0.15)] hover:shadow-[0_0_40px_rgba(255,255,255,0.2)]"
+                className="group relative px-12 py-6 rounded-full bg-[#D94F2E] text-white font-bold text-xs tracking-[0.3em] uppercase hover:bg-white hover:text-[#131313] transition-all duration-700 shadow-[0_0_30px_rgba(217,79,46,0.15)] hover:shadow-[0_0_40px_rgba(255,255,255,0.1)]"
               >
                 CRIAR MEU PRIMEIRO LOOK
               </a>
@@ -96,7 +96,7 @@ export default function HeroClient({ stats }: { stats: Stats }) {
               { count: stats.avgTime,      suffix: 's', label: 'Delivery' },
             ].map(({ count, suffix, label }, i) => (
               <div key={label} className="flex flex-col items-center md:items-start group">
-                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4FF00]/40 mb-3 group-hover:text-[#D4FF00] transition-colors">{label}</span>
+                 <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#D94F2E]/40 mb-3 group-hover:text-[#D94F2E] transition-colors">{label}</span>
                 <div className="flex items-baseline gap-1">
                    <span className="text-5xl font-bold font-display text-white" data-count={count} data-suffix={suffix}>0</span>
                 </div>
