@@ -31,12 +31,13 @@ export default function DashboardContent() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         
         {/* Call to action "Add Photo" Card */}
-        <a href="/dashboard/upload" className="group flex flex-col items-center justify-center p-12 bg-[#1E293B]/30 border border-white/5 hover:border-[#D4FF00]/50 border-dashed transition-all duration-500 min-h-[400px]">
-          <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-[#D4FF00]/10 group-hover:border-[#D4FF00]/20 transition-all duration-500">
-             <Camera size={24} className="text-white/50 group-hover:text-[#D4FF00] transition-colors" />
+        <a href="/dashboard/upload" className="group flex flex-col items-center justify-center p-12 bg-white/5 border border-white/10 hover:border-[#D4FF00]/60 border-dashed transition-all duration-500 min-h-[400px] hover:bg-[#D4FF00]/5 relative overflow-hidden backdrop-blur-sm">
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#D4FF00]/0 via-[#D4FF00]/0 to-[#D4FF00]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          <div className="w-16 h-16 rounded-full bg-[#131315] border border-white/10 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:border-[#D4FF00]/40 transition-all duration-700 shadow-[0_0_40px_rgba(212,255,0,0)] group-hover:shadow-[0_0_40px_rgba(212,255,0,0.15)] relative z-10">
+             <Camera size={24} className="text-white/50 group-hover:text-[#D4FF00] transition-colors duration-500" />
           </div>
-          <h3 className="text-lg font-bold text-white uppercase tracking-widest mb-2 font-display">Pronto para mais?</h3>
-          <p className="text-xs text-white/40 text-center uppercase tracking-wider font-sans">
+          <h3 className="text-lg font-bold text-white uppercase tracking-widest mb-3 font-display relative z-10">Pronto para mais?</h3>
+          <p className="text-[11px] text-white/40 text-center uppercase tracking-[0.2em] font-sans relative z-10 leading-relaxed">
             Transforme antigas fotos usando <br/> seus 50 créditos disponíveis
           </p>
         </a>
@@ -44,17 +45,17 @@ export default function DashboardContent() {
         {GALLERY.map((item) => (
           <div 
             key={item.id}
-            className="group relative bg-[#0F172A] border border-white/5 overflow-hidden transition-all duration-500 min-h-[400px]"
+            className="group relative bg-[#131315] border border-white/5 overflow-hidden transition-all duration-700 min-h-[400px] hover:border-white/10 cursor-pointer"
             onMouseEnter={() => setHoverId(item.id)}
             onMouseLeave={() => setHoverId(null)}
           >
             {/* Image */}
             <div className="absolute inset-0 overflow-hidden">
-               <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/40 to-transparent z-10 opacity-80" />
+               <div className="absolute inset-0 bg-gradient-to-t from-[#131315] via-[#131315]/60 to-transparent z-10 opacity-90 group-hover:opacity-75 transition-opacity duration-700" />
                <img 
                  src={item.img} 
                  alt={item.title}
-                 className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105 opacity-60 group-hover:opacity-100"
+                 className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110 opacity-70 group-hover:opacity-100"
                />
             </div>
 

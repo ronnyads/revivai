@@ -52,11 +52,12 @@ export default function StudioShowcase() {
                 </p>
              </div>
              
-             <div className="w-full lg:w-[400px] aspect-[3/4] bg-[#201f22] relative group overflow-hidden border border-white/10">
-                <div className="absolute inset-0 bg-gradient-to-t from-[#131315] to-transparent opacity-60" />
-                <div className="absolute bottom-8 left-8 right-8">
-                   <p className="text-[10px] font-bold text-[#D4FF00] tracking-[0.3em] uppercase mb-2">SAMPLE 01</p>
-                   <p className="text-white font-bold tracking-widest uppercase">SUMMER EDITORIAL</p>
+             <div className="w-full lg:w-[400px] aspect-[3/4] bg-white/5 backdrop-blur-xl relative group overflow-hidden border border-white/5 hover:border-[#D4FF00]/40 transition-all duration-1000 cursor-pointer shadow-[0_0_40px_rgba(0,0,0,0.5)] hover:shadow-[0_0_60px_rgba(212,255,0,0.05)]">
+                <div className="absolute inset-0 bg-gradient-to-t from-[#131315] via-[#131315]/40 to-transparent opacity-80 group-hover:opacity-60 transition-opacity duration-1000" />
+                <div className="absolute inset-0 bg-gradient-to-tr from-[#D4FF00]/0 to-[#D4FF00]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+                <div className="absolute bottom-8 left-8 right-8 z-10 transform group-hover:-translate-y-2 transition-transform duration-700">
+                   <p className="text-[10px] font-bold text-[#D4FF00] tracking-[0.3em] uppercase mb-2 shadow-black/50 drop-shadow-md">SAMPLE 01</p>
+                   <p className="text-white font-bold tracking-widest uppercase shadow-black/50 drop-shadow-md">SUMMER EDITORIAL</p>
                 </div>
              </div>
           </div>
@@ -84,12 +85,13 @@ export default function StudioShowcase() {
                 </div>
              </div>
              
-             <div className="w-full lg:w-[400px] aspect-[4/3] bg-[#201f22] relative border border-white/10 flex items-center justify-center">
-                <div className="w-24 h-24 border border-white/5 flex items-center justify-center">
-                   <Plus size={32} className="text-white/10" />
+             <div className="w-full lg:w-[400px] aspect-[4/3] bg-white/5 backdrop-blur-xl relative border border-white/5 flex items-center justify-center group overflow-hidden hover:border-[#D4FF00]/40 transition-all duration-1000 cursor-pointer">
+                <div className="absolute inset-0 bg-gradient-to-tr from-[#D4FF00]/0 to-[#D4FF00]/10 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none z-0" />
+                <div className="w-24 h-24 border border-white/5 flex items-center justify-center group-hover:border-[#D4FF00]/50 transition-colors duration-700 group-hover:scale-110 group-hover:bg-[#D4FF00]/5 z-10 relative">
+                   <Plus size={32} className="text-white/20 group-hover:text-[#D4FF00] transition-colors duration-700" />
                 </div>
-                <div className="absolute bottom-8 left-8">
-                   <p className="text-[10px] font-bold text-white/40 tracking-[0.3em] uppercase">VIRTUAL ATELIER</p>
+                <div className="absolute bottom-8 left-8 z-10 transform group-hover:translate-x-2 transition-transform duration-700">
+                   <p className="text-[10px] font-bold text-white/40 group-hover:text-[#D4FF00] tracking-[0.3em] uppercase transition-colors duration-700">VIRTUAL ATELIER</p>
                 </div>
              </div>
           </div>

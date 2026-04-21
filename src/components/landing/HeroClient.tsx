@@ -69,16 +69,16 @@ export default function HeroClient({ stats }: { stats: Stats }) {
             <div className="flex flex-wrap justify-center gap-8 items-center">
               <a
                 href="/dashboard/studio"
-                className="group relative px-12 py-5 bg-[#D4FF00] text-[#131315] font-bold text-xs tracking-[0.3em] uppercase hover:bg-white transition-all duration-500"
+                className="group relative px-12 py-6 rounded-full bg-[#D4FF00] text-[#131315] font-bold text-xs tracking-[0.3em] uppercase hover:bg-white transition-all duration-700 shadow-[0_0_30px_rgba(212,255,0,0.15)] hover:shadow-[0_0_40px_rgba(255,255,255,0.2)]"
               >
                 CRIAR MEU PRIMEIRO LOOK
               </a>
               
               <a
                 href="#demo"
-                className="group flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-white/60 hover:text-white transition-colors"
+                className="group flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-white/60 hover:text-[#D4FF00] transition-colors duration-500"
               >
-                VER DEMO <ArrowRight size={16} className="text-[#D4FF00] group-hover:translate-x-2 transition-transform" />
+                VER DEMO <ArrowRight size={16} className="text-[#D4FF00] group-hover:translate-x-3 transition-transform duration-700" />
               </a>
             </div>
           </div>

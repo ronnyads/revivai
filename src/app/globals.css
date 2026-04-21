@@ -86,7 +86,7 @@ body {
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #06070F; }
-::-webkit-scrollbar-thumb { background: #2D7EFF; border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #D4FF00; border-radius: 3px; }
 
 /* ── Space / Futuristic Animations ── */
 @keyframes gridPulse {

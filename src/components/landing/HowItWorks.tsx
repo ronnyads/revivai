@@ -19,15 +19,16 @@ export default function Economics() {
           </p>
         </div>
 
-        <div className="w-full lg:w-[500px]">
-          <div className="bg-[#201f22] border border-white/10 p-10 relative">
+        <div className="w-full lg:w-[500px] hover:scale-[1.02] transition-transform duration-1000">
+          <div className="bg-white/5 backdrop-blur-2xl border border-white/5 p-10 relative overflow-hidden group">
+             <div className="absolute inset-0 bg-gradient-to-br from-[#D4FF00]/0 via-[#D4FF00]/0 to-[#D4FF00]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 z-0" />
              <div className="absolute -top-3 -right-3 z-20">
-               <span className="bg-[#D4FF00] text-[#131315] text-[9px] font-bold uppercase tracking-[0.3em] px-4 py-2 shadow-lg">
+               <span className="bg-[#D4FF00] text-[#131315] text-[9px] font-bold uppercase tracking-[0.3em] px-4 py-2 shadow-[0_0_20px_rgba(212,255,0,0.2)] block">
                  ESTIMATIVA LOCAL
                </span>
              </div>
              
-             <h3 className="text-white font-bold font-display tracking-widest uppercase mb-8 pb-4 border-b border-white/10">Custos Tradicionais</h3>
+             <h3 className="text-white font-bold font-display tracking-widest uppercase mb-8 pb-4 border-b border-white/5 relative z-10">Custos Tradicionais</h3>
              
              <div className="space-y-6">
                 <div className="flex justify-between items-center text-sm">
@@ -44,14 +45,14 @@ export default function Economics() {
                 </div>
              </div>
 
-             <div className="mt-8 pt-8 border-t border-white/10 flex justify-between items-end">
-                <span className="text-xs text-white/40 font-bold uppercase tracking-widest">Custo Tradicional</span>
-                <span className="text-3xl text-white font-display font-bold tracking-tighter">R$ 28.000</span>
+             <div className="mt-8 pt-8 border-t border-white/5 flex justify-between items-end relative z-10">
+                <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Custo Tradicional</span>
+                <span className="text-3xl text-white font-display font-bold tracking-tighter decoration-white/20 line-through">R$ 28.000</span>
              </div>
              
-             <div className="mt-6 p-4 bg-[#D4FF00]/10 border border-[#D4FF00]/20 flex justify-between items-center">
-                <span className="text-xs text-[#D4FF00] font-bold uppercase tracking-widest">Custo RevivAI</span>
-                 <span className="text-xl text-[#D4FF00] font-display font-bold tracking-tighter">R$ 149</span>
+             <div className="mt-6 p-6 bg-white/5 backdrop-blur-md border border-white/10 flex justify-between items-center relative z-10 hover:border-[#D4FF00]/40 hover:bg-[#D4FF00]/5 transition-all duration-700 w-full rounded-none">
+                <span className="text-xs text-[#D4FF00] font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(212,255,0,0)] group-hover:shadow-[0_0_20px_rgba(212,255,0,0.1)]">Custo revivAI</span>
+                 <span className="text-2xl text-[#D4FF00] font-display font-bold tracking-tighter">R$ 149</span>
              </div>
           </div>
         </div>

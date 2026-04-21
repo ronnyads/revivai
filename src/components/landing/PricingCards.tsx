@@ -85,13 +85,14 @@ export default function PricingCards({ prices }: { prices: Prices }) {
           return (
             <div
               key={plan.id}
-              className={`relative flex flex-col p-10 group transition-all duration-700 bg-[#201f22] border ${
-                plan.popular ? 'border-[#D4FF00]' : 'border-white/5'
+              className={`relative flex flex-col p-10 group transition-all duration-700 bg-white/5 backdrop-blur-[2px] border ${
+                plan.popular ? 'border-[#D4FF00]/40 shadow-[0_0_40px_rgba(212,255,0,0.05)]' : 'border-white/5 hover:border-white/10 hover:bg-white/10'
               }`}
             >
+              <div className="absolute inset-0 bg-gradient-to-tr from-[#D4FF00]/0 via-[#D4FF00]/0 to-[#D4FF00]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
               {plan.popular && (
                 <div className="absolute -top-3 left-10">
-                  <span className="bg-[#D4FF00] text-[#131315] text-[9px] font-bold uppercase tracking-[0.3em] px-4 py-1.5">
+                  <span className="bg-[#D4FF00] text-[#131315] text-[9px] font-bold uppercase tracking-[0.3em] px-4 py-1.5 shadow-[0_0_20px_rgba(212,255,0,0.3)]">
                     RECOMENDADO
                   </span>
                 </div>
@@ -129,15 +130,15 @@ export default function PricingCards({ prices }: { prices: Prices }) {
               <button
                 onClick={() => handleCheckout(plan.id)}
                 disabled={loading === plan.id}
-                className={`group/btn relative w-full py-5 text-[10px] font-bold uppercase tracking-[0.3em] transition-all duration-500 overflow-hidden flex items-center justify-center gap-3 ${
+                className={`group/btn relative w-full py-5 text-[10px] font-bold uppercase tracking-[0.3em] transition-all duration-700 overflow-hidden flex items-center justify-center gap-3 rounded-full ${
                   plan.popular
-                    ? 'bg-[#D4FF00] text-[#131315] hover:bg-white'
-                    : 'bg-white/5 text-white hover:bg-white/10'
+                    ? 'bg-[#D4FF00] text-[#131315] hover:bg-white shadow-[0_0_20px_rgba(212,255,0,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]'
+                    : 'bg-white/5 text-white hover:bg-white/10 backdrop-blur-md border border-white/5'
                 }`}
               >
                 {loading === plan.id ? 'PROCESSANDO...' : (
                   <>
-                    SELECIONAR <ArrowRight size={14} className="group-hover/btn:translate-x-2 transition-transform" />
+                    SELECIONAR <ArrowRight size={14} className="group-hover/btn:translate-x-2 transition-transform duration-500" />
                   </>
                 )}
               </button>

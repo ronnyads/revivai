@@ -42,32 +42,31 @@ export default function HomePage() {
         </Suspense>
 
         {/* CTA Banner — Neo-Couture Synthesis Style */}
-        <section className="py-32 px-6">
-          <div className="max-w-7xl mx-auto relative overflow-hidden bg-[#201f22] border border-white/5 p-12 md:p-24 text-center">
+        <section className="py-40 px-6">
+          <div className="max-w-7xl mx-auto relative overflow-hidden bg-white/[0.02] backdrop-blur-3xl border border-white/5 p-16 md:p-32 text-center group">
             {/* Visual Accents */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#D4FF00] opacity-5 blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#D4FF00] opacity-5 blur-[120px] pointer-events-none" />
+            <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[#D4FF00]/10 blur-[150px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[#D4FF00]/5 blur-[150px] pointer-events-none" />
             
             <div className="relative z-10 max-w-4xl mx-auto">
-              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#D4FF00] mb-8">
-                PRONTO PARA O PRÓXIMO NÍVEL?
+              <p className="text-[9px] font-bold uppercase tracking-[0.5em] text-[#D4FF00] mb-10 shadow-[0_0_15px_rgba(212,255,0,0.2)] inline-block">
+                ETHEREAL PERFORMANCE
               </p>
               
-              <h2 className="text-5xl md:text-[5rem] font-bold font-display uppercase tracking-tighter leading-[0.9] mb-10">
-                CRIE CONTEÚDO QUE <br />
-                <span className="text-white/20">CONVERTE DE VERDADE</span>
+              <h2 className="text-5xl md:text-[6rem] font-bold font-display uppercase tracking-[-0.04em] leading-[0.85] mb-12">
+                TRANSFORME VISÕES EM <br />
+                <span className="text-white/20">REALIDADE DIGITAL</span>
               </h2>
               
-              <p className="text-lg md:text-xl text-white/40 mb-12 max-w-2xl mx-auto font-sans">
-                Junte-se a centenas de marcas que já escalaram sua produção visual 
-                usando o Reviv.ai Studio.
+              <p className="text-lg md:text-xl text-white/30 mb-16 max-w-xl mx-auto font-sans leading-relaxed">
+                A tecnologia que as marcas do futuro usam para escalar sua presença visual com o Reviv.ai Studio.
               </p>
-
+ 
               <a
                 href="/dashboard/studio"
-                className="inline-flex items-center gap-3 px-12 py-5 bg-[#D4FF00] text-[#131315] font-bold text-xs uppercase tracking-[0.2em] hover:bg-white transition-all duration-500"
+                className="inline-flex items-center gap-4 px-16 py-6 rounded-full bg-[#D4FF00] text-[#131315] font-bold text-xs uppercase tracking-[0.3em] hover:bg-white transition-all duration-700 shadow-[0_0_40px_rgba(212,255,0,0.15)] hover:shadow-[0_0_50px_rgba(255,255,255,0.2)]"
               >
-                ACESSAR O STUDIO <ArrowRight size={16} />
+                COMEÇAR AGORA <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform duration-500" />
               </a>
             </div>
           </div>

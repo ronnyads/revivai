@@ -41,26 +41,28 @@ export default function Features() {
         </h2>
       </div>
 
-      {/* Feature Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-white/5 border-y border-white/5">
         {FEATURES.map((f) => (
-          <div key={f.tag} className="bg-[#131315] p-12 flex flex-col hover:bg-[#201f22] transition-all duration-700 group">
-            <div className="w-12 h-12 flex items-center justify-center text-[#D4FF00] mb-10 group-hover:scale-110 transition-transform">
+          <div key={f.tag} className="bg-[#131315] p-12 flex flex-col hover:bg-white/[0.02] transition-all duration-700 group relative overflow-hidden cursor-default">
+            {/* Ambient Hover Glow */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#D4FF00]/0 via-[#D4FF00]/0 to-[#D4FF00]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+            
+            <div className="w-12 h-12 flex items-center justify-center text-[#D4FF00] mb-10 group-hover:scale-110 group-hover:drop-shadow-[0_0_15px_rgba(212,255,0,0.3)] transition-all duration-700 relative z-10">
                {f.icon}
             </div>
             
-            <span className="text-[9px] font-bold text-[#D4FF00]/60 tracking-[0.3em] uppercase mb-6">
+            <span className="text-[9px] font-bold text-[#D4FF00]/60 tracking-[0.4em] uppercase mb-6 relative z-10 transition-colors group-hover:text-[#D4FF00]">
               {f.tag}
             </span>
             
-            <h3 className="font-display text-2xl font-bold uppercase tracking-tight leading-tight mb-6 text-white group-hover:text-[#D4FF00] transition-colors">
+            <h3 className="font-display text-2xl font-bold uppercase tracking-tight leading-tight mb-6 text-white group-hover:text-white transition-colors relative z-10">
               {f.title}
             </h3>
             
-            <p className="text-sm text-white/40 leading-relaxed mb-10 font-sans">{f.desc}</p>
+            <p className="text-sm text-white/40 leading-relaxed mb-10 font-sans relative z-10 group-hover:text-white/60 transition-colors duration-500">{f.desc}</p>
             
-            <div className="mt-auto">
-               <div className="w-8 h-px bg-white/10 group-hover:w-full group-hover:bg-[#D4FF00] transition-all duration-700" />
+            <div className="mt-auto relative z-10">
+               <div className="w-8 h-px bg-white/10 group-hover:w-full group-hover:bg-[#D4FF00]/40 transition-all duration-1000 ease-in-out" />
             </div>
           </div>
         ))}

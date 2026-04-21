@@ -21,20 +21,20 @@ export default function DashboardNav() {
           <Link
             key={href}
             href={href}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all group relative ${
+            className={`flex items-center gap-3 px-6 py-4 rounded-full font-bold uppercase tracking-[0.2em] text-[10px] transition-all duration-500 group relative ${
               isActive 
-                ? 'bg-white/10 text-white' 
-                : 'text-white/50 hover:bg-white/5 hover:text-white'
+                ? 'bg-[#D4FF00]/10 text-white border border-[#D4FF00]/20' 
+                : 'text-white/30 hover:bg-white/5 hover:text-white'
             }`}
           >
             {isActive && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#D4FF00] rounded-r-full shadow-[0_0_10px_#D4FF00]" />
+              <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-[#D4FF00] rounded-r-full shadow-[0_0_15px_rgba(212,255,0,0.5)] z-20" />
             )}
             <Icon 
-              size={18} 
-              className={`transition-colors ${isActive ? 'text-[#D4FF00]' : 'group-hover:text-[#D4FF00]'}`} 
+              size={16} 
+              className={`transition-all duration-700 ${isActive ? 'text-[#D4FF00] scale-110' : 'group-hover:text-[#D4FF00] group-hover:scale-110'}`} 
             />
-            <span className="text-sm font-sans tracking-wide">{label}</span>
+            <span className="font-display">{label}</span>
           </Link>
         )
       })}

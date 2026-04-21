@@ -72,7 +72,7 @@ export default function Navbar() {
             </Link>
             <Link
               href="/#pricing"
-              className="px-6 py-3 bg-white text-[#131315] text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-[#D4FF00] transition-all duration-300"
+              className="px-8 py-3 rounded-full bg-[#D4FF00] text-[#131315] text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white transition-all duration-300 shadow-[0_0_20px_rgba(212,255,0,0.15)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]"
             >
               COMEÇAR AGORA
             </Link>
@@ -109,7 +109,7 @@ export default function Navbar() {
              <Link href="/auth/login" className="text-xl font-medium text-white/50" onClick={() => setMenuOpen(false)}>Entrar</Link>
              <Link
                 href="/#pricing"
-                className="w-full py-5 bg-[#D4FF00] text-[#131315] text-center font-bold uppercase tracking-[0.2em]"
+                className="w-full py-5 rounded-full bg-[#D4FF00] text-[#131315] text-center font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(212,255,0,0.1)] active:scale-95 transition-transform"
                 onClick={() => setMenuOpen(false)}
              >
                 COMEÇAR AGORA
