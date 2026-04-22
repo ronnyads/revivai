@@ -2258,7 +2258,7 @@ export async function generatePresetIdentityScene(params: {
     'RULE 3 — ANATOMY: Foto única. Os 2 braços completamente visíveis e anatomicamente corretos — exatamente 2 braços, 2 mãos, 5 dedos cada.',
     'RULE 4 — POSE/POSITION LOCK: Copie a pose, posição corporal, gesto, direção do olhar, distância da câmera e ângulo do template scene. Não mude pose, perspectiva, lente ou enquadramento.',
     'RULE 5 — LIGHTING: Iluminação comercial cinematográfica, profundidade de campo natural, bokeh suave.',
-    'RULE 6 — CAMERA: Preserve a câmera e lente aparentes da cena-base; não rotacione, aproxime, afaste ou mude o ângulo.',
+    'RULE 6 — CAMERA & QUALITY: Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, film grain, 8K, ultra-detailed commercial photography. NEGATIVE: não rotacione, não aproxime, não afaste, não mude o ângulo, perspectiva, pose, roupa, composição, fundo, lente aparente ou enquadramento da cena-base.',
   ].join(' ')
 
   const templatePreservationBlock = [
@@ -2273,6 +2273,7 @@ export async function generatePresetIdentityScene(params: {
     'Não corte personagens secundários.',
     'Não troque o fundo por outro ambiente.',
     'Não mude pose, ângulo, perspectiva, lente, zoom, rotação, altura da câmera ou posição dos personagens.',
+    'NEGATIVE PROMPT: sem nova pose, sem novo figurino, sem nova câmera, sem novo fundo, sem retrato de estúdio, sem crop diferente, sem zoom diferente, sem mudar distância focal aparente, sem simplificar a cena.',
     'Não transforme a saída em foto solo de estúdio, floresta ou fundo neutro se a cena-base for uma selfie urbana com personagens.',
     'Se a cena-base for selfie, mantenha a lógica de selfie, braço estendido e perspectiva de câmera em primeira pessoa.',
     'A cena final deve parecer a mesma foto-base, porém com a pessoa principal trocada pela identidade de person[1].',
@@ -2292,6 +2293,7 @@ export async function generatePresetIdentityScene(params: {
     'Do not generate a new generic portrait.',
     'Do not improvise a new pose unrelated to the template scene.',
     'Do not output a solo subject if the template scene contains multiple characters or a specific cinematic setup.',
+    'Quality pass: Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, subtle film grain, 8K commercial detail. Negative prompt: do not change camera angle, apparent lens, zoom distance, pose, outfit source, composition, background, secondary characters, framing or perspective.',
     'Make the replacement look naturally integrated and commercially photorealistic.',
     `ADDITIONAL CREATIVE DIRECTION: ${params.scene_prompt}.`,
     ratioInstruction,
@@ -2362,6 +2364,8 @@ export async function generatePresetIdentityScene(params: {
           `Use the reference person as the main subject and preserve face, age, skin tone, hair, body proportions and identity as closely as possible.`,
           ...fallbackOutfitInstructions,
           `Hard lock the preset scene pose and camera: keep the same pose, body position, gesture, camera angle, perspective, lens feeling, framing, zoom distance, environment, background, secondary characters, objects and storytelling.`,
+          `Quality pass: Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, subtle film grain, 8K commercial detail.`,
+          `Negative prompt: do not change camera angle, apparent lens, zoom distance, pose, outfit source, composition, background, secondary characters, framing or perspective.`,
           ratioInstruction,
           `Natural lighting, correct shadows, realistic perspective, no watermark.`,
         ].join(' '),
