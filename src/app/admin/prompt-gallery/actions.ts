@@ -24,6 +24,7 @@ function collectGenerationFields(formData: FormData) {
     credit_cost: Number(formData.get('credit_cost') ?? 12) || 12,
     usage_label: String(formData.get('usage_label') ?? '').trim(),
     identity_lock: formData.get('identity_lock') === 'true',
+    outfit_source: formData.get('outfit_source') === 'template' ? 'template' : 'identity',
   }
 }
 
@@ -159,6 +160,7 @@ export async function duplicatePromptTemplate(id: string) {
     credit_cost: Number(existing.credit_cost ?? 12) || 12,
     usage_label: String(existing.usage_label ?? '').trim(),
     identity_lock: Boolean(existing.identity_lock ?? true),
+    outfit_source: String(existing.outfit_source ?? 'identity') === 'template' ? 'template' : 'identity',
     updated_at: new Date().toISOString(),
   })
 
@@ -296,6 +298,7 @@ export async function seedPromptTemplates() {
       credit_cost: item.creditCost,
       usage_label: item.usageLabel,
       identity_lock: item.identityLock,
+      outfit_source: item.outfitSource,
     })),
   )
   assertMutationSucceeded(error, 'Nao foi possivel criar a biblioteca inicial.')

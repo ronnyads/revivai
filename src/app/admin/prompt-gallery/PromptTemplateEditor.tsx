@@ -184,6 +184,7 @@ const EMPTY_TEMPLATE: PromptGalleryTemplate = {
   creditCost: 12,
   usageLabel: 'Envie sua foto e gere no mesmo estilo.',
   identityLock: true,
+  outfitSource: 'identity',
 }
 
 export function CategoryManager({
@@ -651,7 +652,7 @@ function PromptTemplateForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div>
           <label className="mb-1 block text-xs font-medium text-white/75">Visibilidade</label>
           <select
@@ -672,6 +673,17 @@ function PromptTemplateForm({
           >
             <option value="true">Ativo</option>
             <option value="false">Desligado</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-white/75">Fonte da roupa</label>
+          <select
+            name="outfit_source"
+            defaultValue={template.outfitSource}
+            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+          >
+            <option value="identity">identity: roupa enviada</option>
+            <option value="template">template: roupa da base</option>
           </select>
         </div>
       </div>

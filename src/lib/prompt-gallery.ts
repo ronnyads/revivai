@@ -1,6 +1,7 @@
 export type PromptTemplateFormat = 'JSON' | 'TEXT'
 export type PromptGenerationMode = 'identity_scene' | 'product_model' | 'virtual_tryon'
 export type PromptInputMode = 'single_image' | 'person_and_product'
+export type PromptOutfitSource = 'identity' | 'template'
 
 export const PENDING_GENERATION_STORAGE_KEY = 'revivai-pending-generation-template'
 export const HERO_SELFIE_TEMPLATE_ID = 'alpha-fitness-elite'
@@ -22,6 +23,7 @@ export interface PromptGalleryTemplate {
   creditCost: number
   usageLabel: string
   identityLock: boolean
+  outfitSource: PromptOutfitSource
 }
 
 export type ClientPromptGalleryTemplate = Omit<PromptGalleryTemplate, 'prompt'>
@@ -37,6 +39,7 @@ export interface PendingPromptGenerationSession {
   creditCost: number
   usageLabel: string
   identityLock: boolean
+  outfitSource: PromptOutfitSource
   uploadedUrls: string[]
 }
 
@@ -57,6 +60,7 @@ export interface PromptTemplateRow {
   credit_cost: number | null
   usage_label: string | null
   identity_lock: boolean | null
+  outfit_source: string | null
 }
 
 export interface PromptCategoryRow {
@@ -80,6 +84,7 @@ const CANONICAL_TEMPLATE_OVERRIDES = {
     creditCost: 12,
     usageLabel: 'Envie 1 foto da pessoa. O sistema troca o sujeito da selfie pela referencia enviada.',
     identityLock: true,
+    outfitSource: 'identity' as PromptOutfitSource,
   },
 } satisfies Partial<Record<string, Partial<PromptGalleryTemplate>>>
 
@@ -90,6 +95,7 @@ const DEFAULT_SCENE_PRESET = {
   creditCost: 12,
   usageLabel: 'Envie sua foto e gere no mesmo estilo.',
   identityLock: true,
+  outfitSource: 'identity' as const,
 }
 
 const DEFAULT_PRODUCT_PRESET = {
@@ -99,6 +105,11 @@ const DEFAULT_PRODUCT_PRESET = {
   creditCost: 12,
   usageLabel: 'Envie a foto da modelo e do produto.',
   identityLock: true,
+  outfitSource: 'identity' as const,
+}
+
+function normalizeOutfitSource(value: string | null | undefined): PromptOutfitSource {
+  return value === 'template' ? 'template' : 'identity'
 }
 
 function inferPresetFromCategory(category: string | null | undefined) {
@@ -121,8 +132,8 @@ function normalizeInputMode(value: string | null | undefined, generationMode: Pr
 }
 
 function buildTemplate(
-  template: Omit<PromptGalleryTemplate, 'generationMode' | 'inputMode' | 'requiredImagesCount' | 'creditCost' | 'usageLabel' | 'identityLock'> &
-    Partial<Pick<PromptGalleryTemplate, 'generationMode' | 'inputMode' | 'requiredImagesCount' | 'creditCost' | 'usageLabel' | 'identityLock'>>,
+  template: Omit<PromptGalleryTemplate, 'generationMode' | 'inputMode' | 'requiredImagesCount' | 'creditCost' | 'usageLabel' | 'identityLock' | 'outfitSource'> &
+    Partial<Pick<PromptGalleryTemplate, 'generationMode' | 'inputMode' | 'requiredImagesCount' | 'creditCost' | 'usageLabel' | 'identityLock' | 'outfitSource'>>,
 ): PromptGalleryTemplate {
   const preset = inferPresetFromCategory(template.category)
   return {
@@ -133,6 +144,7 @@ function buildTemplate(
     creditCost: template.creditCost ?? preset.creditCost,
     usageLabel: template.usageLabel ?? preset.usageLabel,
     identityLock: template.identityLock ?? preset.identityLock,
+    outfitSource: template.outfitSource ?? preset.outfitSource,
   }
 }
 
@@ -315,6 +327,7 @@ export function normalizePromptTemplate(row: PromptTemplateRow): PromptGalleryTe
     creditCost: row.credit_cost ?? canonicalOverride.creditCost ?? inferredPreset.creditCost,
     usageLabel: row.usage_label ?? canonicalOverride.usageLabel ?? inferredPreset.usageLabel,
     identityLock: row.identity_lock ?? canonicalOverride.identityLock ?? inferredPreset.identityLock,
+    outfitSource: normalizeOutfitSource(row.outfit_source ?? canonicalOverride.outfitSource ?? inferredPreset.outfitSource),
   } satisfies PromptGalleryTemplate
 }
 

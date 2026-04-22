@@ -6,28 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { composeProductScene, generatePresetIdentityScene } from '@/lib/studio'
-import { getDefaultPromptTemplateById, normalizePromptTemplate, type PromptGalleryTemplate, type PromptTemplateRow } from '@/lib/prompt-gallery'
-
-const BASE_OUTFIT_PRESET_TITLES = new Set([
-  'selfie com mario',
-  'selfie com luigi',
-  'selfie com a princesa',
-  'selfie com kong academia',
-  'rei bowser koopa',
-  'yoshi',
-])
-
-function normalizePresetTitle(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-}
-
-function shouldUseTemplateOutfit(template: PromptGalleryTemplate) {
-  return BASE_OUTFIT_PRESET_TITLES.has(normalizePresetTitle(template.title))
-}
+import { getDefaultPromptTemplateById, normalizePromptTemplate, type PromptTemplateRow } from '@/lib/prompt-gallery'
 
 function buildHiddenIdentityScenePrompt(templateTitle: string, templatePrompt: string, useTemplateOutfit: boolean) {
   const outfitInstructions = useTemplateOutfit
@@ -127,9 +106,10 @@ export async function POST(req: NextRequest) {
       damage_analysis: {
         source: 'prompt-gallery',
         template_id: template.id,
-        title: template.title,
-        generation_mode: template.generationMode,
-        identity_lock: template.identityLock,
+      title: template.title,
+      generation_mode: template.generationMode,
+      identity_lock: template.identityLock,
+      outfit_source: template.outfitSource,
       },
     })
 
@@ -177,7 +157,7 @@ export async function POST(req: NextRequest) {
     } else {
       const templateSceneUrl = template.coverImageUrl || template.exampleImages[0]
 
-      const useTemplateOutfit = shouldUseTemplateOutfit(template)
+      const useTemplateOutfit = template.outfitSource === 'template'
 
       resultUrl = await generatePresetIdentityScene({
         template_scene_url: templateSceneUrl,
