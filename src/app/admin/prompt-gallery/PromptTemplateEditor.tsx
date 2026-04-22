@@ -16,10 +16,10 @@ import {
 import type { PromptGalleryTemplate } from '@/lib/prompt-gallery'
 
 const fieldControlClass =
-  'h-11 w-full rounded-[14px] border border-white/10 bg-[#101010] px-3 text-sm text-white shadow-inner shadow-black/20 outline-none transition-colors focus:border-[#54D6F6]/45 focus:bg-[#11191B]'
+  'h-10 w-full rounded-[12px] border border-white/10 bg-[#101010] px-3 text-sm text-white shadow-inner shadow-black/20 outline-none transition-colors focus:border-[#54D6F6]/45 focus:bg-[#11191B]'
 const textareaControlClass =
-  'w-full resize-y rounded-[16px] border border-white/10 bg-[#101010] px-3 py-3 text-sm text-white shadow-inner shadow-black/20 outline-none transition-colors focus:border-[#54D6F6]/45 focus:bg-[#11191B]'
-const labelClass = 'mb-2 block font-label text-[10px] uppercase tracking-[0.22em] text-white/55'
+  'w-full resize-y rounded-[14px] border border-white/10 bg-[#101010] px-3 py-2.5 text-sm text-white shadow-inner shadow-black/20 outline-none transition-colors focus:border-[#54D6F6]/45 focus:bg-[#11191B]'
+const labelClass = 'mb-1.5 block font-label text-[10px] uppercase tracking-[0.22em] text-white/55'
 
 function SectionToggle({
   title,
@@ -121,12 +121,12 @@ function ImageUploadField({
   }
 
   return (
-    <div className={featured ? 'space-y-3 xl:row-span-2' : 'space-y-3'}>
+    <div className="space-y-2.5">
       <label className={labelClass}>{label}</label>
       <input type="hidden" name={name} value={url} readOnly />
       <div
         className={`relative overflow-hidden rounded-[18px] border border-dashed border-white/15 bg-[#171717] transition-colors ${
-          featured ? 'aspect-[16/10] xl:aspect-[4/3]' : 'aspect-[4/3]'
+          featured ? 'aspect-[16/9]' : 'aspect-[16/10]'
         } ${
           uploading ? 'opacity-60' : ''
         }`}
@@ -144,7 +144,7 @@ function ImageUploadField({
         ) : (
           <div className="flex h-full items-center justify-center px-4 text-center">
             <div>
-              <div className="mx-auto mb-3 h-9 w-9 rounded-full border border-white/10 bg-white/[0.04]" />
+              <div className="mx-auto mb-2 h-8 w-8 rounded-full border border-white/10 bg-white/[0.04]" />
               <p className="text-xs font-medium text-white/55">Sem imagem selecionada</p>
               <p className="mt-1 text-[11px] text-white/35">{label}</p>
             </div>
@@ -156,7 +156,7 @@ function ImageUploadField({
           type="button"
           onClick={() => !uploading && inputRef.current?.click()}
           disabled={uploading}
-          className="inline-flex flex-1 items-center justify-center rounded-[12px] bg-cyan-500/15 px-3 py-2 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex flex-1 items-center justify-center rounded-[11px] bg-cyan-500/15 px-3 py-1.5 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {url ? 'Trocar foto' : 'Adicionar foto'}
         </button>
@@ -164,7 +164,7 @@ function ImageUploadField({
           type="button"
           onClick={() => setUrl('')}
           disabled={uploading || !url}
-          className="inline-flex flex-1 items-center justify-center rounded-[12px] bg-red-500/12 px-3 py-2 text-xs font-semibold text-red-300 transition-colors hover:bg-red-500/22 disabled:cursor-not-allowed disabled:opacity-35"
+          className="inline-flex flex-1 items-center justify-center rounded-[11px] bg-red-500/12 px-3 py-1.5 text-xs font-semibold text-red-300 transition-colors hover:bg-red-500/22 disabled:cursor-not-allowed disabled:opacity-35"
         >
           Excluir foto
         </button>
@@ -592,11 +592,11 @@ function FormSection({
   className?: string
 }) {
   return (
-    <section className={`rounded-[20px] border border-white/10 bg-white/[0.035] p-4 ${className}`}>
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <section className={`rounded-[18px] border border-white/10 bg-white/[0.035] p-3.5 ${className}`}>
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="font-label text-[10px] uppercase tracking-[0.24em] text-[#54D6F6]/75">{eyebrow}</p>
-          <h3 className="mt-1 text-sm font-semibold text-white">{title}</h3>
+          <h3 className="mt-0.5 text-sm font-semibold text-white">{title}</h3>
         </div>
         <div className="h-px flex-1 bg-white/10" />
       </div>
@@ -620,10 +620,10 @@ function PromptTemplateForm({
 }) {
   return (
     <form action={action} className="border-t border-white/10 bg-[#0B0B0B]">
-      <div className="grid gap-5 px-5 py-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(380px,0.95fr)]">
-        <div className="space-y-5">
+      <div className="grid gap-4 px-4 py-4 xl:grid-cols-[minmax(0,1.03fr)_minmax(380px,0.97fr)]">
+        <div className="space-y-4">
           <FormSection eyebrow="Conteudo" title="Identidade do preset">
-            <div className="grid gap-4 lg:grid-cols-12">
+            <div className="grid gap-3 lg:grid-cols-12">
               <div className="lg:col-span-8">
                 <label className={labelClass}>Titulo</label>
                 <input name="title" defaultValue={template.title} required className={fieldControlClass} />
@@ -653,7 +653,7 @@ function PromptTemplateForm({
                 <textarea
                   name="description"
                   defaultValue={template.description}
-                  rows={3}
+                  rows={2}
                   className={textareaControlClass}
                 />
               </div>
@@ -661,22 +661,22 @@ function PromptTemplateForm({
           </FormSection>
 
           <FormSection eyebrow="Prompt" title="Instrucao oculta do preset" className="p-0">
-            <div className="px-4 pb-4">
+            <div className="px-3.5 pb-3.5">
               <textarea
                 name="prompt"
                 defaultValue={template.prompt}
-                rows={13}
+                rows={10}
                 required
                 spellCheck={false}
-                className={`${textareaControlClass} min-h-[320px] font-mono text-[12px] leading-relaxed`}
+                className={`${textareaControlClass} min-h-[250px] font-mono text-[12px] leading-relaxed`}
               />
             </div>
           </FormSection>
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-4">
           <FormSection eyebrow="Motor" title="Configuracao de geracao">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label className={labelClass}>Modo</label>
                 <select name="generation_mode" defaultValue={template.generationMode} className={fieldControlClass}>
@@ -738,13 +738,10 @@ function PromptTemplateForm({
           </FormSection>
 
           <FormSection eyebrow="Visual" title="Imagens do preset">
-            <div className="mb-4 rounded-[16px] border border-cyan-400/20 bg-cyan-400/[0.045] px-4 py-3 text-xs leading-relaxed text-cyan-100/82">
+            <div className="mb-3 rounded-[14px] border border-cyan-400/20 bg-cyan-400/[0.045] px-3 py-2 text-xs leading-relaxed text-cyan-100/82">
               <strong className="font-semibold text-cyan-200">Capa do card</strong> tambem e a imagem-base real usada na geracao.
-              <span className="mt-1 block text-cyan-100/65">
-                Ao duplicar um card e trocar a capa, a nova foto passa a ser a base daquele preset.
-              </span>
             </div>
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <ImageUploadField
                 name="cover_image_url"
                 label="Capa do card"
@@ -771,12 +768,12 @@ function PromptTemplateForm({
         </div>
       </div>
 
-      <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 border-t border-white/10 bg-[#0B0B0B]/95 px-5 py-4 backdrop-blur-xl">
+      <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 border-t border-white/10 bg-[#0B0B0B]/95 px-4 py-3 backdrop-blur-xl">
         <p className="text-xs text-white/45">Alteracoes ficam ativas assim que salvar.</p>
         <button
           type="submit"
           disabled={pending || categories.length === 0}
-          className="inline-flex min-w-[168px] items-center justify-center rounded-[14px] bg-[#54D6F6] px-6 py-3 text-sm font-bold text-[#031014] transition-colors hover:bg-[#7BE3FB] disabled:cursor-not-allowed disabled:opacity-45"
+          className="inline-flex min-w-[160px] items-center justify-center rounded-[13px] bg-[#54D6F6] px-6 py-2.5 text-sm font-bold text-[#031014] transition-colors hover:bg-[#7BE3FB] disabled:cursor-not-allowed disabled:opacity-45"
         >
           {submitLabel}
         </button>
