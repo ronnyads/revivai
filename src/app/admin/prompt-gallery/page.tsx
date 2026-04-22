@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { DEFAULT_PROMPT_TEMPLATES, normalizePromptTemplate, PromptTemplateRow } from '@/lib/prompt-gallery'
+import { DEFAULT_PROMPT_TEMPLATES, normalizePromptTemplate, PromptCategoryRow, PromptTemplateRow } from '@/lib/prompt-gallery'
 import PromptTemplateEditor, { CategoryManager, NewPromptTemplateForm } from './PromptTemplateEditor'
 import { seedPromptTemplates } from './actions'
 
@@ -14,20 +14,31 @@ export default async function PromptGalleryAdminPage() {
     .order('created_at', { ascending: true })
 
   const templates = !error && data ? (data as PromptTemplateRow[]).map(normalizePromptTemplate) : []
-  const baseCategorySource = templates.length > 0 ? templates : DEFAULT_PROMPT_TEMPLATES
-  const categories = Array.from(new Set(baseCategorySource.map((template) => template.category?.trim()).filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b),
-  )
-  const categoryStats = categories
-    .map((name) => {
-      const presets = templates.filter((template) => template.category.trim() === name)
-      return {
-        name,
-        count: presets.length,
-        visibleCount: presets.filter((template) => template.isVisible).length,
-      }
-    })
-    .filter((category) => templates.length === 0 || category.count > 0)
+  const { data: categoryData, error: categoryError } = await supabase
+    .from('prompt_categories')
+    .select('*')
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true })
+
+  const managedCategories = !categoryError && categoryData ? (categoryData as PromptCategoryRow[]) : []
+  const templateCategories = Array.from(new Set(templates.map((template) => template.category?.trim()).filter(Boolean)))
+  const fallbackCategorySource = templates.length > 0 ? templateCategories : DEFAULT_PROMPT_TEMPLATES.map((template) => template.category)
+  const categories =
+    managedCategories.length > 0
+      ? managedCategories.map((category) => String(category.name ?? '').trim()).filter(Boolean)
+      : Array.from(new Set(fallbackCategorySource.map((category) => category?.trim()).filter(Boolean))).sort((a, b) =>
+          a.localeCompare(b),
+        )
+  const categoryStats = categories.map((name) => {
+    const presets = templates.filter((template) => template.category.trim() === name)
+    const managedCategory = managedCategories.find((category) => category.name === name)
+    return {
+      name,
+      count: presets.length,
+      visibleCount: presets.filter((template) => template.isVisible).length,
+      isVisible: managedCategory?.is_visible ?? (presets.length === 0 ? true : presets.some((template) => template.isVisible)),
+    }
+  })
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -45,6 +56,16 @@ export default async function PromptGalleryAdminPage() {
             Rode a migration nova em `supabase/migrations` para liberar o CRUD completo da biblioteca.
           </p>
           <p className="mt-2 text-xs text-amber-100/60">Erro real: {error.message}</p>
+        </div>
+      ) : null}
+
+      {categoryError ? (
+        <div className="mb-8 rounded-xl border border-amber-500/20 bg-amber-500/10 p-5 text-amber-200">
+          <p className="font-medium">Tabela de categorias ainda nao disponivel.</p>
+          <p className="mt-2 text-sm text-amber-100/80">
+            Rode a migration `20260422120000_prompt_categories.sql` para separar categorias dos presets.
+          </p>
+          <p className="mt-2 text-xs text-amber-100/60">Erro real: {categoryError.message}</p>
         </div>
       ) : null}
 

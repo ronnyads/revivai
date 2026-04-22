@@ -27,13 +27,65 @@ function collectGenerationFields(formData: FormData) {
   }
 }
 
+function normalizeCategoryName(value: FormDataEntryValue | string | null) {
+  return String(value ?? '').trim()
+}
+
+async function assertPromptCategoryExists(supabase: ReturnType<typeof createAdminClient>, category: string) {
+  if (!category) {
+    throw new Error('Escolha uma categoria cadastrada antes de salvar o preset.')
+  }
+
+  const { data, error } = await supabase
+    .from('prompt_categories')
+    .select('name')
+    .eq('name', category)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(error.message || 'Nao foi possivel validar a categoria.')
+  }
+
+  if (!data) {
+    throw new Error('Categoria nao cadastrada. Crie a categoria na area Categorias antes de usar no preset.')
+  }
+}
+
+export async function createPromptCategory(name: string) {
+  const category = normalizeCategoryName(name)
+  if (!category) {
+    throw new Error('Nome da categoria obrigatorio.')
+  }
+
+  const supabase = createAdminClient()
+  const { data: lastCategory } = await supabase
+    .from('prompt_categories')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const { error } = await supabase.from('prompt_categories').insert({
+    name: category,
+    sort_order: Number(lastCategory?.sort_order ?? 0) + 1,
+    updated_at: new Date().toISOString(),
+  })
+
+  assertMutationSucceeded(error, 'Nao foi possivel criar a categoria.')
+
+  revalidatePath('/admin/prompt-gallery')
+  revalidatePath('/dashboard/prompts')
+}
+
 export async function createPromptTemplate(formData: FormData) {
   const supabase = createAdminClient()
+  const category = normalizeCategoryName(formData.get('category'))
+  await assertPromptCategoryExists(supabase, category)
 
   const { error } = await supabase.from('prompt_templates').insert({
     title: String(formData.get('title') ?? '').trim(),
     description: String(formData.get('description') ?? '').trim(),
-    category: String(formData.get('category') ?? '').trim(),
+    category,
     format: String(formData.get('format') ?? 'TEXT').trim().toUpperCase(),
     prompt: String(formData.get('prompt') ?? '').trim(),
     cover_image_url: String(formData.get('cover_image_url') ?? '').trim(),
@@ -52,13 +104,15 @@ export async function createPromptTemplate(formData: FormData) {
 
 export async function updatePromptTemplate(id: string, formData: FormData) {
   const supabase = createAdminClient()
+  const category = normalizeCategoryName(formData.get('category'))
+  await assertPromptCategoryExists(supabase, category)
 
   const { error } = await supabase
     .from('prompt_templates')
     .update({
       title: String(formData.get('title') ?? '').trim(),
       description: String(formData.get('description') ?? '').trim(),
-      category: String(formData.get('category') ?? '').trim(),
+      category,
       format: String(formData.get('format') ?? 'TEXT').trim().toUpperCase(),
       prompt: String(formData.get('prompt') ?? '').trim(),
       cover_image_url: String(formData.get('cover_image_url') ?? '').trim(),
@@ -126,18 +180,18 @@ export async function renamePromptCategory(previousName: string, nextName: strin
 
   const supabase = createAdminClient()
   const { data, error } = await supabase
-    .from('prompt_templates')
+    .from('prompt_categories')
     .update({
-      category: newCategory,
+      name: newCategory,
       updated_at: new Date().toISOString(),
     })
-    .eq('category', oldCategory)
-    .select('id')
+    .eq('name', oldCategory)
+    .select('name')
 
   assertMutationSucceeded(error, 'Nao foi possivel renomear a categoria.')
 
   if (!data || data.length === 0) {
-    throw new Error('Nenhum preset encontrado nessa categoria para renomear.')
+    throw new Error('Categoria nao encontrada para renomear.')
   }
 
   revalidatePath('/admin/prompt-gallery')
@@ -152,19 +206,29 @@ export async function setPromptCategoryVisibility(categoryName: string, isVisibl
 
   const supabase = createAdminClient()
   const { data, error } = await supabase
+    .from('prompt_categories')
+    .update({
+      is_visible: isVisible,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('name', category)
+    .select('name')
+
+  assertMutationSucceeded(error, 'Nao foi possivel atualizar a visibilidade da categoria.')
+
+  if (!data || data.length === 0) {
+    throw new Error('Categoria nao encontrada para atualizar.')
+  }
+
+  const { error: templateError } = await supabase
     .from('prompt_templates')
     .update({
       is_visible: isVisible,
       updated_at: new Date().toISOString(),
     })
     .eq('category', category)
-    .select('id')
 
-  assertMutationSucceeded(error, 'Nao foi possivel atualizar a visibilidade da categoria.')
-
-  if (!data || data.length === 0) {
-    throw new Error('Nenhum preset encontrado nessa categoria para atualizar.')
-  }
+  assertMutationSucceeded(templateError, 'Nao foi possivel atualizar os presets da categoria.')
 
   revalidatePath('/admin/prompt-gallery')
   revalidatePath('/dashboard/prompts')
@@ -177,12 +241,12 @@ export async function deletePromptCategory(categoryName: string) {
   }
 
   const supabase = createAdminClient()
-  const { data, error } = await supabase.from('prompt_templates').delete().eq('category', category).select('id')
+  const { data, error } = await supabase.from('prompt_categories').delete().eq('name', category).select('name')
 
   assertMutationSucceeded(error, 'Nao foi possivel excluir a categoria.')
 
   if (!data || data.length === 0) {
-    throw new Error('Nenhum preset encontrado nessa categoria para excluir.')
+    throw new Error('Categoria nao encontrada para excluir.')
   }
 
   revalidatePath('/admin/prompt-gallery')
@@ -202,6 +266,19 @@ export async function deletePromptTemplate(id: string) {
 
 export async function seedPromptTemplates() {
   const supabase = createAdminClient()
+  const defaultCategories = Array.from(new Set(DEFAULT_PROMPT_TEMPLATES.map((item) => item.category.trim()).filter(Boolean)))
+    .map((name, index) => ({
+      name,
+      sort_order: index + 1,
+      updated_at: new Date().toISOString(),
+    }))
+
+  const { error: categoryError } = await supabase
+    .from('prompt_categories')
+    .upsert(defaultCategories, { onConflict: 'name', ignoreDuplicates: true })
+
+  assertMutationSucceeded(categoryError, 'Nao foi possivel preparar as categorias iniciais.')
+
   const { error } = await supabase.from('prompt_templates').insert(
     DEFAULT_PROMPT_TEMPLATES.map((item) => ({
       title: item.title,

@@ -1,9 +1,10 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  createPromptCategory,
   createPromptTemplate,
   deletePromptCategory,
   deletePromptTemplate,
@@ -185,27 +186,28 @@ const EMPTY_TEMPLATE: PromptGalleryTemplate = {
   identityLock: true,
 }
 
-const CUSTOM_CATEGORY_VALUE = '__custom_category__'
-
 export function CategoryManager({
   categories,
 }: {
-  categories: Array<{ name: string; count: number; visibleCount: number }>
+  categories: Array<{ name: string; count: number; visibleCount: number; isVisible: boolean }>
 }) {
   return (
     <SectionToggle
       title="Categorias"
-      description="Gerencie categorias em lote: renomeie, oculte ou exclua todos os presets dela."
+      description="Crie, renomeie, oculte ou exclua categorias."
       defaultOpen={false}
       badge={`${categories.length} categoria(s)`}
     >
       <div className="flex flex-col gap-3 px-6 py-5">
+        <CategoryCreateRow />
+
         {categories.map((category) => (
           <CategoryRenameRow
             key={category.name}
             name={category.name}
             count={category.count}
             visibleCount={category.visibleCount}
+            isVisible={category.isVisible}
           />
         ))}
 
@@ -221,15 +223,17 @@ function CategoryRenameRow({
   name,
   count,
   visibleCount,
+  isVisible,
 }: {
   name: string
   count: number
   visibleCount: number
+  isVisible: boolean
 }) {
   const router = useRouter()
   const [nextName, setNextName] = useState(name)
   const [isPending, startTransition] = useTransition()
-  const isHidden = count > 0 && visibleCount === 0
+  const isHidden = !isVisible
 
   const runAction = (task: () => Promise<void>) => {
     startTransition(async () => {
@@ -278,7 +282,7 @@ function CategoryRenameRow({
         <button
           type="button"
           onClick={() => runAction(() => setPromptCategoryVisibility(name, isHidden))}
-          disabled={isPending || count === 0}
+          disabled={isPending}
           className="rounded-lg bg-white/10 px-4 py-2 text-xs text-white/65 transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {isHidden ? 'Mostrar' : 'Ocultar'}
@@ -286,16 +290,66 @@ function CategoryRenameRow({
         <button
           type="button"
           onClick={() => {
-            if (!confirm(`Excluir a categoria "${name}" e todos os presets dela?`)) return
+            const message =
+              count > 0
+                ? `Excluir a categoria "${name}" e todos os ${count} preset(s) dela?`
+                : `Excluir a categoria "${name}"?`
+            if (!confirm(message)) return
             runAction(() => deletePromptCategory(name))
           }}
-          disabled={isPending || count === 0}
+          disabled={isPending}
           className="rounded-lg bg-red-500/10 px-4 py-2 text-xs text-red-400 transition-colors hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Excluir
         </button>
       </div>
     </div>
+  )
+}
+
+function CategoryCreateRow() {
+  const router = useRouter()
+  const [name, setName] = useState('')
+  const [isPending, startTransition] = useTransition()
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const nextName = name.trim()
+    if (!nextName) return
+
+    startTransition(async () => {
+      try {
+        await createPromptCategory(nextName)
+        setName('')
+        router.refresh()
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Nao foi possivel criar a categoria.'
+        alert(message)
+      }
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-lg border border-cyan-400/15 bg-cyan-400/[0.04] px-3 py-3">
+      <div>
+        <label className="mb-1 block text-xs font-medium text-white/75">Nova categoria</label>
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Digite o nome da categoria"
+          className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-cyan-300/40 focus:outline-none"
+        />
+      </div>
+      <div className="flex items-end">
+        <button
+          type="submit"
+          disabled={isPending || !name.trim()}
+          className="rounded-lg bg-cyan-500/15 px-4 py-2 text-xs font-medium text-cyan-200 transition-colors hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isPending ? 'Criando...' : 'Criar categoria'}
+        </button>
+      </div>
+    </form>
   )
 }
 
@@ -308,37 +362,35 @@ function CategoryField({
 }) {
   const normalizedCurrent = currentCategory.trim()
   const existingCategories = Array.from(new Set(categories.map((item) => item.trim()).filter(Boolean)))
-  const matchesExisting = existingCategories.includes(normalizedCurrent)
-  const [selectedCategory, setSelectedCategory] = useState(matchesExisting ? normalizedCurrent : CUSTOM_CATEGORY_VALUE)
-  const [customCategory, setCustomCategory] = useState(matchesExisting ? '' : normalizedCurrent)
-  const finalCategory = selectedCategory === CUSTOM_CATEGORY_VALUE ? customCategory : selectedCategory
+  const selectedCategory = existingCategories.includes(normalizedCurrent)
+    ? normalizedCurrent
+    : existingCategories[0] ?? ''
 
   return (
     <div className="col-span-2">
       <label className="mb-1 block text-xs font-medium text-white/75">Categoria</label>
-      <input type="hidden" name="category" value={finalCategory} readOnly />
       <div className="space-y-2">
-        <select
-          value={selectedCategory}
-          onChange={(event) => setSelectedCategory(event.target.value)}
-          className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-        >
-          {existingCategories.map((category) => (
-            <option key={category} value={category}>
-              {category}
-            </option>
-          ))}
-          <option value={CUSTOM_CATEGORY_VALUE}>+ Criar nova categoria</option>
-        </select>
-
-        {selectedCategory === CUSTOM_CATEGORY_VALUE ? (
-          <input
-            value={customCategory}
-            onChange={(event) => setCustomCategory(event.target.value)}
-            placeholder="Digite o nome da nova categoria"
-            className="w-full rounded-lg border border-cyan-400/20 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-cyan-300/40 focus:outline-none"
-          />
-        ) : null}
+        {existingCategories.length > 0 ? (
+          <select
+            name="category"
+            defaultValue={selectedCategory}
+            required
+            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+          >
+            {existingCategories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <>
+            <input type="hidden" name="category" value="" readOnly />
+            <div className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-100/80">
+              Crie uma categoria na area Categorias antes de salvar presets.
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -673,7 +725,7 @@ function PromptTemplateForm({
       <div className="flex gap-3">
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || categories.length === 0}
           className="rounded-lg bg-accent px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-dark"
         >
           {submitLabel}
