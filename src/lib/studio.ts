@@ -2211,6 +2211,7 @@ export async function generatePresetIdentityScene(params: {
   aspect_ratio?: string
   assetId: string
   userId: string
+  outfit_source?: 'identity' | 'template'
 }) {
   const admin = createAdminClient()
   const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
@@ -2243,12 +2244,17 @@ export async function generatePresetIdentityScene(params: {
     '16:9': 'horizontal 16:9 landscape', '3:4': 'vertical 3:4 portrait',
   }
   const ratioInstruction = `Compose the output in ${aspectLabel[params.aspect_ratio ?? '9:16'] ?? 'vertical 9:16 portrait'} format. Ensure the full person fits in frame.`
+  const useTemplateOutfit = params.outfit_source === 'template'
 
   const identityLockBlock = [
     'IDENTITY LOCK — person[1] é a referência exclusiva.',
     'RULE 1 — FACIAL & BODY IDENTITY: Clonagem 100% fiel — estrutura óssea, nariz, lábios, olhos, cor dos olhos, sobrancelhas, tom de pele, idade, cabelo. Nada de deixar mais jovem ou diferente.',
-    'RULE 2 — OUTFIT FIDELITY: Roupa da pessoa enviada pixel-perfect idêntica — tipo de peça, cor, textura, decote, alças, mangas, fit, caimento, estampas, acessórios e todos os detalhes visíveis. Não invente fantasia, uniforme, traje de personagem, roupa premium ou roupa nova.',
-    'RULE 2B — NO INVENTED OBJECTS: Nenhum produto, objeto, acessório ou peça de roupa que não esteja na pessoa original. Mãos vazias ficam vazias.',
+    useTemplateOutfit
+      ? 'RULE 2 — TEMPLATE OUTFIT LOCK: Use a roupa do personagem principal da cena-base, não a roupa da pessoa enviada. Preserve fantasia, uniforme, acessórios, cores, tecidos, caimento e todos os detalhes visíveis da imagem-base.'
+      : 'RULE 2 — OUTFIT FIDELITY: Roupa da pessoa enviada pixel-perfect idêntica — tipo de peça, cor, textura, decote, alças, mangas, fit, caimento, estampas, acessórios e todos os detalhes visíveis. Não invente fantasia, uniforme, traje de personagem, roupa premium ou roupa nova.',
+    useTemplateOutfit
+      ? 'RULE 2B — NO UPLOADED CLOTHING: Não copie camiseta, vestido, acessórios ou qualquer peça da foto enviada. Somente rosto, cabelo, tom de pele, idade aparente e expressão vêm da pessoa enviada.'
+      : 'RULE 2B — NO INVENTED OBJECTS: Nenhum produto, objeto, acessório ou peça de roupa que não esteja na pessoa original. Mãos vazias ficam vazias.',
     'RULE 3 — ANATOMY: Foto única. Os 2 braços completamente visíveis e anatomicamente corretos — exatamente 2 braços, 2 mãos, 5 dedos cada.',
     'RULE 4 — POSE/POSITION LOCK: Copie a pose, posição corporal, gesto, direção do olhar, distância da câmera e ângulo do template scene. Não mude pose, perspectiva, lente ou enquadramento.',
     'RULE 5 — LIGHTING: Iluminação comercial cinematográfica, profundidade de campo natural, bokeh suave.',
@@ -2259,6 +2265,9 @@ export async function generatePresetIdentityScene(params: {
     'TEMPLATE SCENE LOCK: a primeira imagem é a cena-base absoluta.',
     'Preserve com fidelidade máxima a composição, enquadramento, proporção da câmera, distância focal, ângulo, pose, posição corporal, gestos, fundo, profundidade, ambiente, posição dos personagens secundários, objetos, atmosfera e storytelling da cena-base.',
     'Substitua somente a pessoa humana principal da cena-base por person[1].',
+    ...(useTemplateOutfit
+      ? ['Preserve a roupa do personagem principal da cena-base. A troca é de identidade/rosto, não de vestuário.']
+      : []),
     'Remova completamente a pessoa original da cena-base.',
     'Não simplifique a imagem para um retrato isolado.',
     'Não corte personagens secundários.',
@@ -2276,7 +2285,9 @@ export async function generatePresetIdentityScene(params: {
     templatePreservationBlock,
     'Replace only the main human subject from the template scene with person[1], and remove every trace of the original template person.',
     'Do not change the other characters, props, environment, or overall storytelling of the template scene.',
-    'Preserve the uploaded person exact face, facial structure, age appearance, skin tone, hair identity, expression energy, body identity, and clothing fidelity.',
+    useTemplateOutfit
+      ? 'Preserve the uploaded person exact face, facial structure, age appearance, skin tone, hair identity and expression energy, but use the template scene main character outfit exactly.'
+      : 'Preserve the uploaded person exact face, facial structure, age appearance, skin tone, hair identity, expression energy, body identity, and clothing fidelity.',
     identityLockBlock,
     'Do not generate a new generic portrait.',
     'Do not improvise a new pose unrelated to the template scene.',
@@ -2329,6 +2340,15 @@ export async function generatePresetIdentityScene(params: {
     if (!falKey) throw new Error(`Todos os modelos Gemini falharam para preset identity scene. Último erro: ${lastGeminiError}`)
 
     console.log(`[preset-scene] Gemini bloqueou/falhou; tentando fallback Flux PuLID para asset ${params.assetId}`)
+    const fallbackOutfitInstructions = useTemplateOutfit
+      ? [
+          `Use the template scene main character outfit exactly: garment type, colors, costume/uniform, fabric, fit, accessories and all visible details.`,
+          `Do not copy clothing, shirt, dress, accessories, or any garment from the uploaded identity reference.`,
+        ]
+      : [
+          `Hard lock the reference person's clothing: do not change garment type, colors, fabric, fit, sleeves, neckline, prints, accessories, or visible details. Do not invent costumes, uniforms, character outfits, luxury outfits, or new clothes.`,
+        ]
+
     const res = await fetch('https://fal.run/fal-ai/flux-pulid', {
       method: 'POST',
       headers: {
@@ -2340,7 +2360,7 @@ export async function generatePresetIdentityScene(params: {
           `Create a photorealistic commercial image using the provided preset scene as a strict composition reference.`,
           `Creative direction: ${params.scene_prompt}.`,
           `Use the reference person as the main subject and preserve face, age, skin tone, hair, body proportions and identity as closely as possible.`,
-          `Hard lock the reference person's clothing: do not change garment type, colors, fabric, fit, sleeves, neckline, prints, accessories, or visible details. Do not invent costumes, uniforms, character outfits, luxury outfits, or new clothes.`,
+          ...fallbackOutfitInstructions,
           `Hard lock the preset scene pose and camera: keep the same pose, body position, gesture, camera angle, perspective, lens feeling, framing, zoom distance, environment, background, secondary characters, objects and storytelling.`,
           ratioInstruction,
           `Natural lighting, correct shadows, realistic perspective, no watermark.`,

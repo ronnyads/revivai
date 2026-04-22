@@ -6,16 +6,47 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { composeProductScene, generatePresetIdentityScene } from '@/lib/studio'
-import { getDefaultPromptTemplateById, normalizePromptTemplate, PromptTemplateRow } from '@/lib/prompt-gallery'
+import { getDefaultPromptTemplateById, normalizePromptTemplate, type PromptGalleryTemplate, type PromptTemplateRow } from '@/lib/prompt-gallery'
 
-function buildHiddenIdentityScenePrompt(templateTitle: string, templatePrompt: string) {
+const BASE_OUTFIT_PRESET_TITLES = new Set([
+  'selfie com mario',
+  'selfie com luigi',
+  'selfie com a princesa',
+  'selfie com kong academia',
+  'rei bowser koopa',
+  'yoshi',
+])
+
+function normalizePresetTitle(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function shouldUseTemplateOutfit(template: PromptGalleryTemplate) {
+  return BASE_OUTFIT_PRESET_TITLES.has(normalizePresetTitle(template.title))
+}
+
+function buildHiddenIdentityScenePrompt(templateTitle: string, templatePrompt: string, useTemplateOutfit: boolean) {
+  const outfitInstructions = useTemplateOutfit
+    ? [
+        'Use a roupa da imagem-base, não a roupa da pessoa enviada.',
+        'Preserve roupa, fantasia, uniforme, acessórios, cores, tecidos, caimento e todos os detalhes visíveis do personagem principal da imagem-base.',
+        'Não copie camiseta, vestido, acessórios ou qualquer peça da foto enviada.',
+      ]
+    : [
+        'Não altere a roupa da pessoa enviada: preserve tipo de peça, cor, textura, caimento, mangas, decote, estampas, acessórios e detalhes visíveis.',
+        'Não invente fantasia, uniforme, traje de personagem, roupa premium ou roupa nova.',
+      ]
+
   return [
     'Use a PRIMEIRA imagem como cena-base absoluta.',
     'Mantenha a composição, enquadramento, posição corporal, pose, gestos, distância de câmera, ângulo de câmera, fundo, personagens secundários, objetos e atmosfera da imagem-base.',
     'Use a foto enviada como referência exclusiva da nova pessoa principal.',
     'Substitua somente o indivíduo principal da imagem-base pela pessoa da foto enviada.',
-    'Não altere a roupa da pessoa enviada: preserve tipo de peça, cor, textura, caimento, mangas, decote, estampas, acessórios e detalhes visíveis.',
-    'Não invente fantasia, uniforme, traje de personagem, roupa premium ou roupa nova.',
+    ...outfitInstructions,
     'Não mude a pose, posição, perspectiva, lente, distância focal ou ângulo da cena-base.',
     'Não troque o fundo.',
     'Não simplifique para retrato solo.',
@@ -146,13 +177,16 @@ export async function POST(req: NextRequest) {
     } else {
       const templateSceneUrl = template.coverImageUrl || template.exampleImages[0]
 
+      const useTemplateOutfit = shouldUseTemplateOutfit(template)
+
       resultUrl = await generatePresetIdentityScene({
         template_scene_url: templateSceneUrl,
         identity_reference_urls: uploadedUrls,
-        scene_prompt: buildHiddenIdentityScenePrompt(template.title, template.prompt),
+        scene_prompt: buildHiddenIdentityScenePrompt(template.title, template.prompt, useTemplateOutfit),
         aspect_ratio: '9:16',
         assetId: generationAssetId,
         userId: user.id,
+        outfit_source: useTemplateOutfit ? 'template' : 'identity',
       })
     }
 
