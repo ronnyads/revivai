@@ -3,19 +3,24 @@
 /* ── Tailwind v4 Theme ── */
 @theme {
   /* Colors */
-  --color-accent:       #7C0DF2;
-  --color-accent-light: #9d4df6;
-  --color-accent-dark:  #5a09b3;
-  --color-surface-0:    #131315; /* Base */
-  --color-surface-1:    #1c1b1d; /* Section Layer */
-  --color-surface-2:    #201f22; /* Interaction Layer */
-  --color-ink:          #e5e1e4;
-  --color-space:        #131315;
-  --color-space-2:      #201f22;
+  --color-accent:       #00ADCC;
+  --color-accent-light: #54D6F6;
+  --color-accent-dark:  #005D6E;
+  --color-accent-soft:  #AFECFF;
+  --color-surface-0:    #0E0E0E; /* Base */
+  --color-surface-1:    #131313; /* Section Layer */
+  --color-surface-2:    #1B1B1B; /* Interaction Layer */
+  --color-surface-3:    #2A2A2A;
+  --color-ink:          #E2E2E2;
+  --color-muted:        #BCC9CD;
+  --color-line:         #3D494D;
+  --color-space:        #0E0E0E;
+  --color-space-2:      #131313;
 
   /* Fonts — variables injected by next/font/google in layout.tsx */
   --font-display: var(--font-display-gf), 'Space Grotesk', system-ui, sans-serif;
   --font-sans:    var(--font-sans-gf), 'Manrope', system-ui, sans-serif;
+  --font-label:   var(--font-label-gf), 'IBM Plex Mono', ui-monospace, monospace;
 
   /* Animations */
   --animate-fade-up:   fadeUp 0.6s ease forwards;
@@ -33,12 +38,15 @@
 
 /* ── Base ── */
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; overflow-x: hidden; background: #131315; }
+html { scroll-behavior: smooth; overflow-x: hidden; background: #0E0E0E; }
 
 body {
   font-family: var(--font-sans);
-  background: #131315;
-  color: #e5e1e4;
+  background:
+    radial-gradient(circle at top right, rgba(84, 214, 246, 0.08), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(0, 173, 204, 0.06), transparent 24%),
+    #0E0E0E;
+  color: #E2E2E2;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
@@ -54,6 +62,12 @@ body {
   line-height: 1.6;
 }
 
+.font-label {
+  font-family: var(--font-label);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 .editorial-asymmetry {
   padding-left: 10%;
   padding-right: 5%;
@@ -62,6 +76,47 @@ body {
 .tonal-layer-0 { background-color: var(--color-surface-0); }
 .tonal-layer-1 { background-color: var(--color-surface-1); }
 .tonal-layer-2 { background-color: var(--color-surface-2); }
+.tonal-layer-3 { background-color: var(--color-surface-3); }
+
+.obsidian-shell {
+  background:
+    radial-gradient(circle at top right, rgba(84, 214, 246, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 18%),
+    var(--color-surface-0);
+}
+
+.bg-cyan-gradient {
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-light) 100%);
+}
+
+.text-gradient-cyan {
+  background: linear-gradient(135deg, var(--color-accent-light) 0%, #FFFFFF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ghost-line {
+  border-color: color-mix(in srgb, var(--color-accent) 24%, transparent);
+}
+
+.panel-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+    color-mix(in srgb, var(--color-surface-2) 88%, black 12%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+}
+
+.cyan-dot-grid {
+  background-image: radial-gradient(circle, rgba(61, 73, 77, 0.85) 1px, transparent 1.5px);
+  background-size: 28px 28px;
+}
+
+.obsidian-chip {
+  background: rgba(19, 19, 19, 0.76);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+}
 
 /* ── Material Symbols ── */
 .material-symbols-outlined {
@@ -103,8 +158,8 @@ body {
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #06070F; }
-::-webkit-scrollbar-thumb { background: #7C0DF2; border-radius: 3px; }
+::-webkit-scrollbar-track { background: #090909; }
+::-webkit-scrollbar-thumb { background: #00ADCC; border-radius: 999px; }
 
 /* ── Space / Futuristic Animations ── */
 @keyframes gridPulse {

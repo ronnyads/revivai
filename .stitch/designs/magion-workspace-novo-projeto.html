@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>STUDIO LAB - Canvas de Criação</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-primary": "#00687b",
+                      "secondary-fixed": "#acedff",
+                      "tertiary-fixed-dim": "#00e0b7",
+                      "surface-container-low": "#1b1b1b",
+                      "error-container": "#93000a",
+                      "primary-fixed-dim": "#54d6f6",
+                      "surface-container-lowest": "#0e0e0e",
+                      "on-primary-container": "#003b47",
+                      "inverse-surface": "#e2e2e2",
+                      "surface-variant": "#353535",
+                      "on-tertiary-fixed-variant": "#005141",
+                      "on-primary-fixed-variant": "#004e5d",
+                      "tertiary": "#00e0b7",
+                      "primary-container": "#00adcc",
+                      "surface-container-high": "#2a2a2a",
+                      "primary": "#54d6f6",
+                      "on-secondary-fixed-variant": "#004e5c",
+                      "on-secondary": "#003640",
+                      "surface-dim": "#131313",
+                      "on-secondary-fixed": "#001f26",
+                      "surface-container-highest": "#353535",
+                      "on-tertiary-container": "#003e31",
+                      "on-surface": "#e2e2e2",
+                      "background": "#131313",
+                      "on-tertiary-fixed": "#002019",
+                      "surface-container": "#1f1f1f",
+                      "tertiary-fixed": "#15ffd1",
+                      "outline-variant": "#3d494d",
+                      "inverse-on-surface": "#303030",
+                      "primary-fixed": "#afecff",
+                      "on-primary-fixed": "#001f26",
+                      "on-secondary-container": "#8ed4e8",
+                      "on-error-container": "#ffdad6",
+                      "error": "#ffb4ab",
+                      "surface-bright": "#393939",
+                      "on-background": "#e2e2e2",
+                      "tertiary-container": "#00b392",
+                      "surface-tint": "#54d6f6",
+                      "on-tertiary": "#00382c",
+                      "on-error": "#690005",
+                      "secondary-fixed-dim": "#8bd1e4",
+                      "secondary-container": "#005d6e",
+                      "surface": "#131313",
+                      "on-surface-variant": "#bcc9cd",
+                      "secondary": "#8bd1e4",
+                      "outline": "#869397",
+                      "on-primary": "#003641"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk"],
+                      "body": ["Inter"],
+                      "label": ["Space Grotesk"]
+              }
+            },
+          }
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .canvas-grid {
+            background-image: radial-gradient(circle, #2a2a2a 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+        .node-wire {
+            stroke: #00ADCC;
+            stroke-width: 1.5;
+            fill: none;
+            opacity: 0.4;
+        }
+    </style>
+</head>
+<body class="bg-black text-on-surface font-body selection:bg-primary/30 flex overflow-hidden">
+<!-- SideNavBar -->
+<aside class="flex flex-col h-screen w-72 border-r border-neutral-900 bg-black shadow-[10px_0_30px_rgba(0,0,0,0.5)] z-50 overflow-y-auto p-4 font-['Space_Grotesk'] text-sm tracking-tight">
+<div class="mb-10 px-4">
+<h1 class="text-xl font-bold tracking-tighter text-[#00ADCC]">STUDIO LAB</h1>
+<p class="text-[10px] uppercase tracking-[0.2em] text-neutral-500 mt-1">Terminal de Criação</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-[#00ADCC] bg-neutral-900/80 rounded-sm border-l-2 border-[#00ADCC] duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard_customize">dashboard_customize</span>
+<span>Painel</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-200 transition-colors duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="layers">layers</span>
+<span>Projetos</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-200 transition-colors duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span>Laboratório IA</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-200 transition-colors duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+<span>Arquivos</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-200 transition-colors duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="tune">tune</span>
+<span>Configurações</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-neutral-900">
+<button class="w-full mb-6 bg-gradient-to-r from-primary-container to-secondary-container text-on-primary py-3 rounded-sm font-bold uppercase tracking-widest text-[11px] active:scale-[0.98] transition-transform">
+                Novo Ativo
+            </button>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-200 transition-colors duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+<span>Ajuda</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-neutral-500 hover:bg-neutral-800/40 hover:text-neutral-200 transition-colors duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span>Sair</span>
+</a>
+</div>
+</div>
+</aside>
+<div class="flex-1 flex flex-col relative h-screen">
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 z-40 bg-black/80 backdrop-blur-2xl border-b border-neutral-900 flex items-center justify-between w-[calc(100%-18rem)] h-16 px-8 font-['Inter'] text-[13px] font-medium uppercase tracking-widest">
+<div class="flex items-center gap-6">
+<span class="font-['Space_Grotesk'] text-lg font-black text-white">WORKSPACE</span>
+<div class="h-4 w-[1px] bg-neutral-800"></div>
+<span class="text-neutral-400">Novo Projeto</span>
+</div>
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3 px-3 py-1.5 bg-neutral-900 rounded-sm">
+<span class="text-primary text-[11px] font-bold">901 CR</span>
+<span class="w-[1px] h-3 bg-neutral-700"></span>
+<span class="text-neutral-500 text-[10px]">CRÉDITOS RESTANTES</span>
+</div>
+<nav class="hidden lg:flex gap-6">
+<a class="text-neutral-400 hover:text-white transition-opacity" href="#">Visão Geral</a>
+<a class="text-[#00ADCC] border-b border-[#00ADCC]" href="#">Fluxo</a>
+<a class="text-neutral-400 hover:text-white transition-opacity" href="#">Equipe</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="bg-primary-container text-on-primary-container px-4 py-2 rounded-sm text-[11px] font-bold active:scale-[0.98] duration-100">+ ADICIONAR CARD</button>
+<button class="text-neutral-400 hover:text-white transition-opacity">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-neutral-800 overflow-hidden border border-neutral-700">
+<img alt="Avatar" class="w-full h-full object-cover" data-alt="Close-up portrait of a professional creative director with serious expression in high-contrast moody lighting, dark studio background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6YnEoGqn6ugpH9QEkvQRbMzNeqMqboB8COo8mLLJVPfR1b4mrvPZjpePBC8d-CUGpXZssZiIkZ_vDU7wTaf5X9KQXAPLKnyvGh9MFw5imUhx1f99mzkbTudieccQ7vchHYnft0BzaDIiEtBtc-lsLxUktOaxOihyoorsudWaouR_vsHDJ6iY5xYv1PTV6a1BmA4gGWsfx6VYktWkHUBoi3IdZOffFRxnkA8H-finjKfIKkk3k_BE36igRYCQLQeGQAbZmhqSR6XRP"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content - The Canvas -->
+<main class="mt-16 flex-1 bg-[#F9F9F9] canvas-grid relative overflow-hidden">
+<!-- Node Connectivity Visualization (SVG Layer) -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none">
+<path class="node-wire" d="M 280 250 Q 400 250 480 350"></path>
+<path class="node-wire" d="M 280 450 Q 400 450 480 380"></path>
+<path class="node-wire" d="M 720 365 Q 850 365 920 365"></path>
+<path class="node-wire" d="M 1160 365 Q 1250 365 1300 300"></path>
+<path class="node-wire" d="M 1160 365 Q 1250 365 1300 430"></path>
+</svg>
+<!-- Card: Rosto Real (Upload) -->
+<div class="absolute left-40 top-40 w-60 bg-surface-container rounded-sm shadow-xl border border-neutral-800 overflow-hidden group">
+<div class="h-1 bg-primary w-full"></div>
+<div class="p-4">
+<div class="flex items-center justify-between mb-3">
+<span class="text-[10px] font-headline font-bold text-neutral-500 uppercase tracking-widest">Entrada</span>
+<span class="material-symbols-outlined text-primary text-sm" data-icon="face">face</span>
+</div>
+<h3 class="text-white font-headline font-medium text-sm mb-4">Rosto Real (Upload)</h3>
+<div class="aspect-square bg-neutral-900 rounded-sm flex flex-col items-center justify-center border-2 border-dashed border-neutral-800 hover:border-primary/50 transition-colors cursor-pointer group-hover:bg-neutral-800/50">
+<span class="material-symbols-outlined text-neutral-600 mb-2" data-icon="cloud_upload">cloud_upload</span>
+<span class="text-[10px] text-neutral-500 font-label">CLIQUE PARA UPLOAD</span>
+</div>
+</div>
+<div class="bg-neutral-900/50 p-2 flex justify-end">
+<div class="w-3 h-3 rounded-full bg-primary ring-4 ring-primary/20 cursor-pointer"></div>
+</div>
+</div>
+<!-- Card: Script (Copywriter IA) -->
+<div class="absolute left-40 top-[420px] w-60 bg-surface-container rounded-sm shadow-xl border border-neutral-800 overflow-hidden">
+<div class="h-1 bg-tertiary w-full"></div>
+<div class="p-4">
+<div class="flex items-center justify-between mb-3">
+<span class="text-[10px] font-headline font-bold text-neutral-500 uppercase tracking-widest">Lógica IA</span>
+<span class="material-symbols-outlined text-tertiary text-sm" data-icon="psychology">psychology</span>
+</div>
+<h3 class="text-white font-headline font-medium text-sm mb-1">Estrategista de Copy</h3>
+<p class="text-[10px] text-neutral-400 font-body mb-4 leading-tight">Geração de roteiros persuasivos para marketing digital.</p>
+<div class="bg-black p-3 rounded-sm text-[10px] text-neutral-300 font-mono italic border border-neutral-800">
+                        "Imagine um futuro onde a tecnologia..."
+                    </div>
+</div>
+<div class="bg-neutral-900/50 p-2 flex justify-end">
+<div class="w-3 h-3 rounded-full bg-tertiary ring-4 ring-tertiary/20"></div>
+</div>
+</div>
+<!-- Card: Processamento (Center Node) -->
+<div class="absolute left-[480px] top-[320px] w-60 bg-surface-container rounded-sm shadow-xl border border-neutral-800 overflow-hidden ring-1 ring-primary/30">
+<div class="p-4">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<span class="text-[10px] font-headline font-bold text-white uppercase tracking-widest">Processando</span>
+</div>
+<span class="material-symbols-outlined text-neutral-500 text-sm" data-icon="settings">settings</span>
+</div>
+<div class="space-y-3">
+<div class="h-1.5 bg-neutral-900 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[75%] shadow-[0_0_10px_#54d6f6]"></div>
+</div>
+<div class="flex justify-between text-[10px] font-label text-neutral-400">
+<span>Sincronia Labial</span>
+<span class="text-primary">75%</span>
+</div>
+</div>
+</div>
+<div class="flex justify-between bg-neutral-900/50 p-2">
+<div class="w-3 h-3 rounded-full bg-neutral-700"></div>
+<div class="w-3 h-3 rounded-full bg-primary ring-4 ring-primary/20"></div>
+</div>
+</div>
+<!-- Card: Video (Output) -->
+<div class="absolute left-[800px] top-[320px] w-[360px] bg-surface-container rounded-sm shadow-2xl border border-neutral-800 overflow-hidden">
+<div class="bg-neutral-900 px-4 py-2 flex justify-between items-center border-b border-neutral-800">
+<span class="text-[10px] font-headline font-bold text-primary uppercase tracking-[0.2em]">Visualização Final</span>
+<span class="material-symbols-outlined text-neutral-500 text-sm" data-icon="fullscreen">fullscreen</span>
+</div>
+<div class="relative group">
+<img alt="Output Preview" class="w-full aspect-video object-cover" data-alt="Digital art representing futuristic AI interface with flowing abstract neon cyan light waves on a black obsidian surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDcdiy1n1i_detCXJMYl4AtHnM9VeAvSHYzDM1wmGfwLrg561GnyJp9uplsyQM_TLxjA4PUb_hqMR3hR1lMuDsxBVNpH8X0QqBu4idbBWzN09i6bnM_tJGmjRRxVt81Xs2QRpByN-CVFUabo3_B91b2tIrDfv-Pz8n2mnFQ4Cu2sAFs4xGYAzh63N_6JwVGoZPAERfO0UTEjqucRruO1OLTlZWszryezlKpB993fP22Mr7kO1EpyCQXJnNcM8CHLs27KLIiSGri442Q"/>
+<div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="w-12 h-12 rounded-full bg-primary/90 text-black flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+</div>
+<div class="p-4 flex justify-between items-center bg-black/20">
+<div>
+<h4 class="text-white font-headline text-sm">Diretor de Cena &amp; Fotografia</h4>
+<p class="text-[10px] text-neutral-500">4K • 60FPS • ProRes 422</p>
+</div>
+<div class="flex gap-2">
+<div class="w-3 h-3 rounded-full bg-neutral-700"></div>
+<div class="w-3 h-3 rounded-full bg-primary ring-4 ring-primary/20"></div>
+</div>
+</div>
+</div>
+<!-- Floating Controls -->
+<div class="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/90 backdrop-blur-xl border border-neutral-800 p-2 rounded-lg shadow-2xl z-40">
+<button class="flex items-center gap-2 px-4 py-2 text-neutral-400 hover:text-white hover:bg-neutral-900 rounded-sm transition-all border border-transparent hover:border-neutral-800 group">
+<span class="material-symbols-outlined text-sm" data-icon="drag_pan">drag_pan</span>
+<span class="text-[11px] font-bold font-headline uppercase tracking-wider">Pan</span>
+</button>
+<div class="h-4 w-[1px] bg-neutral-800 mx-1"></div>
+<button class="flex items-center gap-2 px-4 py-2 text-[#00ADCC] bg-neutral-900 border border-neutral-800 rounded-sm">
+<span class="material-symbols-outlined text-sm" data-icon="gesture">gesture</span>
+<span class="text-[11px] font-bold font-headline uppercase tracking-wider">Arraste para conectar</span>
+</button>
+<div class="h-4 w-[1px] bg-neutral-800 mx-1"></div>
+<button class="flex items-center gap-2 px-4 py-2 text-neutral-400 hover:text-white hover:bg-neutral-900 rounded-sm transition-all border border-transparent hover:border-neutral-800">
+<span class="material-symbols-outlined text-sm" data-icon="input">input</span>
+<span class="text-[11px] font-bold font-headline uppercase tracking-wider">Entrada de dados</span>
+</button>
+<div class="h-4 w-[1px] bg-neutral-800 mx-1"></div>
+<button class="w-10 h-10 flex items-center justify-center bg-primary text-black rounded-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="rocket_launch" style="font-variation-settings: 'FILL' 1;">rocket_launch</span>
+</button>
+</div>
+<!-- Side Inspector / Context Menu (Optional Visual) -->
+<div class="absolute right-8 top-24 w-64 bg-surface-container/95 backdrop-blur-md border border-neutral-800 rounded-sm shadow-2xl p-4 flex flex-col gap-4">
+<div class="flex items-center gap-2 border-b border-neutral-800 pb-3">
+<span class="material-symbols-outlined text-primary text-sm" data-icon="tune">tune</span>
+<h5 class="text-white font-headline text-[11px] font-bold uppercase tracking-widest">Configuração do Card</h5>
+</div>
+<div class="space-y-4">
+<div class="space-y-2">
+<label class="text-[10px] text-neutral-500 font-headline uppercase">Fidelidade Facial</label>
+<div class="h-1 bg-neutral-900 rounded-full">
+<div class="h-full bg-primary w-[90%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-[10px] text-neutral-500 font-headline uppercase">Tom de Voz</label>
+<select class="w-full bg-black border-neutral-800 text-white text-[11px] rounded-sm focus:border-primary focus:ring-0">
+<option>Narrador Profissional</option>
+<option>Entusiasmado</option>
+<option>Sério / Formal</option>
+</select>
+</div>
+<button class="w-full py-2 bg-neutral-800 text-neutral-300 text-[10px] font-bold uppercase tracking-widest border border-neutral-700 hover:bg-neutral-700 transition-colors">Renderizar Preview</button>
+</div>
+</div>
+</main>
+</div>
+</body></html>

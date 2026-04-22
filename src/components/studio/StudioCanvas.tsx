@@ -8,7 +8,7 @@ import {
   MarkerType, ReactFlowProvider, useReactFlow
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ArrowLeft, Edit2, Check, Plus, Wand2, LayoutGrid, RotateCcw, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Edit2, Check, Plus, RotateCcw, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { StudioAsset, StudioConnection, StudioProject, AssetType } from '@/types'
 import AssetNode, { AssetNodeData } from './nodes/AssetNode'
@@ -18,9 +18,20 @@ import CanvasQuickAdd from './CanvasQuickAdd'
 import CampaignWizard, { WizardResult } from './CampaignWizard'
 import TemplateGallery, { WorkflowTemplate } from './TemplateGallery'
 import StudioChatPanel from './StudioChatPanel'
+import {
+  HERO_SELFIE_TEMPLATE_ID,
+  PENDING_GENERATION_STORAGE_KEY,
+  type PendingPromptGenerationSession,
+} from '@/lib/prompt-gallery'
 
 const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
+
+const WIDE_NODE_TYPES: AssetType[] = ['scene', 'compose', 'angles', 'video', 'image', 'upscale', 'lipsync', 'animate']
+
+function getNodeCardWidth(type: AssetType) {
+  return WIDE_NODE_TYPES.includes(type) ? 620 : 320
+}
 
 const CREDIT_COST: Record<AssetType, number> = {
   image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12,
@@ -36,7 +47,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   upscale: { source_url: '', scale: 4 },
   render:  { source_image_url: '', audio_url: '' },
   animate: { portrait_image_url: '', driving_video_url: '' },
-  compose: { portrait_url: '', product_url: '', position: 'southeast', product_scale: 0.35 },
+  compose: { portrait_url: '', product_url: '', position: 'southeast', product_scale: 0.35, compose_variant: 'fitting', compose_mode: 'gemini' },
   lipsync: { face_url: '', audio_url: '' },
   face:    { face_image_url: '' },
   join:    { video_urls: [] },
@@ -65,6 +76,8 @@ const HANDLE_TO_FIELD: Record<string, string> = {
   video_5:             'video_urls',
 }
 
+const AUTOSAVE_DELAY_MS = 900
+
 interface Props {
   project: StudioProject
   initialAssets: StudioAsset[]
@@ -83,7 +96,7 @@ function buildNodes(assets: StudioAsset[], callbacks: Omit<AssetNodeData, 'asset
       y: asset.position_y ?? (100 + Math.floor(i / 3) * 440),
     },
     data: { asset, ...callbacks } as unknown as Record<string, unknown>,
-    style: { overflow: 'visible', width: 360 },
+    style: { overflow: 'visible', width: getNodeCardWidth(asset.type) },
   }))
 }
 
@@ -123,6 +136,16 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   } | null>(null)
   const [undoToast,    setUndoToast]    = useState<{ label: string } | null>(null)
   const [quickAddMenu, setQuickAddMenu] = useState<{ x: number; y: number } | null>(null)
+  const [saveState,    setSaveState]    = useState<'saved' | 'saving' | 'error'>('saved')
+  const [lastSavedAt,  setLastSavedAt]  = useState(() => (project.updated_at ? new Date(project.updated_at) : null))
+  const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const persistedInputRef = useRef<Map<string, string>>(
+    new Map(
+      initialAssets
+        .filter((asset) => !asset.isLocal)
+        .map((asset) => [asset.id, JSON.stringify(asset.input_params ?? {})]),
+    ),
+  )
 
   // ── Atalhos de Teclado (Ctrl+Z e Ctrl+S) ────────────────────────────────
   useEffect(() => {
@@ -430,7 +453,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         .map(n => ({
           ...n,
           data: { ...n.data, asset: assetMap.get(n.id)!, ...nodeCallbacks },
-          style: { overflow: 'visible', width: 360 },
+          style: { overflow: 'visible', width: getNodeCardWidth(assetMap.get(n.id)!.type) },
         }))
 
       // Adiciona nodes novos que ainda não existem no ReactFlow
@@ -444,7 +467,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           y: asset.position_y ?? (100 + Math.floor((offset + j) / 3) * 440),
         },
         data: { asset, ...nodeCallbacks } as unknown as Record<string, unknown>,
-        style: { overflow: 'visible', width: 360 },
+        style: { overflow: 'visible', width: getNodeCardWidth(asset.type) },
       }))
 
       return [...updated, ...newNodes]
@@ -571,6 +594,43 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       pollingRef.current.clear()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const dirtyAssets = assets.filter((asset) => {
+      if (asset.isLocal) return false
+      const serialized = JSON.stringify(asset.input_params ?? {})
+      return persistedInputRef.current.get(asset.id) !== serialized
+    })
+
+    if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current)
+    if (dirtyAssets.length === 0) return
+
+    setSaveState('saving')
+    autosaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await Promise.all(
+          dirtyAssets.map(async (asset) => {
+            const serialized = JSON.stringify(asset.input_params ?? {})
+            await fetch(`/api/studio/assets/${asset.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ input_params: asset.input_params }),
+            })
+            persistedInputRef.current.set(asset.id, serialized)
+          }),
+        )
+
+        setSaveState('saved')
+        setLastSavedAt(new Date())
+      } catch {
+        setSaveState('error')
+      }
+    }, AUTOSAVE_DELAY_MS)
+
+    return () => {
+      if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current)
+    }
+  }, [assets])
 
   // ── Drag end — salva posição ─────────────────────────────────────────────
   const onNodeDragStop = useCallback((_: React.MouseEvent, node: Node) => {
@@ -794,7 +854,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   }, [connections, assets, handleUpdateParams])
 
   // ── Adicionar card ───────────────────────────────────────────────────────
-  async function addCard(type: AssetType) {
+  async function addCard(type: AssetType, presetParams?: Record<string, unknown>) {
     if (credits < CREDIT_COST[type]) {
       alert(`Você precisa de ${CREDIT_COST[type]} crédito(s).`)
       return
@@ -814,18 +874,19 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     } else {
       // Nasce no centro exato da visão atual do usuário
       const flowPos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
-      pX = flowPos.x - 180 // Centraliza a largura do card (360px / 2)
+      pX = flowPos.x - getNodeCardWidth(type) / 2
       pY = flowPos.y - 100 // Sobe um pouco para ficar bem no meio
     }
     
     // 1. Cria localmente para feedback instantâneo (otimista)
+    const nextParams = { ...DEFAULT_PARAMS[type], ...(presetParams ?? {}) }
     const newAsset: StudioAsset = {
       id: frontend_id,
       project_id: project.id,
       user_id: project.user_id,
       type,
       status: 'idle',
-      input_params: DEFAULT_PARAMS[type],
+      input_params: nextParams,
       credits_cost: 0, // só cobra quando gerar
       board_order: i,
       position_x: pX,
@@ -851,7 +912,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           type,
           status: 'idle',
           frontend_id,
-          input_params: DEFAULT_PARAMS[type],
+          input_params: nextParams,
           position_x: pX,
           position_y: pY,
         })
@@ -865,6 +926,64 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       }
     } catch { /* fallback */ }
   }
+
+  useEffect(() => {
+    if (assets.length > 0) return
+
+    const raw = window.localStorage.getItem(PENDING_GENERATION_STORAGE_KEY)
+    if (!raw) return
+
+    try {
+      const pending = JSON.parse(raw) as PendingPromptGenerationSession
+      window.localStorage.removeItem(PENDING_GENERATION_STORAGE_KEY)
+      setShowGallery(false)
+
+      if (pending.templateId === HERO_SELFIE_TEMPLATE_ID) {
+        void addCard('image', {
+          prompt: pending.prompt,
+          style: 'realista',
+          aspect_ratio: '4:5',
+          source_face_url: pending.uploadedUrls[0] ?? '',
+          preset_title: pending.title,
+          identity_lock: pending.identityLock,
+        })
+        return
+      }
+
+      if (pending.generationMode === 'product_model') {
+        void addCard('compose', {
+          portrait_url: pending.uploadedUrls[0] ?? '',
+          product_url: pending.uploadedUrls[1] ?? '',
+          compose_variant: 'product',
+          smart_prompt: pending.prompt,
+          preset_title: pending.title,
+        })
+        return
+      }
+
+      if (pending.generationMode === 'virtual_tryon') {
+        void addCard('compose', {
+          portrait_url: pending.uploadedUrls[0] ?? '',
+          product_url: pending.uploadedUrls[1] ?? '',
+          compose_variant: 'fitting',
+          smart_prompt: pending.prompt,
+          preset_title: pending.title,
+        })
+        return
+      }
+
+      void addCard('scene', {
+        source_url: pending.uploadedUrls[0] ?? '',
+        extra_source_urls: pending.uploadedUrls.slice(1),
+        scene_prompt: pending.prompt,
+        preset_title: pending.title,
+        identity_lock: pending.identityLock,
+      })
+    } catch {
+      window.localStorage.removeItem(PENDING_GENERATION_STORAGE_KEY)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assets.length])
 
   // ── Campaign Wizard → monta cards automaticamente ──────────────────────
   function buildCampaign(result: WizardResult) {
@@ -1074,11 +1193,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
   return (
     <div className="w-full h-screen flex flex-row overflow-hidden">
-      <div className="flex-1 min-w-0 flex flex-col bg-[#f4f4f5]">
+      <div className="flex-1 min-w-0 flex flex-col bg-[#F5F5F3]">
       {/* Top bar */}
-      <div className="shrink-0 z-10 bg-white/90 backdrop-blur-md border-b border-zinc-200 px-6 py-3 flex items-center justify-between gap-4">
+      <div className="shrink-0 z-10 bg-[#050505]/96 backdrop-blur-xl border-b border-white/8 px-6 py-3 flex items-center justify-between gap-4 text-white">
         <div className="flex items-center gap-3 min-w-0">
-          <Link href="/dashboard/studio" className="text-zinc-400 hover:text-zinc-800 transition-colors shrink-0">
+          <Link href="/dashboard/studio" className="text-white/35 hover:text-[#54D6F6] transition-colors shrink-0">
             <ArrowLeft size={18} />
           </Link>
           {editing ? (
@@ -1089,29 +1208,52 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
                 onKeyDown={e => e.key === 'Enter' && saveTitle()} 
                 onBlur={saveTitle}
                 autoFocus 
-                className="bg-white border border-accent rounded-lg px-3 py-1.5 text-sm text-zinc-900 focus:outline-none min-w-[200px] shadow-sm" 
+                className="min-w-[220px] border border-[#00ADCC]/35 bg-white/5 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none shadow-sm" 
                 placeholder="Nome do workflow..."
               />
-              <button onMouseDown={e => { e.preventDefault(); saveTitle(); }} className="text-accent hover:text-accent/80"><Check size={16} /></button>
+              <button onMouseDown={e => { e.preventDefault(); saveTitle(); }} className="text-[#54D6F6] hover:text-white"><Check size={16} /></button>
             </div>
           ) : (
-            <button onClick={() => setEditing(true)} title="Clique ou Ctrl+S para renomear" className="flex items-center gap-2 text-sm font-semibold text-zinc-800 hover:text-accent transition-colors group truncate">
+            <button onClick={() => setEditing(true)} title="Clique ou Ctrl+S para renomear" className="flex items-center gap-2 text-sm font-semibold text-white hover:text-[#54D6F6] transition-colors group truncate">
               {title || 'Projeto sem nome'}
-              <Edit2 size={12} className="text-zinc-400 group-hover:text-accent shrink-0" />
+              <Edit2 size={12} className="text-white/25 group-hover:text-[#54D6F6] shrink-0" />
             </button>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs font-medium text-zinc-500 bg-zinc-100 border border-zinc-200 px-3 py-1.5 rounded-xl">{credits} cr</span>
+          <div className={`hidden items-center gap-2 rounded-xl border px-3 py-1.5 md:flex ${
+            saveState === 'error'
+              ? 'border-amber-500/20 bg-amber-500/10 text-amber-300'
+              : saveState === 'saving'
+                ? 'border-[#54D6F6]/20 bg-[#0C171A] text-[#54D6F6]'
+                : 'border-white/8 bg-white/5 text-white/68'
+          }`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${
+              saveState === 'error'
+                ? 'bg-amber-300'
+                : saveState === 'saving'
+                  ? 'bg-[#54D6F6]'
+                  : 'bg-emerald-400'
+            }`} />
+            <span className="font-label text-[10px] uppercase tracking-[0.18em]">
+              {saveState === 'error' ? 'falha no autosave' : saveState === 'saving' ? 'salvando rascunho' : 'progresso salvo'}
+            </span>
+            {lastSavedAt ? (
+              <span className="font-label text-[10px] text-white/38">
+                {lastSavedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            ) : null}
+          </div>
+          <span className="font-label text-[11px] text-white/70 bg-white/5 border border-white/8 px-3 py-1.5 rounded-xl">{credits} CR</span>
           <button
             onClick={() => setShowGallery(true)}
-            className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-900 bg-white border border-zinc-200 hover:border-accent/50 hover:shadow-sm px-3 py-1.5 rounded-xl transition-all"
+            className="flex items-center gap-1.5 font-label text-[11px] text-white/55 hover:text-white bg-white/5 border border-white/8 hover:border-[#00ADCC]/35 hover:shadow-sm px-3 py-1.5 rounded-xl transition-all"
           >
             <Plus size={13} /> Templates
           </button>
           <button
             onClick={() => setChatOpen(o => !o)}
-            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-xl border transition-all ${chatOpen ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-zinc-500 border-zinc-200 hover:border-indigo-400 hover:text-indigo-600 hover:shadow-sm'}`}
+            className={`flex items-center gap-1.5 font-label text-[11px] px-3 py-1.5 rounded-xl border transition-all ${chatOpen ? 'bg-cyan-gradient text-[#003641] border-[#00ADCC] shadow-sm' : 'bg-white/5 text-white/55 border-white/8 hover:border-[#00ADCC]/35 hover:text-white hover:shadow-sm'}`}
           >
             <MessageSquare size={13} /> Chat IA
           </button>
@@ -1133,9 +1275,9 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       <svg style={{ position: 'absolute', width: 0, height: 0 }}>
         <defs>
           <linearGradient id="ray-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#f97316" stopOpacity="0.2" />
-            <stop offset="50%" stopColor="#fb923c" stopOpacity="1" />
-            <stop offset="100%" stopColor="#f97316" stopOpacity="0.2" />
+            <stop offset="0%" stopColor="#54D6F6" stopOpacity="0.15" />
+            <stop offset="50%" stopColor="#00ADCC" stopOpacity="1" />
+            <stop offset="100%" stopColor="#54D6F6" stopOpacity="0.15" />
           </linearGradient>
         </defs>
       </svg>
@@ -1167,21 +1309,28 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           deleteKeyCode="Delete"
           proOptions={{ hideAttribution: true }}
         >
-          <Background variant={BackgroundVariant.Dots} color="#d4d4d8" gap={24} size={1.5} />
+          <Background variant={BackgroundVariant.Dots} color="#3d494d" gap={24} size={1.3} />
           <MiniMap
-            nodeColor="#e4e4e7"
-            maskColor="rgba(244, 244, 245, 0.7)"
-            style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 12, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
+            position="bottom-right"
+            nodeColor="#1f1f1f"
+            maskColor="rgba(255, 255, 255, 0.72)"
+            pannable
+            zoomable
+            style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, boxShadow: '0 20px 40px rgba(0, 0, 0, 0.18)', right: 18, bottom: 18, width: 150, height: 100 }}
           />
           <Controls
-            style={{ background: '#ffffff', border: '1px solid #e4e4e7', borderRadius: 8, boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)', fill: '#71717a' }}
+            position="top-left"
+            style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, boxShadow: '0 20px 40px rgba(0, 0, 0, 0.18)', fill: '#bcc9cd', left: 18, top: 18 }}
           />
 
           {/* Empty state */}
           {assets.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center bg-white/60 px-6 py-3 rounded-2xl border border-zinc-200 shadow-sm backdrop-blur-sm">
-                <p className="text-zinc-500 text-sm font-medium">Canvas vazio — clique em <span className="text-accent underline decoration-accent/30 underline-offset-2">Templates</span> para começar</p>
+              <div className="panel-card bg-[#111111]/88 px-7 py-4 text-center shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-xl">
+                <p className="font-label text-[10px] uppercase tracking-[0.32em] text-[#54D6F6]">Workspace armed</p>
+                <p className="mt-2 text-sm text-[#D7E4E8]">
+                  Canvas vazio. Clique em <span className="text-[#54D6F6] underline decoration-[#54D6F6]/30 underline-offset-4">Templates</span> para iniciar o fluxo.
+                </p>
               </div>
             </div>
           )}
@@ -1189,11 +1338,13 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       </div>
 
       {/* Dica de conexão */}
-      <div className="shrink-0 px-6 py-2 border-t border-zinc-200 bg-white/70 backdrop-blur-sm flex items-center gap-3">
-        <div className="flex items-center gap-4 text-[10px] font-medium text-zinc-500">
-          <span>🟠 Arraste do <span className="text-orange-500">ponto laranja</span> para conectar saídas</span>
-          <span>🔵 <span className="text-blue-500">Ponto azul</span> = entrada de dados</span>
-          <span><kbd className="bg-white border border-zinc-200 shadow-sm px-1.5 py-0.5 rounded text-zinc-500">Del</kbd> para remover conexão</span>
+      <div className="shrink-0 border-t border-white/5 bg-[#101010]/94 px-6 py-3 backdrop-blur-xl">
+        <div className="flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.22em] text-[#7D8B90]">
+          <span className="obsidian-chip border-[#54D6F6]/15 bg-[#0C171A] text-[#54D6F6]">Flow guide</span>
+          <span>Arraste do ponto de saída para encadear automações</span>
+          <span className="text-[#54D6F6]">azul = entrada</span>
+          <span className="text-[#54D6F6]">cyan = saída</span>
+          <span><kbd className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[#D7E4E8]">Del</kbd> remove a conexão</span>
         </div>
       </div>
 
@@ -1227,23 +1378,23 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
       {/* Undo toast — aparece 8s após deletar um card */}
       {undoToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-zinc-800 border border-zinc-600 text-white text-sm px-4 py-3 rounded-2xl shadow-2xl shadow-black/60 animate-in slide-in-from-bottom-4 duration-300">
-          <span className="text-zinc-300">Card excluído</span>
+        <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-[22px] border border-[#54D6F6]/18 bg-[#101010]/96 px-4 py-3 text-sm text-white shadow-[0_24px_80px_rgba(0,0,0,0.5)] backdrop-blur-xl animate-in slide-in-from-bottom-4 duration-300">
+          <span className="font-label text-[10px] uppercase tracking-[0.28em] text-[#8FA7AD]">Card removido</span>
           <button
             onClick={undoDeleteAsset}
-            className="flex items-center gap-1.5 text-accent hover:text-white font-semibold transition-colors"
+            className="flex items-center gap-1.5 rounded-full border border-[#54D6F6]/20 bg-[#0C171A] px-3 py-1.5 font-label text-[10px] uppercase tracking-[0.24em] text-[#54D6F6] transition-colors hover:border-[#54D6F6]/40 hover:text-white"
           >
             <RotateCcw size={13} />
             Desfazer
           </button>
-          <span className="text-zinc-600 text-[10px]">Ctrl+Z</span>
+          <span className="font-label text-[10px] uppercase tracking-[0.24em] text-[#5B6B70]">Ctrl+Z</span>
         </div>
       )}
       </div>{/* end flex-col canvas area */}
 
       {/* Chat IA Panel */}
       {chatOpen && (
-        <StudioChatPanel projectId={project.id} userId={userId} />
+        <StudioChatPanel projectId={project.id} userId={userId} onClose={() => setChatOpen(false)} />
       )}
     </div>
   )

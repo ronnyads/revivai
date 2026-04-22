@@ -1,15 +1,38 @@
 import {
-  Body, Button, Column, Container, Head, Hr, Html,
-  Preview, Row, Section, Text,
+  Body, Button, Column, Container, Head, Hr, Html, Preview, Row, Section, Text,
 } from '@react-email/components'
-
-const PLAN_CONFIG: Record<string, { color: string; accent: string }> = {
-  Explorador: { color: '#22c55e', accent: '#16a34a' },
-  Rookie:     { color: '#71717a', accent: '#52525b' },
-  Creator:    { color: '#3b82f6', accent: '#2563eb' },
-  Pro:        { color: '#a855f7', accent: '#9333ea' },
-  Studio:     { color: '#f59e0b', accent: '#d97706' },
-}
+import {
+  accentDotStyle,
+  bodyStyle,
+  brandRowStyle,
+  cardStyle,
+  containerStyle,
+  ctaStyle,
+  dataBlockStyle,
+  dataKeyStyle,
+  dataValueStyle,
+  dividerStyle,
+  eyebrowStyle,
+  footerBodyStyle,
+  footerMetaStyle,
+  footerStyle,
+  heroStyle,
+  headlineStyle,
+  leadStyle,
+  metricCellStyle,
+  metricLabelStyle,
+  metricValueStyle,
+  panelLabelStyle,
+  PLAN_PALETTES,
+  sectionStyle,
+  shellChromeStyle,
+  shellDotRowStyle,
+  shellDotStyle,
+  shellFrameStyle,
+  statValueStyle,
+  subtleTextStyle,
+  wordmarkStyle,
+} from '@/emails/theme'
 
 interface PurchaseEmailProps {
   name: string
@@ -21,227 +44,118 @@ interface PurchaseEmailProps {
 }
 
 export default function PurchaseEmail({ name, email, planName, credits, password, loginUrl }: PurchaseEmailProps) {
-  const cfg = PLAN_CONFIG[planName] ?? PLAN_CONFIG['Creator']
+  const palette = PLAN_PALETTES[planName] ?? PLAN_PALETTES.Creator
   const firstName = name?.split(' ')[0] ?? 'criador'
-  const images   = Math.floor(credits / 8)
-  const videos   = Math.floor(credits / 15)
+  const images = Math.floor(credits / 8)
+  const videos = Math.floor(credits / 15)
   const upscales = Math.floor(credits / 3)
 
   return (
     <Html lang="pt-BR">
       <Head />
       <Preview>Sua conta RevivAI esta pronta. Acesse agora.</Preview>
-      <Body style={body}>
-        <Container style={container}>
-
-          {/* Top bar */}
-          <div style={{ height: 4, background: `linear-gradient(90deg, ${cfg.color}, ${cfg.accent})`, borderRadius: '4px 4px 0 0' }} />
-
-          {/* Header */}
-          <Section style={header}>
-            <Text style={wordmark}>reviv<span style={{ color: cfg.color }}>.ai</span></Text>
+      <Body style={bodyStyle}>
+        <Container style={containerStyle}>
+          <Section style={shellFrameStyle}>
+            <div style={shellChromeStyle}>
+              <div style={shellDotRowStyle}>
+                <span style={shellDotStyle('#F87171')} />
+                <span style={shellDotStyle('#FBBF24')} />
+                <span style={shellDotStyle('#54D6F6')} />
+              </div>
+            </div>
           </Section>
 
-          <Hr style={divider} />
-
-          {/* Body */}
-          <Section style={content}>
-            <Text style={greeting}>Ola, {firstName}.</Text>
-            <Text style={headline}>Sua conta foi criada.</Text>
-            <Text style={body_text}>
-              Voce adquiriu o plano <span style={{ color: cfg.color, fontWeight: 700 }}>{planName}</span> e seus creditos ja estao disponiveis na plataforma.
+          <Section style={brandRowStyle}>
+            <Text style={wordmarkStyle()}>
+              REVIVAI
+              <span style={accentDotStyle(palette.accent)} />
             </Text>
+          </Section>
 
-            {/* Credits block */}
-            <div style={creditsBlock}>
-              <Text style={creditsLabel}>CREDITOS DISPONIVEIS</Text>
-              <Text style={{ ...creditsNumber, color: cfg.color }}>{credits.toLocaleString('pt-BR')}</Text>
+          <Section style={heroStyle(palette.glow)}>
+            <Text style={eyebrowStyle}>CONTA LIBERADA</Text>
+            <Text style={headlineStyle}>SEU TERMINAL ESTA PRONTO.</Text>
+            <Text style={leadStyle}>
+              Ola, {firstName}. O plano <span style={{ color: palette.accent, fontWeight: 700 }}>{planName}</span> ja foi
+              ativado e seus creditos estao disponiveis para voce entrar no studio sem nenhuma etapa extra.
+            </Text>
+          </Section>
+
+          <Section style={sectionStyle}>
+            <div style={cardStyle}>
+              <Text style={panelLabelStyle}>CREDITOS DISPONIVEIS</Text>
+              <Text style={statValueStyle(palette.accent)}>{credits.toLocaleString('pt-BR')}</Text>
+              <Text style={subtleTextStyle}>Capacidade premium liberada para criacao, restauracao e upscale.</Text>
             </div>
+          </Section>
 
-            {/* Capacity grid — table-based for email compatibility */}
-            <div style={{ border: '1px solid #1f1f1f', borderRadius: 6, overflow: 'hidden', marginBottom: 28, marginTop: 4 }}>
-              <Row>
-                <Column style={gridItem}>
-                  <Text style={gridValue}>{images.toLocaleString('pt-BR')}</Text>
-                  <Text style={gridLabel}>Imagens</Text>
-                </Column>
-                <Column style={{ ...gridItem, borderLeft: '1px solid #27272a', borderRight: '1px solid #27272a' }}>
-                  <Text style={gridValue}>{videos.toLocaleString('pt-BR')}</Text>
-                  <Text style={gridLabel}>Videos</Text>
-                </Column>
-                <Column style={gridItem}>
-                  <Text style={gridValue}>{upscales.toLocaleString('pt-BR')}</Text>
-                  <Text style={gridLabel}>Upscales 4K</Text>
-                </Column>
-              </Row>
-            </div>
+          <Section style={sectionStyle}>
+            <Row>
+              <Column style={metricCellStyle}>
+                <Text style={metricValueStyle}>{images.toLocaleString('pt-BR')}</Text>
+                <Text style={metricLabelStyle}>Imagens</Text>
+              </Column>
+              <Column style={{ width: 10 }} />
+              <Column style={metricCellStyle}>
+                <Text style={metricValueStyle}>{videos.toLocaleString('pt-BR')}</Text>
+                <Text style={metricLabelStyle}>Videos</Text>
+              </Column>
+              <Column style={{ width: 10 }} />
+              <Column style={metricCellStyle}>
+                <Text style={metricValueStyle}>{upscales.toLocaleString('pt-BR')}</Text>
+                <Text style={metricLabelStyle}>Upscales 4K</Text>
+              </Column>
+            </Row>
+          </Section>
 
-            {/* Credenciais — table-based */}
-            <div style={credentialsBlock}>
+          <Section style={sectionStyle}>
+            <div style={dataBlockStyle}>
               <Row style={{ padding: '16px 0' }}>
-                <Column style={{ width: '30%' }}>
-                  <Text style={credKey}>E-mail</Text>
+                <Column style={{ width: '32%' }}>
+                  <Text style={dataKeyStyle}>E-mail</Text>
                 </Column>
                 <Column>
-                  <Text style={credVal}>{email}</Text>
+                  <Text style={dataValueStyle}>{email}</Text>
                 </Column>
               </Row>
-              <Hr style={innerDivider} />
+              <Hr style={dividerStyle} />
               <Row style={{ padding: '16px 0' }}>
-                <Column style={{ width: '30%' }}>
-                  <Text style={credKey}>Senha</Text>
+                <Column style={{ width: '32%' }}>
+                  <Text style={dataKeyStyle}>Senha</Text>
                 </Column>
                 <Column>
-                  <Text style={{ ...credVal, color: cfg.color, fontFamily: '"Courier New", monospace', letterSpacing: 3, fontSize: 14 }}>{password}</Text>
+                  <Text
+                    style={{
+                      ...dataValueStyle,
+                      color: palette.accentSoft,
+                      fontFamily: '"IBM Plex Mono", "Courier New", monospace',
+                      letterSpacing: 2.6,
+                    }}
+                  >
+                    {password}
+                  </Text>
                 </Column>
               </Row>
             </div>
+          </Section>
 
-            <Button href={loginUrl} style={{ ...ctaButton, backgroundColor: cfg.color }}>
+          <Section style={sectionStyle}>
+            <Button href={loginUrl} style={ctaStyle(palette.accent)}>
               Acessar minha conta
             </Button>
           </Section>
 
-          <Hr style={divider} />
+          <Hr style={{ ...dividerStyle, marginTop: 26 }} />
 
-          {/* Footer */}
-          <Section style={footer}>
-            <Text style={footerText}>
+          <Section style={footerStyle}>
+            <Text style={footerBodyStyle}>
               Este e-mail foi enviado para {email} porque voce realizou uma compra em revivads.com.
             </Text>
-            <Text style={footerMeta}>
-              RevivAI — Geracao de conteudo com inteligencia artificial
-            </Text>
+            <Text style={footerMetaStyle}>REVIVAI | GERACAO DE CONTEUDO COM INTELIGENCIA ARTIFICIAL</Text>
           </Section>
-
         </Container>
       </Body>
     </Html>
   )
-}
-
-const body: React.CSSProperties = {
-  backgroundColor: '#050505',
-  fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-  margin: 0,
-  padding: '40px 16px',
-}
-const container: React.CSSProperties = {
-  maxWidth: 520,
-  margin: '0 auto',
-  backgroundColor: '#0f0f0f',
-  borderRadius: 8,
-  border: '1px solid #1f1f1f',
-  overflow: 'hidden',
-}
-const header: React.CSSProperties = { padding: '28px 36px 20px' }
-const wordmark: React.CSSProperties = {
-  fontSize: 22,
-  fontWeight: 800,
-  color: '#ffffff',
-  letterSpacing: '-0.5px',
-  margin: 0,
-}
-const divider: React.CSSProperties = { borderColor: '#1f1f1f', margin: 0 }
-const content: React.CSSProperties = { padding: '32px 36px' }
-const greeting: React.CSSProperties = { color: '#71717a', fontSize: 13, margin: '0 0 4px' }
-const headline: React.CSSProperties = {
-  color: '#ffffff',
-  fontSize: 26,
-  fontWeight: 700,
-  letterSpacing: '-0.5px',
-  margin: '0 0 16px',
-  lineHeight: 1.2,
-}
-const body_text: React.CSSProperties = {
-  color: '#a1a1aa',
-  fontSize: 14,
-  lineHeight: 1.6,
-  margin: '0 0 28px',
-}
-const creditsBlock: React.CSSProperties = {
-  backgroundColor: '#141414',
-  border: '1px solid #1f1f1f',
-  borderRadius: 6,
-  padding: '20px 24px',
-  marginBottom: 4,
-}
-const creditsLabel: React.CSSProperties = {
-  color: '#3f3f46',
-  fontSize: 10,
-  fontWeight: 700,
-  letterSpacing: 2,
-  margin: '0 0 6px',
-  fontFamily: '"Courier New", monospace',
-}
-const creditsNumber: React.CSSProperties = {
-  fontSize: 44,
-  fontWeight: 800,
-  letterSpacing: '-2px',
-  margin: 0,
-  lineHeight: 1,
-  fontFamily: '"Courier New", monospace',
-}
-const gridItem: React.CSSProperties = {
-  padding: '16px 8px',
-  textAlign: 'center',
-  backgroundColor: '#141414',
-}
-const gridValue: React.CSSProperties = {
-  color: '#ffffff',
-  fontSize: 20,
-  fontWeight: 700,
-  margin: '0 0 4px',
-  fontFamily: '"Courier New", monospace',
-}
-const gridLabel: React.CSSProperties = {
-  color: '#3f3f46',
-  fontSize: 10,
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: 1,
-  margin: 0,
-}
-const credentialsBlock: React.CSSProperties = {
-  backgroundColor: '#141414',
-  border: '1px solid #1f1f1f',
-  borderRadius: 6,
-  padding: '0 20px',
-  marginBottom: 24,
-}
-const credKey: React.CSSProperties = {
-  color: '#52525b',
-  fontSize: 12,
-  margin: 0,
-}
-const credVal: React.CSSProperties = {
-  color: '#e4e4e7',
-  fontSize: 12,
-  fontWeight: 600,
-  margin: 0,
-}
-const innerDivider: React.CSSProperties = { borderColor: '#1f1f1f', margin: 0 }
-const ctaButton: React.CSSProperties = {
-  color: '#000000',
-  fontSize: 13,
-  fontWeight: 700,
-  padding: '12px 28px',
-  borderRadius: 6,
-  textDecoration: 'none',
-  display: 'inline-block',
-  letterSpacing: '0.2px',
-}
-const footer: React.CSSProperties = { padding: '20px 36px 24px' }
-const footerText: React.CSSProperties = {
-  color: '#3f3f46',
-  fontSize: 11,
-  margin: '0 0 4px',
-  lineHeight: 1.6,
-}
-const footerMeta: React.CSSProperties = {
-  color: '#27272a',
-  fontSize: 10,
-  letterSpacing: 1,
-  textTransform: 'uppercase',
-  margin: 0,
 }

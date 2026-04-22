@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Obsidian AI - Painel de Restauração</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-bright": "#393939",
+                        "on-secondary-container": "#8ed4e8",
+                        "surface-container-low": "#1b1b1b",
+                        "on-surface": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#005141",
+                        "tertiary-container": "#00b392",
+                        "secondary": "#8bd1e4",
+                        "inverse-on-surface": "#303030",
+                        "tertiary-fixed": "#15ffd1",
+                        "primary-fixed": "#afecff",
+                        "on-background": "#e2e2e2",
+                        "secondary-fixed-dim": "#8bd1e4",
+                        "on-tertiary-container": "#003e31",
+                        "on-secondary-fixed": "#001f26",
+                        "on-primary": "#003641",
+                        "background": "#131313",
+                        "on-error-container": "#ffdad6",
+                        "tertiary": "#00e0b7",
+                        "surface-tint": "#54d6f6",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-container": "#1f1f1f",
+                        "on-secondary-fixed-variant": "#004e5c",
+                        "surface-container-highest": "#353535",
+                        "secondary-fixed": "#acedff",
+                        "secondary-container": "#005d6e",
+                        "outline-variant": "#3d494d",
+                        "on-error": "#690005",
+                        "inverse-surface": "#e2e2e2",
+                        "tertiary-fixed-dim": "#00e0b7",
+                        "inverse-primary": "#00687b",
+                        "surface-dim": "#131313",
+                        "on-secondary": "#003640",
+                        "error": "#ffb4ab",
+                        "on-tertiary": "#00382c",
+                        "surface-variant": "#353535",
+                        "surface": "#131313",
+                        "primary-fixed-dim": "#54d6f6",
+                        "error-container": "#93000a",
+                        "on-primary-container": "#003b47",
+                        "on-tertiary-fixed": "#002019",
+                        "on-primary-fixed": "#001f26",
+                        "primary-container": "#00adcc",
+                        "on-surface-variant": "#bcc9cd",
+                        "surface-container-lowest": "#0e0e0e",
+                        "outline": "#869397",
+                        "on-primary-fixed-variant": "#004e5d",
+                        "primary": "#54d6f6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Space Grotesk', sans-serif; }
+        .tonal-shift { transition: background-color 0.2s ease; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(84, 214, 246, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background overflow-hidden">
+<!-- SideNavBar Shell -->
+<aside class="fixed left-0 top-0 h-screen w-64 flex flex-col p-4 bg-black border-r border-zinc-900 font-['Space_Grotesk'] text-sm tracking-tight z-50">
+<!-- Brand Identity -->
+<div class="mb-10 px-2">
+<h1 class="text-2xl font-bold tracking-tighter text-cyan-500 dark:text-cyan-400">Obsidian AI</h1>
+<p class="text-xs text-zinc-500 uppercase tracking-widest mt-1">Restaurador Digital</p>
+</div>
+<!-- CTA -->
+<button class="mb-8 w-full bg-primary-container text-on-primary-container font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all hover:brightness-110 active:scale-95 duration-150 ease-in-out">
+<span class="material-symbols-outlined text-xl">add_circle</span>
+            Nova Restauração
+        </button>
+<!-- Navigation Links -->
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 p-3 rounded-lg text-zinc-500 hover:text-zinc-300 transition-colors hover:bg-zinc-900/50" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 p-3 rounded-lg text-zinc-500 hover:text-zinc-300 transition-colors hover:bg-zinc-900/50" href="#">
+<span class="material-symbols-outlined">photo_library</span>
+                Biblioteca
+            </a>
+<a class="flex items-center gap-3 p-3 rounded-lg text-cyan-400 font-bold border-r-2 border-cyan-400 bg-cyan-950/10" href="#">
+<span class="material-symbols-outlined">auto_fix_high</span>
+                Modelos IA
+            </a>
+<a class="flex items-center gap-3 p-3 rounded-lg text-zinc-500 hover:text-zinc-300 transition-colors hover:bg-zinc-900/50" href="#">
+<span class="material-symbols-outlined">memory</span>
+                Processamento
+            </a>
+<a class="flex items-center gap-3 p-3 rounded-lg text-zinc-500 hover:text-zinc-300 transition-colors hover:bg-zinc-900/50" href="#">
+<span class="material-symbols-outlined">settings</span>
+                Configurações
+            </a>
+</nav>
+<!-- Footer Info -->
+<div class="mt-auto pt-6 border-t border-zinc-900 space-y-3">
+<div class="flex items-center gap-3 px-3 py-2 text-on-secondary-container">
+<span class="material-symbols-outlined">workspace_premium</span>
+<span>Plano Pro</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2 text-zinc-400">
+<span class="material-symbols-outlined">toll</span>
+<span>942 Créditos</span>
+</div>
+<div class="flex items-center gap-3 px-3 pt-2">
+<img alt="Foto de perfil do usuário" class="w-8 h-8 rounded-full border border-zinc-800" data-alt="close-up portrait of a professional man in a dark environment with subtle blue side lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCRm1b3wKnqyo5tYXHJDqOPigZy7tneYpn_V1EeltfLDB5Aen1fKSgeSYOkXcLAr9VTNnosh0pDzKBQbmL4JBRlhOtrUeNEPyTTzglZeSfolpYwk1yGu7iex63ykC8djI1bSH2D_DQbKpOP_Yq4iYZMzsVcsYYGCIhBBmVbVzh-SN7PsLEmW86XQ0JUlJH7or2yItvPAJsek8T4bZBGswbk8n5jNFad-kuaB9JHDSogMjHBPqPGkldMG6lNQEHRBozP73r-BjNWgr2i"/>
+<div class="overflow-hidden">
+<p class="truncate font-medium text-zinc-200">Alexandre Silva</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Shell -->
+<main class="ml-64 flex flex-col h-screen">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center h-16 px-8 bg-black/80 backdrop-blur-xl border-b border-zinc-900 shadow-[0_1px_0_0_rgba(255,255,255,0.05)] sticky top-0 z-40">
+<div class="flex items-center gap-4">
+<h2 class="text-xl font-headline font-bold text-white tracking-tight">PAINEL DE RESTAURAÇÃO</h2>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">search</span>
+<input class="bg-zinc-950 border-none text-sm rounded-lg pl-10 pr-4 py-2 w-64 focus:ring-1 focus:ring-cyan-500/50 transition-all text-zinc-300" placeholder="Buscar modelo..." type="text"/>
+</div>
+<div class="flex items-center gap-4 text-zinc-400">
+<button class="material-symbols-outlined hover:text-cyan-400 transition-all scale-95 active:opacity-80">notifications</button>
+<button class="material-symbols-outlined hover:text-cyan-400 transition-all scale-95 active:opacity-80">help_outline</button>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="flex-1 overflow-y-auto bg-surface-dim p-8">
+<!-- Header Text -->
+<div class="mb-10">
+<p class="text-cyan-500 font-headline font-medium tracking-widest text-xs uppercase mb-2">Algoritmos Avançados</p>
+<h3 class="text-sm text-zinc-400 font-body max-w-2xl leading-relaxed">
+                    Escolha o algoritmo e revitalize cada pixel com inteligência artificial. Nossa rede neural processa granulação, rasgos e desbotamento em segundos.
+                </h3>
+</div>
+<!-- Bento Grid of Models -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+<!-- Card 1: Reversão de Fading -->
+<div class="group bg-surface-container rounded-lg overflow-hidden border-none tonal-shift hover:bg-surface-container-high cursor-pointer glow-cyan transition-all duration-300">
+<div class="relative h-48 overflow-hidden">
+<div class="absolute inset-0 flex">
+<div class="w-1/2 relative">
+<img alt="Antigo" class="h-full w-full object-cover grayscale opacity-60" data-alt="vintage faded photograph of a landscape with visible grain and yellowing effects from the mid 20th century" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZQeRuArlJtlw3Xw9kqOZ8AgvHBm44nvtLansbUZQuMuC9t7ODFSCUP7QDbfXE2KU1gH8HuU0mbpfrE22_aWwchwyuB6l5xjJD2GthXEg3-bzSONJTptm-UeqetFTHU7p5Lkl4XvtfVskk_wO8RK5gUK7TFg23EZxXbh9hWKtPXGWazl9vmjlQIF0o0qATuyaF6In4tFet3gdcpnX41IJjl4eL1t-W_kWG3RJkm55NjdpfAS1LHeElRrafwHd3HSKmjKRt1VwpBXrB"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-[10px] text-white font-headline">ANTES</div>
+</div>
+<div class="w-1/2 relative border-l border-cyan-500/30">
+<img alt="Depois" class="h-full w-full object-cover contrast-125 saturate-125" data-alt="vibrant color restored landscape photograph with sharp details and deep contrast matching the original composition" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDHcKbyBZ-94Z2hT_E9KXa5LRw-dzcQfjc0f3Tus3SFV7vt-8CI5JLyTtt9kteQCt4dx-g6cyzNFN9P-hM85PAZJA7lAfVW5JHAx7dLge4Fqsr1CZhHqaLiU9BniuMBdsQC_67JAqo5AI467Nmg2vtr38br6Z2tZ59yjeWxfd5Z_toS956WPNC0xXdxL4ZS49_4mbwQngulCgJhoAjQZaVHhMj-3ojHqBRVPLLrsYdO-rGsvgt2Rfo4t2uspThk2xMyuW8-GfLATGEI"/>
+<div class="absolute bottom-2 right-2 px-2 py-0.5 bg-cyan-500/80 backdrop-blur-md rounded text-[10px] text-black font-bold font-headline">DEPOIS</div>
+</div>
+</div>
+</div>
+<div class="p-5">
+<h4 class="text-cyan-400 font-headline font-bold text-sm tracking-tight mb-1">REVERSÃO DE FADING</h4>
+<p class="text-zinc-500 text-xs">Recupere cores perdidas pelo tempo e radiação UV.</p>
+</div>
+</div>
+<!-- Card 2: Lumen Reviva -->
+<div class="group bg-surface-container rounded-lg overflow-hidden border-none tonal-shift hover:bg-surface-container-high cursor-pointer glow-cyan transition-all duration-300">
+<div class="relative h-48 overflow-hidden">
+<div class="absolute inset-0 flex">
+<div class="w-1/2 relative">
+<img alt="Antigo" class="h-full w-full object-cover blur-[1px] brightness-75" data-alt="underexposed dark blurry photo of a person in a room with heavy digital noise" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfl_SdMk55EHy3q3oeqCbK9tTqgrNaTB0VpiRL4UgAG4HP_cH5wUTZdn6lqAuozwlq2i5f2IeNURzVCTSoCsyRyz3haw-NnGhamPE2ir4aoNSOxXgVbPhMcNgN5twewTbARAYMF8QZ6FqlvGl79PiA4xwCoyQAzxVZQr_YNQ7V2mgzXI5f5EPILg2JuDnzO-vmwbkNy1v9nrafcHinpS0s9DTt1rslfG8HS3upeWIiRgvPEdMJLMCy8BSMFNLgGWm1SXVDWKRjNG5C"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-[10px] text-white font-headline">ANTES</div>
+</div>
+<div class="w-1/2 relative border-l border-cyan-500/30">
+<img alt="Depois" class="h-full w-full object-cover brightness-110 contrast-110" data-alt="digitally enhanced photo with perfect lighting and sharp facial details restored using advanced AI lighting algorithms" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIHPcnUFwKOH2dYB8_mXRmR15z7cFsa_l_TmHNztsMQttBtoqFkW3IXxQEIR3W90s8E5PrjFEkEYCVVkYicstLKqtYMVpp1czpWQaKUIOhLMy32dbzaHMvM7uG4iH2vfW-D7jP6kZuAzseiRnPilpEjdECcKQkJ4ALLRyYF8o9CFBTEKBh--DZ5RDlwH-mP7DoI37E8sNkwGSjuM7amHgAYtNSh_Ulnl7cphUVf_-44HDMeUL9Xzvw8nOxAiHH9rPdMJZg-lL32Z14"/>
+<div class="absolute bottom-2 right-2 px-2 py-0.5 bg-cyan-500/80 backdrop-blur-md rounded text-[10px] text-black font-bold font-headline">DEPOIS</div>
+</div>
+</div>
+</div>
+<div class="p-5">
+<h4 class="text-cyan-400 font-headline font-bold text-sm tracking-tight mb-1">LUMEN REVIVA SUA IMAGEM</h4>
+<p class="text-zinc-500 text-xs">Equilíbrio dinâmico de luz em fotos subexpostas.</p>
+</div>
+</div>
+<!-- Card 3: Recuperador Foto Documento -->
+<div class="group bg-surface-container rounded-lg overflow-hidden border-none tonal-shift hover:bg-surface-container-high cursor-pointer glow-cyan transition-all duration-300">
+<div class="relative h-48 overflow-hidden">
+<div class="absolute inset-0 flex">
+<div class="w-1/2 relative">
+<img alt="Antigo" class="h-full w-full object-cover sepia-[0.5] opacity-80" data-alt="old tattered document with faded handwriting and visible paper texture damage" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDyJ_6oV6p148okmafw-FMDaW_-9yLALhiaw0XfC45OYFuN42x0v9nFG-nCDYd0oCWTcmlKJuy_5OQZqHYiPBpRyVA4P7YPqcflzcFcsLBeH4uhzqO7wRoZKTo3rDUIj2YUWhMgJUWj9HrXzCKVUNbAwqyCf9bqo0OBtUb9OXxgjDYUVaHy8tD0NWyzdiFBtHJlcbt7h63mASvtFZ4zYhFWcWfT_KY-tvF1oo1xmo7s-WYfYcitlwWvGgmdP0rQbuYPVw3vecL0AMPJ"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-[10px] text-white font-headline">ANTES</div>
+</div>
+<div class="w-1/2 relative border-l border-cyan-500/30">
+<img alt="Depois" class="h-full w-full object-cover contrast-200 brightness-125" data-alt="clean digital scan of document with crisp black text and white background removed of stains" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNSHyFxjeEAGEvoBEQ2Ie1fXNvhi-dshRG3MO-4H6rOkdwb2-_CNH-8dxIMtbj-NWuA02Bf1MOYsZrFegywEp1QfqbGAMVF0TCMU2xSwqfLpyx-Uggdq12r9l64ok_Lkz8JcetDyfrfRkkeTBn0Q89pqdxPggFjUXKIht4flaJqyGgAFSLiKcHV5OKlyJUO4cxOndfRx7QKp9pq9ht_WI8dKR_Yy4NGrAaLXLlfEFKrCXAFSw7btSBttaN97wxzpVy3zQC_mLA_YPf"/>
+<div class="absolute bottom-2 right-2 px-2 py-0.5 bg-cyan-500/80 backdrop-blur-md rounded text-[10px] text-black font-bold font-headline">DEPOIS</div>
+</div>
+</div>
+</div>
+<div class="p-5">
+<h4 class="text-cyan-400 font-headline font-bold text-sm tracking-tight mb-1">RECUPERADOR FOTO DOCUMENTO</h4>
+<p class="text-zinc-500 text-xs">Otimizado para manuscritos e registros históricos.</p>
+</div>
+</div>
+<!-- Card 4: Recuperador de Fotos Únicas -->
+<div class="group bg-surface-container rounded-lg overflow-hidden border-none tonal-shift hover:bg-surface-container-high cursor-pointer glow-cyan transition-all duration-300">
+<div class="relative h-48 overflow-hidden">
+<div class="absolute inset-0 flex">
+<div class="w-1/2 relative">
+<img alt="Antigo" class="h-full w-full object-cover grayscale blur-[2px]" data-alt="highly damaged vintage portrait with deep scratches and missing parts of the image texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqyE_Ke5To6VnhPX9LtOpAGgAr5NaR70_BzCZcvwQnu7mVgATlvmqBgUIsEPPPplL_JatD5DhPcvpDhA0lY_ZAzarzbt9FZssC98oUt7Fo2K0KrmlBx5tia4t7-WfEuX_Y2C7OrLJXvUfcJP1QPm5rVnQNylBSCEjG66Y_vJwNDHDCKPMq1HhMzqAi6UkUfXANbKx-gVe1CaUPf77oCQ_TDf8u9j09jZnFES_59ZjDWAPG5phfgn0JxiZ6PKepY1EXXX0XdLmS5wvf"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-[10px] text-white font-headline">ANTES</div>
+</div>
+<div class="w-1/2 relative border-l border-cyan-500/30">
+<img alt="Depois" class="h-full w-full object-cover" data-alt="flawless skin retouching and feature reconstruction of a woman's portrait with hyper-realistic textures" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAd8E3Gjj6qHLmxIW7eHHK8VDs4x11Azjvq0AGFQSYf_BSDIWKa69MJKDvZ0bHzNprkLA7su4cK9opjD7LU1W5XFO4bC7arsmvC5sM8wVoPKJDenBrCZwXoDNJ4u_bpjco9FUHOSTg3LmwQyb888wRUe3dURTO_pISSuBphEM-s8IIvatLDW2LM_ZAOqYMUnNUUGsMC_TUMXumVN9_t_3E6T_PsMFmTqVknY7lU4UYl4dcLCLzLx1jXmw_shNkoLrcjUDMME9jeRiHe"/>
+<div class="absolute bottom-2 right-2 px-2 py-0.5 bg-cyan-500/80 backdrop-blur-md rounded text-[10px] text-black font-bold font-headline">DEPOIS</div>
+</div>
+</div>
+</div>
+<div class="p-5">
+<h4 class="text-cyan-400 font-headline font-bold text-sm tracking-tight mb-1">RECUPERADOR DE FOTOS ÚNICAS</h4>
+<p class="text-zinc-500 text-xs">Foco extremo em retratos individuais de alta fidelidade.</p>
+</div>
+</div>
+<!-- Card 5: Foto em Grupo -->
+<div class="group bg-surface-container rounded-lg overflow-hidden border-none tonal-shift hover:bg-surface-container-high cursor-pointer glow-cyan transition-all duration-300">
+<div class="relative h-48 overflow-hidden">
+<div class="absolute inset-0 flex">
+<div class="w-1/2 relative">
+<img alt="Antigo" class="h-full w-full object-cover grayscale opacity-50" data-alt="old family group photo with several faces being indistinguishable and blurry due to age" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7WpMH_kMpnI4svUWfLM3LOTID2KiqhVnSaOdyZPsIzFhLIzMUsDKsN1dY8BPyD7gUkTQxsk3QRENxVx4jqse8TkvFqNtc0SqRaniQhkoXWvZFvz_3mzfb3kHLHOfNdzLqCVpftpC2BNk4wRAJfevGOy7L3EeVwpoVj6V6db25BAKq8LSUoZD-SqhTBj2WigI9_eN18eOvSQRXOg3BPHP6mG4qBYeYFGVOMXrf1p_s5uWhnmlPzp19p7svf4nfQWqZK14EgPGazm7-"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-[10px] text-white font-headline">ANTES</div>
+</div>
+<div class="w-1/2 relative border-l border-cyan-500/30">
+<img alt="Depois" class="h-full w-full object-cover contrast-110" data-alt="sharp group photo where every face is clearly reconstructed and recognizable with natural skin tones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDbRfUSoH0nphBHKUrOqCjzi_ikEO3kUf20DGuKyyfLFb3JfpCoM_NvnYqFhItRlq_FAMN94OMbsE94bl0j0C2cfnsUfM8aacig19Ums-Z-B2coiekMikqNiDM90QtiNEv2gUmxtRckDQo0r6B45iBpswkK-JBt86AN6MWXSOAsB0qIdSzymVqoyPrN0N1EEp-FkXE25BPetpDPBrCLDK9oldCq0wtDd3zfm0je20JG7XpiiyQL5k1-XR6uQgti7J5SP4U7WXBcvarn"/>
+<div class="absolute bottom-2 right-2 px-2 py-0.5 bg-cyan-500/80 backdrop-blur-md rounded text-[10px] text-black font-bold font-headline">DEPOIS</div>
+</div>
+</div>
+</div>
+<div class="p-5">
+<h4 class="text-cyan-400 font-headline font-bold text-sm tracking-tight mb-1">FOTO EM GRUPO</h4>
+<p class="text-zinc-500 text-xs">Múltiplas detecções faciais e reconstrução simultânea.</p>
+</div>
+</div>
+<!-- Card 6: Mestre de Arquivo -->
+<div class="group bg-surface-container rounded-lg overflow-hidden border-none tonal-shift hover:bg-surface-container-high cursor-pointer glow-cyan transition-all duration-300">
+<div class="relative h-48 overflow-hidden">
+<div class="absolute inset-0 flex">
+<div class="w-1/2 relative">
+<img alt="Antigo" class="h-full w-full object-cover saturate-0 brightness-50" data-alt="underexposed black and white film photo with heavy silver halide grain and dust scratches" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBA5mS4kl7Dnprl_gK5YBcZRFOiBJxSqMVnlvzRdTWelhVMKAwF03AcagLGNBtH8QgUz5GsGIjvn6yAZJlHvfCLafS69UpD9x3M9YMX_VrvX7wRIlYhNPDU9s_N_FIaa460quAc0eP18BZ1VPmciIUlKnkfOTt9Sc3DD5aO8Zfa0MQ-pEOMzEFEBmDsh2t-SiFJnTGD-9hcHOiIZMfCGXy3ND_rOHyql76xuTZmHpdoLDbsOhemQ0jcRWIrre9kAijHxPsUyQpmnZvj"/>
+<div class="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 backdrop-blur-md rounded text-[10px] text-white font-headline">ANTES</div>
+</div>
+<div class="w-1/2 relative border-l border-cyan-500/30">
+<img alt="Depois" class="h-full w-full object-cover" data-alt="perfectly cleaned high resolution digital restoration of a professional photograph with no noise" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyjfoSPR08uux_eN6HBKpaHaUMly4lutoGRgiqQnViDebI9WhOqfezfU6ZFoc-CfZBb3jN1wRO6x8s75GJ7OYz_V1LeiblQV2E0SYX6R_cY4J5FJSI8DPQP8WmirxPBEothF3arY5k0jdF6i6X9a3PP5fnQOj8-fbfV7xUn63KOjThe8jg6_-AgNr9ft8l3UihtSOFGYbBVAR74oLlqhXOAPpegr6V6S_8W_M32SlgLX0iSzfAeCoikaqewegB43mQbCQiP3lqlc1e"/>
+<div class="absolute bottom-2 right-2 px-2 py-0.5 bg-cyan-500/80 backdrop-blur-md rounded text-[10px] text-black font-bold font-headline">DEPOIS</div>
+</div>
+</div>
+</div>
+<div class="p-5">
+<h4 class="text-cyan-400 font-headline font-bold text-sm tracking-tight mb-1">MESTRE DE ARQUIVO</h4>
+<p class="text-zinc-500 text-xs">Limpeza profunda de ruído e granulação de filmes antigos.</p>
+</div>
+</div>
+</div>
+<!-- Upload Area -->
+<div class="relative">
+<div class="group relative bg-zinc-950 border-2 border-dashed border-zinc-800 rounded-xl p-12 flex flex-col items-center justify-center transition-all hover:border-cyan-500/50 hover:bg-zinc-900/40">
+<div class="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-cyan-400 text-3xl">cloud_upload</span>
+</div>
+<p class="text-zinc-300 font-headline font-medium text-center max-w-sm">
+                        Arraste sua foto aqui ou toque para escolher do celular / computador
+                    </p>
+<p class="text-zinc-600 text-xs mt-4 uppercase tracking-widest">Suporta JPG, PNG, TIFF até 25MB</p>
+<input class="absolute inset-0 opacity-0 cursor-pointer" type="file"/>
+</div>
+<!-- Floating Action Indication -->
+<div class="absolute -top-4 -right-4">
+<div class="bg-cyan-500 text-black px-4 py-1 rounded-full text-xs font-bold font-headline animate-pulse">
+                        SISTEMA ONLINE
+                    </div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

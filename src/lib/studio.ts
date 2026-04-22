@@ -2163,3 +2163,134 @@ export async function generateScene(params: {
   const { data: urlData } = admin.storage.from('studio').getPublicUrl(filePath)
   return urlData.publicUrl
 }
+
+// ── Preset Identity Scene — usa uma imagem-base do preset + referência do cliente ──
+export async function generatePresetIdentityScene(params: {
+  template_scene_url: string
+  identity_reference_urls: string[]
+  scene_prompt: string
+  aspect_ratio?: string
+  assetId: string
+  userId: string
+}) {
+  const admin = createAdminClient()
+  const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
+  if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+
+  if (!params.template_scene_url?.startsWith('http')) {
+    throw new Error('URL da cena-base do preset inválida')
+  }
+
+  const identityRefs = params.identity_reference_urls.filter((url) => url.startsWith('http'))
+  if (identityRefs.length === 0) {
+    throw new Error('É necessário ao menos uma foto de referência do cliente')
+  }
+
+  async function fetchInlineData(url: string) {
+    const r = await fetch(url)
+    if (!r.ok) throw new Error(`Download falhou: ${r.status}`)
+    const mime = r.headers.get('content-type') || 'image/jpeg'
+    const data = Buffer.from(await r.arrayBuffer()).toString('base64')
+    return { mimeType: mime, data }
+  }
+
+  const templateScene = await fetchInlineData(params.template_scene_url)
+  const identityData = await Promise.all(
+    identityRefs.slice(0, 5).map((url) => fetchInlineData(url).catch(() => null))
+  ).then((result) => result.filter(Boolean) as { mimeType: string; data: string }[])
+
+  const aspectLabel: Record<string, string> = {
+    '9:16': 'vertical 9:16 portrait', '1:1': 'square 1:1', '4:5': 'vertical 4:5 portrait',
+    '16:9': 'horizontal 16:9 landscape', '3:4': 'vertical 3:4 portrait',
+  }
+  const ratioInstruction = `Compose the output in ${aspectLabel[params.aspect_ratio ?? '9:16'] ?? 'vertical 9:16 portrait'} format. Ensure the full person fits in frame.`
+
+  const identityLockBlock = [
+    'IDENTITY LOCK — person[1] é a referência exclusiva.',
+    'RULE 1 — FACIAL & BODY IDENTITY: Clonagem 100% fiel — estrutura óssea, nariz, lábios, olhos, cor dos olhos, sobrancelhas, tom de pele, idade, cabelo. Nada de deixar mais jovem ou diferente.',
+    'RULE 2 — OUTFIT FIDELITY: Roupa pixel-perfect idêntica — tipo, cor, textura, decote, alças, fit.',
+    'RULE 2B — NO INVENTED OBJECTS: Nenhum produto, objeto ou acessório que não esteja na pessoa original. Mãos vazias ficam vazias.',
+    'RULE 3 — ANATOMY: Foto única. Os 2 braços completamente visíveis e anatomicamente corretos — exatamente 2 braços, 2 mãos, 5 dedos cada.',
+    'RULE 4 — DYNAMIC POSE: Executa a pose do template scene com naturalidade premium.',
+    'RULE 5 — LIGHTING: Iluminação comercial cinematográfica, profundidade de campo natural, bokeh suave.',
+    'RULE 6 — CAMERA: Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, film grain, 8K.',
+  ].join(' ')
+
+  const templatePreservationBlock = [
+    'TEMPLATE SCENE LOCK: a primeira imagem é a cena-base absoluta.',
+    'Preserve com fidelidade máxima a composição, enquadramento, proporção da câmera, fundo, profundidade, ambiente, posição dos personagens secundários, objetos, atmosfera e storytelling da cena-base.',
+    'Substitua somente a pessoa humana principal da cena-base por person[1].',
+    'Remova completamente a pessoa original da cena-base.',
+    'Não simplifique a imagem para um retrato isolado.',
+    'Não corte personagens secundários.',
+    'Não troque o fundo por outro ambiente.',
+    'Não transforme a saída em foto solo de estúdio, floresta ou fundo neutro se a cena-base for uma selfie urbana com personagens.',
+    'Se a cena-base for selfie, mantenha a lógica de selfie, braço estendido e perspectiva de câmera em primeira pessoa.',
+    'A cena final deve parecer a mesma foto-base, porém com a pessoa principal trocada pela identidade de person[1].',
+  ].join(' ')
+
+  const geminiPrompt = [
+    'You are a professional photo director and identity-preserving compositing artist.',
+    'The FIRST image is the master scene template. The NEXT images are identity references.',
+    `The NEXT ${identityData.length} image(s) are exclusive identity references for the person that must replace the original main subject in the template scene.`,
+    templatePreservationBlock,
+    'Replace only the main human subject from the template scene with person[1], and remove every trace of the original template person.',
+    'Do not change the other characters, props, environment, or overall storytelling of the template scene.',
+    'Preserve the uploaded person exact face, facial structure, age appearance, skin tone, hair identity, expression energy, body identity, and clothing fidelity.',
+    identityLockBlock,
+    'Do not generate a new generic portrait.',
+    'Do not improvise a new pose unrelated to the template scene.',
+    'Do not output a solo subject if the template scene contains multiple characters or a specific cinematic setup.',
+    'Make the replacement look naturally integrated and commercially photorealistic.',
+    `ADDITIONAL CREATIVE DIRECTION: ${params.scene_prompt}.`,
+    ratioInstruction,
+    'Output: photorealistic commercial photo, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, no watermarks.',
+  ].join(' ')
+
+  const imageParts = [
+    { inlineData: templateScene },
+    ...identityData.map((item) => ({ inlineData: item })),
+  ]
+
+  let photoBuffer: Buffer | null = null
+  const geminiChain = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
+
+  for (const model of geminiChain) {
+    try {
+      console.log(`[preset-scene] Tentando ${model} para asset ${params.assetId} (${imageParts.length} referência(s))`)
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: geminiPrompt }, ...imageParts] }],
+            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
+          }),
+        }
+      )
+      if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
+      const data = await res.json()
+      const parts = data.candidates?.[0]?.content?.parts ?? []
+      const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
+      if (!imgPart?.inlineData?.data) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
+      photoBuffer = Buffer.from(imgPart.inlineData.data, 'base64')
+      console.log(`[preset-scene] Gemini sucesso: ${model}`)
+      break
+    } catch (e: any) {
+      console.warn(`[preset-scene] ${model} falhou: ${e.message}`)
+    }
+  }
+
+  if (!photoBuffer) throw new Error('Todos os modelos Gemini falharam para preset identity scene.')
+
+  const fileName = `preset-scene-${params.assetId}-${Date.now()}.jpg`
+  const filePath = `${params.userId}/${fileName}`
+  const { error: uploadError } = await admin.storage
+    .from('studio')
+    .upload(filePath, photoBuffer, { contentType: 'image/jpeg', upsert: true })
+  if (uploadError) throw new Error(`Upload falhou: ${uploadError.message}`)
+
+  const { data: urlData } = admin.storage.from('studio').getPublicUrl(filePath)
+  return urlData.publicUrl
+}

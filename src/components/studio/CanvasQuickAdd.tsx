@@ -1,7 +1,25 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Image, Video, Mic, ZoomIn, FileText, Captions, User, Film, Sparkles, Layers, Wand2, Upload, Scissors, MousePointer2, ChevronDown, Plus, Camera, Music } from 'lucide-react'
+import {
+  Camera,
+  Captions,
+  ChevronDown,
+  FileText,
+  Film,
+  Image as ImageIcon,
+  Layers,
+  Mic,
+  Music,
+  Plus,
+  Scissors,
+  Sparkles,
+  Upload,
+  User,
+  Video,
+  Wand2,
+  ZoomIn,
+} from 'lucide-react'
 import { AssetType } from '@/types'
 import { CREDIT_COST } from '@/constants/studio'
 
@@ -10,40 +28,42 @@ interface CardDef {
   icon: React.ReactNode
   label: string
   desc: string
-  gradient: string 
+  gradient: string
+  presetParams?: Record<string, unknown>
 }
 
 const GROUPS: { label: string; items: CardDef[] }[] = [
   {
-    label: 'Foto & Imagem',
+    label: 'Foto e Imagem',
     items: [
-      { type: 'face',       icon: <Upload size={20} />,    label: 'Rosto Real',      desc: 'Injetar face real',            gradient: 'from-[#34C759] to-[#30B753]' },
-      { type: 'model',      icon: <User size={20} />,      label: 'Modelo UGC',      desc: 'Persona em estúdio branco',    gradient: 'from-[#5856D6] to-[#AF52DE]' },
-      { type: 'image',      icon: <Image size={20} />,     label: 'Imagem IA',       desc: 'Foto de produto / cena',       gradient: 'from-[#007AFF] to-[#00C7BE]' },
-      { type: 'ugc_bundle', icon: <Sparkles size={20} />,  label: 'Pacote 8 UGC',    desc: '8 poses automáticas',          gradient: 'from-[#8B5CF6] to-[#D946EF]' },
-      { type: 'scene',      icon: <Camera size={20} />,    label: 'Cena Livre',      desc: 'Modelo em qualquer lugar',     gradient: 'from-[#7C3AED] to-[#4F46E5]' },
-      { type: 'angles',     icon: <Camera size={20} />,    label: 'Dir. de Cena',    desc: 'Trocar ângulo / perspectiva',  gradient: 'from-[#34D399] to-[#059669]' },
-      { type: 'compose',    icon: <Layers size={20} />,    label: 'Fusão UGC',       desc: 'Unir Modelo + Produto',        gradient: 'from-[#FF9F0A] to-[#FFD60A]' },
-      { type: 'upscale',    icon: <ZoomIn size={20} />,    label: 'Upscale 4K',      desc: 'Nitidez extrema',              gradient: 'from-[#30D158] to-[#66D4CF]' },
+      { type: 'face', icon: <Upload size={20} />, label: 'Rosto Real', desc: 'Injetar face real', gradient: 'from-emerald-400 to-emerald-600' },
+      { type: 'model', icon: <User size={20} />, label: 'Modelo UGC', desc: 'Persona em estudio branco', gradient: 'from-sky-500 to-cyan-500' },
+      { type: 'image', icon: <ImageIcon size={20} />, label: 'Imagem IA', desc: 'Foto de produto / cena', gradient: 'from-cyan-400 to-blue-500' },
+      { type: 'ugc_bundle', icon: <Sparkles size={20} />, label: 'Pacote 8 UGC', desc: '8 poses automaticas', gradient: 'from-cyan-400 to-teal-500' },
+      { type: 'scene', icon: <Camera size={20} />, label: 'Cena Livre', desc: 'Modelo em qualquer lugar', gradient: 'from-blue-500 to-indigo-500' },
+      { type: 'angles', icon: <Camera size={20} />, label: 'Dir. de Cena', desc: 'Trocar angulo / perspectiva', gradient: 'from-teal-400 to-emerald-600' },
+      { type: 'compose', icon: <Layers size={20} />, label: 'Provador', desc: 'Look, roupa e visual com produto', gradient: 'from-amber-400 to-yellow-500', presetParams: { compose_variant: 'fitting' } },
+      { type: 'compose', icon: <Layers size={20} />, label: 'Produto + Modelo', desc: 'Cena comercial com produto em destaque', gradient: 'from-orange-500 to-amber-500', presetParams: { compose_variant: 'product' } },
+      { type: 'upscale', icon: <ZoomIn size={20} />, label: 'Upscale 4K', desc: 'Nitidez extrema', gradient: 'from-emerald-400 to-cyan-500' },
     ],
   },
   {
-    label: 'Vídeo & Movimento',
+    label: 'Video e Movimento',
     items: [
-      { type: 'video',   icon: <Video size={20} />,    label: 'Vídeo / Anima', desc: 'Veo 3.1 / Kling AI',     gradient: 'from-[#141414] to-[#444444]' },
-      { type: 'animate', icon: <Sparkles size={20} />, label: 'Movimentos',    desc: 'Replicar trejeitos',     gradient: 'from-[#FF375F] to-[#BF5AF2]' },
-      { type: 'lipsync', icon: <Wand2 size={20} />,    label: 'Lip Sync',      desc: 'Sincronia labial real',  gradient: 'from-[#64D2FF] to-[#0A84FF]' },
-      { type: 'render',  icon: <Film size={20} />,     label: 'Vídeo Final',   desc: 'Mix Render Master',      gradient: 'from-[#8E8E93] to-[#C7C7CC]' },
-      { type: 'join',    icon: <Scissors size={20} />, label: 'Unir Clipes',   desc: 'Costura FFmpeg',         gradient: 'from-[#FF453A] to-[#FF3B30]' },
+      { type: 'video', icon: <Video size={20} />, label: 'Video / Anima', desc: 'Veo 3.1 / Kling AI', gradient: 'from-zinc-600 to-zinc-800' },
+      { type: 'animate', icon: <Sparkles size={20} />, label: 'Movimentos', desc: 'Replicar trejeitos', gradient: 'from-fuchsia-500 to-rose-500' },
+      { type: 'lipsync', icon: <Wand2 size={20} />, label: 'Lip Sync', desc: 'Sincronia labial real', gradient: 'from-cyan-400 to-sky-500' },
+      { type: 'render', icon: <Film size={20} />, label: 'Video Final', desc: 'Mix render master', gradient: 'from-zinc-300 to-zinc-500' },
+      { type: 'join', icon: <Scissors size={20} />, label: 'Unir Clipes', desc: 'Costura FFmpeg', gradient: 'from-red-400 to-red-500' },
     ],
   },
   {
-    label: 'Áudio & Texto',
+    label: 'Audio e Texto',
     items: [
-      { type: 'script',  icon: <FileText size={20} />,  label: 'Script Ad',        desc: 'Copy para vendas',          gradient: 'from-[#FF9500] to-[#FFCC00]' },
-      { type: 'voice',   icon: <Mic size={20} />,        label: 'Voz / Locução',    desc: 'Locução humana realista',   gradient: 'from-[#FF2D55] to-[#FF3B30]' },
-      { type: 'music',   icon: <Music size={20} />,      label: 'Trilha Sonora AI', desc: 'Compor trilha exclusiva',   gradient: 'from-[#007AFF] to-[#5856D6]' },
-      { type: 'caption', icon: <Captions size={20} />,   label: 'Legendas',         desc: 'Dinâmicas e coloridas',     gradient: 'from-[#BF5AF2] to-[#5E5CE6]' },
+      { type: 'script', icon: <FileText size={20} />, label: 'Script Ad', desc: 'Copy para vendas', gradient: 'from-amber-400 to-orange-500' },
+      { type: 'voice', icon: <Mic size={20} />, label: 'Voz / Locucao', desc: 'Locucao humana realista', gradient: 'from-rose-400 to-red-500' },
+      { type: 'music', icon: <Music size={20} />, label: 'Trilha Sonora AI', desc: 'Compor trilha exclusiva', gradient: 'from-sky-500 to-indigo-500' },
+      { type: 'caption', icon: <Captions size={20} />, label: 'Legendas', desc: 'Dinamicas e coloridas', gradient: 'from-violet-500 to-indigo-500' },
     ],
   },
 ]
@@ -51,7 +71,7 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
 interface Props {
   x: number
   y: number
-  onAdd: (type: AssetType) => void
+  onAdd: (type: AssetType, presetParams?: Record<string, unknown>) => void
   onClose: () => void
 }
 
@@ -59,15 +79,18 @@ export default function CanvasQuickAdd({ x, y, onAdd, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const menuW = 460 
+  const menuW = 460
   const menuH = 520
-  const left = Math.min(x, window.innerWidth  - menuW - 16)
-  const top  = Math.min(y, window.innerHeight - menuH - 16)
+  const left = Math.min(x, window.innerWidth - menuW - 16)
+  const top = Math.min(y, window.innerHeight - menuH - 16)
 
   return (
     <>
@@ -76,98 +99,95 @@ export default function CanvasQuickAdd({ x, y, onAdd, onClose }: Props) {
       <div
         ref={ref}
         style={{ left, top }}
-        className="fixed z-50 w-[460px] h-[520px] bg-[#0c0c0e] border border-white/10 rounded-[40px] shadow-[0_30px_100px_rgba(0,0,0,1)] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
-        onMouseDown={e => e.stopPropagation()}
+        className="fixed z-50 flex h-[520px] w-[460px] flex-col overflow-hidden rounded-[36px] border border-white/10 bg-[#0F1011] shadow-[0_30px_100px_rgba(0,0,0,0.85)] animate-in fade-in zoom-in-95 duration-200"
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="px-8 py-6 border-b border-white/5 bg-white/[0.02] flex items-center justify-between shrink-0">
+        <div className="flex shrink-0 items-center justify-between border-b border-white/5 bg-[linear-gradient(180deg,rgba(84,214,246,0.08),rgba(255,255,255,0.02))] px-8 py-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-accent rounded-[20px] shadow-[0_0_25px_rgba(124,58,237,0.4)]">
-              <Plus size={20} className="text-white" />
+            <div className="rounded-[18px] border border-[#54D6F6]/20 bg-[#0C171A] p-3 shadow-[0_0_0_10px_rgba(84,214,246,0.08)]">
+              <Plus size={20} className="text-[#54D6F6]" />
             </div>
             <div>
-              <h3 className="text-[18px] font-black text-white tracking-tight">O que vamos criar?</h3>
-              <p className="text-[10px] text-zinc-500 uppercase font-black tracking-[0.25em] mt-0.5 leading-none">God Mode Activated</p>
+              <h3 className="text-[18px] font-semibold tracking-tight text-white">O que vamos criar?</h3>
+              <p className="mt-1 font-label text-[10px] uppercase tracking-[0.28em] text-[#54D6F6]">quick insert</p>
             </div>
           </div>
         </div>
 
-        {/* Content - Estrutura Simplificada e Robusta */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar-vibrant px-6 py-4 space-y-8">
-            {GROUPS.map((group) => (
-              <div key={group.label}>
-                <h4 className="text-[11px] text-accent font-black uppercase tracking-[0.2em] mb-5 flex items-center gap-3">
-                   <div className="h-px w-6 bg-accent/30" />
-                   {group.label}
-                   <div className="h-px flex-1 bg-accent/10" />
-                </h4>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  {group.items.map(item => {
-                    const cost = CREDIT_COST[item.type] ?? 0
-                    return (
-                      <button
-                        key={item.type}
-                        onMouseDown={() => { onAdd(item.type); onClose() }}
-                        className="group relative flex items-center gap-4 p-4 rounded-[30px] bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-accent/40 transition-colors text-left active:scale-[0.94] overflow-hidden"
-                      >
-                        <div className={`shrink-0 w-12 h-12 rounded-[18px] bg-gradient-to-br ${item.gradient} flex items-center justify-center text-white shadow-xl`}>
-                          <div className="text-white drop-shadow-lg scale-110">
-                             {item.icon}
-                          </div>
+        <div className="custom-scrollbar-cyan flex-1 space-y-8 overflow-y-auto px-6 py-4">
+          {GROUPS.map((group) => (
+            <div key={group.label}>
+              <h4 className="mb-5 flex items-center gap-3 font-label text-[11px] uppercase tracking-[0.24em] text-[#54D6F6]">
+                <div className="h-px w-6 bg-[#54D6F6]/35" />
+                {group.label}
+                <div className="h-px flex-1 bg-[#54D6F6]/12" />
+              </h4>
+
+              <div className="grid grid-cols-2 gap-3">
+                {group.items.map((item) => {
+                  const cost = CREDIT_COST[item.type] ?? 0
+
+                  return (
+                    <button
+                      key={`${item.type}-${item.label}`}
+                      onMouseDown={() => { onAdd(item.type, item.presetParams); onClose() }}
+                      className="group relative flex items-center gap-4 overflow-hidden rounded-[28px] border border-white/5 bg-white/[0.03] p-4 text-left transition-all hover:border-[#54D6F6]/35 hover:bg-white/[0.08] active:scale-[0.97]"
+                    >
+                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br ${item.gradient} text-white shadow-xl`}>
+                        {item.icon}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[14px] font-semibold leading-none tracking-tight text-white">
+                            {item.label}
+                          </p>
+                          <span className={`rounded-full px-2 py-1 font-label text-[9px] uppercase tracking-[0.18em] ${
+                            cost === 0
+                              ? 'bg-emerald-500 text-white'
+                              : 'border border-[#54D6F6]/20 bg-[#0C171A] text-[#54D6F6]'
+                          }`}>
+                            {cost === 0 ? 'free' : `${cost}cr`}
+                          </span>
                         </div>
 
-                        <div className="flex-1 min-w-0 z-10">
-                          <div className="flex items-center justify-between gap-1">
-                            <p className="text-[14px] font-black text-white leading-none tracking-tight">
-                              {item.label}
-                            </p>
-                            <span className={`text-[9px] font-black px-2 py-1 rounded-full shadow-lg ${
-                              cost === 0 
-                              ? 'bg-emerald-500 text-white animate-pulse' 
-                              : 'bg-accent text-white border border-white/20'
-                            }`}>
-                              {cost === 0 ? 'FREE' : `${cost}cr`}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-zinc-500 leading-tight mt-2 line-clamp-1 group-hover:text-zinc-300 transition-colors">
-                            {item.desc}
-                          </p>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
+                        <p className="mt-2 line-clamp-1 text-[11px] leading-tight text-[#7D8B90] transition-colors group-hover:text-[#B9CBD0]">
+                          {item.desc}
+                        </p>
+                      </div>
+                    </button>
+                  )
+                })}
               </div>
-            ))}
+            </div>
+          ))}
         </div>
 
-        {/* Footer */}
-        <div className="px-10 py-5 bg-black/40 border-t border-white/5 flex items-center justify-between shrink-0">
-           <div className="flex items-center gap-3">
-             <div className="w-3 h-3 bg-accent rounded-full animate-pulse shadow-[0_0_15px_rgba(124,58,237,0.6)]" />
-             <p className="text-[11px] font-black text-zinc-400 tracking-widest uppercase">RevivAI Studio © 2026</p>
-           </div>
-           <ChevronDown size={16} className="text-accent animate-bounce" />
+        <div className="flex shrink-0 items-center justify-between border-t border-white/5 bg-black/30 px-10 py-5">
+          <div className="flex items-center gap-3">
+            <div className="h-3 w-3 rounded-full bg-[#54D6F6] shadow-[0_0_18px_rgba(84,214,246,0.7)]" />
+            <p className="font-label text-[11px] uppercase tracking-[0.28em] text-[#A8B5B8]">revivai studio</p>
+          </div>
+          <ChevronDown size={16} className="animate-bounce text-[#54D6F6]" />
         </div>
       </div>
 
       <style jsx>{`
-        .custom-scrollbar-vibrant::-webkit-scrollbar {
+        .custom-scrollbar-cyan::-webkit-scrollbar {
           width: 8px;
         }
-        .custom-scrollbar-vibrant::-webkit-scrollbar-track {
-          background: rgba(255,255,255,0.02);
+        .custom-scrollbar-cyan::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.02);
           border-radius: 20px;
           margin: 15px;
         }
-        .custom-scrollbar-vibrant::-webkit-scrollbar-thumb {
-          background: #7c3aed;
+        .custom-scrollbar-cyan::-webkit-scrollbar-thumb {
+          background: #00adcc;
           border-radius: 20px;
-          border: 2px solid #0c0c0e;
+          border: 2px solid #0f1011;
         }
-        .custom-scrollbar-vibrant::-webkit-scrollbar-thumb:hover {
-          background: #a78bfa;
+        .custom-scrollbar-cyan::-webkit-scrollbar-thumb:hover {
+          background: #54d6f6;
         }
       `}</style>
     </>

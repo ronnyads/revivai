@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RevivAI | Login</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;600&amp;family=IBM+Plex+Mono:wght@300;400;500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-container": "#df8b35",
+                    "tertiary-fixed-dim": "#ffb877",
+                    "primary-fixed": "#afecff",
+                    "on-background": "#e5e2e1",
+                    "inverse-on-surface": "#313030",
+                    "surface-container-lowest": "#0e0e0e",
+                    "surface-container-high": "#2a2a2a",
+                    "on-surface": "#e5e2e1",
+                    "background": "#131313",
+                    "outline-variant": "#3d494d",
+                    "on-tertiary": "#4b2700",
+                    "surface-dim": "#131313",
+                    "secondary-fixed-dim": "#54d6f6",
+                    "secondary-container": "#01adcb",
+                    "tertiary": "#ffb877",
+                    "on-primary-fixed-variant": "#004e5d",
+                    "on-primary": "#003641",
+                    "primary-container": "#00adcc",
+                    "on-tertiary-fixed": "#2e1600",
+                    "error-container": "#93000a",
+                    "surface-container-low": "#1c1b1b",
+                    "surface": "#131313",
+                    "primary-fixed-dim": "#54d6f6",
+                    "on-secondary-container": "#003b47",
+                    "surface-bright": "#393939",
+                    "secondary": "#54d6f6",
+                    "on-secondary": "#003641",
+                    "primary": "#54d6f6",
+                    "outline": "#869397",
+                    "on-primary-container": "#003b47",
+                    "surface-tint": "#54d6f6",
+                    "on-error-container": "#ffdad6",
+                    "on-primary-fixed": "#001f26",
+                    "surface-container-highest": "#353534",
+                    "error": "#ffb4ab",
+                    "surface-container": "#201f1f",
+                    "on-surface-variant": "#bcc9cd",
+                    "on-secondary-fixed-variant": "#004e5d",
+                    "on-error": "#690005",
+                    "tertiary-fixed": "#ffdcc0",
+                    "surface-variant": "#353534",
+                    "on-secondary-fixed": "#001f26",
+                    "inverse-surface": "#e5e2e1",
+                    "secondary-fixed": "#aeecff",
+                    "on-tertiary-container": "#532c00",
+                    "inverse-primary": "#00687b",
+                    "on-tertiary-fixed-variant": "#6c3a00"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Space Grotesk"],
+                    "body": ["Inter"],
+                    "label": ["IBM Plex Mono"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .cinematic-glow {
+            background: radial-gradient(circle at 50% 50%, rgba(84, 214, 246, 0.08) 0%, transparent 70%);
+        }
+        .text-glow {
+            text-shadow: 0 0 15px rgba(84, 214, 246, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30 selection:text-primary overflow-hidden">
+<!-- TopNavBar (Suppressed for focused login task per semantic shell mandate, but brand logo present in form) -->
+<main class="relative min-h-screen w-full flex flex-col md:flex-row items-stretch overflow-hidden">
+<!-- Left Side: Editorial Image (Asymmetric Content) -->
+<section class="hidden md:flex relative w-1/2 lg:w-3/5 h-screen overflow-hidden">
+<img alt="Editorial Tech-Noir Visual" class="absolute inset-0 w-full h-full object-cover grayscale brightness-50 contrast-125" data-alt="Cinematic high-fashion editorial portrait of a person with cybernetic accents, deep obsidian shadows, glowing cyan ambient lighting, futuristic tech aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIr6qloK9q3MZFu_p2KnRu0t1_7-2CW1FaY-JuMXruNTuj6cT2Yh0DogAKMxSXR8fPD6z0-zbe8mbh11DdQEnHg-fsmOJ2cfXaNxdb0-niZYE9KszB9BpxqBHxQnozxyBQLqYTq5HospPtp5TJnz3l5_mgi8bIy1Ja3C-boTLzy2EpZ8mfw71f7-QqIHD05WfHQOzpUD-Il05JXSd1_EyUzqc3HGpZJk8HE620sUNgCoS2VoqNsi3Ku8OIhowU3ei8Q2zZKCb_QsRg"/>
+<!-- Overlay Gradient -->
+<div class="absolute inset-0 bg-gradient-to-r from-transparent via-background/20 to-background"></div>
+<!-- Branding Accent -->
+<div class="absolute bottom-12 left-12 z-10">
+<p class="font-label text-[10px] tracking-[0.3em] uppercase text-primary/60 mb-2">Protocolo de Acesso</p>
+<div class="h-[1px] w-24 bg-primary/30 mb-4"></div>
+<h2 class="font-headline text-4xl font-bold tracking-[-0.03em] text-white max-w-md">RevivAI: <span class="text-primary">O Eco da Obsidiana.</span></h2>
+</div>
+</section>
+<!-- Right Side: Login Form -->
+<section class="relative flex-1 flex flex-col justify-center px-8 md:px-16 lg:px-24 bg-background z-20">
+<!-- Atmospheric Glow -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] cinematic-glow pointer-events-none"></div>
+<div class="max-w-md w-full mx-auto space-y-12">
+<!-- Brand Anchor -->
+<div class="flex items-center space-x-2">
+<span class="text-2xl font-headline font-bold tracking-[-0.03em] text-primary uppercase">RevivAI</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+</div>
+<!-- Header -->
+<div class="space-y-4">
+<h1 class="font-headline text-5xl font-bold tracking-[-0.03em] text-on-surface leading-tight uppercase">
+                        BEM-VINDO AO FUTURO
+                    </h1>
+<p class="font-body text-outline font-light text-lg tracking-wide">
+                        Acesse seu estúdio criativo RevivAI.
+                    </p>
+</div>
+<!-- Form -->
+<form class="space-y-10">
+<div class="space-y-8">
+<!-- Email Input -->
+<div class="relative group">
+<label class="font-label text-[10px] tracking-[0.15em] uppercase text-outline group-focus-within:text-primary transition-colors duration-300">
+                                Email de Usuário
+                            </label>
+<input class="w-full bg-transparent border-t-0 border-x-0 border-b border-outline-variant/40 focus:border-primary focus:ring-0 px-0 py-3 text-on-surface placeholder:text-outline/30 font-body font-light transition-all duration-300" placeholder="usuario@terminal.ai" type="email"/>
+</div>
+<!-- Password Input -->
+<div class="relative group">
+<label class="font-label text-[10px] tracking-[0.15em] uppercase text-outline group-focus-within:text-primary transition-colors duration-300">
+                                Chave de Acesso
+                            </label>
+<input class="w-full bg-transparent border-t-0 border-x-0 border-b border-outline-variant/40 focus:border-primary focus:ring-0 px-0 py-3 text-on-surface placeholder:text-outline/30 font-body font-light transition-all duration-300" placeholder="••••••••••••" type="password"/>
+<div class="absolute right-0 bottom-3 flex items-center">
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors text-lg" data-icon="visibility">visibility</span>
+</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex flex-col space-y-6">
+<button class="w-full h-14 bg-gradient-to-r from-primary to-primary-container rounded-full text-black font-headline font-bold uppercase tracking-wider hover:scale-[1.02] active:scale-95 transition-all duration-300 shadow-lg shadow-primary/10" type="submit">
+                            Entrar no Terminal
+                        </button>
+<div class="flex justify-between items-center px-2">
+<a class="font-label text-[11px] tracking-[0.1em] text-outline hover:text-white transition-colors uppercase" href="#">
+                                Esqueceu a senha?
+                            </a>
+<div class="h-1 w-1 rounded-full bg-outline-variant/40"></div>
+<a class="font-label text-[11px] tracking-[0.1em] text-primary hover:text-primary-fixed transition-colors uppercase" href="#">
+                                Criar conta
+                            </a>
+</div>
+</div>
+</form>
+<!-- Footer-esque metadata -->
+<div class="pt-12 flex items-center justify-between opacity-40 grayscale">
+<div class="flex space-x-4">
+<span class="font-label text-[9px] tracking-widest uppercase">Encryp: AES-256</span>
+<span class="font-label text-[9px] tracking-widest uppercase">Node: DX-04</span>
+</div>
+<span class="font-label text-[9px] tracking-widest uppercase">© 2024 REVIVAI</span>
+</div>
+</div>
+</section>
+</main>
+<!-- Global Visual Accents (Cinematic Particles) -->
+<div class="fixed top-0 left-0 w-full h-full pointer-events-none opacity-20 z-50">
+<div class="absolute top-[10%] left-[20%] w-[1px] h-32 bg-gradient-to-b from-primary to-transparent"></div>
+<div class="absolute bottom-[20%] right-[10%] w-[1px] h-24 bg-gradient-to-t from-primary/50 to-transparent"></div>
+</div>
+</body></html>

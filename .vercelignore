@@ -1,0 +1,12 @@
+.stitch/
+scratch/
+.env*
+.vercel/
+.next/
+node_modules/
+dl-face.mjs
+face.txt
+fetch_hashes.js
+schema.js
+test-imagen.mjs
+vercel-trigger.txt

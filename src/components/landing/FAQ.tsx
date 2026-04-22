@@ -18,11 +18,11 @@ export default async function FAQ() {
   } catch {}
 
   return (
-    <section id="faq" className="bg-[#131315] py-32 px-6">
+    <section id="faq" className="bg-[#0E0E0E] py-28 px-6">
       <div className="max-w-4xl mx-auto">
         <div className="text-center lg:text-left mb-20">
-          <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-[#7C0DF2] mb-6">FAQ</p>
-          <h2 className="font-display text-5xl md:text-7xl font-bold uppercase tracking-tighter leading-[0.95] text-white">
+          <p className="font-label mb-6 text-[11px] text-[#54D6F6]">FAQ</p>
+          <h2 className="font-display text-5xl md:text-7xl font-bold uppercase tracking-tight leading-[0.95] text-white">
             RESPONDEMOS <br /><span className="text-white/20">QUASE TUDO</span>
           </h2>
         </div>

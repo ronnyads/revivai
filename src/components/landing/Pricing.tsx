@@ -2,56 +2,47 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import PricingCards from './PricingCards'
 
 const DEFAULTS = {
-  perPhoto:     { price: 19.00 },
-  subscription: { price: 59.00 },
-  package:      { price: 129.00 },
-  starter:      { price: 47.00 },
-  popular:      { price: 79.00 },
-  pro:          { price: 149.00 },
-  agency:       { price: 397.00 },
+  perPhoto: { price: 19.0 },
+  subscription: { price: 59.0 },
+  package: { price: 129.0 },
+  starter: { price: 47.0 },
+  popular: { price: 79.9 },
+  pro: { price: 149.0 },
+  agency: { price: 397.0 },
 }
 
 export default async function Pricing() {
-  let prices = { ...DEFAULTS }
+  const prices = { ...DEFAULTS }
   try {
     const supabase = createAdminClient()
     const { data } = await supabase.from('plans').select('id, price')
-    data?.forEach((r: { id: string; price: number }) => {
-      if (r.id in prices) prices[r.id as keyof typeof prices] = { price: parseFloat(String(r.price)) }
+    data?.forEach((row: { id: string; price: number }) => {
+      if (row.id in prices) prices[row.id as keyof typeof prices] = { price: parseFloat(String(row.price)) }
     })
   } catch {}
 
   return (
-    <section id="pricing" className="py-32 px-6 bg-[#131315]">
-      {/* Cabeçalho */}
-      <div className="text-center mb-24 max-w-4xl mx-auto">
-        <p className="text-[10px] uppercase tracking-[0.4em] font-bold mb-6 text-[#7C0DF2]">
-          PLANOS E ASSINATURAS
-        </p>
-        <h2
-          className="text-5xl md:text-7xl font-bold tracking-tighter mb-6 font-display uppercase"
-        >
-          INVESTIMENTO <span className="text-white/20">HONESTO</span>
+    <section id="pricing" className="py-28 px-6 tonal-layer-0">
+      <div className="mx-auto mb-20 max-w-4xl text-center">
+        <p className="font-label mb-6 text-[11px] text-[#54D6F6]">Selecione seu nível operacional</p>
+        <h2 className="font-display mb-6 text-5xl font-bold uppercase tracking-tight md:text-7xl">
+          AUMENTE SUA <span className="text-white/25">PRODUÇÃO</span>
         </h2>
-        <p className="text-base text-white/40 max-w-xl mx-auto font-sans leading-relaxed">
-          Sem contratos de longo prazo. Escolha o pacote de créditos que melhor se adapta 
-          ao seu volume de criação.
+        <p className="mx-auto max-w-xl text-base leading-relaxed text-white/42">
+          Escolha a intensidade certa para restauração, geração de campanhas e fluxos criativos com acabamento premium.
         </p>
       </div>
 
       <PricingCards prices={prices} />
 
-      {/* Garantia */}
-      <div className="text-center mt-10 flex flex-col items-center gap-2">
-        <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(229,226,225,0.35)' }}>
+      <div className="mt-10 flex flex-col items-center gap-2 text-center">
+        <div className="flex items-center gap-2 text-xs text-white/35">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-          Pagamento 100% seguro via Mercado Pago
+          Pagamento seguro via Mercado Pago
         </div>
-        <p className="text-xs" style={{ color: 'rgba(229,226,225,0.25)' }}>
-          Sem fidelidade. Cancele quando quiser.
-        </p>
+        <p className="text-xs text-white/25">Sem fidelidade. Escale ou pause quando precisar.</p>
       </div>
     </section>
   )

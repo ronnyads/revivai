@@ -75,6 +75,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (Object.keys(updates).length === 0) return NextResponse.json({ error: 'Nenhum campo para atualizar' }, { status: 400 })
 
+  const { data: existingAsset } = await supabase
+    .from('studio_assets')
+    .select('project_id')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
   const admin = createAdminClient()
   const { error } = await admin
     .from('studio_assets')
@@ -83,6 +90,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq('user_id', user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (existingAsset?.project_id) {
+    await admin
+      .from('studio_projects')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', existingAsset.project_id)
+      .eq('user_id', user.id)
+  }
+
   return NextResponse.json({ ok: true })
 }
 
@@ -95,6 +111,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
+  const { data: existingAsset } = await supabase
+    .from('studio_assets')
+    .select('project_id')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
   const admin = createAdminClient()
   const { error } = await admin
     .from('studio_assets')
@@ -103,5 +126,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     .eq('user_id', user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (existingAsset?.project_id) {
+    await admin
+      .from('studio_projects')
+      .update({ updated_at: new Date().toISOString() })
+      .eq('id', existingAsset.project_id)
+      .eq('user_id', user.id)
+  }
+
   return NextResponse.json({ ok: true })
 }

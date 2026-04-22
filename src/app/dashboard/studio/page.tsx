@@ -14,7 +14,7 @@ export default async function StudioPage() {
     .from('studio_projects')
     .select('*, studio_assets(count)')
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+    .order('updated_at', { ascending: false })
 
   const projects: StudioProject[] = (rows ?? []).map((p: any) => ({
     ...p,

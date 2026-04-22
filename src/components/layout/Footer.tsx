@@ -1,38 +1,61 @@
 import Link from 'next/link'
 
+const FOOTER_COLUMNS = [
+  {
+    title: 'Navegação',
+    items: [
+      ['Arquitetura', '#estrutura'],
+      ['Cases', '#recursos'],
+      ['Laboratório', '/dashboard/studio'],
+    ],
+  },
+  {
+    title: 'Sistema',
+    items: [
+      ['Privacidade', '#'],
+      ['Status da API', '/dashboard/studio'],
+      ['Acesso ao terminal', '/dashboard'],
+    ],
+  },
+  {
+    title: 'Conectar',
+    items: [
+      ['Estúdio', '/dashboard/studio'],
+      ['Login', '/auth/login'],
+      ['Planos', '/#pricing'],
+    ],
+  },
+] as const
+
 export default function Footer() {
   return (
-    <footer className="bg-[#131315] border-t border-white/5 px-8 md:px-20 py-20">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-10">
-        <div className="flex flex-col items-center md:items-start gap-4">
-          <Link href="/" className="font-display font-bold text-3xl tracking-[-0.05em] uppercase text-white hover:text-[#7C0DF2] transition-colors duration-500">
-            REVIV<span className="text-[#7C0DF2]">.</span>AI
+    <footer className="border-t border-white/5 bg-[#080808] px-6 py-16 md:px-8">
+      <div className="mx-auto grid max-w-[1440px] gap-12 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div className="space-y-5">
+          <Link href="/" className="font-display text-2xl font-bold tracking-[-0.05em] text-white">
+            RevivAI
           </Link>
-          <p className="text-[9px] font-bold uppercase tracking-[0.4em] text-white/20">
-            CRAFTED BY THE DIGITAL ATELIER 2025
+          <p className="max-w-sm text-sm leading-relaxed text-white/34">
+            Plataforma premium de restauração e produção visual com IA para marcas, acervos e operações criativas.
           </p>
+          <div className="obsidian-chip inline-flex items-center gap-3 rounded-full px-4 py-2">
+            <span className="h-2 w-2 rounded-full bg-[#54D6F6] shadow-[0_0_12px_rgba(84,214,246,0.8)]" />
+            <span className="font-label text-[10px] text-white/55">Sistema ativo</span>
+          </div>
         </div>
 
-        <div className="flex gap-12">
-          {[
-            ['PRIVACIDADE', '#'],
-            ['TERMOS', '#'],
-            ['CONTATO', '#'],
-          ].map(([label, href]) => (
-            <Link 
-              key={label} 
-              href={href} 
-              className="text-[9px] font-bold uppercase tracking-[0.4em] text-white/40 hover:text-[#7C0DF2] transition-all duration-500 border-b border-transparent hover:border-[#7C0DF2]/40 pb-1"
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-4 bg-white/5 border border-white/5 px-6 py-2.5 rounded-full group cursor-pointer hover:border-[#7C0DF2]/40 transition-all duration-700">
-           <div className="w-1.5 h-1.5 rounded-full bg-[#7C0DF2] animate-pulse shadow-[0_0_8px_#7C0DF2]" />
-           <span className="text-[9px] font-bold uppercase tracking-[0.4em] text-white/40 group-hover:text-white transition-colors">ESTADO DO SISTEMA: OPERACIONAL</span>
-        </div>
+        {FOOTER_COLUMNS.map((column) => (
+          <div key={column.title}>
+            <p className="font-label mb-5 text-[11px] text-[#54D6F6]">{column.title}</p>
+            <div className="space-y-3">
+              {column.items.map(([label, href]) => (
+                <Link key={label} href={href} className="block text-sm text-white/38 transition-colors hover:text-white">
+                  {label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </footer>
   )

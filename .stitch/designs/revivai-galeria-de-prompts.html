@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RevivAI — Galeria de Prompts</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "surface-container-low": "#1c1b1b",
+                      "secondary-container": "#01adcb",
+                      "secondary-fixed-dim": "#54d6f6",
+                      "secondary-fixed": "#aeecff",
+                      "secondary": "#54d6f6",
+                      "primary-fixed": "#afecff",
+                      "inverse-primary": "#00687b",
+                      "surface-container-lowest": "#0e0e0e",
+                      "on-secondary-fixed-variant": "#004e5d",
+                      "on-secondary": "#003641",
+                      "surface-bright": "#393939",
+                      "on-error": "#690005",
+                      "outline": "#869397",
+                      "on-primary": "#003641",
+                      "error": "#ffb4ab",
+                      "surface-container-highest": "#353534",
+                      "error-container": "#93000a",
+                      "on-tertiary-fixed": "#2e1600",
+                      "tertiary-fixed-dim": "#ffb877",
+                      "on-tertiary-fixed-variant": "#6c3a00",
+                      "on-tertiary": "#4b2700",
+                      "surface-container-high": "#2a2a2a",
+                      "tertiary": "#ffb877",
+                      "surface-dim": "#131313",
+                      "primary-container": "#00adcc",
+                      "on-secondary-container": "#003b47",
+                      "on-primary-fixed": "#001f26",
+                      "surface-tint": "#54d6f6",
+                      "primary": "#54d6f6",
+                      "inverse-on-surface": "#313030",
+                      "on-background": "#e5e2e1",
+                      "surface-container": "#201f1f",
+                      "tertiary-container": "#df8b35",
+                      "on-error-container": "#ffdad6",
+                      "background": "#131313",
+                      "outline-variant": "#3d494d",
+                      "tertiary-fixed": "#ffdcc0",
+                      "surface": "#131313",
+                      "on-tertiary-container": "#532c00",
+                      "on-primary-fixed-variant": "#004e5d",
+                      "on-surface": "#e5e2e1",
+                      "on-secondary-fixed": "#001f26",
+                      "on-primary-container": "#003b47",
+                      "surface-variant": "#353534",
+                      "primary-fixed-dim": "#54d6f6",
+                      "on-surface-variant": "#bcc9cd",
+                      "inverse-surface": "#e5e2e1"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk"],
+                      "body": ["Inter"],
+                      "label": ["IBM Plex Mono"]
+              }
+            },
+          }
+        }
+    </script>
+<style>
+        body {
+            background-color: #131313;
+            color: #e5e2e1;
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-nav {
+            background: rgba(19, 19, 19, 0.7);
+            backdrop-filter: blur(20px);
+        }
+        .obsidian-glow {
+            background: radial-gradient(circle at center, rgba(84, 214, 246, 0.08) 0%, transparent 70%);
+        }
+    </style>
+</head>
+<body class="bg-background selection:bg-primary/30">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 glass-nav shadow-[0_10px_40px_rgba(0,173,204,0.05)] h-20 flex justify-between items-center px-8 border-none">
+<div class="flex items-center gap-12">
+<span class="text-2xl font-black tracking-tighter text-[#54d6f6] font-headline">RevivAI</span>
+<div class="hidden md:flex gap-8 items-center">
+<a class="text-[#54d6f6] border-b-2 border-[#54d6f6] pb-1 font-headline font-bold tracking-[-0.03em] transition-all duration-300" href="#">Studio</a>
+<a class="text-[#869397] font-light font-headline tracking-[-0.03em] hover:text-[#54d6f6] transition-all duration-300" href="#">Gallery</a>
+<a class="text-[#869397] font-light font-headline tracking-[-0.03em] hover:text-[#54d6f6] transition-all duration-300" href="#">Library</a>
+<a class="text-[#869397] font-light font-headline tracking-[-0.03em] hover:text-[#54d6f6] transition-all duration-300" href="#">API</a>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
+<input class="bg-surface-container-low border-b border-outline-variant focus:border-primary transition-all duration-300 outline-none text-[10px] font-label tracking-widest px-10 py-2 w-64 uppercase text-on-surface" placeholder="BUSCAR PROMPTS..." type="text"/>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors">notifications</span>
+<span class="material-symbols-outlined text-outline cursor-pointer hover:text-primary transition-colors">settings</span>
+<div class="w-10 h-10 rounded-full overflow-hidden border border-outline-variant/30">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="close-up portrait of a stylish young man with a cinematic lighting and high contrast dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6hMYphuvTpZ8WPAaKFbmXIpb69yLOjt31jWidrsqtJ4FyAaTrTN_enFlJ8P9OU4vyppCfnK0LlRQ81AX9BPdMI3F-RzFJAVzubOXcfmtjuFwdOjtK_WPlMVKxpJnq5vCOOXFSDL3QByESmPuWQyZVLlWBk2OXOGeJxIs41pqYyMgITWavbrzFivImKM92ecHmkSkxjcsmOUEQ7P_iOiSuwOKKGkuCSV2PtjGKGEZMCiNFN5RM6TIxxK0yQQdW-VADKk4fqrNbMMeI"/>
+</div>
+</div>
+</div>
+</nav>
+<!-- Hero Section -->
+<header class="relative pt-48 pb-20 px-8 max-w-7xl mx-auto overflow-hidden">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] obsidian-glow -z-10"></div>
+<div class="flex flex-col md:flex-row justify-between items-end gap-8">
+<div class="max-w-3xl">
+<span class="font-label text-[10px] tracking-[0.2em] text-primary uppercase mb-4 block">Archive 01 — Prompt Library</span>
+<h1 class="text-6xl md:text-8xl font-headline font-bold tracking-[-0.04em] text-on-surface mb-6 leading-[0.9]">
+                    Galeria de <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary-container">Prompts</span>
+</h1>
+<p class="text-xl text-outline font-light max-w-xl leading-relaxed">
+                    Inspire-se e crie conteúdos incríveis com um clique. Explore nossa biblioteca curada de comandos neurais de alta fidelidade.
+                </p>
+</div>
+<div class="hidden lg:block text-right">
+<span class="font-label text-[10px] text-outline-variant block mb-2 uppercase">System Status</span>
+<div class="flex items-center gap-2 justify-end">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<span class="font-label text-[10px] text-primary tracking-widest uppercase">RevivAI Active</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Filters -->
+<section class="px-8 max-w-7xl mx-auto mb-16">
+<div class="flex flex-wrap gap-3">
+<button class="px-6 py-2 rounded-full bg-primary-container text-on-primary font-label text-[11px] tracking-widest uppercase transition-transform active:scale-95">Todos</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high hover:bg-surface-bright text-on-surface-variant font-label text-[11px] tracking-widest uppercase transition-all active:scale-95">Influencer Academia</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high hover:bg-surface-bright text-on-surface-variant font-label text-[11px] tracking-widest uppercase transition-all active:scale-95">Influencer Corredora</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high hover:bg-surface-bright text-on-surface-variant font-label text-[11px] tracking-widest uppercase transition-all active:scale-95">Influencer + Produto</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high hover:bg-surface-bright text-on-surface-variant font-label text-[11px] tracking-widest uppercase transition-all active:scale-95">Lifestyle Urbano</button>
+<button class="px-6 py-2 rounded-full bg-surface-container-high hover:bg-surface-bright text-on-surface-variant font-label text-[11px] tracking-widest uppercase transition-all active:scale-95">Moda High-End</button>
+</div>
+</section>
+<!-- Prompt Grid -->
+<main class="px-8 max-w-7xl mx-auto pb-40">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+<!-- Card 1 -->
+<div class="group flex flex-col bg-surface-container-high rounded-xl overflow-hidden hover:shadow-[0_20px_50px_rgba(0,173,204,0.15)] transition-all duration-500">
+<div class="relative aspect-[4/5] overflow-hidden">
+<img alt="Gym Influencer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Fit athletic woman in a high-tech modern gym with blue neon lighting and moody atmosphere, performing a workout" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7ogBWK0zY2_HtFED56kMiV5FnPJxW6GpfHETUgANVgewdVfiHVyEW3-iVs07Qp1tzEoIQrvQFckXlUVq_8ZmxGsTAs8xJ3VqS-O3FAptDeveC1H5Ia0QThiNN_Jkg-sJkPJYNiRPPA2Cu3D1BdIsyxwGmG-bCOvNx-3wuIrz1sklMCK96-T6GhU_8l7Sr1AWv718mLPgIO7i8pLYti83jQrkwRaOmHxTrvQQMtpJhWg7x_IjfLbVTHVCM9jF1ZSRWonvrKufWy9gS"/>
+<div class="absolute top-4 right-4 px-3 py-1 bg-background/80 backdrop-blur-md rounded-md">
+<span class="font-label text-[10px] text-primary tracking-widest uppercase">JSON</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<h3 class="font-headline text-lg font-bold text-on-surface mb-2">Alpha Fitness Elite</h3>
+<p class="text-sm text-outline font-light mb-6 line-clamp-2">Parâmetros otimizados para iluminação volumétrica e definição muscular em ambientes de treino indoor.</p>
+<div class="mt-auto flex flex-col gap-3">
+<button class="w-full py-3 bg-gradient-to-r from-primary to-secondary-container rounded-full text-black font-headline font-bold text-sm tracking-tight hover:opacity-90 transition-all active:scale-95">Usar no Studio</button>
+<button class="w-full py-3 border border-outline/40 rounded-full text-on-surface font-headline font-medium text-sm tracking-tight hover:border-primary transition-all active:scale-95">Copiar Prompt</button>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="group flex flex-col bg-surface-container-high rounded-xl overflow-hidden hover:shadow-[0_20px_50px_rgba(0,173,204,0.15)] transition-all duration-500">
+<div class="relative aspect-[4/5] overflow-hidden">
+<img alt="Fashion Editorial" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="High fashion editorial shot of a woman in a metallic silver dress standing against a dark brutalist concrete wall at night" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKWnOHuMDRVk3M4byLqnfo-V-Rs04FLvoYui6LjTgzVCbCKLcgXfa3c1iZtRxOwy2Vh7zIUUbyuGtJ3iDU3fkReCdCyr9NmJcaedUcttv1dhAPGClJlHAc5pBujYrlKHcBc_BPiFyKpniRqmM3PFosPeEaIJl3OgpU4ySUskS3lnCuMe9XuGWZCBdznfGw9Pyk3gsqFySYjyRC7jkchK92O-GB4xSCnFKisvlIMX6QCmVdWlK07RG37gah9gu_ZNV9z2xk69cLi77S"/>
+<div class="absolute top-4 right-4 px-3 py-1 bg-background/80 backdrop-blur-md rounded-md">
+<span class="font-label text-[10px] text-primary tracking-widest uppercase">TEXT</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<h3 class="font-headline text-lg font-bold text-on-surface mb-2">Cyber Vogue Editorial</h3>
+<p class="text-sm text-outline font-light mb-6 line-clamp-2">Controle de exposição de alto contraste e texturas metálicas para editoriais de moda futurista.</p>
+<div class="mt-auto flex flex-col gap-3">
+<button class="w-full py-3 bg-gradient-to-r from-primary to-secondary-container rounded-full text-black font-headline font-bold text-sm tracking-tight hover:opacity-90 transition-all active:scale-95">Usar no Studio</button>
+<button class="w-full py-3 border border-outline/40 rounded-full text-on-surface font-headline font-medium text-sm tracking-tight hover:border-primary transition-all active:scale-95">Copiar Prompt</button>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="group flex flex-col bg-surface-container-high rounded-xl overflow-hidden hover:shadow-[0_20px_50px_rgba(0,173,204,0.15)] transition-all duration-500">
+<div class="relative aspect-[4/5] overflow-hidden">
+<img alt="Streetwear Lifestyle" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Close-up of premium sneakers on a wet asphalt street with city neon reflections and cinematic rain effect" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAkBIDJmMlZseKi8if57hIhGq-EkWd96dVA1CKqn3h9rzWqI1icyQ9lGLvmYDK8yjm1opMtYPhAyxtuHURJdlkMjvtuqLDDgTN5P4-MiLLAIzpmYP5S7yay3tERzdiZAiK_NroI7voGRZ-zW3xUo-_IiD6uvwoCZPXAjMixb4nEH9YywL3mGmGGp0IfRBZKlhi0ZnpUye1V623l5o9a1tiu2JVwGG-WTpFNnwEO0wRAuG0en6lnYjPN45GbkoATQnJaSHnRoOSD4v0V"/>
+<div class="absolute top-4 right-4 px-3 py-1 bg-background/80 backdrop-blur-md rounded-md">
+<span class="font-label text-[10px] text-primary tracking-widest uppercase">JSON</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<h3 class="font-headline text-lg font-bold text-on-surface mb-2">Urban Pulse Shoes</h3>
+<p class="text-sm text-outline font-light mb-6 line-clamp-2">Macro fotografia de calçados com foco em materiais premium e reflexos de asfalto molhado.</p>
+<div class="mt-auto flex flex-col gap-3">
+<button class="w-full py-3 bg-gradient-to-r from-primary to-secondary-container rounded-full text-black font-headline font-bold text-sm tracking-tight hover:opacity-90 transition-all active:scale-95">Usar no Studio</button>
+<button class="w-full py-3 border border-outline/40 rounded-full text-on-surface font-headline font-medium text-sm tracking-tight hover:border-primary transition-all active:scale-95">Copiar Prompt</button>
+</div>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="group flex flex-col bg-surface-container-high rounded-xl overflow-hidden hover:shadow-[0_20px_50px_rgba(0,173,204,0.15)] transition-all duration-500">
+<div class="relative aspect-[4/5] overflow-hidden">
+<img alt="Runner Lifestyle" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Male runner in silhouette against a vibrant sunrise over a futuristic city bridge, golden hour lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYck0Htykjg-R1WQvHsmoFXf6sogvvjEqAkyiskMmerS8viHLLt1xEzouQH9PxCXC8B3q2X1mUMf_TPQE6AW9PvDGGBApkkmmffVr0ZwuGUlh5iPWM-9NVjh4zxRhPoVowjwLYLtawopMzDiGQqDY8_F9tnW1uLDds07rHGsnfVFHGIdjSirLLInv_BZvvKgWxPd6ebEPiFJ_WDSne7_Op3O86eW8fqiF1o8mzgC5htPrz3Bl1yetQZAETo2ds_yT4QlzhS7Y9DpaH"/>
+<div class="absolute top-4 right-4 px-3 py-1 bg-background/80 backdrop-blur-md rounded-md">
+<span class="font-label text-[10px] text-primary tracking-widest uppercase">TEXT</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<h3 class="font-headline text-lg font-bold text-on-surface mb-2">Neon Horizon Runner</h3>
+<p class="text-sm text-outline font-light mb-6 line-clamp-2">Captura de movimento em alta velocidade com luz de preenchimento solar e silhuetas nítidas.</p>
+<div class="mt-auto flex flex-col gap-3">
+<button class="w-full py-3 bg-gradient-to-r from-primary to-secondary-container rounded-full text-black font-headline font-bold text-sm tracking-tight hover:opacity-90 transition-all active:scale-95">Usar no Studio</button>
+<button class="w-full py-3 border border-outline/40 rounded-full text-on-surface font-headline font-medium text-sm tracking-tight hover:border-primary transition-all active:scale-95">Copiar Prompt</button>
+</div>
+</div>
+</div>
+<!-- Card 5 (Repeated for Grid demonstration) -->
+<div class="group flex flex-col bg-surface-container-high rounded-xl overflow-hidden hover:shadow-[0_20px_50px_rgba(0,173,204,0.15)] transition-all duration-500">
+<div class="relative aspect-[4/5] overflow-hidden">
+<img alt="Street Fashion" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Woman walking in a busy metropolitan crossing with blurred traffic lights and high-end street fashion aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArkIgWtDJW9PDoyWbH7BRpl9KPVZ1VnQ1S_8o3wA1sBlOtuAcXwYXKFr-TznDacawzKTqLfLTXWW38X3YAei4jC4Vl_Eiu74QaCFGH6YbEObEVOm5rqqVoLE954VJ7eqCUzndEPxkI6ZMZLCZKl15SFL8Z8RpwDYd86pXAykWMYwKG6tlKIHYMtF51obHLT8_En_UQuI_zGtCI4Lh3bRAOk3E-08DQ8WSgiIQjWYxECkOWHiwAopHy9LIwR9MjIClA-U-_FMcqm-yT"/>
+<div class="absolute top-4 right-4 px-3 py-1 bg-background/80 backdrop-blur-md rounded-md">
+<span class="font-label text-[10px] text-primary tracking-widest uppercase">JSON</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<h3 class="font-headline text-lg font-bold text-on-surface mb-2">Metropolis Motion</h3>
+<p class="text-sm text-outline font-light mb-6 line-clamp-2">Simulação de desfoque de movimento em fundo urbano com foco em roupas de alta-costura.</p>
+<div class="mt-auto flex flex-col gap-3">
+<button class="w-full py-3 bg-gradient-to-r from-primary to-secondary-container rounded-full text-black font-headline font-bold text-sm tracking-tight hover:opacity-90 transition-all active:scale-95">Usar no Studio</button>
+<button class="w-full py-3 border border-outline/40 rounded-full text-on-surface font-headline font-medium text-sm tracking-tight hover:border-primary transition-all active:scale-95">Copiar Prompt</button>
+</div>
+</div>
+</div>
+<!-- Card 6 -->
+<div class="group flex flex-col bg-surface-container-high rounded-xl overflow-hidden hover:shadow-[0_20px_50px_rgba(0,173,204,0.15)] transition-all duration-500">
+<div class="relative aspect-[4/5] overflow-hidden">
+<img alt="Tech Product" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Sleek modern wireless earbuds floating over a dark liquid surface with ripples and blue rim light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAP716EAtTJZH1sbhW3DNcScN1bm4w8bqMiF-r8ZanJeLI7xxk6zB3IweIIDUXW528ELJE902PMdza3pXZjX3zNfC9BnLT-BdRNSH8WG_YR4LmB5cYv9YivN4e4xlfBTrxTOyN6cobSjGem-V8hRUmRjkecMjKvfz3wizJ4Tp-1rDKYSLgGMoynKVWnbU65Zk3WY75WqYbBe19_aMM_LvljUqxJ9mgwxrTU7-owY8kEdwbniDhDaSZw_iBm_GD_OQf1RORXawbr72Iy"/>
+<div class="absolute top-4 right-4 px-3 py-1 bg-background/80 backdrop-blur-md rounded-md">
+<span class="font-label text-[10px] text-primary tracking-widest uppercase">JSON</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<h3 class="font-headline text-lg font-bold text-on-surface mb-2">Obsidian Tech Product</h3>
+<p class="text-sm text-outline font-light mb-6 line-clamp-2">Ideal para produtos minimalistas com superfícies foscas e iluminação de contorno dramática.</p>
+<div class="mt-auto flex flex-col gap-3">
+<button class="w-full py-3 bg-gradient-to-r from-primary to-secondary-container rounded-full text-black font-headline font-bold text-sm tracking-tight hover:opacity-90 transition-all active:scale-95">Usar no Studio</button>
+<button class="w-full py-3 border border-outline/40 rounded-full text-on-surface font-headline font-medium text-sm tracking-tight hover:border-primary transition-all active:scale-95">Copiar Prompt</button>
+</div>
+</div>
+</div>
+<!-- Card 7 -->
+<div class="group flex flex-col bg-surface-container-high rounded-xl overflow-hidden hover:shadow-[0_20px_50px_rgba(0,173,204,0.15)] transition-all duration-500">
+<div class="relative aspect-[4/5] overflow-hidden">
+<img alt="Outdoor Training" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Athlete training on a coastal rock at twilight with a stormy sea and cinematic dark clouds" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8gzUJ4wwi0Dp-uYMHShrdNjmx-Z5yU2b6_TjiLqQ5Rw_LeA24upu4WfpkYpvhqAFcfuWkuY38sUsuT-RECOYxxqF2CxessM41cZ6NmgYz8h_KT5mZNaZ9Zbh3pfbVTOA-al_aXopedEUs0noa9mFggu5tDoT98NJxWoBeaX0AkfxoD1FwmxVCXKIPmBeiBbCcF9yAIV2rWrSCh7pO7PjRX1VUH0_wrzLUdkgl49QjVEWJidd_esnG8t443Rgo9f996v7dve81ScMB"/>
+<div class="absolute top-4 right-4 px-3 py-1 bg-background/80 backdrop-blur-md rounded-md">
+<span class="font-label text-[10px] text-primary tracking-widest uppercase">TEXT</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<h3 class="font-headline text-lg font-bold text-on-surface mb-2">Elemental Grit Training</h3>
+<p class="text-sm text-outline font-light mb-6 line-clamp-2">Estética rústica e texturas orgânicas combinadas com iluminação fria e sombras profundas.</p>
+<div class="mt-auto flex flex-col gap-3">
+<button class="w-full py-3 bg-gradient-to-r from-primary to-secondary-container rounded-full text-black font-headline font-bold text-sm tracking-tight hover:opacity-90 transition-all active:scale-95">Usar no Studio</button>
+<button class="w-full py-3 border border-outline/40 rounded-full text-on-surface font-headline font-medium text-sm tracking-tight hover:border-primary transition-all active:scale-95">Copiar Prompt</button>
+</div>
+</div>
+</div>
+<!-- Card 8 -->
+<div class="group flex flex-col bg-surface-container-high rounded-xl overflow-hidden hover:shadow-[0_20px_50px_rgba(0,173,204,0.15)] transition-all duration-500">
+<div class="relative aspect-[4/5] overflow-hidden">
+<img alt="Premium Apparel" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Close up detail of a high-tech fabric garment with glowing fiber optics and digital patterns" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLrGmQp7mP3mOK_K_XzfIdZlWXO7ZF5lEaBcC6xnkwO5f5klWyDhfmvhK4DEgL9YJqWPXKAmPl-EfAF7mcGwqysrorZezTNwZ9vGowj9s3HOFpTEPol2jLjarqw4d5uDTdG3liJeATzBWOt3r56_wj9mbAI35s5MWsK-birbCQOaRsjr2uVgBPBDKHrGA0xlgy3ev4Vw5ZSgU7L8_XFJzXENdMTmNCarqXxw_Thn9lchBjj3o7YPlOOif3AimrloabGlY9eVgFRzV6"/>
+<div class="absolute top-4 right-4 px-3 py-1 bg-background/80 backdrop-blur-md rounded-md">
+<span class="font-label text-[10px] text-primary tracking-widest uppercase">JSON</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-grow">
+<h3 class="font-headline text-lg font-bold text-on-surface mb-2">Synthetic Fiber Macro</h3>
+<p class="text-sm text-outline font-light mb-6 line-clamp-2">Foco extremo em fibras sintéticas e iluminação led integrada para vestuário inteligente.</p>
+<div class="mt-auto flex flex-col gap-3">
+<button class="w-full py-3 bg-gradient-to-r from-primary to-secondary-container rounded-full text-black font-headline font-bold text-sm tracking-tight hover:opacity-90 transition-all active:scale-95">Usar no Studio</button>
+<button class="w-full py-3 border border-outline/40 rounded-full text-on-surface font-headline font-medium text-sm tracking-tight hover:border-primary transition-all active:scale-95">Copiar Prompt</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-background border-t border-outline-variant/20 py-24 mt-40">
+<div class="max-w-7xl mx-auto px-10 flex flex-col md:flex-row justify-between items-center gap-12">
+<div class="flex flex-col gap-6 items-center md:items-start">
+<span class="text-primary font-bold font-headline text-2xl tracking-tighter">RevivAI</span>
+<p class="font-label text-[10px] text-outline tracking-[0.15em] uppercase text-center md:text-left">
+                    © 2024 REVIVAI — THE OBSIDIAN ECHO
+                </p>
+</div>
+<div class="flex flex-wrap justify-center gap-10">
+<a class="font-label text-[10px] text-outline tracking-[0.15em] uppercase hover:text-white transition-colors" href="#">Terms of Service</a>
+<a class="font-label text-[10px] text-outline tracking-[0.15em] uppercase hover:text-white transition-colors" href="#">Privacy Protocol</a>
+<a class="font-label text-[10px] text-outline tracking-[0.15em] uppercase hover:text-white transition-colors" href="#">Technical Docs</a>
+<a class="font-label text-[10px] text-outline tracking-[0.15em] uppercase hover:text-white transition-colors" href="#">Status</a>
+</div>
+<div class="flex gap-6">
+<span class="material-symbols-outlined text-outline hover:text-primary cursor-pointer transition-colors">language</span>
+<span class="material-symbols-outlined text-outline hover:text-primary cursor-pointer transition-colors">share</span>
+<span class="material-symbols-outlined text-outline hover:text-primary cursor-pointer transition-colors">terminal</span>
+</div>
+</div>
+</footer>
+</body></html>

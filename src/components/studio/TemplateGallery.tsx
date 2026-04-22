@@ -1,8 +1,19 @@
 'use client'
 
-import { BookOpen, ShoppingBag, Film, Zap, Clock, X, User, FileText, Mic, Video, Wand2, Layers, Sparkles } from 'lucide-react'
-
-// ── Definição dos Templates ──────────────────────────────────────────────────
+import {
+  BookOpen,
+  Clock,
+  Film,
+  FileText,
+  Layers,
+  Mic,
+  ShoppingBag,
+  Sparkles,
+  User,
+  Video,
+  Wand2,
+  Zap,
+} from 'lucide-react'
 
 export interface TemplateNode {
   type: string
@@ -32,58 +43,48 @@ export interface WorkflowTemplate {
 }
 
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
-  // ── Template 1: Short de 60 Segundos ──────────────────────────────────────
   {
     id: 'story_60s',
-    label: 'Série Viral (60s)',
-    description: 'Workflow gigante: Rosto + 6 Cenas (10s cada) + Voz + Edição Final. Alto engajamento, renderiza um MP4 fechado.',
+    label: 'Serie Viral (60s)',
+    description: 'Workflow grande: rosto, seis cenas, voz e edicao final em um unico fluxo vertical.',
     icon: <Film size={20} />,
-    badge: '🎬 Blockbuster',
-    badgeColor: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+    badge: 'Blockbuster',
+    badgeColor: 'border-orange-500/20 bg-orange-500/10 text-orange-300',
     estimatedTime: '~25 min',
-    credits: 24, // 6 params(img) = 6, 6 videos = 18, total ~24 + voz/script = 26
+    credits: 24,
     nodes: [
-      // Coluna 0 — Rosto (Node 0)
-      { type: 'face',   x: 60,   y: 100, params: { face_image_url: '' } },
-      // Coluna 1 — Script & Voice (Nodes 1, 2)
-      { type: 'script', x: 460,  y: 100, params: { product: '', audience: '', format: 'reels', hook_style: 'problema', _placeholder: 'Descreva seu produto e público-alvo para a série...' } },
-      { type: 'voice',  x: 460,  y: 1020, params: { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 } },
-      // Coluna 2 — 6 Cenas de Imagem (Nodes 3 a 8)
-      { type: 'image',  x: 860,  y: 100,  params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 1: Introdução...' } },
-      { type: 'image',  x: 860,  y: 560,  params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 2: Ponto de dor...' } },
-      { type: 'image',  x: 860,  y: 1020, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 3: Virada...' } },
-      { type: 'image',  x: 860,  y: 1480, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 4: Apresentando solução...' } },
-      { type: 'image',  x: 860,  y: 1940, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 5: Benefício claro...' } },
-      { type: 'image',  x: 860,  y: 2400, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 6: Fechamento / Call To Action...' } },
-      // Coluna 3 — 6 Vídeos (Nodes 9 a 14)
-      { type: 'video',  x: 1260, y: 100,  params: { source_image_url: '', motion_prompt: 'câmera suave e natural', duration: 10 } },
-      { type: 'video',  x: 1260, y: 560,  params: { source_image_url: '', motion_prompt: 'zoom in no rosto', duration: 10 } },
-      { type: 'video',  x: 1260, y: 1020, params: { source_image_url: '', motion_prompt: 'gesticula levemente', duration: 10 } },
-      { type: 'video',  x: 1260, y: 1480, params: { source_image_url: '', motion_prompt: 'sorriso de confiança', duration: 10 } },
-      { type: 'video',  x: 1260, y: 1940, params: { source_image_url: '', motion_prompt: 'mostrando o ambiente ao redor', duration: 10 } },
-      { type: 'video',  x: 1260, y: 2400, params: { source_image_url: '', motion_prompt: 'apontando para baixo (clique no link)', duration: 10 } },
-      // Coluna 4 — Costura (Join) (Node 15)
-      { type: 'join',   x: 1660, y: 1020, params: { video_urls: [] } },
+      { type: 'face', x: 60, y: 100, params: { face_image_url: '' } },
+      { type: 'script', x: 460, y: 100, params: { product: '', audience: '', format: 'reels', hook_style: 'problema', _placeholder: 'Descreva seu produto e publico-alvo para a serie...' } },
+      { type: 'voice', x: 460, y: 1020, params: { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 } },
+      { type: 'image', x: 860, y: 100, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 1: introducao...' } },
+      { type: 'image', x: 860, y: 560, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 2: ponto de dor...' } },
+      { type: 'image', x: 860, y: 1020, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 3: virada...' } },
+      { type: 'image', x: 860, y: 1480, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 4: apresentando solucao...' } },
+      { type: 'image', x: 860, y: 1940, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 5: beneficio claro...' } },
+      { type: 'image', x: 860, y: 2400, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Cena 6: call to action...' } },
+      { type: 'video', x: 1260, y: 100, params: { source_image_url: '', motion_prompt: 'camera suave e natural', duration: 10 } },
+      { type: 'video', x: 1260, y: 560, params: { source_image_url: '', motion_prompt: 'zoom in no rosto', duration: 10 } },
+      { type: 'video', x: 1260, y: 1020, params: { source_image_url: '', motion_prompt: 'gesticula levemente', duration: 10 } },
+      { type: 'video', x: 1260, y: 1480, params: { source_image_url: '', motion_prompt: 'sorriso de confianca', duration: 10 } },
+      { type: 'video', x: 1260, y: 1940, params: { source_image_url: '', motion_prompt: 'mostrando o ambiente ao redor', duration: 10 } },
+      { type: 'video', x: 1260, y: 2400, params: { source_image_url: '', motion_prompt: 'apontando para baixo', duration: 10 } },
+      { type: 'join', x: 1660, y: 1020, params: { video_urls: [] } },
     ],
     edges: [
-      // Face → 6 imagens
       { source: 0, target: 3, sourceHandle: 'output', targetHandle: 'source_face_url' },
       { source: 0, target: 4, sourceHandle: 'output', targetHandle: 'source_face_url' },
       { source: 0, target: 5, sourceHandle: 'output', targetHandle: 'source_face_url' },
       { source: 0, target: 6, sourceHandle: 'output', targetHandle: 'source_face_url' },
       { source: 0, target: 7, sourceHandle: 'output', targetHandle: 'source_face_url' },
       { source: 0, target: 8, sourceHandle: 'output', targetHandle: 'source_face_url' },
-      // Script → Voice
       { source: 1, target: 2, sourceHandle: 'output', targetHandle: 'script' },
-      // Imagens → Vídeos
-      { source: 3, target: 9,  sourceHandle: 'output', targetHandle: 'source_image_url' },
+      { source: 3, target: 9, sourceHandle: 'output', targetHandle: 'source_image_url' },
       { source: 4, target: 10, sourceHandle: 'output', targetHandle: 'source_image_url' },
       { source: 5, target: 11, sourceHandle: 'output', targetHandle: 'source_image_url' },
       { source: 6, target: 12, sourceHandle: 'output', targetHandle: 'source_image_url' },
       { source: 7, target: 13, sourceHandle: 'output', targetHandle: 'source_image_url' },
       { source: 8, target: 14, sourceHandle: 'output', targetHandle: 'source_image_url' },
-      // Vídeos → Join
-      { source: 9,  target: 15, sourceHandle: 'output', targetHandle: 'video_0' },
+      { source: 9, target: 15, sourceHandle: 'output', targetHandle: 'video_0' },
       { source: 10, target: 15, sourceHandle: 'output', targetHandle: 'video_1' },
       { source: 11, target: 15, sourceHandle: 'output', targetHandle: 'video_2' },
       { source: 12, target: 15, sourceHandle: 'output', targetHandle: 'video_3' },
@@ -91,25 +92,23 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { source: 14, target: 15, sourceHandle: 'output', targetHandle: 'video_5' },
     ],
   },
-
-  // ── Template 2: Anúncio de Produto ────────────────────────────────────────
   {
     id: 'product_ad',
-    label: 'Anúncio de Produto',
-    description: 'Modelo UGC gerado por IA segurando seu produto. Script + Voz + Vídeo em linha reta.',
+    label: 'Anuncio de Produto',
+    description: 'Modelo UGC gerado por IA segurando seu produto, com script, voz e video em linha reta.',
     icon: <ShoppingBag size={20} />,
-    badge: '🛍️ E-commerce',
-    badgeColor: 'text-violet-400 bg-violet-500/10 border-violet-500/20',
+    badge: 'E-commerce',
+    badgeColor: 'border-violet-500/20 bg-violet-500/10 text-violet-300',
     estimatedTime: '~8 min',
     credits: 8,
     nodes: [
-      { type: 'model',   x: 60,   y: 240, params: { gender: 'feminino', age_range: '25-35', skin_tone: 'media', body_type: 'normal', style: 'casual' } },
-      { type: 'script',  x: 460,  y: 60,  params: { product: '', audience: '', format: 'reels', hook_style: 'beneficio', _placeholder: 'Descreva seu produto (ex: Whey Protein sabor morango)...' } },
-      { type: 'image',   x: 460,  y: 520, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Modelo segurando o produto com sorriso natural...' } },
-      { type: 'voice',   x: 860,  y: 60,  params: { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 } },
-      { type: 'compose', x: 860,  y: 520, params: { portrait_url: '', product_url: '', position: 'southeast', product_scale: 0.35 } },
-      { type: 'video',   x: 1260, y: 280, params: { source_image_url: '', motion_prompt: 'movimento suave, exibe produto com confiança', duration: 5 } },
-      { type: 'render',  x: 1660, y: 280, params: { source_image_url: '', audio_url: '' } },
+      { type: 'model', x: 60, y: 240, params: { gender: 'feminino', age_range: '25-35', skin_tone: 'media', body_type: 'normal', style: 'casual' } },
+      { type: 'script', x: 460, y: 60, params: { product: '', audience: '', format: 'reels', hook_style: 'beneficio', _placeholder: 'Descreva seu produto...' } },
+      { type: 'image', x: 460, y: 520, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Modelo segurando o produto com sorriso natural...' } },
+      { type: 'voice', x: 860, y: 60, params: { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 } },
+      { type: 'compose', x: 860, y: 520, params: { portrait_url: '', product_url: '', position: 'southeast', product_scale: 0.35 } },
+      { type: 'video', x: 1260, y: 280, params: { source_image_url: '', motion_prompt: 'movimento suave, exibe produto com confianca', duration: 5 } },
+      { type: 'render', x: 1660, y: 280, params: { source_image_url: '', audio_url: '' } },
     ],
     edges: [
       { source: 0, target: 2, sourceHandle: 'output', targetHandle: 'model_prompt' },
@@ -120,22 +119,20 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { source: 3, target: 6, sourceHandle: 'output', targetHandle: 'audio_url' },
     ],
   },
-
-  // ── Template 3: Lip Sync Rápido ───────────────────────────────────────────
   {
     id: 'lipsync_quick',
     label: 'Lip Sync Expresso',
-    description: 'Gere um vídeo com Lip Sync em 3 passos: Modelo → Voz → Sincroniza.',
+    description: 'Video falado em tres passos: modelo, voz e sincronizacao final.',
     icon: <Wand2 size={20} />,
-    badge: '⚡ Mais rápido',
-    badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    badge: 'Mais rapido',
+    badgeColor: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300',
     estimatedTime: '~5 min',
     credits: 5,
     nodes: [
-      { type: 'face',    x: 60,   y: 280, params: { face_image_url: '' } },
-      { type: 'script',  x: 460,  y: 60,  params: { product: '', audience: '', format: 'reels', hook_style: 'problema', _placeholder: 'Escreva o que o personagem vai falar...' } },
-      { type: 'voice',   x: 460,  y: 520, params: { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 } },
-      { type: 'lipsync', x: 860,  y: 280, params: { face_url: '', audio_url: '' } },
+      { type: 'face', x: 60, y: 280, params: { face_image_url: '' } },
+      { type: 'script', x: 460, y: 60, params: { product: '', audience: '', format: 'reels', hook_style: 'problema', _placeholder: 'Escreva o que o personagem vai falar...' } },
+      { type: 'voice', x: 460, y: 520, params: { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 } },
+      { type: 'lipsync', x: 860, y: 280, params: { face_url: '', audio_url: '' } },
     ],
     edges: [
       { source: 1, target: 2, sourceHandle: 'output', targetHandle: 'script' },
@@ -145,116 +142,108 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   },
 ]
 
-// ── Ícone por tipo ────────────────────────────────────────────────────────────
 const TYPE_ICON: Record<string, React.ReactNode> = {
-  face:    <User size={10} />,
-  model:   <User size={10} />,
-  script:  <FileText size={10} />,
-  voice:   <Mic size={10} />,
-  image:   <Film size={10} />,
-  video:   <Video size={10} />,
+  face: <User size={10} />,
+  model: <User size={10} />,
+  script: <FileText size={10} />,
+  voice: <Mic size={10} />,
+  image: <Film size={10} />,
+  video: <Video size={10} />,
   lipsync: <Wand2 size={10} />,
   compose: <Layers size={10} />,
   animate: <Sparkles size={10} />,
-  render:  <Film size={10} />,
+  render: <Film size={10} />,
+  join: <Layers size={10} />,
 }
 
 const TYPE_COLOR: Record<string, string> = {
-  face:    'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-  model:   'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-  script:  'bg-pink-500/20 text-pink-400 border-pink-500/30',
-  voice:   'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  image:   'bg-violet-500/20 text-violet-400 border-violet-500/30',
-  video:   'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  lipsync: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  compose: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  animate: 'bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30',
-  render:  'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  face: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-300',
+  model: 'border-sky-500/20 bg-sky-500/10 text-sky-300',
+  script: 'border-amber-500/20 bg-amber-500/10 text-amber-300',
+  voice: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300',
+  image: 'border-violet-500/20 bg-violet-500/10 text-violet-300',
+  video: 'border-blue-500/20 bg-blue-500/10 text-blue-300',
+  lipsync: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-300',
+  compose: 'border-orange-500/20 bg-orange-500/10 text-orange-300',
+  animate: 'border-fuchsia-500/20 bg-fuchsia-500/10 text-fuchsia-300',
+  render: 'border-rose-500/20 bg-rose-500/10 text-rose-300',
+  join: 'border-zinc-500/20 bg-zinc-500/10 text-zinc-300',
 }
 
-// ── Componente da Galeria ────────────────────────────────────────────────────
 interface Props {
   onSelect: (template: WorkflowTemplate) => void
-  onFree:   () => void
+  onFree: () => void
   onWizard: () => void
 }
 
 export default function TemplateGallery({ onSelect, onFree, onWizard }: Props) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/90 backdrop-blur-sm z-30 p-6 overflow-auto">
-      <div className="w-full max-w-4xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-accent/10 border border-accent/20 text-accent text-xs px-3 py-1 rounded-full mb-3">
-            <Zap size={11} /> Escolha como quer criar
+    <div className="absolute inset-0 z-30 flex items-center justify-center overflow-auto bg-[#090909]/92 p-6 backdrop-blur-md">
+      <div className="w-full max-w-5xl">
+        <div className="mb-8 text-center">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#54D6F6]/20 bg-[#0C171A] px-3 py-1 font-label text-[10px] uppercase tracking-[0.24em] text-[#54D6F6]">
+            <Zap size={11} /> escolha como quer criar
           </div>
-          <h2 className="text-2xl font-bold text-white">O que você quer fazer hoje?</h2>
-          <p className="text-sm text-zinc-500 mt-1">Escolha um template ou monte do zero</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-white">O que voce quer fazer hoje?</h2>
+          <p className="mt-2 text-sm text-[#8FA7AD]">Escolha um template premium ou comece um canvas em branco.</p>
         </div>
 
-        {/* Templates grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          {WORKFLOW_TEMPLATES.map((tpl) => (
+        <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          {WORKFLOW_TEMPLATES.map((template) => (
             <button
-              key={tpl.id}
-              onClick={() => onSelect(tpl)}
-              className="group relative bg-zinc-900 border border-zinc-700 hover:border-accent/50 rounded-2xl p-5 text-left transition-all hover:shadow-xl hover:shadow-accent/5 hover:-translate-y-0.5 flex flex-col"
+              key={template.id}
+              onClick={() => onSelect(template)}
+              className="group relative flex flex-col rounded-[28px] border border-white/10 bg-[#111111] p-5 text-left transition-all hover:-translate-y-0.5 hover:border-[#54D6F6]/30 hover:shadow-[0_24px_60px_rgba(84,214,246,0.10)]"
             >
-              {/* Badge */}
-              <span className={`self-start text-[10px] font-semibold px-2 py-0.5 rounded-full border mb-3 ${tpl.badgeColor}`}>
-                {tpl.badge}
+              <span className={`mb-3 self-start rounded-full border px-2 py-0.5 text-[10px] font-medium ${template.badgeColor}`}>
+                {template.badge}
               </span>
 
-              {/* Icon + label */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-accent">{tpl.icon}</span>
-                <span className="text-sm font-bold text-white">{tpl.label}</span>
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-[#54D6F6]">{template.icon}</span>
+                <span className="text-sm font-semibold text-white">{template.label}</span>
               </div>
 
-              {/* Description */}
-              <p className="text-xs text-zinc-500 leading-relaxed mb-4 flex-1">{tpl.description}</p>
+              <p className="mb-4 flex-1 text-xs leading-relaxed text-[#8FA7AD]">{template.description}</p>
 
-              {/* Node preview chips */}
-              <div className="flex flex-wrap gap-1 mb-4">
-                {tpl.nodes.map((n, i) => (
+              <div className="mb-4 flex flex-wrap gap-1">
+                {template.nodes.map((node, index) => (
                   <span
-                    key={i}
-                    className={`inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded-full border font-medium ${TYPE_COLOR[n.type] ?? 'bg-zinc-700 text-zinc-400'}`}
+                    key={`${template.id}-${index}`}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] font-medium ${TYPE_COLOR[node.type] ?? 'border-zinc-500/20 bg-zinc-500/10 text-zinc-300'}`}
                   >
-                    {TYPE_ICON[n.type]}
-                    {n.type}
+                    {TYPE_ICON[node.type]}
+                    {node.type}
                   </span>
                 ))}
               </div>
 
-              {/* Footer stats */}
-              <div className="flex items-center justify-between text-[10px] text-zinc-600 border-t border-zinc-800 pt-3">
-                <span className="flex items-center gap-1"><Clock size={10} /> {tpl.estimatedTime}</span>
-                <span>{tpl.credits} créditos estimados</span>
+              <div className="flex items-center justify-between border-t border-white/6 pt-3 text-[10px] text-[#65757A]">
+                <span className="flex items-center gap-1"><Clock size={10} /> {template.estimatedTime}</span>
+                <span>{template.credits} creditos estimados</span>
               </div>
 
-              {/* Hover glow */}
-              <div className="absolute inset-0 rounded-2xl bg-accent/0 group-hover:bg-accent/3 transition-all pointer-events-none" />
+              <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[#54D6F6]/0 transition-all group-hover:bg-[#54D6F6]/[0.03]" />
             </button>
           ))}
         </div>
 
-        {/* Manual options */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-zinc-800" />
-          <span className="text-xs text-zinc-600">ou comece do zero</span>
-          <div className="flex-1 h-px bg-zinc-800" />
+          <div className="h-px flex-1 bg-white/8" />
+          <span className="font-label text-[10px] uppercase tracking-[0.24em] text-[#65757A]">ou comece do zero</span>
+          <div className="h-px flex-1 bg-white/8" />
         </div>
-        <div className="flex items-center justify-center gap-3 mt-3">
+
+        <div className="mt-3 flex items-center justify-center gap-3">
           <button
             onClick={onWizard}
-            className="flex items-center gap-2 text-xs text-fuchsia-400 hover:text-fuchsia-300 border border-fuchsia-500/30 hover:border-fuchsia-500/60 bg-fuchsia-500/5 px-4 py-2.5 rounded-xl transition-all"
+            className="flex items-center gap-2 rounded-xl border border-[#54D6F6]/20 bg-[#0C171A] px-4 py-2.5 text-xs text-[#54D6F6] transition-all hover:border-[#54D6F6]/40 hover:text-white"
           >
             <Wand2 size={13} /> Campaign Builder guiado
           </button>
           <button
             onClick={onFree}
-            className="flex items-center gap-2 text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-600 bg-zinc-800/50 px-4 py-2.5 rounded-xl transition-all"
+            className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs text-zinc-300 transition-all hover:border-white/20 hover:text-white"
           >
             <BookOpen size={13} /> Canvas em branco
           </button>

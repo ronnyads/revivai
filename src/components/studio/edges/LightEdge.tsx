@@ -52,8 +52,8 @@ export default function LightEdge({
       <svg style={{ position: 'absolute', width: 0, height: 0 }}>
         <defs>
           <linearGradient id="edge-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#f97316" stopOpacity="0.6" />
-            <stop offset="100%" stopColor="#a855f7" stopOpacity="0.6" />
+            <stop offset="0%" stopColor="#54D6F6" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#00ADCC" stopOpacity="0.85" />
           </linearGradient>
         </defs>
       </svg>

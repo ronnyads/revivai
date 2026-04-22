@@ -1,6 +1,7 @@
 'use client'
+
 import { useCallback, useState } from 'react'
-import { Upload, Image as ImageIcon } from 'lucide-react'
+import { Lock, Upload, Wand2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface UploadZoneProps {
@@ -33,14 +34,28 @@ export default function UploadZone({ onFile, disabled }: UploadZoneProps) {
 
   if (preview) {
     return (
-      <div className="relative w-full rounded-xl overflow-hidden border border-[#E8E8E8] aspect-video">
-        <img src={preview} alt="Preview" className="w-full h-full object-contain bg-surface" />
+      <div className="panel-card relative aspect-[16/10] w-full overflow-hidden border border-white/10 bg-[#111111]">
+        <img src={preview} alt="Preview" className="h-full w-full object-contain bg-[#0C0C0C]" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/55 to-transparent" />
+        <div className="absolute left-4 top-4">
+          <span className="obsidian-chip border-[#54D6F6]/20 bg-[#0C171A] text-[#54D6F6]">arquivo carregado</span>
+        </div>
         <button
           onClick={() => setPreview(null)}
-          className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-ink text-xs font-medium px-3 py-1.5 rounded-full border border-[#E8E8E8] hover:border-accent hover:text-accent transition-colors"
+          className="absolute right-4 top-4 rounded-full border border-white/10 bg-black/70 px-4 py-2 font-label text-[10px] uppercase tracking-[0.24em] text-[#D7E4E8] transition-colors hover:border-[#54D6F6]/40 hover:text-white"
         >
-          Trocar foto
+          Trocar imagem
         </button>
+        <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-label text-[10px] uppercase tracking-[0.28em] text-[#54D6F6]">input pronto</p>
+            <p className="mt-1 text-sm text-white">A imagem entrou no pipeline. Podemos diagnosticar e restaurar.</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[#A8B5B8]">
+            <Wand2 size={14} className="text-[#54D6F6]" />
+            <span className="font-label text-[10px] uppercase tracking-[0.24em]">modo premium</span>
+          </div>
+        </div>
       </div>
     )
   }
@@ -48,29 +63,53 @@ export default function UploadZone({ onFile, disabled }: UploadZoneProps) {
   return (
     <label
       className={cn(
-        'flex flex-col items-center justify-center gap-4 w-full rounded-xl border-2 border-dashed cursor-pointer transition-all duration-300 aspect-video',
-        dragging ? 'border-accent bg-accent-light' : 'border-[#E8E8E8] bg-surface hover:border-accent hover:bg-accent-light',
-        disabled && 'opacity-50 pointer-events-none'
+        'panel-card relative flex aspect-[16/10] w-full cursor-pointer flex-col items-center justify-center overflow-hidden border border-dashed px-6 text-center transition-all duration-300',
+        dragging
+          ? 'border-[#54D6F6]/60 bg-[#0C171A]'
+          : 'border-white/10 bg-[#111111] hover:border-[#54D6F6]/35 hover:bg-[#101417]',
+        disabled && 'pointer-events-none opacity-50',
       )}
       onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
     >
-      <input type="file" accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp" className="hidden" onChange={onChange} disabled={disabled} />
-      <div className="w-14 h-14 rounded-full bg-accent-light flex items-center justify-center text-accent">
+      <input
+        type="file"
+        accept=".jpg,.jpeg,.png,.tiff,.tif,.bmp"
+        className="hidden"
+        onChange={onChange}
+        disabled={disabled}
+      />
+
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(84,214,246,0.12),_transparent_45%)]" />
+
+      <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-[#54D6F6]/20 bg-[#0C171A] text-[#54D6F6] shadow-[0_0_0_10px_rgba(84,214,246,0.06)]">
         <Upload size={24} />
       </div>
-      <div className="text-center">
-        <p className="text-base font-medium text-ink">Arraste sua foto aqui</p>
-        <p className="text-sm text-muted mt-1">ou toque para escolher do celular / computador</p>
+
+      <div className="relative mt-6 max-w-xl">
+        <p className="font-label text-[10px] uppercase tracking-[0.34em] text-[#54D6F6]">upload de origem</p>
+        <p className="mt-3 text-2xl font-semibold tracking-tight text-white">Arraste sua foto para dentro do laboratorio</p>
+        <p className="mt-3 text-sm leading-relaxed text-[#9EADB1]">
+          Recebemos JPG, PNG, TIFF e BMP. O arquivo sobe para um ambiente isolado e segue direto para diagnostico e restauracao.
+        </p>
       </div>
-      <div className="flex gap-2 flex-wrap justify-center">
-        {['JPG','PNG','TIFF','BMP'].map(f => (
-          <span key={f} className="text-xs px-2.5 py-1 rounded bg-white border border-[#E8E8E8] text-muted font-medium">{f}</span>
+
+      <div className="relative mt-6 flex flex-wrap items-center justify-center gap-2">
+        {['JPG', 'PNG', 'TIFF', 'BMP', 'ate 50MB'].map((format) => (
+          <span
+            key={format}
+            className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 font-label text-[10px] uppercase tracking-[0.22em] text-[#A8B5B8]"
+          >
+            {format}
+          </span>
         ))}
-        <span className="text-xs px-2.5 py-1 rounded bg-white border border-[#E8E8E8] text-muted font-medium">até 50MB</span>
       </div>
-      <p className="text-[11px] text-muted mt-1">Sua foto não é compartilhada com ninguém</p>
+
+      <div className="relative mt-6 flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-4 py-2 text-[#A8B5B8]">
+        <Lock size={14} className="text-[#54D6F6]" />
+        <span className="font-label text-[10px] uppercase tracking-[0.24em]">sua foto nao e compartilhada com terceiros</span>
+      </div>
     </label>
   )
 }

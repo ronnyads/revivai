@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>STUDIO LAB | Dashboard de Criação</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-primary": "#00687b",
+                      "secondary-fixed": "#acedff",
+                      "tertiary-fixed-dim": "#00e0b7",
+                      "surface-container-low": "#1b1b1b",
+                      "error-container": "#93000a",
+                      "primary-fixed-dim": "#54d6f6",
+                      "surface-container-lowest": "#0e0e0e",
+                      "on-primary-container": "#003b47",
+                      "inverse-surface": "#e2e2e2",
+                      "surface-variant": "#353535",
+                      "on-tertiary-fixed-variant": "#005141",
+                      "on-primary-fixed-variant": "#004e5d",
+                      "tertiary": "#00e0b7",
+                      "primary-container": "#00adcc",
+                      "surface-container-high": "#2a2a2a",
+                      "primary": "#54d6f6",
+                      "on-secondary-fixed-variant": "#004e5c",
+                      "on-secondary": "#003640",
+                      "surface-dim": "#131313",
+                      "on-secondary-fixed": "#001f26",
+                      "surface-container-highest": "#353535",
+                      "on-tertiary-container": "#003e31",
+                      "on-surface": "#e2e2e2",
+                      "background": "#131313",
+                      "on-tertiary-fixed": "#002019",
+                      "surface-container": "#1f1f1f",
+                      "tertiary-fixed": "#15ffd1",
+                      "outline-variant": "#3d494d",
+                      "inverse-on-surface": "#303030",
+                      "primary-fixed": "#afecff",
+                      "on-primary-fixed": "#001f26",
+                      "on-secondary-container": "#8ed4e8",
+                      "on-error-container": "#ffdad6",
+                      "error": "#ffb4ab",
+                      "surface-bright": "#393939",
+                      "on-background": "#e2e2e2",
+                      "tertiary-container": "#00b392",
+                      "surface-tint": "#54d6f6",
+                      "on-tertiary": "#00382c",
+                      "on-error": "#690005",
+                      "secondary-fixed-dim": "#8bd1e4",
+                      "secondary-container": "#005d6e",
+                      "surface": "#131313",
+                      "on-surface-variant": "#bcc9cd",
+                      "secondary": "#8bd1e4",
+                      "outline": "#869397",
+                      "on-primary": "#003641"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk"],
+                      "body": ["Inter"],
+                      "label": ["Space Grotesk"],
+                      "mono": ["IBM Plex Mono"]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        body { background-color: #000000; color: #e2e2e2; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { background: rgba(31, 31, 31, 0.4); backdrop-filter: blur(20px); }
+        .tonal-shift { background: linear-gradient(180deg, rgba(31,31,31,0.5) 0%, rgba(19,19,19,0.5) 100%); }
+        .glow-cyan { box-shadow: 0 0 30px rgba(0, 173, 204, 0.1); }
+        .active-tab-glow { background: radial-gradient(circle at center, rgba(0, 173, 204, 0.15) 0%, transparent 70%); }
+    </style>
+</head>
+<body class="font-body selection:bg-primary-container selection:text-on-primary-container overflow-hidden">
+<!-- Shell Wrapper -->
+<div class="flex h-screen w-full bg-black">
+<!-- SideNavBar -->
+<aside class="h-screen w-72 border-r border-neutral-900 bg-black flex flex-col p-4 overflow-y-auto shadow-[10px_0_30px_rgba(0,0,0,0.5)] z-50">
+<!-- Brand Logo -->
+<div class="mb-10 px-2">
+<h1 class="text-xl font-bold tracking-tighter text-[#00ADCC] font-headline">STUDIO LAB</h1>
+<p class="text-[10px] text-neutral-600 font-mono tracking-widest uppercase mt-1">Terminal de Criação</p>
+</div>
+<!-- Main Nav -->
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 text-[#00ADCC] bg-neutral-900/80 rounded-sm border-l-2 border-[#00ADCC] font-headline text-sm tracking-tight duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined">dashboard_customize</span>
+                    Painel
+                </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-neutral-500 font-headline text-sm tracking-tight hover:bg-neutral-800/40 hover:text-neutral-200 transition-colors duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined">layers</span>
+                    Projetos
+                </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-neutral-500 font-headline text-sm tracking-tight hover:bg-neutral-800/40 hover:text-neutral-200 transition-colors duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined">psychology</span>
+                    Laboratório IA
+                </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-neutral-500 font-headline text-sm tracking-tight hover:bg-neutral-800/40 hover:text-neutral-200 transition-colors duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined">folder_open</span>
+                    Arquivos
+                </a>
+<a class="flex items-center gap-3 px-3 py-2.5 text-neutral-500 font-headline text-sm tracking-tight hover:bg-neutral-800/40 hover:text-neutral-200 transition-colors duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined">tune</span>
+                    Configurações
+                </a>
+</nav>
+<!-- CTA -->
+<div class="mt-8 mb-8">
+<button class="w-full py-3 bg-gradient-to-r from-primary-container to-secondary-container text-black font-bold text-sm rounded-sm active:scale-95 transition-transform">
+                    Novo Ativo
+                </button>
+</div>
+<!-- Footer Nav -->
+<div class="space-y-1 pt-4 border-t border-neutral-900">
+<a class="flex items-center gap-3 px-3 py-2 text-neutral-500 font-headline text-sm hover:text-neutral-200 transition-colors" href="#">
+<span class="material-symbols-outlined">help_outline</span>
+                    Ajuda
+                </a>
+<a class="flex items-center gap-3 px-3 py-2 text-neutral-500 font-headline text-sm hover:text-neutral-200 transition-colors" href="#">
+<span class="material-symbols-outlined">logout</span>
+                    Sair
+                </a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col relative overflow-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 z-40 border-b border-neutral-900 bg-black/80 backdrop-blur-2xl flex items-center justify-between w-[calc(100%-18rem)] h-16 px-8 ml-72">
+<div class="flex items-center gap-8">
+<div class="font-headline text-lg font-black text-white">WORKSPACE</div>
+<div class="relative w-64 group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 text-sm">search</span>
+<input class="w-full bg-neutral-900 border-none text-[11px] font-mono tracking-widest pl-10 h-8 rounded-sm focus:ring-1 focus:ring-[#00ADCC] transition-all" placeholder="BUSCAR ATIVOS..." type="text"/>
+</div>
+<nav class="flex items-center gap-6">
+<a class="text-[#00ADCC] border-b border-[#00ADCC] font-body text-[13px] font-medium uppercase tracking-widest h-16 flex items-center" href="#">Visão Geral</a>
+<a class="text-neutral-400 hover:text-white font-body text-[13px] font-medium uppercase tracking-widest transition-opacity h-16 flex items-center" href="#">Fluxo</a>
+<a class="text-neutral-400 hover:text-white font-body text-[13px] font-medium uppercase tracking-widest transition-opacity h-16 flex items-center" href="#">Equipe</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<button class="flex items-center gap-2 text-[#00ADCC] font-body text-[13px] font-medium uppercase tracking-widest active:scale-98 duration-100">
+<span class="material-symbols-outlined text-base">cloud_upload</span>
+                        Exportar
+                    </button>
+<div class="flex items-center gap-4 text-neutral-400">
+<span class="material-symbols-outlined cursor-pointer hover:text-white transition-colors">notifications</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-white transition-colors">settings_suggest</span>
+</div>
+<img alt="Perfil do Diretor Criativo" class="w-8 h-8 rounded-full border border-neutral-800 object-cover" data-alt="Professional portrait of a creative director in dark attire, high-contrast studio lighting with subtle blue highlights, minimalist aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsW7pf9F81E897eWEqwHtaH9F3iO45fDyTYskaXBnDnxAovyx42svgAU0Sp77ymwC2sKAtXAQg6V8raBSo9AFTt9YQFrVTXOdAJs8tBhkaOp3PKsPbWjKwJiTOUPFLLaAQKRclrjNkSaO1qZVmR94FqjMOOZE6ZsFqvvJCJBnSyNpsmPA7hQ3VKjOeNt8Ew5aXrGFebKJAoA3km5C23EVu4n_w68_5R-v9JsNM641O-8vgNiqSg_FXCZAi63RUiN4wmmc77Q11btfY"/>
+</div>
+</header>
+<!-- Canvas -->
+<section class="mt-16 p-8 flex gap-8 h-full overflow-y-auto">
+<!-- Center: Template Grid -->
+<div class="flex-1 space-y-8">
+<div class="flex items-baseline justify-between">
+<div>
+<h2 class="text-3xl font-bold font-headline tracking-tighter text-white">Modelos de Produção</h2>
+<p class="text-neutral-500 font-mono text-[10px] tracking-widest mt-1">SISTEMA DINÂMICO DE GERAÇÃO V.04</p>
+</div>
+<button class="text-neutral-400 text-xs font-headline flex items-center gap-2 hover:text-[#00ADCC] transition-colors">
+                            VER TODOS <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<!-- Bento Grid -->
+<div class="grid grid-cols-2 gap-6">
+<!-- Template Card 1 -->
+<div class="group relative bg-surface-container rounded-sm overflow-hidden border border-transparent hover:border-[#00ADCC]/30 transition-all duration-300">
+<div class="h-48 overflow-hidden relative">
+<img alt="Casting Editorial" class="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500" data-alt="Avant-garde fashion editorial photography with sharp neon lighting, metallic textures, and architectural composition in a dark studio" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBI3XXYTbjp5ruhCZQoQQBxy0kE2mhFqrAJ5r_Q7ZaeNvq42f9Ag_898ASQ4olkBL_FuPcLP31lqXi_-M-Hsvw4AO64feJs8UqWotxHZVmo-ynxKREHlrRuSRoeJPDtz9SG-jADrEUgmSvseVmDu-1fgggC-VK9rsLa_B7uNDXa5SIWHA_ncqumJMG_owPwlQOs0GMlN88RVlzYWVRAOZV6K7YvO7st_e2vWMIBi9xk_gXzc0GQYdzpJwEDAIxTHoEdjgNA0KmM1bsk"/>
+<div class="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors"></div>
+<div class="absolute top-4 left-4 bg-black/80 backdrop-blur-md px-3 py-1 rounded-sm border border-neutral-800">
+<span class="text-[9px] font-mono tracking-widest text-[#00ADCC]">EDITORIAL</span>
+</div>
+</div>
+<div class="p-5">
+<h3 class="text-lg font-headline font-bold text-white mb-2">Casting Editorial</h3>
+<p class="text-neutral-400 text-xs leading-relaxed font-body">Crie composições de moda experimental com foco em iluminação volumétrica e texturas orgânicas.</p>
+</div>
+<div class="absolute bottom-0 right-0 p-4 translate-x-10 group-hover:translate-x-0 transition-transform">
+<span class="material-symbols-outlined text-[#00ADCC]">add_circle</span>
+</div>
+</div>
+<!-- Template Card 2 -->
+<div class="group relative bg-surface-container rounded-sm overflow-hidden border border-transparent hover:border-[#00ADCC]/30 transition-all duration-300">
+<div class="h-48 overflow-hidden relative">
+<img alt="Social Cinema" class="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500" data-alt="Cinematic movie scene still, dramatic shadows, moody blue and orange lighting, high-tech interior, high fidelity anamorphic look" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRgfgTvCqctfeVTvNtmEDqape_LP7zDO0c8Gy-rTP4KHvoUpekkYgIMQkb7VaMnKdf_BiikRMNymj4TOh-kaNNEx0IJ9QJmTQgphniMoPPKMWWSqABoFLLKy-jS7DThNs2vsURJV90cLAHcutospZImYEIagpUWmKprrTb_zeah4Jbk9or-5qxuvBZh1YhpPHs110K6JS5I0DdnuUFCWntlmKR0_N-uv9ruryGPlJzFmz0mrQuaJ_zhykGKoLbn0DHoMyscbGjoGtx"/>
+<div class="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors"></div>
+<div class="absolute top-4 left-4 bg-black/80 backdrop-blur-md px-3 py-1 rounded-sm border border-neutral-800">
+<span class="text-[9px] font-mono tracking-widest text-[#00ADCC]">VIDEO</span>
+</div>
+</div>
+<div class="p-5">
+<h3 class="text-lg font-headline font-bold text-white mb-2">Social Cinema</h3>
+<p class="text-neutral-400 text-xs leading-relaxed font-body">Narrativas curtas com estética cinematográfica para redes de alta performance e engajamento.</p>
+</div>
+<div class="absolute bottom-0 right-0 p-4 translate-x-10 group-hover:translate-x-0 transition-transform">
+<span class="material-symbols-outlined text-[#00ADCC]">add_circle</span>
+</div>
+</div>
+<!-- Template Card 3 -->
+<div class="group relative bg-surface-container rounded-sm overflow-hidden border border-transparent hover:border-[#00ADCC]/30 transition-all duration-300">
+<div class="h-48 overflow-hidden relative">
+<img alt="Product Vision" class="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500" data-alt="Ultra high-end product photography of a sleek tech gadget on a polished black surface with clinical cyan glow and depth of field" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUl-KSEPgcRMtggmBIR7F5soafEbCxtXaq2uXQI-LH9YwH_kr_L8Q9zAxOVjqhRsHDO5YU8aVB-4yCKAUD1qBejoyM4SpIOtK5JX0hSWU-8pQpCXdjYGoguonZ0tZqLA1XRmF8uVpcFq_fNye9bVbbVAJrfNvhW5XQiZ_PAgHtdQaH6frU_WUFDtOXC1n2D5c-rNnosxJEV-chO7pRuJUTJ_P3XBN3c2aNd5ZusOU7bzKChUF-0qRmTBMmLV_xeQRUgJs2Jf9JSR-d"/>
+<div class="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors"></div>
+<div class="absolute top-4 left-4 bg-black/80 backdrop-blur-md px-3 py-1 rounded-sm border border-neutral-800">
+<span class="text-[9px] font-mono tracking-widest text-[#00ADCC]">PRODUCT</span>
+</div>
+</div>
+<div class="p-5">
+<h3 class="text-lg font-headline font-bold text-white mb-2">Product Vision</h3>
+<p class="text-neutral-400 text-xs leading-relaxed font-body">Renderização de produtos com foco em precisão técnica e apelo visual tecnológico de luxo.</p>
+</div>
+<div class="absolute bottom-0 right-0 p-4 translate-x-10 group-hover:translate-x-0 transition-transform">
+<span class="material-symbols-outlined text-[#00ADCC]">add_circle</span>
+</div>
+</div>
+<!-- Template Card 4 -->
+<div class="group relative bg-surface-container rounded-sm overflow-hidden border border-transparent hover:border-[#00ADCC]/30 transition-all duration-300">
+<div class="h-48 overflow-hidden relative">
+<img alt="Brand Identity" class="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500" data-alt="Abstract minimalist branding design with sharp lines, high contrast black and white patterns, and a splash of vibrant cyan" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTR-0w_xaXvMWR20AmmOeHQ0QkW_5RjQsCIich74ipAk6WT2Sc-bYJaR6JR0ujKiNwmsfMTwX3CH5ooFC1uJMfl8za4RkuM5Gg4MpaWZtt8MCmDSydD7yU-lA-tWB7iXAkWbYNoLso9criM7QGjTA7BKPsF19wTzw_kBWNJVtHJsXf7oKvPZiW_SJAutjSzMi3DbPE1Y0fkydSOtyq_ato1s-7PH-270IDrKXgDexJXYX6GHLJeMdFI5l6UwJbx0OJSKkEcEWSLJex"/>
+<div class="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors"></div>
+<div class="absolute top-4 left-4 bg-black/80 backdrop-blur-md px-3 py-1 rounded-sm border border-neutral-800">
+<span class="text-[9px] font-mono tracking-widest text-[#00ADCC]">BRANDING</span>
+</div>
+</div>
+<div class="p-5">
+<h3 class="text-lg font-headline font-bold text-white mb-2">Brand Identity</h3>
+<p class="text-neutral-400 text-xs leading-relaxed font-body">Desenvolvimento de sistemas visuais escaláveis para marcas que habitam o ecossistema digital.</p>
+</div>
+<div class="absolute bottom-0 right-0 p-4 translate-x-10 group-hover:translate-x-0 transition-transform">
+<span class="material-symbols-outlined text-[#00ADCC]">add_circle</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right: Creative Copilot Panel -->
+<aside class="w-80 flex flex-col gap-6">
+<div class="glass-panel rounded-sm p-6 flex-1 flex flex-col glow-cyan border-l border-neutral-800/30">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-2 h-2 rounded-full bg-[#00ADCC] animate-pulse"></div>
+<h4 class="font-headline font-bold text-sm text-white uppercase tracking-widest">Creative Copilot</h4>
+</div>
+<div class="flex-1 space-y-4 overflow-y-auto pr-2">
+<div class="bg-neutral-900/50 p-4 rounded-sm border-l-2 border-[#00ADCC]/50">
+<p class="text-xs text-neutral-300 leading-relaxed font-body">
+                                    Olá! Sou seu assistente de direção criativa. Notei que você está explorando o modelo <span class="text-[#00ADCC]">Casting Editorial</span>. 
+                                    <br/><br/>
+                                    Deseja que eu analise as tendências cromáticas de 2024 para este projeto?
+                                </p>
+<span class="text-[9px] font-mono text-neutral-600 mt-2 block uppercase">Agora mesmo</span>
+</div>
+<div class="bg-neutral-800/20 p-4 rounded-sm text-right">
+<p class="text-xs text-neutral-400 font-body">Sim, por favor. Priorize paletas neon frias.</p>
+<span class="text-[9px] font-mono text-neutral-600 mt-2 block uppercase">Usuário • 2min atrás</span>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-neutral-800">
+<div class="relative">
+<textarea class="w-full bg-neutral-900 border-none text-xs text-white p-3 rounded-sm focus:ring-1 focus:ring-[#00ADCC] resize-none" placeholder="Descreva sua visão..." rows="2"></textarea>
+<button class="absolute bottom-2 right-2 text-[#00ADCC]">
+<span class="material-symbols-outlined text-lg">send</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Quick Stats -->
+<div class="surface-container p-6 rounded-sm space-y-4">
+<h5 class="text-[10px] font-mono tracking-widest text-neutral-500 uppercase">Status do Sistema</h5>
+<div class="flex items-end justify-between">
+<span class="text-3xl font-headline font-light text-white">84%</span>
+<span class="text-[10px] text-[#00ADCC] font-mono">RENDER GPU</span>
+</div>
+<div class="w-full h-1 bg-neutral-900 rounded-full overflow-hidden">
+<div class="w-[84%] h-full bg-[#00ADCC]"></div>
+</div>
+</div>
+</aside>
+</section>
+</main>
+</div>
+</body></html>

@@ -30,10 +30,10 @@ export default function LanguageSwitcher({ compact = false }: { compact?: boolea
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className={`flex items-center gap-1.5 rounded-lg transition-colors font-medium ${
+        className={`flex items-center gap-1.5 rounded-full border transition-all font-label ${
           compact
-            ? 'px-2 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800'
-            : 'w-full px-3 py-2 text-xs text-zinc-500 hover:text-white hover:bg-zinc-900 border border-zinc-800 justify-between'
+            ? 'border-white/8 bg-white/[0.03] px-3 py-2 text-[10px] text-white/58 hover:border-[#54D6F6]/30 hover:text-white'
+            : 'w-full justify-between border-white/8 bg-white/[0.03] px-4 py-3 text-[10px] text-white/58 hover:border-[#54D6F6]/30 hover:text-white'
         }`}
       >
         <span className="text-sm">{current.flag}</span>
@@ -42,15 +42,15 @@ export default function LanguageSwitcher({ compact = false }: { compact?: boolea
       </button>
 
       {open && (
-        <div className={`absolute z-50 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl overflow-hidden min-w-[110px] ${
+        <div className={`absolute z-50 overflow-hidden rounded-[20px] border border-white/8 bg-[#0C171A] shadow-[0_24px_60px_rgba(0,0,0,0.38)] min-w-[118px] ${
           compact ? 'bottom-full mb-1 right-0' : 'bottom-full mb-1 left-0 right-0'
         }`}>
           {LANGS.map(l => (
             <button
               key={l.code}
               onClick={() => { setLang(l.code); setOpen(false) }}
-              className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-colors hover:bg-zinc-800 ${
-                l.code === lang ? 'text-white font-semibold bg-zinc-800/60' : 'text-zinc-400'
+              className={`flex w-full items-center gap-2 px-3 py-2.5 text-[11px] transition-colors hover:bg-white/[0.06] ${
+                l.code === lang ? 'bg-white/[0.08] font-semibold text-[#54D6F6]' : 'text-white/62'
               }`}
             >
               <span className="text-sm">{l.flag}</span>

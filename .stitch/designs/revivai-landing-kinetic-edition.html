@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RevivAI | Visual do Futuro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "background": "#131313",
+                        "tertiary": "#00e0b7",
+                        "outline": "#869397",
+                        "inverse-on-surface": "#303030",
+                        "surface": "#131313",
+                        "surface-container-high": "#2a2a2a",
+                        "on-tertiary-container": "#003e31",
+                        "on-primary": "#003641",
+                        "inverse-surface": "#e2e2e2",
+                        "tertiary-container": "#00b392",
+                        "on-secondary-container": "#8ed4e8",
+                        "secondary-container": "#005d6e",
+                        "on-primary-fixed": "#001f26",
+                        "inverse-primary": "#00687b",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-highest": "#353535",
+                        "secondary": "#8bd1e4",
+                        "on-tertiary": "#00382c",
+                        "surface-variant": "#353535",
+                        "surface-container": "#1f1f1f",
+                        "on-tertiary-fixed-variant": "#005141",
+                        "tertiary-fixed-dim": "#00e0b7",
+                        "surface-container-lowest": "#0e0e0e",
+                        "secondary-fixed-dim": "#8bd1e4",
+                        "on-secondary-fixed-variant": "#004e5c",
+                        "on-surface": "#e2e2e2",
+                        "error": "#ffb4ab",
+                        "surface-dim": "#131313",
+                        "on-primary-fixed-variant": "#004e5d",
+                        "surface-container-low": "#1b1b1b",
+                        "error-container": "#93000a",
+                        "surface-tint": "#54d6f6",
+                        "surface-bright": "#393939",
+                        "on-tertiary-fixed": "#002019",
+                        "primary-container": "#00adcc",
+                        "tertiary-fixed": "#15ffd1",
+                        "primary-fixed": "#afecff",
+                        "primary-fixed-dim": "#54d6f6",
+                        "on-surface-variant": "#bcc9cd",
+                        "on-secondary": "#003640",
+                        "primary": "#54d6f6",
+                        "on-error": "#690005",
+                        "secondary-fixed": "#acedff",
+                        "on-secondary-fixed": "#001f26",
+                        "on-primary-container": "#003b47",
+                        "outline-variant": "#3d494d",
+                        "on-background": "#e2e2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["IBM Plex Mono", "monospace"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .text-gradient-cyan {
+            background: linear-gradient(to right, #54d6f6, #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .bg-cyan-gradient {
+            background: linear-gradient(135deg, #00ADCC 0%, #54d6f6 100%);
+        }
+        .tonal-shift {
+            transition: background-color 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-[#131313]/80 backdrop-blur-xl border-b border-white/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)]">
+<div class="flex justify-between items-center h-20 px-8 max-w-[1440px] mx-auto w-full">
+<div class="text-2xl font-bold tracking-tighter text-white font-headline">RevivAI</div>
+<div class="hidden md:flex space-x-10 items-center">
+<a class="font-label text-sm tracking-tighter uppercase text-[#00ADCC] font-bold border-b-2 border-[#00ADCC] pb-1" href="#">Portfólio</a>
+<a class="font-label text-sm tracking-tighter uppercase text-white/60 hover:text-[#00ADCC] transition-colors duration-200" href="#">Edições</a>
+<a class="font-label text-sm tracking-tighter uppercase text-white/60 hover:text-[#00ADCC] transition-colors duration-200" href="#">Preços</a>
+<a class="font-label text-sm tracking-tighter uppercase text-white/60 hover:text-[#00ADCC] transition-colors duration-200" href="#">Estúdio</a>
+</div>
+<div class="flex items-center gap-6">
+<button class="hidden lg:block bg-cyan-gradient text-on-primary-container font-headline font-bold text-xs uppercase px-6 py-2.5 rounded-full scale-95 active:opacity-80 transition-all">
+                    Criar Projeto
+                </button>
+<span class="material-symbols-outlined text-white cursor-pointer" data-icon="menu">menu</span>
+</div>
+</div>
+</nav>
+<main>
+<!-- Section 1: Hero -->
+<section class="relative h-screen w-full overflow-hidden flex items-center justify-center">
+<div class="absolute inset-0 z-0">
+<div class="absolute inset-0 bg-black/40 z-10"></div>
+<img class="w-full h-full object-cover" data-alt="Cinematic close-up of a digital human with iridescent skin textures and glowing cybernetic eyes in a dark tech-noir studio" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD2ZLronBvcQKtJuPLHxfDXquGxJ0B-k_pjOCZpYPyOZwbbV9AOFLOpkjJkSy1HXZ6txKnz_rwgAfZIodfh1_QUbvTWhXfVCRPNCwH_KTJsmFn5pvT6MloB7ATuCiGenBAal-30mbsvQ5QnhsDuBtBbh8LeavsOcYSOSpY51JK75TjZVdsuvbt7Q2NQ78ZKa3O7CDusHBtaa--yBgEYCBGdMCuH7HZwAH6dn-ctfub07aWAE8w9YYVNBUOoppN1SdvVANDnwHB43uMp"/>
+</div>
+<div class="relative z-20 max-w-[1440px] w-full px-8 flex flex-col md:flex-row items-end justify-between">
+<div class="w-full md:w-3/4">
+<span class="font-label text-xs tracking-widest text-primary uppercase block mb-4">// estúdio visual · IA generativa</span>
+<h1 class="font-headline text-6xl md:text-[120px] font-bold leading-[0.9] tracking-tighter text-white uppercase">
+                        Visual do <br/> <span class="italic text-primary">Futuro</span>
+</h1>
+<p class="mt-8 font-body text-lg text-white/60 max-w-xl">
+                        A nova fronteira da criação audiovisual. Inteligência artificial clínica aplicada ao design de alta performance e lifestyle digital.
+                    </p>
+</div>
+<div class="mt-12 md:mt-0 flex flex-col items-start gap-4">
+<div class="w-12 h-[1px] bg-primary"></div>
+<span class="font-label text-xs tracking-widest text-primary uppercase">Sistema Pronto: 2.0.4</span>
+</div>
+</div>
+</section>
+<!-- Section 2: Metrics -->
+<section class="py-24 bg-surface-container-low">
+<div class="max-w-[1440px] mx-auto px-8 grid grid-cols-2 lg:grid-cols-4 gap-12">
+<div class="flex flex-col">
+<span class="text-5xl md:text-6xl font-headline font-bold text-gradient-cyan">120k+</span>
+<span class="font-label text-xs uppercase tracking-widest text-white/40 mt-4">Imagens Geradas</span>
+</div>
+<div class="flex flex-col">
+<span class="text-5xl md:text-6xl font-headline font-bold text-gradient-cyan">850+</span>
+<span class="font-label text-xs uppercase tracking-widest text-white/40 mt-4">Marcas Globais</span>
+</div>
+<div class="flex flex-col">
+<span class="text-5xl md:text-6xl font-headline font-bold text-gradient-cyan">40h</span>
+<span class="font-label text-xs uppercase tracking-widest text-white/40 mt-4">Salvas por Ciclo</span>
+</div>
+<div class="flex flex-col">
+<span class="text-5xl md:text-6xl font-headline font-bold text-gradient-cyan">98%</span>
+<span class="font-label text-xs uppercase tracking-widest text-white/40 mt-4">Taxa de Satisfação</span>
+</div>
+</div>
+</section>
+<!-- Section 3: Works -->
+<section class="py-32 bg-background overflow-hidden">
+<div class="max-w-[1440px] mx-auto px-8 mb-16">
+<h2 class="font-headline text-4xl font-bold tracking-tighter uppercase text-white">Trabalhos Recentes</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8 px-8 max-w-[1600px] mx-auto">
+<div class="md:col-span-7 aspect-[4/3] relative group overflow-hidden rounded-sm">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Avant-garde metallic fashion editorial with liquid silver textures and sharp shadows against a deep black background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC30azfUzGKcew13JhZoAebtN7nBAxvHt6mNjh2-ndbJsNwOUkJfHPhgT_CA8RQLXFbUptsu_K1Yc2ZF8D_9-oqA9_5xzqGglGCi0o1AZZFgHd4h3cQC36Kg3MgQ-gAQmLKgtkYIrxCKQhJdzUYhl7OAG0ssetls_PyA2gVWmNfRPoeD_qNGGO3RNvbeOH89osMp96_g2tfZEsr8S_FJZsHgx1fBBypDFwpj-n4N4NyqMQFD36Reb2w9wBTlODtZH5TvmUlkz5sIFJL"/>
+<div class="absolute bottom-8 left-8">
+<p class="font-label text-xs text-primary mb-2">01 / BRANDING</p>
+<h3 class="font-headline text-3xl font-bold text-white uppercase italic">Metallic Pulse</h3>
+</div>
+</div>
+<div class="md:col-span-5 aspect-square relative group overflow-hidden rounded-sm mt-0 md:mt-24">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Influencer style UGC photo showing a minimalist high-tech interior with soft blue ambient lighting and glass furniture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGKknBvCjpJiV9ifnxjKY9PVfLag3vmvm-YjRwnXJTlreN8LVZJosnx-O4tOdL5VQaPBsC81uvttNzKP6kf2NRao_TB-cx2jMKgGx6NiVBKoiR7IO8yeVn7vljJfBiFyjUEqlTu-oVld9yNduzrW69NXv0HZAL7epPDzX-LWT0J-TvzsabjdZCeSnHqP5R25ljt8096K66LYOXFohMiTBzegvjc2Do4Go6fQ2GENXTMqWHLmSqMy92QAaV2AH51SEKLLBUTlbEIADM"/>
+<div class="absolute bottom-8 left-8">
+<p class="font-label text-xs text-primary mb-2">02 / CONTEÚDO</p>
+<h3 class="font-headline text-3xl font-bold text-white uppercase italic">Estúdio UGC</h3>
+</div>
+</div>
+<div class="md:col-span-5 aspect-square relative group overflow-hidden rounded-sm">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Digital landscape featuring futuristic architectural structures with clean lines and monolithic forms in a twilight setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8BnC7_z3qS3tDlNnKDpa4wSkT0AZwlSFNm7LaFc8OYIfl_UEp_D6esH5qdqo8-blRYVHihQVTvtrtj5fnQ7uMByA_35eGXT1QNhvdiDXfXS140g2POxb5XXnBNyQvNoh1rC9xLQqgc_Qhw17_HsieyuQngQGdatEMfsj-lQ5ej2zQL3KaTHdgp8KSk0_ZLBpK_OnSGfKUCok89V5z15Mt0UCzdm4oMI6sKKyNYjgLKuYR0ZLKQ3lLDWZyQuenKrlMAgXOIJCgNK4a"/>
+<div class="absolute bottom-8 left-8">
+<p class="font-label text-xs text-primary mb-2">03 / AMBIENTE</p>
+<h3 class="font-headline text-3xl font-bold text-white uppercase italic">Provedor Virtual</h3>
+</div>
+</div>
+<div class="md:col-span-7 aspect-[16/9] relative group overflow-hidden rounded-sm md:-mt-12">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Brutalist architectural photography showing raw concrete textures and sharp geometric shapes under harsh clinical lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlg7AzJs86iBKI3tDUSb3IzuSDl_Mwx3sBsRvD5CE03LOXf1PYU-ySZ8DP9rDhYXIxbX0pcpzyFWDZmX0ytN-srVZq8eI87ti4LaSQBV73cDFu1YplhK2kGiwh3M5YQ86fbTs3x8zEB0SRATN8ip-3-SZtbEhPWZkjNmrYXuUiwpknIWaEiX1tvhd73XcTmihaLJL-mPYdmkr6Udgjvpwoh3VPv9fw4-NKcX8LaKpK6oY0O8El8eVeixweLz4LMXrPLSQakIQzvoaD"/>
+<div class="absolute bottom-8 left-8">
+<p class="font-label text-xs text-primary mb-2">04 / ARQUITETURA</p>
+<h3 class="font-headline text-3xl font-bold text-white uppercase italic">Sonhos Brutalistas</h3>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 4: Structure -->
+<section class="py-32 bg-surface-container">
+<div class="max-w-[1440px] mx-auto px-8 grid grid-cols-1 md:grid-cols-2 gap-20 items-center">
+<div class="space-y-12">
+<h2 class="font-headline text-5xl font-bold tracking-tighter uppercase text-white leading-none">Estrutura <br/><span class="text-primary italic">RevivAI</span></h2>
+<div class="space-y-8">
+<div class="group cursor-pointer">
+<div class="flex justify-between items-center mb-4">
+<span class="font-label text-primary text-sm">01</span>
+<span class="material-symbols-outlined text-white/20 group-hover:text-primary transition-colors" data-icon="arrow_forward">arrow_forward</span>
+</div>
+<h4 class="font-headline text-2xl text-white uppercase font-bold mb-2">Estúdio UGC</h4>
+<p class="font-body text-white/40 text-sm max-w-sm">Geração de conteúdo realista para redes sociais com estética humana processada por IA.</p>
+<div class="w-0 group-hover:w-full h-[1px] bg-primary mt-6 transition-all duration-500"></div>
+</div>
+<div class="group cursor-pointer">
+<div class="flex justify-between items-center mb-4">
+<span class="font-label text-primary text-sm">02</span>
+<span class="material-symbols-outlined text-white/20 group-hover:text-primary transition-colors" data-icon="arrow_forward">arrow_forward</span>
+</div>
+<h4 class="font-headline text-2xl text-white uppercase font-bold mb-2">Provedor Virtual</h4>
+<p class="font-body text-white/40 text-sm max-w-sm">Ambientes e cenários ultra-detalhados para campanhas que desafiam a física e a geografia.</p>
+<div class="w-0 group-hover:w-full h-[1px] bg-primary mt-6 transition-all duration-500"></div>
+</div>
+<div class="group cursor-pointer">
+<div class="flex justify-between items-center mb-4">
+<span class="font-label text-primary text-sm">03</span>
+<span class="material-symbols-outlined text-white/20 group-hover:text-primary transition-colors" data-icon="arrow_forward">arrow_forward</span>
+</div>
+<h4 class="font-headline text-2xl text-white uppercase font-bold mb-2">Campanhas Generativas</h4>
+<p class="font-body text-white/40 text-sm max-w-sm">Sistemas autônomos de criação de ativos visuais em massa para performance escalável.</p>
+<div class="w-0 group-hover:w-full h-[1px] bg-primary mt-6 transition-all duration-500"></div>
+</div>
+</div>
+</div>
+<div class="relative">
+<div class="absolute -top-10 -right-10 w-40 h-40 border-t border-r border-primary/20"></div>
+<img class="w-full aspect-[3/4] object-cover rounded-sm grayscale hover:grayscale-0 transition-all duration-700" data-alt="Dramatic high-fashion editorial portrait of a model with cybernetic makeup, dark obsidian textures and sharp blue key light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzbh-2si6l4m2hd2IlsT5HiXwV7rVquQJQb-A6jdl1vRKcYXNG3oohzWX4Oh__z53Ral7zgSexR3vyxb238SXs4MRJV7C9ijm_091l8Cmq47B1oBbOQlxFLfyxyj5VSxOJT7ss6cWxGD3cNft6sAZSvw5fzY5373ALrE3bDYVj7mgYfJKZv6treFqo8JLH4-hm1IJTtQwDH6J_x5tshZUEo8rvW61C5H9Bh1cTaTaCCdBhh1MVT8lQOLdJ39Xk-upEZKIImLbjuW5l"/>
+<div class="absolute bottom-6 -left-10 bg-background p-8 hidden lg:block">
+<span class="font-label text-[10px] uppercase tracking-[0.3em] text-white/40 block mb-2">Código de Status</span>
+<span class="font-label text-sm text-primary">FLUXO_CRIPTOGRAFADO_ATIVO</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 5: Pricing -->
+<section class="py-32 bg-background">
+<div class="max-w-[1440px] mx-auto px-8">
+<div class="text-center mb-20">
+<h2 class="font-headline text-4xl font-bold uppercase text-white tracking-tighter">Aumente sua Produção</h2>
+<p class="font-label text-xs text-white/40 mt-2 uppercase tracking-widest">Selecione seu nível operacional</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Start -->
+<div class="bg-surface-container p-10 rounded-sm flex flex-col tonal-shift hover:bg-surface-container-high group">
+<span class="font-label text-xs text-primary uppercase tracking-[0.2em] mb-8">START</span>
+<div class="mb-10">
+<span class="text-4xl font-headline font-bold text-white">$49</span>
+<span class="text-white/40 text-sm">/mês</span>
+</div>
+<ul class="space-y-4 mb-12 flex-grow">
+<li class="flex items-center gap-3 font-body text-sm text-white/60">
+<span class="material-symbols-outlined text-xs text-primary" data-icon="check">check</span> 500 Renders em Alta Resolução
+                            </li>
+<li class="flex items-center gap-3 font-body text-sm text-white/60">
+<span class="material-symbols-outlined text-xs text-primary" data-icon="check">check</span> Templates UGC Básicos
+                            </li>
+<li class="flex items-center gap-3 font-body text-sm text-white/60">
+<span class="material-symbols-outlined text-xs text-primary" data-icon="check">check</span> Suporte da Comunidade
+                            </li>
+</ul>
+<button class="w-full py-4 border border-white/10 rounded-full font-headline font-bold text-xs uppercase text-white hover:bg-white/5 transition-colors">Inicializar</button>
+</div>
+<!-- Pro -->
+<div class="relative bg-surface-container p-10 rounded-sm flex flex-col shadow-[0_0_50px_rgba(0,173,204,0.15)] transform scale-105 z-10">
+<div class="absolute top-0 right-0 bg-primary px-4 py-1 text-[10px] font-headline font-bold text-on-primary-container uppercase tracking-widest rounded-bl-sm">Recomendado</div>
+<span class="font-label text-xs text-primary uppercase tracking-[0.2em] mb-8">PRO</span>
+<div class="mb-10">
+<span class="text-4xl font-headline font-bold text-white">$199</span>
+<span class="text-white/40 text-sm">/mês</span>
+</div>
+<ul class="space-y-4 mb-12 flex-grow">
+<li class="flex items-center gap-3 font-body text-sm text-white/80">
+<span class="material-symbols-outlined text-xs text-primary" data-icon="check">check</span> Renders Ilimitados
+                            </li>
+<li class="flex items-center gap-3 font-body text-sm text-white/80">
+<span class="material-symbols-outlined text-xs text-primary" data-icon="check">check</span> Treinamento de Lora IA Customizado
+                            </li>
+<li class="flex items-center gap-3 font-body text-sm text-white/80">
+<span class="material-symbols-outlined text-xs text-primary" data-icon="check">check</span> Direitos Comerciais
+                            </li>
+<li class="flex items-center gap-3 font-body text-sm text-white/80">
+<span class="material-symbols-outlined text-xs text-primary" data-icon="check">check</span> Processamento Prioritário
+                            </li>
+</ul>
+<button class="w-full py-4 bg-cyan-gradient rounded-full font-headline font-bold text-xs uppercase text-on-primary-container">Atualizar Core</button>
+</div>
+<!-- Agency -->
+<div class="bg-surface-container p-10 rounded-sm flex flex-col tonal-shift hover:bg-surface-container-high group">
+<span class="font-label text-xs text-primary uppercase tracking-[0.2em] mb-8">AGÊNCIA</span>
+<div class="mb-10">
+<span class="text-4xl font-headline font-bold text-white">$899</span>
+<span class="text-white/40 text-sm">/mês</span>
+</div>
+<ul class="space-y-4 mb-12 flex-grow">
+<li class="flex items-center gap-3 font-body text-sm text-white/60">
+<span class="material-symbols-outlined text-xs text-primary" data-icon="check">check</span> API White-label
+                            </li>
+<li class="flex items-center gap-3 font-body text-sm text-white/60">
+<span class="material-symbols-outlined text-xs text-primary" data-icon="check">check</span> Núcleo de Servidor Dedicado
+                            </li>
+<li class="flex items-center gap-3 font-body text-sm text-white/60">
+<span class="material-symbols-outlined text-xs text-primary" data-icon="check">check</span> Suporte Neural 24/7
+                            </li>
+</ul>
+<button class="w-full py-4 border border-white/10 rounded-full font-headline font-bold text-xs uppercase text-white hover:bg-white/5 transition-colors">Contatar Matrix</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 6: CTA -->
+<section class="py-40 bg-surface relative overflow-hidden">
+<div class="absolute inset-0 z-0 opacity-10">
+<div class="absolute inset-0 bg-gradient-to-b from-transparent via-primary/20 to-transparent"></div>
+</div>
+<div class="max-w-[1440px] mx-auto px-8 relative z-10 text-center">
+<h2 class="font-headline text-5xl md:text-8xl font-bold tracking-tighter text-white uppercase mb-12">
+                    Pronto para <br/> <span class="italic text-primary">Infiltrar</span> o futuro?
+                </h2>
+<div class="flex flex-col md:flex-row items-center justify-center gap-8">
+<button class="px-12 py-5 bg-cyan-gradient rounded-full font-headline font-bold text-sm uppercase text-on-primary-container tracking-widest hover:scale-105 transition-transform">
+                        Criar Projeto
+                    </button>
+<button class="px-12 py-5 border border-white/10 rounded-full font-headline font-bold text-sm uppercase text-white tracking-widest hover:bg-white/5 transition-colors">
+                        Ver Manifesto
+                    </button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#000000] w-full py-16 px-8 mt-auto">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 max-w-[1440px] mx-auto border-t border-white/5 pt-12">
+<div class="space-y-6">
+<div class="text-lg font-black text-white font-headline">RevivAI</div>
+<p class="font-body text-xs text-white/40 leading-relaxed uppercase tracking-widest">
+                    Sistemas de precisão para a próxima geração de identidade visual.
+                </p>
+</div>
+<div>
+<h5 class="font-label text-xs font-light tracking-widest uppercase text-[#00ADCC] mb-6">Navegação</h5>
+<ul class="space-y-3">
+<li><a class="font-label text-xs font-light tracking-widest uppercase text-white/40 hover:text-white transition-colors duration-300" href="#">Arquitetura</a></li>
+<li><a class="font-label text-xs font-light tracking-widest uppercase text-white/40 hover:text-white transition-colors duration-300" href="#">Cases</a></li>
+<li><a class="font-label text-xs font-light tracking-widest uppercase text-white/40 hover:text-white transition-colors duration-300" href="#">Laboratório</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-label text-xs font-light tracking-widest uppercase text-[#00ADCC] mb-6">Sistema</h5>
+<ul class="space-y-3">
+<li><a class="font-label text-xs font-light tracking-widest uppercase text-white/40 hover:text-white transition-colors duration-300" href="#">Privacidade</a></li>
+<li><a class="font-label text-xs font-light tracking-widest uppercase text-white/40 hover:text-white transition-colors duration-300" href="#">Status da API</a></li>
+<li><a class="font-label text-xs font-light tracking-widest uppercase text-white/40 hover:text-white transition-colors duration-300" href="#">Acesso ao Terminal</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-label text-xs font-light tracking-widest uppercase text-[#00ADCC] mb-6">Conectar</h5>
+<ul class="space-y-3">
+<li><a class="font-label text-xs font-light tracking-widest uppercase text-white/40 hover:text-white transition-colors duration-300" href="#">GitHub</a></li>
+<li><a class="font-label text-xs font-light tracking-widest uppercase text-white/40 hover:text-white transition-colors duration-300" href="#">Twitter</a></li>
+<li><a class="font-label text-xs font-light tracking-widest uppercase text-white/40 hover:text-white transition-colors duration-300" href="#">Discord</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-[1440px] mx-auto mt-20 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+<span class="font-label text-[10px] text-white/20 uppercase tracking-[0.4em]">© 2024 RevivAI. Sistemas de engenharia de precisão.</span>
+<div class="flex gap-8">
+<span class="font-label text-[10px] text-white/20 uppercase tracking-[0.4em]">v2.4.0-estável</span>
+<span class="font-label text-[10px] text-primary uppercase tracking-[0.4em]">Sistema: Ativo</span>
+</div>
+</div>
+</footer>
+</body></html>

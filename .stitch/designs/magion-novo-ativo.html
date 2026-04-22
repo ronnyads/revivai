@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Magion Workspace - Terminal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary": "#00382c",
+                        "on-secondary-fixed-variant": "#004e5c",
+                        "tertiary-fixed-dim": "#00e0b7",
+                        "surface-bright": "#393939",
+                        "on-tertiary-fixed": "#002019",
+                        "error-container": "#93000a",
+                        "secondary": "#8bd1e4",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-error-container": "#ffdad6",
+                        "surface-variant": "#353535",
+                        "secondary-fixed-dim": "#8bd1e4",
+                        "surface": "#131313",
+                        "secondary-container": "#005d6e",
+                        "primary-fixed-dim": "#54d6f6",
+                        "primary-fixed": "#afecff",
+                        "primary-container": "#00adcc",
+                        "on-secondary-fixed": "#001f26",
+                        "inverse-surface": "#e2e2e2",
+                        "surface-container": "#1f1f1f",
+                        "on-primary": "#003641",
+                        "on-surface": "#e2e2e2",
+                        "inverse-on-surface": "#303030",
+                        "tertiary": "#00e0b7",
+                        "on-primary-container": "#003b47",
+                        "tertiary-container": "#00b392",
+                        "on-secondary-container": "#8ed4e8",
+                        "on-tertiary-fixed-variant": "#005141",
+                        "secondary-fixed": "#acedff",
+                        "surface-container-high": "#2a2a2a",
+                        "on-primary-fixed-variant": "#004e5d",
+                        "surface-container-low": "#1b1b1b",
+                        "on-secondary": "#003640",
+                        "surface-container-highest": "#353535",
+                        "surface-dim": "#131313",
+                        "outline-variant": "#3d494d",
+                        "background": "#131313",
+                        "on-error": "#690005",
+                        "inverse-primary": "#00687b",
+                        "on-primary-fixed": "#001f26",
+                        "on-tertiary-container": "#003e31",
+                        "outline": "#869397",
+                        "on-background": "#e2e2e2",
+                        "primary": "#54d6f6",
+                        "on-surface-variant": "#bcc9cd",
+                        "tertiary-fixed": "#15ffd1",
+                        "surface-tint": "#54d6f6",
+                        "error": "#ffb4ab"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Space Grotesk", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(31, 31, 31, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .glow-cyan {
+            box-shadow: 0 0 40px rgba(0, 173, 204, 0.15);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-container selection:text-white">
+<div class="flex h-screen overflow-hidden">
+<!-- SideNavBar -->
+<aside class="bg-black text-[#00ADCC] font-['Inter'] font-medium text-sm flex flex-col h-full py-8 px-4 gap-6 w-64 flex-shrink-0 border-r-0">
+<div class="flex items-center gap-3 px-2">
+<div class="w-10 h-10 rounded-sm bg-neutral-900 flex items-center justify-center border border-outline-variant/20 overflow-hidden">
+<img alt="Avatar do Workspace" class="w-8 h-8 object-contain" data-alt="minimalist tech logo icon with geometric shapes in cyan on a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAp8ZrdaedUyTHMwsc1TfJuLhLSlifH7SJ_KBzOdI2yzgxwrCGQ1p4fxBrmHzXv2b3LY3MiYBXUXu9xKDL1b_4b_-f9rMV1cY33KdnBDq0Ea8VcOYfgyGVyzILWsXCuHOW2-EDNUsdDKQasoD6tVSz7p-QIvzdiGkuzPqE7hvgymw1NeBnYNxjvFN1TTfUQCyzzkxGlX4MjMEvq94xmubIYUL_ijuWzFpQRyKuY0bApBwpxDozmZuhlYokA7TsUluaD3jd_HPaHkt0D"/>
+</div>
+<div>
+<h2 class="text-white font-['Space_Grotesk'] font-bold text-lg leading-tight">Magion Terminal</h2>
+<p class="text-neutral-500 text-[10px] uppercase tracking-widest">v1.0.42</p>
+</div>
+</div>
+<button class="mt-4 bg-primary-container text-on-primary-container font-headline font-bold py-3 px-4 rounded-sm flex items-center justify-center gap-2 hover:brightness-110 transition-all active:scale-95">
+<span class="material-symbols-outlined text-lg">add</span>
+                Novo Projeto
+            </button>
+<nav class="flex-1 mt-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-[#00ADCC] font-bold border-r-2 border-[#00ADCC] bg-neutral-900/50 cursor-pointer duration-150" href="#">
+<span class="material-symbols-outlined">folder</span>
+                    Projetos
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 text-neutral-500 hover:bg-neutral-900 hover:text-white transition-all cursor-pointer duration-150" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+                    Fluxos
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 text-neutral-500 hover:bg-neutral-900 hover:text-white transition-all cursor-pointer duration-150" href="#">
+<span class="material-symbols-outlined">group</span>
+                    Equipe
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 text-neutral-500 hover:bg-neutral-900 hover:text-white transition-all cursor-pointer duration-150" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+                    Arquivos
+                </a>
+</nav>
+<div class="mt-auto space-y-1 pt-6 border-t border-neutral-900">
+<a class="flex items-center gap-3 px-4 py-3 text-neutral-500 hover:bg-neutral-900 hover:text-white transition-all cursor-pointer duration-150" href="#">
+<span class="material-symbols-outlined">help</span>
+                    Suporte
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 text-neutral-500 hover:bg-neutral-900 hover:text-white transition-all cursor-pointer duration-150" href="#">
+<span class="material-symbols-outlined">logout</span>
+                    Logout
+                </a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col relative overflow-hidden bg-surface">
+<!-- TopAppBar -->
+<header class="bg-black text-[#00ADCC] font-['Space_Grotesk'] font-bold text-lg tracking-tight flex justify-between items-center w-full px-6 py-4 max-w-full z-10">
+<div class="text-[#00ADCC] font-['Space_Grotesk'] font-black tracking-tighter text-xl uppercase">
+                    Magion Workspace
+                </div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4">
+<button class="text-neutral-400 hover:text-white transition-colors duration-150 scale-95 active:opacity-80 transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-neutral-400 hover:text-white transition-colors duration-150 scale-95 active:opacity-80 transition-all">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<div class="h-8 w-px bg-neutral-800"></div>
+<div class="flex items-center gap-3">
+<img alt="Avatar do usuário" class="w-9 h-9 rounded-full ring-1 ring-primary/30" data-alt="professional portrait of a high-tech user with subtle cyan backlight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnk42tMFVXNFiewLZGGfQCFmMxTEx_UAyd8L7047qtCKdbbQg55Ljwk6Dz9Lg3hO7n6n-aoipsv3OdOcbbIegMrlA0ebXzB3vYGDsq099tWGqEgWvqu6VMxPNCAJ1ajKzTNBfTo5VWU_iJyZeHfd4e9bOrnHDtuN15EsFE7QZlUefcS6zVQUAZ59DGNTkkZRhFwPNKwVKxevcF1xHb4z-Yyqv5MH_7oH9TGEc-18GmOowrbmsIsI6el8gdHw6Uh2MA9xOx2s8FQ9rU"/>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="flex-1 overflow-y-auto p-8 flex flex-col items-center justify-center relative">
+<!-- Background Ambient Glow -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary-container/5 rounded-full blur-[120px] pointer-events-none"></div>
+<!-- Header Content -->
+<div class="text-center mb-16 relative z-10">
+<h1 class="font-headline text-5xl font-bold tracking-tight text-white mb-4">
+                        O que você quer fazer hoje?
+                    </h1>
+<p class="font-body text-neutral-400 text-lg">
+                        Escolha um modelo ou monte do zero
+                    </p>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl w-full relative z-10 px-4">
+<!-- Card 1: Blockbuster -->
+<div class="glass-panel group p-6 rounded-sm border border-transparent hover:border-primary-container/40 transition-all duration-300 flex flex-col h-full glow-cyan">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 rounded-sm bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1">movie_filter</span>
+</div>
+<span class="text-[10px] font-headline font-bold uppercase tracking-widest text-primary-container px-2 py-1 bg-primary-container/10 rounded-sm">Premium</span>
+</div>
+<h3 class="font-headline text-2xl font-bold text-white mb-1">Blockbuster</h3>
+<p class="font-headline text-primary-fixed-dim text-sm mb-4">Série Viral (60s)</p>
+<p class="text-neutral-400 text-sm leading-relaxed mb-6 flex-1">
+                            Workflow gigante: Rosto + 6 Cenas (10s cada) + Voz + Edição Final. Alto engajamento, renderiza um MP4 fechado.
+                        </p>
+<div class="flex flex-wrap gap-2 pt-4 border-t border-neutral-800">
+<span class="text-[10px] font-mono text-neutral-500 uppercase">face</span>
+<span class="text-[10px] font-mono text-neutral-500 uppercase">script</span>
+<span class="text-[10px] font-mono text-neutral-500 uppercase">voice</span>
+<span class="text-[10px] font-mono text-neutral-500 uppercase">image</span>
+<span class="text-[10px] font-mono text-neutral-500 uppercase">video</span>
+</div>
+</div>
+<!-- Card 2: E-commerce -->
+<div class="glass-panel group p-6 rounded-sm border border-transparent hover:border-primary-container/40 transition-all duration-300 flex flex-col h-full glow-cyan">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 rounded-sm bg-tertiary/10 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1">shopping_bag</span>
+</div>
+<span class="text-[10px] font-headline font-bold uppercase tracking-widest text-tertiary px-2 py-1 bg-tertiary/10 rounded-sm">Conversion</span>
+</div>
+<h3 class="font-headline text-2xl font-bold text-white mb-1">E-commerce</h3>
+<p class="font-headline text-tertiary-fixed-dim text-sm mb-4">Anúncio de Produto</p>
+<p class="text-neutral-400 text-sm leading-relaxed mb-6 flex-1">
+                            Modelo UGC gerado por IA segurando seu produto. Script + Voz + Vídeo em linha reta.
+                        </p>
+<div class="flex flex-wrap gap-2 pt-4 border-t border-neutral-800">
+<span class="text-[10px] font-mono text-neutral-500 uppercase">model</span>
+<span class="text-[10px] font-mono text-neutral-500 uppercase">script</span>
+<span class="text-[10px] font-mono text-neutral-500 uppercase">image</span>
+<span class="text-[10px] font-mono text-neutral-500 uppercase">voice</span>
+<span class="text-[10px] font-mono text-neutral-500 uppercase">compose</span>
+</div>
+</div>
+<!-- Card 3: Lip Sync -->
+<div class="glass-panel group p-6 rounded-sm border border-transparent hover:border-primary-container/40 transition-all duration-300 flex flex-col h-full glow-cyan">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 rounded-sm bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1">record_voice_over</span>
+</div>
+<span class="text-[10px] font-headline font-bold uppercase tracking-widest text-secondary px-2 py-1 bg-secondary/10 rounded-sm">Fast</span>
+</div>
+<h3 class="font-headline text-2xl font-bold text-white mb-1">Mais rápido</h3>
+<p class="font-headline text-secondary-fixed-dim text-sm mb-4">Lip Sync Expresso</p>
+<p class="text-neutral-400 text-sm leading-relaxed mb-6 flex-1">
+                            Gere um vídeo com Lip Sync em 3 passos: Modelo -&gt; Voz -&gt; Sincroniza.
+                        </p>
+<div class="flex flex-wrap gap-2 pt-4 border-t border-neutral-800">
+<span class="text-[10px] font-mono text-neutral-500 uppercase">face</span>
+<span class="text-[10px] font-mono text-neutral-500 uppercase">script</span>
+<span class="text-[10px] font-mono text-neutral-500 uppercase">voice</span>
+<span class="text-[10px] font-mono text-neutral-500 uppercase">lipsync</span>
+</div>
+</div>
+</div>
+<!-- Bottom Actions -->
+<div class="mt-20 flex flex-col sm:flex-row gap-6 items-center relative z-10">
+<button class="group flex items-center gap-3 px-8 py-4 bg-primary-container text-on-primary-container font-headline font-bold uppercase tracking-wider text-sm transition-all hover:brightness-110 active:scale-95">
+<span class="material-symbols-outlined text-xl">auto_fix_high</span>
+                        Campaign Builder guiado
+                    </button>
+<button class="group flex items-center gap-3 px-8 py-4 bg-surface-container border border-outline-variant/30 text-white font-headline font-bold uppercase tracking-wider text-sm transition-all hover:bg-surface-container-high active:scale-95">
+<span class="material-symbols-outlined text-xl">grid_view</span>
+                        Canvas em branco
+                    </button>
+</div>
+</main>
+<!-- Decorative Technical Detail -->
+<div class="absolute bottom-6 right-6 pointer-events-none opacity-20 hidden lg:block">
+<div class="flex flex-col gap-2 font-mono text-[10px] text-primary">
+<span>GPU_ACCELERATION: ACTIVE</span>
+<span>LATENCY: 14MS</span>
+<span>ENCODING_PIPE: NEURAL_ENGINE_V4</span>
+</div>
+</div>
+</div>
+</div>
+</body></html>

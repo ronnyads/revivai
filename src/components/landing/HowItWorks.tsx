@@ -2,61 +2,62 @@
 
 export default function Economics() {
   return (
-    <section className="py-32 px-6 lg:px-20 bg-[#131315] relative overflow-hidden border-y border-white/5">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-[#7C0DF2]/5 blur-[120px] pointer-events-none" />
-      
-      <div className="max-w-7xl mx-auto relative z-10 flex flex-col lg:flex-row gap-16 items-center">
-        
+    <section className="relative overflow-hidden border-y border-white/5 py-28 px-6 lg:px-20 tonal-layer-0">
+      <div className="absolute left-1/2 top-1/2 h-[420px] w-[820px] -translate-x-1/2 -translate-y-1/2 bg-[#00ADCC]/6 blur-[120px] pointer-events-none" />
+
+      <div className="relative z-10 mx-auto flex max-w-7xl flex-col items-center gap-16 lg:flex-row">
         <div className="flex-1 text-center lg:text-left">
-          <p className="text-[10px] uppercase tracking-[0.4em] font-bold mb-6 text-[#7C0DF2]">
-            VANTAGEM COMPETITIVA
-          </p>
-          <h2 className="font-display text-5xl md:text-[5rem] font-bold uppercase tracking-tighter leading-[0.95] mb-8">
-            QUANTO VOCÊ <br /><span className="text-white/20">ECONOMIZA COM RevivAI?</span>
+          <p className="font-label mb-6 text-[11px] text-[#54D6F6]">Sistema operacional</p>
+          <h2 className="font-display mb-8 text-5xl font-bold uppercase tracking-tight leading-[0.95] md:text-[5rem]">
+            Quanto sua operação
+            <br />
+            <span className="text-white/25">economiza com RevivAI?</span>
           </h2>
-          <p className="text-lg text-white/50 leading-relaxed font-sans max-w-xl mx-auto lg:mx-0">
-            Esqueça o orçamento astronômico de uma campanha física offline. O futuro da marcação e do branding editorial digital permite escalar seu conteúdo pagando uma fração.
+          <p className="mx-auto max-w-xl text-lg leading-relaxed text-white/50 lg:mx-0">
+            Um pipeline premium substitui casting, set, locação e pós-produção por uma camada visual de alta precisão,
+            pronta para campanhas, restauração e conteúdo iterável com consistência.
           </p>
         </div>
 
-        <div className="w-full lg:w-[500px] hover:scale-[1.02] transition-transform duration-1000">
-          <div className="bg-white/5 backdrop-blur-2xl border border-white/5 p-10 relative overflow-hidden group">
-             <div className="absolute inset-0 bg-gradient-to-br from-[#7C0DF2]/0 via-[#7C0DF2]/0 to-[#7C0DF2]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 z-0" />
-             <div className="absolute -top-3 -right-3 z-20">
-               <span className="bg-[#7C0DF2] text-white text-[9px] font-bold uppercase tracking-[0.3em] px-4 py-2 shadow-[0_0_20px_rgba(124,13,242,0.2)] block">
-                 ESTIMATIVA LOCAL
-               </span>
-             </div>
-             
-             <h3 className="text-white font-bold font-display tracking-widest uppercase mb-8 pb-4 border-b border-white/5 relative z-10">Custos Tradicionais</h3>
-             
-             <div className="space-y-6">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-white/60 uppercase tracking-wider font-bold">Fotógrafo & Equipe</span>
-                  <span className="text-white font-mono opacity-80">R$ 15.000</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-white/60 uppercase tracking-wider font-bold">Modelos & Casting</span>
-                  <span className="text-white font-mono opacity-80">R$ 8.000</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-white/60 uppercase tracking-wider font-bold">Locação & Estúdio</span>
-                  <span className="text-white font-mono opacity-80">R$ 5.000</span>
-                </div>
-             </div>
+        <div className="w-full transition-transform duration-1000 hover:scale-[1.02] lg:w-[500px]">
+          <div className="panel-card group relative overflow-hidden p-10">
+            <div className="absolute inset-0 z-0 bg-gradient-to-br from-[#00ADCC]/0 via-[#00ADCC]/0 to-[#00ADCC]/6 opacity-0 transition-opacity duration-1000 group-hover:opacity-100" />
+            <div className="absolute -right-3 -top-3 z-20">
+              <span className="bg-cyan-gradient font-label block px-4 py-2 text-[10px] text-[#003641] shadow-[0_0_20px_rgba(0,173,204,0.2)]">
+                Estrutura premium
+              </span>
+            </div>
 
-             <div className="mt-8 pt-8 border-t border-white/5 flex justify-between items-end relative z-10">
-                <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Custo Tradicional</span>
-                <span className="text-3xl text-white font-display font-bold tracking-tighter decoration-white/20 line-through">R$ 28.000</span>
-             </div>
-             
-             <div className="mt-6 p-6 bg-white/5 backdrop-blur-md border border-white/10 flex justify-between items-center relative z-10 hover:border-[#7C0DF2]/40 hover:bg-[#7C0DF2]/5 transition-all duration-700 w-full rounded-none">
-                <span className="text-xs text-[#7C0DF2] font-bold uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(124,13,242,0)] group-hover:shadow-[0_0_20px_rgba(124,13,242,0.1)]">Custo RevivAI</span>
-                 <span className="text-2xl text-[#7C0DF2] font-display font-bold tracking-tighter">R$ 149</span>
-             </div>
+            <h3 className="relative z-10 mb-8 border-b border-white/5 pb-4 font-display text-white uppercase tracking-widest">
+              Operação tradicional
+            </h3>
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-label text-white/55">Fotógrafo & equipe</span>
+                <span className="font-mono text-white/80">R$ 15.000</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-label text-white/55">Modelos & casting</span>
+                <span className="font-mono text-white/80">R$ 8.000</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-label text-white/55">Locação & estúdio</span>
+                <span className="font-mono text-white/80">R$ 5.000</span>
+              </div>
+            </div>
+
+            <div className="relative z-10 mt-8 flex items-end justify-between border-t border-white/5 pt-8">
+              <span className="font-label text-[10px] text-white/35">Custo tradicional</span>
+              <span className="font-display text-3xl font-bold tracking-tight text-white line-through decoration-white/20">R$ 28.000</span>
+            </div>
+
+            <div className="relative z-10 mt-6 flex w-full items-center justify-between border border-white/10 bg-white/4 p-6 backdrop-blur-md transition-all duration-700 hover:border-[#00ADCC]/40 hover:bg-[#00ADCC]/5">
+              <span className="font-label text-[11px] text-[#54D6F6]">Custo RevivAI</span>
+              <span className="font-display text-2xl font-bold tracking-tight text-[#54D6F6]">R$ 149</span>
+            </div>
           </div>
         </div>
-
       </div>
     </section>
   )

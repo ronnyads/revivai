@@ -84,6 +84,12 @@ export async function POST(req: NextRequest) {
   }
   asset = inserted
 
+  await admin
+    .from('studio_projects')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', project_id)
+    .eq('user_id', user.id)
+
   // Se for rascunho, para aqui
   if (isDraft) return NextResponse.json({ asset }, { status: 201 })
 

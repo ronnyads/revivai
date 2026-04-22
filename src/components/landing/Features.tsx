@@ -1,62 +1,61 @@
 'use client'
-import { ArrowRight, Box, Camera, Layers, Share2, ScanFace, Globe, Shirt, Maximize } from 'lucide-react'
 
-const FEATURES = [
+import { ArrowRight } from 'lucide-react'
+
+const STRUCTURE_ITEMS = [
   {
-    tag: 'CASTING IA',
-    title: 'CASTING VIRTUAL',
-    desc: 'Escolha entre milhares de modelos gerados por IA ou crie o seu próprio com traços específicos e consistentes.',
-    icon: <ScanFace size={24} />,
+    id: '01',
+    title: 'Estúdio UGC',
+    description: 'Geração de conteúdo realista para redes sociais com estética humana processada por IA.',
   },
   {
-    tag: 'CENÁRIOS',
-    title: 'ESTÚDIO INFINITO',
-    desc: 'Coloque suas modelos em qualquer lugar do mundo, do topo de uma montanha às ruas futuristas de Tóquio.',
-    icon: <Globe size={24} />,
+    id: '02',
+    title: 'Provedor Virtual',
+    description: 'Ambientes e cenários ultra-detalhados para campanhas que desafiam a física e a geografia.',
   },
   {
-    tag: 'FÍSICA REAL',
-    title: 'IA DE TECIDOS',
-    desc: 'Nossa IA entende a física dos tecidos: seda, couro, denim e malha reagem de forma realista à luz e ao movimento.',
-    icon: <Shirt size={24} />,
-  },
-  {
-    tag: 'CONVERSÃO',
-    title: 'PROVADOR VIRTUAL',
-    desc: 'Aumente sua conversão em até 40% permitindo que seus clientes vejam as roupas em avatares com suas medidas reais.',
-    icon: <Maximize size={24} />,
+    id: '03',
+    title: 'Campanhas Generativas',
+    description: 'Sistemas autônomos de criação de ativos visuais em massa para performance escalável.',
   },
 ]
 
+const PORTRAIT_IMAGE =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuBzbh-2si6l4m2hd2IlsT5HiXwV7rVquQJQb-A6jdl1vRKcYXNG3oohzWX4Oh__z53Ral7zgSexR3vyxb238SXs4MRJV7C9ijm_091l8Cmq47B1oBbOQlxFLfyxyj5VSxOJT7ss6cWxGD3cNft6sAZSvw5fzY5373ALrE3bDYVj7mgYfJKZv6treFqo8JLH4-hm1IJTtQwDH6J_x5tshZUEo8rvW61C5H9Bh1cTaTaCCdBhh1MVT8lQOLdJ39Xk-upEZKIImLbjuW5l'
+
 export default function Features() {
   return (
-    <section className="py-32 tonal-layer-0">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-6">
-        {FEATURES.map((f, i) => (
-          <div key={f.tag} className={`p-12 flex flex-col transition-all duration-700 group relative overflow-hidden cursor-default ${i % 2 === 0 ? 'tonal-layer-1' : 'tonal-layer-2'}`}>
+    <section id="estrutura" className="py-28 tonal-layer-2">
+      <div className="mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-14 px-6 md:grid-cols-2 md:px-8">
+        <div className="space-y-10">
+          <h2 className="font-display text-5xl font-bold uppercase leading-none tracking-tight text-white md:text-6xl">
+            Estrutura
+            <br />
+            <span className="italic text-[#54D6F6]">RevivAI</span>
+          </h2>
 
-            {/* Ambient Hover Glow */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-[#7C0DF2]/0 via-[#7C0DF2]/0 to-[#7C0DF2]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-            
-            <div className="w-12 h-12 flex items-center justify-center text-[#7C0DF2] mb-10 group-hover:scale-110 group-hover:drop-shadow-[0_0_15px_rgba(124,13,242,0.3)] transition-all duration-700 relative z-10">
-               {f.icon}
-            </div>
-            
-            <span className="text-[9px] font-bold text-[#7C0DF2]/60 tracking-[0.4em] uppercase mb-6 relative z-10 transition-colors group-hover:text-[#7C0DF2]">
-              {f.tag}
-            </span>
-            
-            <h3 className="font-display text-2xl font-bold uppercase tracking-tight leading-tight mb-6 text-white group-hover:text-white transition-colors relative z-10">
-              {f.title}
-            </h3>
-            
-            <p className="text-sm text-white/40 leading-relaxed mb-10 font-sans relative z-10 group-hover:text-white/60 transition-colors duration-500">{f.desc}</p>
-            
-            <div className="mt-auto relative z-10">
-               <div className="w-8 h-px bg-white/10 group-hover:w-full group-hover:bg-[#7C0DF2]/40 transition-all duration-1000 ease-in-out" />
-            </div>
+          <div className="space-y-7">
+            {STRUCTURE_ITEMS.map((item) => (
+              <div key={item.id} className="group border-b border-white/6 pb-7">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="font-label text-[11px] text-[#54D6F6]">{item.id}</span>
+                  <ArrowRight size={16} className="text-white/25 transition-colors group-hover:text-[#54D6F6]" />
+                </div>
+                <h3 className="font-display text-2xl font-bold uppercase text-white">{item.title}</h3>
+                <p className="mt-3 max-w-md text-sm leading-relaxed text-white/45">{item.description}</p>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+
+        <div className="relative">
+          <div className="pointer-events-none absolute -top-8 -right-4 h-32 w-32 border-t border-r border-[#54D6F6]/20" />
+          <img src={PORTRAIT_IMAGE} alt="Retrato editorial RevivAI" className="aspect-[3/4] w-full object-cover grayscale transition-all duration-700 hover:grayscale-0" />
+          <div className="obsidian-chip absolute bottom-5 left-0 hidden translate-x-[-14%] p-5 lg:block">
+            <span className="font-label block text-[10px] text-white/35">Código de status</span>
+            <span className="font-label mt-2 block text-[11px] text-[#54D6F6]">Fluxo criptografado ativo</span>
+          </div>
+        </div>
       </div>
     </section>
   )

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MAGION AD STUDIO - AI Terminal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary": "#00e0b7",
+                      "error": "#ffb4ab",
+                      "tertiary-fixed": "#15ffd1",
+                      "on-secondary": "#003640",
+                      "tertiary-fixed-dim": "#00e0b7",
+                      "on-surface-variant": "#bcc9cd",
+                      "on-secondary-fixed-variant": "#004e5c",
+                      "on-tertiary": "#00382c",
+                      "on-primary-fixed": "#001f26",
+                      "secondary": "#8bd1e4",
+                      "background": "#131313",
+                      "secondary-fixed": "#acedff",
+                      "primary-fixed-dim": "#54d6f6",
+                      "outline": "#869397",
+                      "inverse-surface": "#e2e2e2",
+                      "surface-container-low": "#1b1b1b",
+                      "secondary-container": "#005d6e",
+                      "on-tertiary-fixed": "#002019",
+                      "surface-container-high": "#2a2a2a",
+                      "surface-container-lowest": "#0e0e0e",
+                      "on-tertiary-fixed-variant": "#005141",
+                      "on-primary": "#003641",
+                      "surface-container-highest": "#353535",
+                      "surface-bright": "#393939",
+                      "outline-variant": "#3d494d",
+                      "inverse-primary": "#00687b",
+                      "surface-variant": "#353535",
+                      "error-container": "#93000a",
+                      "on-secondary-fixed": "#001f26",
+                      "on-background": "#e2e2e2",
+                      "on-primary-container": "#003b47",
+                      "on-error": "#690005",
+                      "on-tertiary-container": "#003e31",
+                      "primary-fixed": "#afecff",
+                      "primary-container": "#00adcc",
+                      "on-secondary-container": "#8ed4e8",
+                      "tertiary-container": "#00b392",
+                      "secondary-fixed-dim": "#8bd1e4",
+                      "primary": "#54d6f6",
+                      "on-primary-fixed-variant": "#004e5d",
+                      "surface-dim": "#131313",
+                      "surface-tint": "#54d6f6",
+                      "on-error-container": "#ffdad6",
+                      "on-surface": "#e2e2e2",
+                      "inverse-on-surface": "#303030",
+                      "surface": "#131313",
+                      "surface-container": "#1f1f1f"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "fontFamily": {
+                      "headline": ["Space Grotesk"],
+                      "body": ["Inter"],
+                      "label": ["Space Grotesk"]
+              }
+            },
+          }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #131313;
+            color: #e2e2e2;
+            font-family: 'Inter', sans-serif;
+        }
+        .glass-panel {
+            background: rgba(31, 31, 31, 0.4);
+            backdrop-filter: blur(20px);
+        }
+        .text-glow {
+            text-shadow: 0 0 10px rgba(84, 214, 246, 0.3);
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3d494d; border-radius: 2px; }
+    </style>
+</head>
+<body class="overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-[#000000] dark:bg-black bg-zinc-900/40 backdrop-blur-2xl shadow-[10px_0_30px_rgba(0,173,204,0.05)] flex flex-col h-full border-r border-zinc-800/10 z-50">
+<div class="p-8 flex flex-col gap-1">
+<h1 class="text-xl font-black text-[#00ADCC] dark:text-cyan-400 tracking-tighter uppercase font-['Space_Grotesk']">AD STUDIO</h1>
+<p class="font-['Space_Grotesk'] text-[10px] font-medium tracking-widest text-zinc-500 uppercase">Magion AI Terminal</p>
+</div>
+<nav class="flex-1 flex flex-col py-4">
+<!-- Active: Modelos IA (Mapped from user request 'Laboratório IA') -->
+<a class="text-zinc-500 py-3 px-6 font-['Space_Grotesk'] text-sm font-medium tracking-tight hover:text-cyan-300 hover:bg-zinc-900/50 transition-all duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+                Painel
+            </a>
+<a class="text-cyan-400 bg-cyan-950/20 border-r-2 border-cyan-400 py-3 px-6 font-['Space_Grotesk'] text-sm font-medium tracking-tight flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="auto_awesome">auto_awesome</span>
+                Laboratório IA
+            </a>
+<a class="text-zinc-500 py-3 px-6 font-['Space_Grotesk'] text-sm font-medium tracking-tight hover:text-cyan-300 hover:bg-zinc-900/50 transition-all duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="movie_filter">movie_filter</span>
+                Projetos
+            </a>
+<a class="text-zinc-500 py-3 px-6 font-['Space_Grotesk'] text-sm font-medium tracking-tight hover:text-cyan-300 hover:bg-zinc-900/50 transition-all duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="folder_special">folder_special</span>
+                Ativos
+            </a>
+<a class="text-zinc-500 py-3 px-6 font-['Space_Grotesk'] text-sm font-medium tracking-tight hover:text-cyan-300 hover:bg-zinc-900/50 transition-all duration-150 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined" data-icon="settings_heart">settings_heart</span>
+                Configurações
+            </a>
+</nav>
+<div class="p-6">
+<button class="w-full py-4 bg-primary-container text-on-primary-container font-headline font-bold text-xs uppercase tracking-widest rounded-sm hover:opacity-90 transition-opacity">
+                Novo Projeto
+            </button>
+</div>
+</aside>
+<!-- Top App Bar -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 bg-black/60 dark:bg-black/60 backdrop-blur-xl border-b border-zinc-900/50 flex items-center justify-between px-8 h-16 ml-64">
+<div class="flex items-center gap-8">
+<span class="hidden md:block text-lg font-bold text-cyan-400 font-headline tracking-tighter">AD STUDIO</span>
+<div class="relative group">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-zinc-500 text-sm">search</span>
+<input class="bg-surface-container-low border-none rounded-sm pl-10 pr-4 py-1.5 text-[10px] font-headline tracking-widest text-zinc-400 focus:ring-1 focus:ring-cyan-400 w-64 transition-all" placeholder="PESQUISAR NO TERMINAL..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4">
+<button class="text-zinc-400 hover:text-cyan-400 transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications_active">notifications_active</span>
+</button>
+<button class="text-zinc-400 hover:text-cyan-400 transition-colors">
+<span class="material-symbols-outlined" data-icon="chat_bubble">chat_bubble</span>
+</button>
+</div>
+<div class="h-8 w-[1px] bg-zinc-800"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="font-headline text-[10px] font-bold text-on-surface tracking-widest">DESIGNER_01</p>
+<p class="font-headline text-[8px] text-cyan-400/70 tracking-tighter uppercase">Nível de Acesso A</p>
+</div>
+<img alt="Usuário Magion" class="w-10 h-10 rounded-full border border-cyan-400/20 object-cover" data-alt="Professional studio portrait of a futuristic designer with cinematic blue key lighting on dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsLhkexi9gH1wS1RPI_KoGe6cnTJKfBEQb7bYr43SQwljGKECk-8zoA5jxHr-oyuRPFpW8gI12MtkaFrZqfA5uZxuNgvkdQRi3m_lpjs9BuH7CqOddoNO2vr84MN3tseJaCgbTOZJFpBOj7nRgtY6CMOfUpW5yG6TWfoEvHiCuSwJ5xToDPBZQRQu8rkYEBtAqx4CHFGuHb-DGkt_OYY3D0sd62xYCAGe3rPbHs8uN-XN3_WlV9TwIlFZ8fyPG-32GhNJBczOhIV9J"/>
+</div>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="ml-64 mt-16 p-8 h-[calc(100vh-4rem)] flex gap-8">
+<!-- Center Content: AI Models Grid -->
+<div class="flex-1 overflow-y-auto pr-4">
+<div class="flex justify-between items-end mb-10">
+<div>
+<h2 class="font-headline text-4xl font-black text-on-surface tracking-tighter uppercase">Modelos de Produção</h2>
+<p class="font-headline text-xs tracking-[0.3em] text-cyan-400 font-medium mt-1">SISTEMA DINÂMICO DE GERAÇÃO V.04</p>
+</div>
+<a class="font-headline text-[10px] font-bold tracking-[0.2em] text-cyan-400 hover:text-white transition-colors flex items-center gap-2" href="#">
+                    VER TODOS <span class="material-symbols-outlined text-xs">arrow_forward_ios</span>
+</a>
+</div>
+<!-- Bento Grid -->
+<div class="grid grid-cols-2 gap-6 pb-20">
+<!-- Card 1: Casting Editorial -->
+<div class="group relative overflow-hidden rounded-lg bg-surface-container-low border border-transparent hover:border-cyan-400/30 transition-all duration-300">
+<div class="aspect-[16/10] overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" data-alt="Avant-garde editorial fashion model wearing metallic fabrics with volumetric cyan lighting and smoke effects in a dark studio" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDFjUYBkNNgABy_I2VyE_5zZYTuxffgh_OJgBOrcK-b5hTLgaodVmaqpwc2RM7tKCZqQXUdl4_yQPs_2yCFjnIaIl-1stGkujxkXuGYxoAFmkUNl_YrqjkgHoS1Nnsf6vc22IqAZ7z3ymXibqOKkQ0jPK5qce5TzNqt56dGUTxISU5Pn-u-I5-K4DnBE0RWzKXPT057PHKTFAIykKjQKv4ET9ZG9-SGlxh9A_Eoj9Z7yxZAPmMVVcd0I3Az_4m6y37rYzksZJND3nRl"/>
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6 w-full">
+<span class="inline-block px-2 py-1 bg-cyan-400/10 text-cyan-400 font-headline text-[9px] font-bold tracking-widest rounded-sm mb-3">EDITORIAL</span>
+<h3 class="font-headline text-xl font-bold text-white mb-2">Casting Editorial</h3>
+<p class="text-zinc-400 text-sm font-light leading-relaxed">Crie composições de moda experimental com foco em iluminação volumétrica e texturas orgânicas.</p>
+</div>
+</div>
+<!-- Card 2: Social Cinema -->
+<div class="group relative overflow-hidden rounded-lg bg-surface-container-low border border-transparent hover:border-cyan-400/30 transition-all duration-300">
+<div class="aspect-[16/10] overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" data-alt="Cinematic street scene at night with neon lights reflecting in puddles, high contrast, anamorphic lens flare style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtZqVgS95cP7iR5poWfiMz-NuzrJvjpZHrM1F5CEajlK_CPfiPdMTOaRFbmiC9WvDaExsDkyxfPMIc9SI_Rmjf-2kYFSwGvl3e4yNNOoKbGLvnggYEtCM0iAwQyrtCNghJ6BRuX-6DurA3lTED4ylkTjaq24dl-HKx_P95CGzxjQdSL0U3sn-1OPJMijubZ7NBfML3WK3-dljWz9OhP7sF7v9Au9v4CRVHLTrLSKvZeYqsb6NNZtrAtU9uF8pvWjS4XfJfU7bnH6Zf"/>
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6 w-full">
+<span class="inline-block px-2 py-1 bg-cyan-400/10 text-cyan-400 font-headline text-[9px] font-bold tracking-widest rounded-sm mb-3">VÍDEO</span>
+<h3 class="font-headline text-xl font-bold text-white mb-2">Social Cinema</h3>
+<p class="text-zinc-400 text-sm font-light leading-relaxed">Narrativas curtas com estética cinematográfica para redes de alta performance e engajamento.</p>
+</div>
+</div>
+<!-- Card 3: Product Vision -->
+<div class="group relative overflow-hidden rounded-lg bg-surface-container-low border border-transparent hover:border-cyan-400/30 transition-all duration-300">
+<div class="aspect-[16/10] overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" data-alt="High-tech product shot of a futuristic sneaker floating in dark space with glowing cyan fiber optic lights" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2la_xr9XiBig0EmRNJWjzaZ61jAKQPGKLZiPD1-YCkhsqAQQ1WzM_V0FWNOrPWFBcaFcQ7GAVu_H_uJZNVzmYu0-zLAZ5I50D7uge8nIhelwUVQacPycayZZx41bHPyQbNmaR0axwSodJ8S9bp2ztfmi6h0S0pvBWUzsg25Ht2gbKLT2wfI1fQVSPDQ4lZdgdtYCp6l_Hs_XiI8V8m2PBd535dt84Y4yqG-sGuZ1Z5l3gZoqtWuMepsVx4IAfUDyWbHqT8jcytrhG"/>
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6 w-full">
+<span class="inline-block px-2 py-1 bg-cyan-400/10 text-cyan-400 font-headline text-[9px] font-bold tracking-widest rounded-sm mb-3">PRODUTO</span>
+<h3 class="font-headline text-xl font-bold text-white mb-2">Product Vision</h3>
+<p class="text-zinc-400 text-sm font-light leading-relaxed">Renderização de produtos com foco em precisão técnica e apelo visual tecnológico de luxo.</p>
+</div>
+</div>
+<!-- Card 4: Brand Identity -->
+<div class="group relative overflow-hidden rounded-lg bg-surface-container-low border border-transparent hover:border-cyan-400/30 transition-all duration-300">
+<div class="aspect-[16/10] overflow-hidden">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" data-alt="Abstract 3D architectural forms with obsidian textures and sharp cyan light edges, representing digital brand systems" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-dRHVaYoookncajku3eLm_GOkfbQ6oY0oEw1RbxbbgKavataUUISiB1n5aM5bBm_zfg3fk2kZSDGo5F_ULK5EwR5SCIxpokHy9VC91eOjZLinaRncG6earjIM7S9veKq-iNkzU84l98KKnwJtYRnRgA5gFOG_DFhQqoogahuz8LHZ0mS7uiCDRtn8Iyaa2pTbCle8AlywR4fFUIuCmLbY3KAQ2MePRTrBpc-gSah2Ug3oTxtd1HC3Rd3mzj5fi-IIaPsnOjhMANkY"/>
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6 w-full">
+<span class="inline-block px-2 py-1 bg-cyan-400/10 text-cyan-400 font-headline text-[9px] font-bold tracking-widest rounded-sm mb-3">BRANDING</span>
+<h3 class="font-headline text-xl font-bold text-white mb-2">Brand Identity</h3>
+<p class="text-zinc-400 text-sm font-light leading-relaxed">Desenvolvimento de sistemas visuais escaláveis para marcas que habitam o ecossistema digital.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Sidebar: Creative Copilot -->
+<aside class="w-80 h-full flex flex-col gap-4">
+<div class="flex-1 glass-panel rounded-lg border border-zinc-800/30 flex flex-col overflow-hidden">
+<div class="p-6 border-b border-zinc-800/50 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(0,173,204,0.6)]"></div>
+<h3 class="font-headline text-[10px] font-black tracking-[0.2em] text-white">CREATIVE COPILOT</h3>
+</div>
+<span class="material-symbols-outlined text-zinc-500 text-sm">settings</span>
+</div>
+<!-- Chat Interface -->
+<div class="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+<!-- Assistant Message -->
+<div class="flex flex-col gap-2 max-w-[90%]">
+<div class="p-4 bg-zinc-900/80 rounded-sm rounded-tl-none border-l-2 border-cyan-400 shadow-lg">
+<p class="text-xs leading-relaxed text-on-surface">
+                                Olá! Sou seu assistente de direção criativa. Notei que você está explorando o modelo <span class="text-cyan-400 font-bold">Casting Editorial</span>. Deseja que eu analise as tendências cromáticas de 2024 para este projeto?
+                            </p>
+</div>
+<span class="font-headline text-[8px] text-zinc-600 font-bold tracking-widest px-1">COPILOT V.4</span>
+</div>
+<!-- User Message -->
+<div class="flex flex-col gap-2 max-w-[90%] self-end">
+<div class="p-4 bg-cyan-400/10 rounded-sm rounded-tr-none border-r-2 border-cyan-400">
+<p class="text-xs leading-relaxed text-cyan-200">
+                                Sim, por favor. Priorize paletas neon frias.
+                            </p>
+</div>
+<span class="font-headline text-[8px] text-zinc-600 font-bold tracking-widest px-1 text-right uppercase">Designer_01</span>
+</div>
+</div>
+<!-- Input Area -->
+<div class="p-4 bg-black/40 border-t border-zinc-800/50">
+<div class="relative">
+<textarea class="w-full bg-surface-container-lowest border border-zinc-800/50 rounded-sm p-3 text-xs text-zinc-300 focus:ring-1 focus:ring-cyan-400 focus:border-cyan-400 min-h-[80px] resize-none placeholder:text-zinc-600 placeholder:italic" placeholder="Descreva sua visão..."></textarea>
+<button class="absolute bottom-3 right-3 text-cyan-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</button>
+</div>
+</div>
+</div>
+<!-- System Status Footer Component -->
+<div class="glass-panel p-4 rounded-lg border border-zinc-800/30">
+<div class="flex items-center justify-between mb-3">
+<span class="font-headline text-[9px] font-bold tracking-[0.2em] text-zinc-500">STATUS DO SISTEMA</span>
+<span class="font-headline text-[9px] font-bold text-cyan-400">84% GPU RENDER</span>
+</div>
+<div class="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+<div class="h-full bg-cyan-400 shadow-[0_0_10px_rgba(0,173,204,0.5)] transition-all duration-1000" style="width: 84%;"></div>
+</div>
+<div class="flex justify-between mt-3">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+<span class="font-headline text-[8px] text-zinc-500 uppercase font-medium">Latência 12ms</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+<span class="font-headline text-[8px] text-zinc-500 uppercase font-medium">LIVE UPLINK</span>
+</div>
+</div>
+</div>
+</aside>
+</main>
+<!-- Global Floating Action Control (FAB) - Suppressed per rules for Details context -->
+</body></html>

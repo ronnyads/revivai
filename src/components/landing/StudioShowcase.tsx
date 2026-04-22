@@ -1,90 +1,62 @@
 'use client'
-import { Plus, Maximize2, Layers, Cpu } from 'lucide-react'
+
+const UGC_MODEL_IMAGE =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuBzbh-2si6l4m2hd2IlsT5HiXwV7rVquQJQb-A6jdl1vRKcYXNG3oohzWX4Oh__z53Ral7zgSexR3vyxb238SXs4MRJV7C9ijm_091l8Cmq47B1oBbOQlxFLfyxyj5VSxOJT7ss6cWxGD3cNft6sAZSvw5fzY5373ALrE3bDYVj7mgYfJKZv6treFqo8JLH4-hm1IJTtQwDH6J_x5tshZUEo8rvW61C5H9Bh1cTaTaCCdBhh1MVT8lQOLdJ39Xk-upEZKIImLbjuW5l'
 
 const SHOWCASE_ITEMS = [
   {
-    badge: 'TECNOLOGIA FLUX-1',
-    title: 'LOOKBOOK EDITORIAL',
-    desc: 'Explore a qualidade inigualável das gerações RevivAI. Detalhes de tecido, iluminação natural e texturas realistas que definem o novo padrão da moda digital.',
-    tags: ['Hiper-Realismo', 'Lookbook', 'Editorial'],
-    icon: <Layers size={20} />,
+    id: '01 / Branding',
+    title: 'Metallic Pulse',
+    image:
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuC30azfUzGKcew13JhZoAebtN7nBAxvHt6mNjh2-ndbJsNwOUkJfHPhgT_CA8RQLXFbUptsu_K1Yc2ZF8D_9-oqA9_5xzqGglGCi0o1AZZFgHd4h3cQC36Kg3MgQ-gAQmLKgtkYIrxCKQhJdzUYhl7OAG0ssetls_PyA2gVWmNfRPoeD_qNGGO3RNvbeOH89osMp96_g2tfZEsr8S_FJZsHgx1fBBypDFwpj-n4N4NyqMQFD36Reb2w9wBTlODtZH5TvmUlkz5sIFJL',
+    className: 'md:col-span-7 aspect-[4/3]',
   },
   {
-    badge: 'CONTROLE TOTAL',
-    title: 'ONDE A MÁGICA ACONTECE',
-    desc: 'Nossa interface intuitiva permite que você controle cada variável da sua imagem. Da direção de luz à etnia da modelo, tudo está ao alcance de um clique.',
-    tags: ['Consistência de Marca', 'Texturas 8K', 'Upscaling 4K'],
-    icon: <Cpu size={20} />,
+    id: '02 / Conteudo',
+    title: 'Modelo UGC',
+    image: UGC_MODEL_IMAGE,
+    className: 'md:col-span-5 aspect-square md:mt-20',
+  },
+  {
+    id: '03 / Ambiente',
+    title: 'Provedor Virtual',
+    image:
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuB8BnC7_z3qS3tDlNnKDpa4wSkT0AZwlSFNm7LaFc8OYIfl_UEp_D6esH5qdqo8-blRYVHihQVTvtrtj5fnQ7uMByA_35eGXT1QNhvdiDXfXS140g2POxb5XXnBNyQvNoh1rC9xLQqgc_Qhw17_HsieyuQngQGdatEMfsj-lQ5ej2zQL3KaTHdgp8KSk0_ZLBpK_OnSGfKUCok89V5z15Mt0UCzdm4oMI6sKKyNYjgLKuYR0ZLKQ3lLDWZyQuenKrlMAgXOIJCgNK4a',
+    className: 'md:col-span-5 aspect-square',
+  },
+  {
+    id: '04 / Arquitetura',
+    title: 'Sonhos Brutalistas',
+    image:
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuAlg7AzJs86iBKI3tDUSb3IzuSDl_Mwx3sBsRvD5CE03LOXf1PYU-ySZ8DP9rDhYXIxbX0pcpzyFWDZmX0ytN-srVZq8eI87ti4LaSQBV73cDFu1YplhK2kGiwh3M5YQ86fbTs3x8zEB0SRATN8ip-3-SZtbEhPWZkjNmrYXuUiwpknIWaEiX1tvhd73XcTmihaLJL-mPYdmkr6Udgjvpwoh3VPv9fw4-NKcX8LaKpK6oY0O8El8eVeixweLz4LMXrPLSQakIQzvoaD',
+    className: 'md:col-span-7 aspect-[16/9] md:-mt-10',
   },
 ]
 
 export default function StudioShowcase() {
   return (
-    <section id="recursos" className="py-32 tonal-layer-0">
-      {/* Header Editorial */}
-      <div className="max-w-7xl mx-auto px-6 mb-24 editorial-asymmetry">
-        <p className="text-[10px] uppercase tracking-[0.5em] font-bold mb-6 text-[#7C0DF2]">
-          RECURSOS AVANÇADOS
-        </p>
-        <h2 className="font-display text-5xl md:text-[7rem] font-bold leading-[0.9] max-w-5xl text-white">
-          TECNOLOGIA <br /><span className="text-white/10 text-6xl md:text-[6rem]">PARA MARCAS DE ELITE</span>
+    <section id="recursos" className="py-28 tonal-layer-0">
+      <div className="mx-auto mb-12 max-w-[1440px] px-6 md:px-8">
+        <h2 className="font-display text-4xl font-bold uppercase tracking-tight text-white md:text-5xl">
+          Trabalhos Recentes
         </h2>
       </div>
 
-      <div className="max-w-7xl mx-auto relative z-10 px-6 lg:px-20">
-
-        {/* Studio Grid Asymmetric */}
-        <div className="flex flex-col gap-32">
-          
-          {/* Item 1: High Contrast */}
-          <div className="flex flex-col lg:flex-row gap-20 items-center">
-             <div className="flex-1 order-2 lg:order-1">
-                <div className="flex items-center gap-3 text-[#7C0DF2] mb-8">
-                  <Maximize2 size={24} />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.4em]">{SHOWCASE_ITEMS[0].badge}</span>
-                </div>
-                <h3 className="text-4xl md:text-6xl font-bold font-display mb-8 text-white">
-                  {SHOWCASE_ITEMS[0].title}
-                </h3>
-                <p className="text-lg text-white/40 leading-relaxed font-sans max-w-xl">
-                  {SHOWCASE_ITEMS[0].desc}
-                </p>
-             </div>
-             
-             <div className="w-full lg:w-[60%] aspect-[4/5] tonal-layer-1 relative group overflow-hidden order-1 lg:order-2">
-                <div className="absolute inset-0 bg-gradient-to-t from-[#131315] via-transparent to-transparent opacity-60" />
-                <div className="absolute inset-0 bg-[#7C0DF2]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
-                <div className="absolute bottom-12 left-12 right-12 z-10 transition-transform duration-700">
-                   <p className="text-[10px] font-bold text-[#7C0DF2] tracking-[0.3em] mb-2 uppercase">SAMPLE 01</p>
-                   <p className="text-white text-2xl font-display font-bold tracking-widest uppercase">SUMMER EDITORIAL</p>
-                </div>
-             </div>
-          </div>
-
-          {/* Item 2: Asymmetric Overlap */}
-          <div className="flex flex-col lg:flex-row-reverse gap-20 items-center">
-             <div className="flex-1 editorial-asymmetry">
-                <div className="flex items-center gap-3 text-[#7C0DF2] mb-8">
-                  <Cpu size={24} />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.4em]">{SHOWCASE_ITEMS[1].badge}</span>
-                </div>
-                <h3 className="text-4xl md:text-6xl font-bold font-display mb-8 text-white">
-                  {SHOWCASE_ITEMS[1].title}
-                </h3>
-                <p className="text-lg text-white/40 leading-relaxed font-sans max-w-xl">
-                  {SHOWCASE_ITEMS[1].desc}
-                </p>
-             </div>
-             
-             <div className="w-full lg:w-[45%] aspect-square tonal-layer-1 flex items-center justify-center group overflow-hidden relative">
-                <div className="absolute inset-0 bg-[#7C0DF2]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 z-0" />
-                <div className="w-32 h-32 border border-white/5 flex items-center justify-center group-hover:border-[#7C0DF2]/50 transition-all duration-700 group-hover:bg-[#7C0DF2]/5 z-10 scale-90 group-hover:scale-100">
-                   <Plus size={40} className="text-white/20 group-hover:text-[#7C0DF2] transition-colors" />
-                </div>
-             </div>
-          </div>
-
-        </div>
+      <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-6 px-6 md:grid-cols-12 md:px-8">
+        {SHOWCASE_ITEMS.map((item) => (
+          <article key={item.title} className={`group relative overflow-hidden rounded-sm ${item.className}`}>
+            <img
+              src={item.image}
+              alt={item.title}
+              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_34%,rgba(14,14,14,0.82)_100%)]" />
+            <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
+              <p className="font-label mb-2 text-[11px] text-[#54D6F6]">{item.id}</p>
+              <h3 className="font-display text-3xl font-bold uppercase italic tracking-tight text-white">{item.title}</h3>
+            </div>
+          </article>
+        ))}
       </div>
     </section>
   )

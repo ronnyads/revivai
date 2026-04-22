@@ -44,5 +44,12 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await admin
+    .from('studio_projects')
+    .update({ updated_at: new Date().toISOString() })
+    .eq('id', project_id)
+    .eq('user_id', user.id)
+
   return NextResponse.json({ connection: data }, { status: 201 })
 }

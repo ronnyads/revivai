@@ -34,7 +34,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   caption: { icon: <Captions size={14} />, label: 'Legenda',     color: 'text-cyan-400',   bg: 'bg-cyan-500/10 border-cyan-500/30',    hint: '← Conecte o Áudio aqui', output: 'Legendas →' },
   render:  { icon: <Film size={14} />,     label: 'Vídeo Final', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/30',    hint: '← Conecte Vídeo + Voz → resultado final', output: '🎬 Vídeo com voz →' },
   animate: { icon: <Sparkles size={14} />, label: 'Imitar Movimentos', color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10 border-fuchsia-500/30', hint: '← Envie foto do modelo + vídeo de referência', output: 'Vídeo animado →' },
-  compose: { icon: <Layers size={14} />,   label: 'Fusão UGC',   color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',   hint: '← Conecte Modelo + foto do produto → IA gera cena integrada', output: 'Cena gerada →' },
+  compose: { icon: <Layers size={14} />,   label: 'Provador',   color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',   hint: 'Conecte modelo + produto para montar a cena', output: 'Cena gerada ->' },
   lipsync: { icon: <Wand2 size={14} />,    label: 'Lip Sync',    color: 'text-cyan-400',    bg: 'bg-cyan-500/10 border-cyan-500/30',        hint: '← Conecte Vídeo + Voz', output: 'Vídeo sincronizado →' },
   angles:  { icon: <Camera size={14} />,   label: 'Ângulos (Trocar Posição)', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', hint: '← Conecte a Modelo ou Fusão', output: 'Novo Ângulo →' },
   music:   { icon: <Music size={14} />,    label: 'Trilha Sonora AI', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30', hint: 'Gera música com Lyria 3', output: 'Áudio MP3 →' },
@@ -86,6 +86,7 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
 
 const PAID_PLANS = ['starter', 'popular', 'pro', 'agency']
 const VIDEO_LOCKED_TYPES: AssetType[] = ['video', 'animate', 'lipsync']
+const WIDE_LAYOUT_TYPES: AssetType[] = ['scene', 'compose', 'angles', 'video', 'image', 'upscale', 'lipsync', 'animate']
 
 export interface AssetNodeData {
   asset: StudioAsset
@@ -100,7 +101,18 @@ export interface AssetNodeData {
 function AssetNode({ data }: NodeProps) {
   const { asset, userPlan, onDelete, onGenerate, onUpdateParams, onDuplicate } = data as AssetNodeData
   const isVideoLocked = VIDEO_LOCKED_TYPES.includes(asset.type) && !PAID_PLANS.includes(userPlan ?? '')
+  const isWideLayout = WIDE_LAYOUT_TYPES.includes(asset.type)
   const meta = TYPE_META[asset.type]
+  const composeVariant = asset.type === 'compose' ? String(asset.input_params.compose_variant ?? 'fitting') : ''
+  const displayMeta = asset.type === 'compose'
+    ? {
+        ...meta,
+        label: composeVariant === 'product' ? 'Produto + Modelo' : 'Provador',
+        hint: composeVariant === 'product'
+          ? 'Monte uma cena comercial com produto em destaque'
+          : 'Use a modelo com look, roupa ou encaixe de produto',
+      }
+    : meta
   const inputHandles = INPUT_HANDLES[asset.type] ?? []
   const [collapsed, setCollapsed] = useState(asset.status === 'done')
 
@@ -114,7 +126,7 @@ function AssetNode({ data }: NodeProps) {
   }
 
   return (
-    <div className={`w-[360px] bg-zinc-950/90 backdrop-blur-md border ${asset.type === 'render' ? 'border-rose-500/40' : 'border-white/5'} rounded-[1.5rem] overflow-visible shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] group/node hover:ring-2 hover:ring-accent/20 transition-all duration-300 ${
+    <div className={`${isWideLayout ? 'w-[620px]' : 'w-[320px]'} bg-zinc-950/90 backdrop-blur-md border ${asset.type === 'render' ? 'border-rose-500/40' : 'border-white/5'} rounded-[1.5rem] overflow-visible shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] group/node hover:ring-2 hover:ring-accent/20 transition-all duration-300 ${
       asset.isNew ? 'ring-4 ring-orange-500 shadow-[0_0_50px_rgba(249,115,22,0.5)] animate-fire-pulse scale-[1.02]' : ''
     }`}>
       
@@ -167,7 +179,7 @@ function AssetNode({ data }: NodeProps) {
       {/* OUTPUT handle — direita */}
       <div className="group" style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', zIndex: 60, pointerEvents: 'none' }}>
         <span className="mr-2.5 text-[10px] font-bold text-orange-400 uppercase tracking-tight bg-zinc-900/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-orange-500/20 opacity-60 group-hover:opacity-100 transition-opacity">
-          {meta.output}
+          {displayMeta.output}
         </span>
         <Handle
           type="source"
@@ -187,7 +199,7 @@ function AssetNode({ data }: NodeProps) {
             boxShadow: '0 0 20px rgba(249, 115, 22, 0.4)',
             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
-          title={meta.output}
+          title={displayMeta.output}
         />
       </div>
 
@@ -200,11 +212,11 @@ function AssetNode({ data }: NodeProps) {
           onClick={() => setCollapsed(v => !v)}
           className="relative flex flex-col items-start text-left z-10"
         >
-          <span className={`flex items-center gap-2 text-[13px] font-bold tracking-tight ${meta.color}`}>
-            <div className={`p-1.5 rounded-lg bg-white/5 border border-white/10`}>{meta.icon}</div>
-            {meta.label}
+          <span className={`flex items-center gap-2 text-[13px] font-bold tracking-tight ${displayMeta.color}`}>
+            <div className={`p-1.5 rounded-lg bg-white/5 border border-white/10`}>{displayMeta.icon}</div>
+            {displayMeta.label}
           </span>
-          <span className="text-[10px] text-zinc-500 font-medium mt-1 pl-9 opacity-70">{meta.hint}</span>
+          <span className="text-[10px] text-zinc-500 font-medium mt-1 pl-9 opacity-70">{displayMeta.hint}</span>
         </button>
         <div className="relative flex items-center gap-3 z-10">
           <span className="text-[10px] font-bold text-zinc-100 bg-white/5 border border-white/10 px-2 py-1 rounded-lg tabular-nums">{asset.credits_cost} CR</span>

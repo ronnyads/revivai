@@ -1,12 +1,9 @@
-'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Check, ArrowRight } from 'lucide-react'
 
 const STUDIO_PLANS = [
   {
     id: 'starter',
-    name: 'BASIC STUDIO',
+    name: 'ROOKIE',
     price: 47,
     base: 500,
     bonus: 100,
@@ -15,8 +12,8 @@ const STUDIO_PLANS = [
   },
   {
     id: 'popular',
-    name: 'PROFESSIONAL',
-    price: 79,
+    name: 'CREATOR',
+    price: 79.9,
     base: 1000,
     bonus: 200,
     popular: true,
@@ -24,7 +21,7 @@ const STUDIO_PLANS = [
   },
   {
     id: 'pro',
-    name: 'ELITE LOOKBOOK',
+    name: 'PRO',
     price: 149,
     base: 2500,
     bonus: 500,
@@ -33,7 +30,7 @@ const STUDIO_PLANS = [
   },
   {
     id: 'agency',
-    name: 'ENTERPRISE',
+    name: 'STUDIO',
     price: 397,
     base: 7000,
     bonus: 1000,
@@ -67,14 +64,21 @@ function planFeatures(base: number, bonus: number, id: string) {
 
 type Prices = Record<string, { price: number }>
 
-export default function PricingCards({ prices }: { prices: Prices }) {
-  const router = useRouter()
-  const [loading, setLoading] = useState<string | null>(null)
+const KIRVANO_LINKS: Record<string, string> = {
+  starter: 'https://pay.kirvano.com/742d82bb-2ce1-4db6-88e6-f7da3a56897d',
+  popular: 'https://pay.kirvano.com/643c2622-c454-4dc5-a85e-da2276b7d944',
+  pro: 'https://pay.kirvano.com/781f1a63-1608-4fcf-be7c-cc1cf1680348',
+  agency: 'https://pay.kirvano.com/bb19dade-47d9-4801-ac48-8a4b05bd4367',
+}
 
-  const handleCheckout = (planId: string) => {
-    setLoading(planId)
-    router.push(`/checkout?plan=${planId}`)
-  }
+function formatPrice(price: number) {
+  return price.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+export default function PricingCards({ prices }: { prices: Prices }) {
 
   return (
     <div className="max-w-7xl mx-auto px-4">
@@ -87,24 +91,24 @@ export default function PricingCards({ prices }: { prices: Prices }) {
               key={plan.id}
               className={`relative flex flex-col p-12 group transition-all duration-1000 cursor-default ${
                 plan.popular 
-                  ? 'tonal-layer-2 scale-[1.05] z-10 shadow-[0_0_80px_rgba(124,13,242,0.05)]' 
-                  : i % 2 === 0 ? 'tonal-layer-1' : 'tonal-layer-2'
+                  ? 'tonal-layer-2 scale-[1.05] z-10 border border-[#54D6F6]/18 shadow-[0_0_80px_rgba(84,214,246,0.08)]' 
+                  : `border border-white/6 ${i % 2 === 0 ? 'tonal-layer-1' : 'tonal-layer-2'}`
               }`}
             >
-              <div className="absolute inset-0 bg-[#7C0DF2]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
+              <div className="absolute inset-0 bg-[#54D6F6]/[0.04] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" />
               
               {plan.popular && (
                 <div className="absolute -top-4 right-8">
-                  <span className="bg-[#7C0DF2] text-white text-[9px] font-bold uppercase tracking-[0.4em] px-6 py-2 shadow-[0_0_30px_rgba(124,13,242,0.3)]">
+                  <span className="bg-cyan-gradient text-[#031317] text-[9px] font-bold uppercase tracking-[0.4em] px-6 py-2 shadow-[0_0_30px_rgba(84,214,246,0.3)]">
                     FAVORITO
                   </span>
                 </div>
               )}
 
               <div className="mb-14">
-                <h3 className="text-[10px] font-bold uppercase tracking-[0.5em] text-[#7C0DF2] mb-6">{plan.name}</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.5em] text-[#54D6F6] mb-6">{plan.name}</h3>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-bold font-display text-white">R$ {price.toFixed(0)}</span>
+                  <span className="text-5xl font-bold font-display text-white">R$ {formatPrice(price)}</span>
                   <span className="text-[10px] text-white/20 uppercase tracking-[0.3em] font-sans">/mo</span>
                 </div>
               </div>
@@ -117,34 +121,31 @@ export default function PricingCards({ prices }: { prices: Prices }) {
                    <span className="text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">créditos</span>
                 </div>
                 <div className="h-px w-full bg-white/5 mt-6 relative overflow-hidden">
-                   <div className="absolute inset-0 bg-[#7C0DF2] w-1/3 opacity-30 transform -translate-x-full group-hover:translate-x-[200%] transition-transform duration-2000 ease-in-out" />
+                   <div className="absolute inset-0 bg-[#54D6F6] w-1/3 opacity-30 transform -translate-x-full group-hover:translate-x-[200%] transition-transform duration-2000 ease-in-out" />
                 </div>
               </div>
 
               <ul className="space-y-6 mb-16 flex-grow">
                 {features.map((f) => (
                   <li key={f} className="flex items-start gap-4 text-xs font-medium text-white/40 group-hover:text-white/70 transition-colors">
-                    <Check size={16} className="text-[#7C0DF2] shrink-0 mt-0.5" />
+                    <Check size={16} className="text-[#54D6F6] shrink-0 mt-0.5" />
                     {f}
                   </li>
                 ))}
               </ul>
 
-              <button
-                onClick={() => handleCheckout(plan.id)}
-                disabled={loading === plan.id}
+              <a
+                href={KIRVANO_LINKS[plan.id]}
+                target="_blank"
+                rel="noopener noreferrer"
                 className={`group/btn relative w-full py-6 text-[10px] font-bold uppercase tracking-[0.4em] transition-all duration-700 overflow-hidden flex items-center justify-center gap-4 rounded-full ${
                   plan.popular
-                    ? 'bg-[#7C0DF2] text-white hover:bg-white hover:text-[#131313]'
-                    : 'tonal-layer-0 text-white hover:bg-white hover:text-[#131313]'
+                    ? 'bg-cyan-gradient text-[#031317] shadow-[0_18px_50px_rgba(84,214,246,0.18)] hover:brightness-110'
+                    : 'border border-[#54D6F6]/18 bg-[#0C171A] text-[#D7E4E8] hover:border-[#54D6F6]/45 hover:text-[#54D6F6]'
                 }`}
               >
-                {loading === plan.id ? 'PROCESSING...' : (
-                  <>
-                    SELECT PLAN <ArrowRight size={14} className="group-hover/btn:translate-x-3 transition-transform duration-700" />
-                  </>
-                )}
-              </button>
+                SELECT PLAN <ArrowRight size={14} className="group-hover/btn:translate-x-3 transition-transform duration-700" />
+              </a>
             </div>
           )
         })}
