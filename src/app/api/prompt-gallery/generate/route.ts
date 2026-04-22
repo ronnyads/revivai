@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { composeProductScene, generateScene } from '@/lib/studio'
+import { composeProductScene, generatePresetIdentityScene } from '@/lib/studio'
 import { getDefaultPromptTemplateById, normalizePromptTemplate, PromptTemplateRow } from '@/lib/prompt-gallery'
 
 function buildHiddenIdentityScenePrompt(templateTitle: string, templatePrompt: string) {
@@ -143,9 +143,9 @@ export async function POST(req: NextRequest) {
     } else {
       const templateSceneUrl = template.coverImageUrl || template.exampleImages[0]
 
-      resultUrl = await generateScene({
-        source_url: templateSceneUrl,
-        extra_source_urls: uploadedUrls,
+      resultUrl = await generatePresetIdentityScene({
+        template_scene_url: templateSceneUrl,
+        identity_reference_urls: uploadedUrls,
         scene_prompt: buildHiddenIdentityScenePrompt(template.title, template.prompt),
         aspect_ratio: '9:16',
         assetId: generationAssetId,

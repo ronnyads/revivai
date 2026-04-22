@@ -2120,6 +2120,7 @@ export async function generateScene(params: {
 
   let photoBuffer: Buffer | null = null
   const geminiChain = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
+  let lastGeminiError = ''
 
   for (const model of geminiChain) {
     try {
@@ -2147,11 +2148,49 @@ export async function generateScene(params: {
       console.log(`[scene] Gemini sucesso: ${model}`)
       break
     } catch (e: any) {
+      lastGeminiError = e.message
       console.warn(`[scene] ${model} falhou: ${e.message}`)
     }
   }
 
-  if (!photoBuffer) throw new Error('Todos os modelos Gemini falharam para scene.')
+  if (!photoBuffer) {
+    const falKey = process.env.FAL_KEY
+    if (!falKey) throw new Error(`Todos os modelos Gemini falharam para scene. Último erro: ${lastGeminiError}`)
+
+    console.log(`[scene] Gemini bloqueou/falhou; tentando fallback Flux para asset ${params.assetId}`)
+    const res = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        image_url: params.source_url,
+        prompt: [
+          `Transform the uploaded person into a new photorealistic commercial scene.`,
+          `Creative direction: ${params.scene_prompt}.`,
+          `Preserve the person's face, age, skin tone, hair, outfit colors, body proportions and identity as closely as possible.`,
+          ratioInstruction,
+          `Natural lighting, correct shadows, realistic perspective, no watermark.`,
+        ].join(' '),
+        strength: 0.55,
+        num_inference_steps: 38,
+        guidance_scale: 3.5,
+        image_size: params.aspect_ratio === '1:1' ? 'square_hd' : params.aspect_ratio === '16:9' ? 'landscape_16_9' : 'portrait_16_9',
+        output_format: 'jpeg',
+      }),
+    })
+
+    if (!res.ok) throw new Error(`Fallback Flux falhou para scene: ${await res.text()}`)
+    const fluxData = await res.json()
+    const fluxUrl = fluxData.images?.[0]?.url
+    if (!fluxUrl) throw new Error(`Fallback Flux não retornou imagem para scene. Último Gemini: ${lastGeminiError}`)
+
+    const imageRes = await fetch(fluxUrl)
+    if (!imageRes.ok) throw new Error(`Download do fallback Flux falhou: ${imageRes.status}`)
+    photoBuffer = Buffer.from(await imageRes.arrayBuffer())
+    console.log(`[scene] Fallback Flux sucesso para asset ${params.assetId}`)
+  }
 
   const fileName = `scene-${params.assetId}-${Date.now()}.jpg`
   const filePath = `${params.userId}/${fileName}`
@@ -2254,6 +2293,7 @@ export async function generatePresetIdentityScene(params: {
 
   let photoBuffer: Buffer | null = null
   const geminiChain = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
+  let lastGeminiError = ''
 
   for (const model of geminiChain) {
     try {
@@ -2278,11 +2318,48 @@ export async function generatePresetIdentityScene(params: {
       console.log(`[preset-scene] Gemini sucesso: ${model}`)
       break
     } catch (e: any) {
+      lastGeminiError = e.message
       console.warn(`[preset-scene] ${model} falhou: ${e.message}`)
     }
   }
 
-  if (!photoBuffer) throw new Error('Todos os modelos Gemini falharam para preset identity scene.')
+  if (!photoBuffer) {
+    const falKey = process.env.FAL_KEY
+    if (!falKey) throw new Error(`Todos os modelos Gemini falharam para preset identity scene. Último erro: ${lastGeminiError}`)
+
+    console.log(`[preset-scene] Gemini bloqueou/falhou; tentando fallback Flux PuLID para asset ${params.assetId}`)
+    const res = await fetch('https://fal.run/fal-ai/flux-pulid', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: [
+          `Create a photorealistic commercial image inspired by the provided preset scene.`,
+          `Creative direction: ${params.scene_prompt}.`,
+          `Use the reference person as the main subject and preserve face, age, skin tone, hair, outfit colors, body proportions and identity as closely as possible.`,
+          `Keep the same overall mood, framing logic, environment, camera feeling and storytelling from the preset scene when possible.`,
+          ratioInstruction,
+          `Natural lighting, correct shadows, realistic perspective, no watermark.`,
+        ].join(' '),
+        reference_images: identityRefs.slice(0, 4).map((url) => ({ image_url: url })),
+        image_size: params.aspect_ratio === '1:1' ? 'square_hd' : params.aspect_ratio === '16:9' ? 'landscape_16_9' : 'portrait_16_9',
+        num_images: 1,
+        enable_safety_checker: true,
+      }),
+    })
+
+    if (!res.ok) throw new Error(`Fallback Flux PuLID falhou para preset identity scene: ${await res.text()}`)
+    const fluxData = await res.json()
+    const fluxUrl = fluxData.images?.[0]?.url
+    if (!fluxUrl) throw new Error(`Fallback Flux PuLID não retornou imagem para preset identity scene. Último Gemini: ${lastGeminiError}`)
+
+    const imageRes = await fetch(fluxUrl)
+    if (!imageRes.ok) throw new Error(`Download do fallback Flux PuLID falhou: ${imageRes.status}`)
+    photoBuffer = Buffer.from(await imageRes.arrayBuffer())
+    console.log(`[preset-scene] Fallback Flux PuLID sucesso para asset ${params.assetId}`)
+  }
 
   const fileName = `preset-scene-${params.assetId}-${Date.now()}.jpg`
   const filePath = `${params.userId}/${fileName}`
