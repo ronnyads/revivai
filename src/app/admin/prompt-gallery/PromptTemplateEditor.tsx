@@ -15,6 +15,12 @@ import {
 } from './actions'
 import type { PromptGalleryTemplate } from '@/lib/prompt-gallery'
 
+const fieldControlClass =
+  'h-11 w-full rounded-[14px] border border-white/10 bg-[#101010] px-3 text-sm text-white shadow-inner shadow-black/20 outline-none transition-colors focus:border-[#54D6F6]/45 focus:bg-[#11191B]'
+const textareaControlClass =
+  'w-full resize-y rounded-[16px] border border-white/10 bg-[#101010] px-3 py-3 text-sm text-white shadow-inner shadow-black/20 outline-none transition-colors focus:border-[#54D6F6]/45 focus:bg-[#11191B]'
+const labelClass = 'mb-2 block font-label text-[10px] uppercase tracking-[0.22em] text-white/55'
+
 function SectionToggle({
   title,
   description,
@@ -43,22 +49,27 @@ function SectionToggle({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-white/10 bg-white/5">
+    <div className="overflow-hidden rounded-[22px] border border-white/10 bg-[#101010] shadow-[0_18px_70px_rgba(0,0,0,0.28)]">
       <div className="flex items-center justify-between gap-4 px-6 py-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-white">{title}</h2>
+            <span className="h-2 w-2 rounded-full bg-[#54D6F6] shadow-[0_0_18px_rgba(84,214,246,0.6)]" />
+            <h2 className="font-label text-[11px] font-semibold uppercase tracking-[0.28em] text-white">
+              {title}
+            </h2>
             {badge ? (
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/75">{badge}</span>
+              <span className="rounded-full border border-white/10 bg-white/[0.07] px-2.5 py-1 text-[10px] text-white/70">
+                {badge}
+              </span>
             ) : null}
           </div>
-          <p className="mt-1 text-xs text-white/55">{description}</p>
+          <p className="mt-1.5 text-xs text-white/50">{description}</p>
         </div>
 
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="inline-flex min-w-[96px] items-center justify-center rounded-lg bg-white/12 px-3 py-1.5 text-xs font-medium text-white/90 transition-colors hover:bg-white/20"
+          className="inline-flex min-w-[104px] items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.08] px-3 py-2 text-xs font-semibold text-white/85 transition-colors hover:border-white/20 hover:bg-white/[0.13]"
         >
           {open ? 'Minimizar' : 'Expandir'}
         </button>
@@ -73,10 +84,12 @@ function ImageUploadField({
   name,
   label,
   currentUrl = '',
+  featured = false,
 }: {
   name: string
   label: string
   currentUrl?: string
+  featured?: boolean
 }) {
   const [url, setUrl] = useState(currentUrl)
   const [uploading, setUploading] = useState(false)
@@ -108,11 +121,13 @@ function ImageUploadField({
   }
 
   return (
-    <div className="space-y-2">
-      <label className="mb-1 block text-xs font-medium text-white/75">{label}</label>
+    <div className={featured ? 'space-y-3 xl:row-span-2' : 'space-y-3'}>
+      <label className={labelClass}>{label}</label>
       <input type="hidden" name={name} value={url} readOnly />
       <div
-        className={`relative aspect-[4/3] overflow-hidden rounded-lg border border-dashed border-white/15 bg-white/[0.06] transition-colors ${
+        className={`relative overflow-hidden rounded-[18px] border border-dashed border-white/15 bg-[#171717] transition-colors ${
+          featured ? 'aspect-[16/10] xl:aspect-[4/3]' : 'aspect-[4/3]'
+        } ${
           uploading ? 'opacity-60' : ''
         }`}
       >
@@ -127,10 +142,12 @@ function ImageUploadField({
             <span className="text-xs text-white/70">Enviando...</span>
           </div>
         ) : (
-          <div className="flex h-full items-center justify-center px-3 text-center text-xs text-white/55">
-            Sem imagem selecionada
-            <br />
-            {label}
+          <div className="flex h-full items-center justify-center px-4 text-center">
+            <div>
+              <div className="mx-auto mb-3 h-9 w-9 rounded-full border border-white/10 bg-white/[0.04]" />
+              <p className="text-xs font-medium text-white/55">Sem imagem selecionada</p>
+              <p className="mt-1 text-[11px] text-white/35">{label}</p>
+            </div>
           </div>
         )}
       </div>
@@ -139,7 +156,7 @@ function ImageUploadField({
           type="button"
           onClick={() => !uploading && inputRef.current?.click()}
           disabled={uploading}
-          className="inline-flex flex-1 items-center justify-center rounded-lg bg-cyan-500/15 px-3 py-2 text-xs font-medium text-cyan-200 transition-colors hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex flex-1 items-center justify-center rounded-[12px] bg-cyan-500/15 px-3 py-2 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-500/25 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {url ? 'Trocar foto' : 'Adicionar foto'}
         </button>
@@ -147,7 +164,7 @@ function ImageUploadField({
           type="button"
           onClick={() => setUrl('')}
           disabled={uploading || !url}
-          className="inline-flex flex-1 items-center justify-center rounded-lg bg-red-500/12 px-3 py-2 text-xs font-medium text-red-300 transition-colors hover:bg-red-500/22 disabled:cursor-not-allowed disabled:opacity-35"
+          className="inline-flex flex-1 items-center justify-center rounded-[12px] bg-red-500/12 px-3 py-2 text-xs font-semibold text-red-300 transition-colors hover:bg-red-500/22 disabled:cursor-not-allowed disabled:opacity-35"
         >
           Excluir foto
         </button>
@@ -357,9 +374,11 @@ function CategoryCreateRow() {
 function CategoryField({
   categories,
   currentCategory,
+  className = '',
 }: {
   categories: string[]
   currentCategory: string
+  className?: string
 }) {
   const normalizedCurrent = currentCategory.trim()
   const existingCategories = Array.from(new Set(categories.map((item) => item.trim()).filter(Boolean)))
@@ -368,15 +387,15 @@ function CategoryField({
     : existingCategories[0] ?? ''
 
   return (
-    <div className="col-span-2">
-      <label className="mb-1 block text-xs font-medium text-white/75">Categoria</label>
+    <div className={className}>
+      <label className={labelClass}>Categoria</label>
       <div className="space-y-2">
         {existingCategories.length > 0 ? (
           <select
             name="category"
             defaultValue={selectedCategory}
             required
-            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
+            className={fieldControlClass}
           >
             {existingCategories.map((category) => (
               <option key={category} value={category}>
@@ -472,9 +491,13 @@ export default function PromptTemplateEditor({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-white/10 bg-white/5">
-      <div className="flex items-center gap-4 px-6 py-4">
-        <div className="h-16 w-16 overflow-hidden rounded-lg border border-white/10 bg-white/5">
+    <div
+      className={`overflow-hidden rounded-[22px] border bg-[#101010] shadow-[0_18px_70px_rgba(0,0,0,0.22)] transition-colors ${
+        open ? 'border-[#54D6F6]/30' : 'border-white/10'
+      }`}
+    >
+      <div className="flex items-center gap-5 px-5 py-4">
+        <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[18px] border border-white/10 bg-white/5">
           {template.coverImageUrl ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -487,35 +510,38 @@ export default function PromptTemplateEditor({
           )}
         </div>
 
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className="font-medium text-white">{template.title}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="truncate text-base font-semibold text-white">{template.title}</span>
             <span
-              className={`rounded-full px-2 py-0.5 text-[10px] ${
+              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
                 template.isVisible ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/30'
               }`}
             >
               {template.isVisible ? 'visivel' : 'oculto'}
             </span>
-            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/70">
+            <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] text-white/70">
               {template.generationMode}
             </span>
-            <span className="rounded-full bg-[#0C171A] px-2 py-0.5 text-[10px] text-[#54D6F6]">
+            <span className="rounded-full bg-[#0C171A] px-2.5 py-1 text-[10px] text-[#54D6F6]">
+              {template.outfitSource === 'template' ? 'roupa base' : 'roupa enviada'}
+            </span>
+            <span className="rounded-full bg-[#0C171A] px-2.5 py-1 text-[10px] text-[#54D6F6]">
               {template.creditCost} cr
             </span>
           </div>
-          <p className="text-xs text-white/70">{template.category}</p>
-          <p className="mt-1 text-[11px] text-white/45">
+          <p className="mt-1 text-sm text-white/65">{template.category}</p>
+          <p className="mt-1 text-[11px] text-white/42">
             ordem {template.sortOrder} • {template.requiredImagesCount} imagem(ns) • {template.exampleImages.length} exemplos
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => runTemplateAction(() => duplicatePromptTemplate(template.id))}
             disabled={isPending}
-            className="rounded-lg bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-300 transition-colors hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-[12px] bg-cyan-500/10 px-3.5 py-2 text-xs font-semibold text-cyan-300 transition-colors hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isPending ? 'Duplicando...' : 'Duplicar'}
           </button>
@@ -523,7 +549,7 @@ export default function PromptTemplateEditor({
             type="button"
             disabled={isPending}
             onClick={() => setOpen((value) => !value)}
-            className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-[12px] bg-white/10 px-3.5 py-2 text-xs font-semibold text-white/90 transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {open ? 'Fechar' : 'Editar'}
           </button>
@@ -534,7 +560,7 @@ export default function PromptTemplateEditor({
               if (!confirm('Deletar este preset permanentemente?')) return
               runTemplateAction(() => deletePromptTemplate(template.id))
             }}
-            className="rounded-lg bg-red-500/10 px-3 py-1.5 text-xs text-red-400 transition-colors hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-[12px] bg-red-500/10 px-3.5 py-2 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Deletar
           </button>
@@ -554,6 +580,31 @@ export default function PromptTemplateEditor({
   )
 }
 
+function FormSection({
+  eyebrow,
+  title,
+  children,
+  className = '',
+}: {
+  eyebrow: string
+  title: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <section className={`rounded-[20px] border border-white/10 bg-white/[0.035] p-4 ${className}`}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="font-label text-[10px] uppercase tracking-[0.24em] text-[#54D6F6]/75">{eyebrow}</p>
+          <h3 className="mt-1 text-sm font-semibold text-white">{title}</h3>
+        </div>
+        <div className="h-px flex-1 bg-white/10" />
+      </div>
+      {children}
+    </section>
+  )
+}
+
 function PromptTemplateForm({
   categories,
   template,
@@ -568,177 +619,164 @@ function PromptTemplateForm({
   pending?: boolean
 }) {
   return (
-    <form action={action} className="flex flex-col gap-4 border-t border-white/10 bg-white/[0.03] px-6 py-5">
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2">
-          <label className="mb-1 block text-xs font-medium text-white/75">Titulo</label>
-          <input
-            name="title"
-            defaultValue={template.title}
-            required
-            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-          />
+    <form action={action} className="border-t border-white/10 bg-[#0B0B0B]">
+      <div className="grid gap-5 px-5 py-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(380px,0.95fr)]">
+        <div className="space-y-5">
+          <FormSection eyebrow="Conteudo" title="Identidade do preset">
+            <div className="grid gap-4 lg:grid-cols-12">
+              <div className="lg:col-span-8">
+                <label className={labelClass}>Titulo</label>
+                <input name="title" defaultValue={template.title} required className={fieldControlClass} />
+              </div>
+              <div className="lg:col-span-2">
+                <label className={labelClass}>Formato</label>
+                <select name="format" defaultValue={template.format} className={fieldControlClass}>
+                  <option value="TEXT">TEXT</option>
+                  <option value="JSON">JSON</option>
+                </select>
+              </div>
+              <div className="lg:col-span-2">
+                <label className={labelClass}>Ordem</label>
+                <input name="sort_order" type="number" defaultValue={template.sortOrder} className={fieldControlClass} />
+              </div>
+              <CategoryField
+                categories={categories}
+                currentCategory={template.category}
+                className="lg:col-span-6"
+              />
+              <div className="lg:col-span-6">
+                <label className={labelClass}>Texto de uso</label>
+                <input name="usage_label" defaultValue={template.usageLabel} className={fieldControlClass} />
+              </div>
+              <div className="lg:col-span-12">
+                <label className={labelClass}>Descricao</label>
+                <textarea
+                  name="description"
+                  defaultValue={template.description}
+                  rows={3}
+                  className={textareaControlClass}
+                />
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection eyebrow="Prompt" title="Instrucao oculta do preset" className="p-0">
+            <div className="px-4 pb-4">
+              <textarea
+                name="prompt"
+                defaultValue={template.prompt}
+                rows={13}
+                required
+                spellCheck={false}
+                className={`${textareaControlClass} min-h-[320px] font-mono text-[12px] leading-relaxed`}
+              />
+            </div>
+          </FormSection>
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-white/75">Formato</label>
-          <select
-            name="format"
-            defaultValue={template.format}
-            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-          >
-            <option value="TEXT">TEXT</option>
-            <option value="JSON">JSON</option>
-          </select>
+
+        <div className="space-y-5">
+          <FormSection eyebrow="Motor" title="Configuracao de geracao">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={labelClass}>Modo</label>
+                <select name="generation_mode" defaultValue={template.generationMode} className={fieldControlClass}>
+                  <option value="identity_scene">identity_scene</option>
+                  <option value="product_model">product_model</option>
+                  <option value="virtual_tryon">virtual_tryon</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Input</label>
+                <select name="input_mode" defaultValue={template.inputMode} className={fieldControlClass}>
+                  <option value="single_image">single_image</option>
+                  <option value="person_and_product">person_and_product</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Imagens</label>
+                <input
+                  name="required_images_count"
+                  type="number"
+                  min="1"
+                  max="3"
+                  defaultValue={template.requiredImagesCount}
+                  className={fieldControlClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Custo</label>
+                <input
+                  name="credit_cost"
+                  type="number"
+                  min="0"
+                  defaultValue={template.creditCost}
+                  className={fieldControlClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Visibilidade</label>
+                <select name="is_visible" defaultValue={String(template.isVisible)} className={fieldControlClass}>
+                  <option value="true">Visivel</option>
+                  <option value="false">Oculto</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Identity lock</label>
+                <select name="identity_lock" defaultValue={String(template.identityLock)} className={fieldControlClass}>
+                  <option value="true">Ativo</option>
+                  <option value="false">Desligado</option>
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className={labelClass}>Fonte da roupa</label>
+                <select name="outfit_source" defaultValue={template.outfitSource} className={fieldControlClass}>
+                  <option value="identity">identity: roupa enviada</option>
+                  <option value="template">template: roupa da base</option>
+                </select>
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection eyebrow="Visual" title="Imagens do preset">
+            <div className="mb-4 rounded-[16px] border border-cyan-400/20 bg-cyan-400/[0.045] px-4 py-3 text-xs leading-relaxed text-cyan-100/82">
+              <strong className="font-semibold text-cyan-200">Capa do card</strong> tambem e a imagem-base real usada na geracao.
+              <span className="mt-1 block text-cyan-100/65">
+                Ao duplicar um card e trocar a capa, a nova foto passa a ser a base daquele preset.
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <ImageUploadField
+                name="cover_image_url"
+                label="Capa do card"
+                currentUrl={template.coverImageUrl}
+                featured
+              />
+              <ImageUploadField
+                name="example_image_1_url"
+                label="Exemplo 1"
+                currentUrl={template.exampleImages[0] ?? ''}
+              />
+              <ImageUploadField
+                name="example_image_2_url"
+                label="Exemplo 2"
+                currentUrl={template.exampleImages[1] ?? ''}
+              />
+              <ImageUploadField
+                name="example_image_3_url"
+                label="Exemplo 3"
+                currentUrl={template.exampleImages[2] ?? ''}
+              />
+            </div>
+          </FormSection>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <CategoryField categories={categories} currentCategory={template.category} />
-        <div>
-          <label className="mb-1 block text-xs font-medium text-white/75">Ordem</label>
-          <input
-            name="sort_order"
-            type="number"
-            defaultValue={template.sortOrder}
-            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-4 gap-4">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-white/75">Modo</label>
-          <select
-            name="generation_mode"
-            defaultValue={template.generationMode}
-            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-          >
-            <option value="identity_scene">identity_scene</option>
-            <option value="product_model">product_model</option>
-            <option value="virtual_tryon">virtual_tryon</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-white/75">Input</label>
-          <select
-            name="input_mode"
-            defaultValue={template.inputMode}
-            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-          >
-            <option value="single_image">single_image</option>
-            <option value="person_and_product">person_and_product</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-white/75">Imagens</label>
-          <input
-            name="required_images_count"
-            type="number"
-            min="1"
-            max="3"
-            defaultValue={template.requiredImagesCount}
-            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-white/75">Custo</label>
-          <input
-            name="credit_cost"
-            type="number"
-            min="0"
-            defaultValue={template.creditCost}
-            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <label className="mb-1 block text-xs font-medium text-white/75">Visibilidade</label>
-          <select
-            name="is_visible"
-            defaultValue={String(template.isVisible)}
-            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-          >
-            <option value="true">Visivel</option>
-            <option value="false">Oculto</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-white/75">Identity lock</label>
-          <select
-            name="identity_lock"
-            defaultValue={String(template.identityLock)}
-            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-          >
-            <option value="true">Ativo</option>
-            <option value="false">Desligado</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-white/75">Fonte da roupa</label>
-          <select
-            name="outfit_source"
-            defaultValue={template.outfitSource}
-            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-          >
-            <option value="identity">identity: roupa enviada</option>
-            <option value="template">template: roupa da base</option>
-          </select>
-        </div>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs font-medium text-white/75">Descricao</label>
-        <textarea
-          name="description"
-          defaultValue={template.description}
-          rows={3}
-          className="w-full resize-y rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-        />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs font-medium text-white/75">Texto de uso</label>
-        <input
-          name="usage_label"
-          defaultValue={template.usageLabel}
-          className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-white focus:border-white/30 focus:outline-none"
-        />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs font-medium text-white/75">Prompt oculto do preset</label>
-        <textarea
-          name="prompt"
-          defaultValue={template.prompt}
-          rows={8}
-          required
-          className="w-full resize-y rounded-lg border border-white/10 bg-white/10 px-3 py-2 font-mono text-sm text-white focus:border-white/30 focus:outline-none"
-        />
-      </div>
-
-      <div className="border-t border-white/10 pt-4">
-        <p className="mb-3 text-xs uppercase tracking-widest text-white/75">Imagens</p>
-        <div className="mb-4 rounded-lg border border-cyan-400/20 bg-cyan-400/5 px-3 py-2 text-xs text-cyan-100/90">
-          A <strong className="text-cyan-200">Capa do card</strong> e a imagem-base real usada na geracao.
-          <span className="block mt-1 text-cyan-100/75">
-            Se voce duplicar o preset e trocar a capa, a geracao vai usar essa nova foto como base.
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <ImageUploadField name="cover_image_url" label="Capa do card" currentUrl={template.coverImageUrl} />
-          <ImageUploadField name="example_image_1_url" label="Exemplo 1" currentUrl={template.exampleImages[0] ?? ''} />
-          <ImageUploadField name="example_image_2_url" label="Exemplo 2" currentUrl={template.exampleImages[1] ?? ''} />
-          <ImageUploadField name="example_image_3_url" label="Exemplo 3" currentUrl={template.exampleImages[2] ?? ''} />
-        </div>
-      </div>
-
-      <div className="flex gap-3">
+      <div className="sticky bottom-0 z-10 flex items-center justify-between gap-4 border-t border-white/10 bg-[#0B0B0B]/95 px-5 py-4 backdrop-blur-xl">
+        <p className="text-xs text-white/45">Alteracoes ficam ativas assim que salvar.</p>
         <button
           type="submit"
           disabled={pending || categories.length === 0}
-          className="rounded-lg bg-accent px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-dark"
+          className="inline-flex min-w-[168px] items-center justify-center rounded-[14px] bg-[#54D6F6] px-6 py-3 text-sm font-bold text-[#031014] transition-colors hover:bg-[#7BE3FB] disabled:cursor-not-allowed disabled:opacity-45"
         >
           {submitLabel}
         </button>
