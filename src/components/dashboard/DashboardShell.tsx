@@ -70,7 +70,7 @@ export default function DashboardShell({
         className="min-h-screen bg-[#050505] font-sans text-white antialiased selection:bg-[#00ADCC] selection:text-[#003641]"
         style={{ ['--dashboard-sidebar-width' as string]: `${sidebarWidth}px` }}
       >
-        <MobileSidebar />
+        <MobileSidebar userPlan={resolvedPlan} userCredits={userCredits} />
 
         <div className="flex min-h-screen">
           <aside
@@ -133,7 +133,7 @@ export default function DashboardShell({
             </div>
           </aside>
 
-          <main className="relative min-h-screen flex-1 transition-[padding] duration-300 lg:pl-[var(--dashboard-sidebar-width)]">
+          <main className="relative min-h-screen flex-1 pb-24 transition-[padding] duration-300 lg:pb-0 lg:pl-[var(--dashboard-sidebar-width)]">
             <div className="pointer-events-none absolute right-[-140px] top-[-80px] h-[420px] w-[420px] rounded-full bg-[#00ADCC]/8 blur-[120px]" />
             <div className="relative z-10 min-h-screen">{children}</div>
           </main>

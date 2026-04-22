@@ -13,7 +13,13 @@ const NAV_ITEMS = [
   { href: '/dashboard/billing', fallbackLabel: 'Planos', labelKey: 'nav_billing', icon: CreditCard },
 ] as const
 
-export default function DashboardNav({ collapsed = false }: { collapsed?: boolean }) {
+export default function DashboardNav({
+  collapsed = false,
+  onNavigate,
+}: {
+  collapsed?: boolean
+  onNavigate?: () => void
+}) {
   const pathname = usePathname()
   const t = useT()
 
@@ -28,6 +34,7 @@ export default function DashboardNav({ collapsed = false }: { collapsed?: boolea
           <Link
             key={href}
             href={href}
+            onClick={onNavigate}
             title={collapsed ? label : undefined}
             className={`group relative flex items-center gap-4 rounded-2xl px-5 py-4 transition-all duration-300 ${
               isActive ? 'bg-white/6 text-[#54D6F6]' : 'text-white/40 hover:bg-white/4 hover:text-white'

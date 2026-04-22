@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { type ReactNode, useMemo, useState } from 'react'
-import { CheckCircle2, Download, ImagePlus, Loader2, LockKeyhole, Search, Sparkles, Wand2 } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Download, ImagePlus, Loader2, LockKeyhole, Search, Sparkles, Wand2 } from 'lucide-react'
 import {
   type ClientPromptGalleryTemplate,
 } from '@/lib/prompt-gallery'
@@ -35,9 +35,9 @@ export default function PromptGalleryContent({ initialTemplates }: { initialTemp
   const maxCreditCost = Math.max(...initialTemplates.map((item) => item.creditCost), 0)
 
   return (
-    <div className="min-h-screen bg-[#050505] px-6 py-10 md:px-10 lg:px-14">
+    <div className="min-h-screen bg-[#050505] px-4 pb-28 pt-6 md:px-10 md:py-10 lg:px-14">
       <div className="mx-auto max-w-7xl">
-        <header className="relative overflow-hidden rounded-[34px] border border-white/6 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] px-7 py-10 shadow-[0_24px_80px_rgba(0,0,0,0.28)] md:px-10 md:py-14">
+        <header className="relative overflow-hidden rounded-[28px] border border-white/6 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] px-5 py-7 shadow-[0_24px_80px_rgba(0,0,0,0.28)] md:rounded-[34px] md:px-10 md:py-14">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(84,214,246,0.09),transparent_60%)]" />
 
           <div className="relative z-10 flex flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
@@ -45,16 +45,16 @@ export default function PromptGalleryContent({ initialTemplates }: { initialTemp
               <p className="font-label text-[10px] uppercase tracking-[0.32em] text-[#54D6F6]">
                 Archive 01 - Guided Generation
               </p>
-              <h1 className="mt-5 font-display text-5xl font-bold leading-[0.9] tracking-[-0.06em] text-white md:text-7xl">
+              <h1 className="mt-4 font-display text-4xl font-bold leading-[0.92] tracking-[-0.06em] text-white md:mt-5 md:text-7xl">
                 Galeria de <span className="text-gradient-cyan">Geracoes</span>
               </h1>
-              <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#869397] md:text-xl">
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#869397] md:mt-5 md:text-xl">
                 Escolha o preset, envie sua referencia e entre no Studio com tudo armado. O prompt fica
                 protegido por baixo dos panos e voce cobra por foto gerada, nao por texto copiado.
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
               <MetricCard label="presets ativos" value={String(totalCards)} />
               <MetricCard label="identity lock" value={String(identityLockedCount)} />
               <MetricCard label="custo maximo" value={`${maxCreditCost} CR`} accent />
@@ -73,7 +73,7 @@ export default function PromptGalleryContent({ initialTemplates }: { initialTemp
             />
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2 md:mx-0 md:flex-wrap md:gap-3 md:overflow-visible md:px-0 md:pb-0">
             {filters.map((filter) => {
               const active = filter === activeFilter
               return (
@@ -81,7 +81,7 @@ export default function PromptGalleryContent({ initialTemplates }: { initialTemp
                   key={filter}
                   type="button"
                   onClick={() => setActiveFilter(filter)}
-                  className={`rounded-full px-5 py-2.5 font-label text-[11px] uppercase tracking-[0.2em] transition-all ${
+                  className={`shrink-0 rounded-full px-4 py-2.5 font-label text-[10px] uppercase tracking-[0.16em] transition-all md:px-5 md:text-[11px] md:tracking-[0.2em] ${
                     active
                       ? 'bg-cyan-gradient text-[#003641]'
                       : 'bg-white/[0.04] text-[#bcc9cd] hover:bg-white/[0.08] hover:text-white'
@@ -118,6 +118,7 @@ export default function PromptGalleryContent({ initialTemplates }: { initialTemp
 
 function GenerationCard({ template }: { template: ClientPromptGalleryTemplate }) {
   const labels = INPUT_LABELS[template.inputMode]
+  const [setupOpen, setSetupOpen] = useState(false)
   const [uploadedUrls, setUploadedUrls] = useState<string[]>(
     Array.from({ length: Math.max(1, template.requiredImagesCount) }, () => ''),
   )
@@ -191,8 +192,8 @@ function GenerationCard({ template }: { template: ClientPromptGalleryTemplate })
   }
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-[28px] border border-white/6 bg-[#1C1B1B] transition-all duration-500 hover:-translate-y-1 hover:border-[#54D6F6]/25 hover:shadow-[0_20px_60px_rgba(0,173,204,0.14)]">
-      <div className="relative aspect-[4/5] overflow-hidden bg-[#111]">
+    <article className="group flex flex-col overflow-hidden rounded-[24px] border border-white/6 bg-[#1C1B1B] transition-all duration-500 hover:-translate-y-1 hover:border-[#54D6F6]/25 hover:shadow-[0_20px_60px_rgba(0,173,204,0.14)] md:rounded-[28px]">
+      <div className="relative aspect-[4/3] overflow-hidden bg-[#111] sm:aspect-[4/5]">
         <img
           src={template.coverImageUrl}
           alt={template.title}
@@ -205,7 +206,7 @@ function GenerationCard({ template }: { template: ClientPromptGalleryTemplate })
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col p-6">
+      <div className="flex flex-1 flex-col p-5 md:p-6">
         <div className="flex flex-wrap gap-2">
           <span className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 font-label text-[9px] uppercase tracking-[0.18em] text-white/58">
             {template.generationMode}
@@ -221,82 +222,93 @@ function GenerationCard({ template }: { template: ClientPromptGalleryTemplate })
           ) : null}
         </div>
 
-        <h3 className="mt-4 font-display text-2xl font-bold tracking-[-0.04em] text-white">
+        <h3 className="mt-4 font-display text-[1.65rem] font-bold leading-none tracking-[-0.04em] text-white md:text-2xl">
           {template.title}
         </h3>
         <p className="mt-3 text-sm leading-relaxed text-[#869397]">{template.description}</p>
 
-        <div className="mt-5 rounded-[20px] border border-white/6 bg-black/20 p-4">
-          <p className="font-label text-[10px] uppercase tracking-[0.18em] text-white/32">
-            Como usar
-          </p>
-          <p className="mt-3 text-xs leading-relaxed text-[#bcc9cd]">{template.usageLabel}</p>
-          <p className="mt-2 text-[11px] leading-relaxed text-white/32">
-            O prompt fica oculto e a cena e gerada direto aqui no menu.
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={() => setSetupOpen((value) => !value)}
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-cyan-gradient px-5 py-3 font-display text-sm font-bold tracking-[0.08em] text-[#001f26] transition-all md:hidden"
+        >
+          {setupOpen ? 'Fechar fluxo' : 'Usar preset'}
+          <ChevronDown size={15} className={`transition-transform ${setupOpen ? 'rotate-180' : ''}`} />
+        </button>
 
-        <div className="mt-5 grid gap-3">
-          {Array.from({ length: template.requiredImagesCount }).map((_, index) => {
-            const uploaded = uploadedUrls[index]
-            const label = labels[index] ?? `Referencia ${index + 1}`
-            const busy = uploadingIndex === index
-
-            return (
-              <label
-                key={`${template.id}-${index}`}
-                className="group/upload relative flex cursor-pointer items-center gap-4 rounded-[22px] border border-white/8 bg-white/[0.03] p-3 transition-colors hover:border-[#54D6F6]/25 hover:bg-[#0C171A]"
-              >
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={busy || generating}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0]
-                    if (file) void uploadAt(index, file)
-                  }}
-                />
-
-                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[18px] border border-white/8 bg-black/30">
-                  {uploaded ? (
-                    <img src={uploaded} alt={label} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-white/28">
-                      {busy ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
-                    </div>
-                  )}
-                </div>
-
-                <div className="min-w-0">
-                  <p className="font-label text-[10px] uppercase tracking-[0.2em] text-[#54D6F6]">{label}</p>
-                  <p className="mt-1 text-sm text-white/72">
-                    {uploaded ? 'Imagem pronta para gerar.' : busy ? 'Enviando referencia...' : 'Clique para enviar sua referencia.'}
-                  </p>
-                </div>
-              </label>
-            )
-          })}
-        </div>
-
-        <div className="mt-6 flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={() => void handleGenerate()}
-            disabled={generating || uploadingIndex !== null}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-cyan-gradient px-5 py-3 font-display text-sm font-bold tracking-[0.08em] text-[#001f26] transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {generating ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />}
-            {generating ? 'Gerando imagem...' : `Gerar imagem - ${template.creditCost} CR`}
-          </button>
-          <p className="text-center text-[11px] leading-relaxed text-white/28">
-            O cliente so envia a foto. A geracao e salva por baixo dos panos.
-          </p>
-          {generateError ? (
-            <p className="rounded-[18px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-xs leading-relaxed text-red-200">
-              {generateError}
+        <div className={`${setupOpen ? 'block' : 'hidden'} md:block`}>
+          <div className="mt-5 rounded-[20px] border border-white/6 bg-black/20 p-4">
+            <p className="font-label text-[10px] uppercase tracking-[0.18em] text-white/32">
+              Como usar
             </p>
-          ) : null}
+            <p className="mt-3 text-xs leading-relaxed text-[#bcc9cd]">{template.usageLabel}</p>
+            <p className="mt-2 text-[11px] leading-relaxed text-white/32">
+              O prompt fica oculto e a cena e gerada direto aqui no menu.
+            </p>
+          </div>
+
+          <div className="mt-5 grid gap-3">
+            {Array.from({ length: template.requiredImagesCount }).map((_, index) => {
+              const uploaded = uploadedUrls[index]
+              const label = labels[index] ?? `Referencia ${index + 1}`
+              const busy = uploadingIndex === index
+
+              return (
+                <label
+                  key={`${template.id}-${index}`}
+                  className="group/upload relative flex cursor-pointer items-center gap-4 rounded-[22px] border border-white/8 bg-white/[0.03] p-3 transition-colors hover:border-[#54D6F6]/25 hover:bg-[#0C171A]"
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={busy || generating}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      if (file) void uploadAt(index, file)
+                    }}
+                  />
+
+                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[18px] border border-white/8 bg-black/30">
+                    {uploaded ? (
+                      <img src={uploaded} alt={label} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-white/28">
+                        {busy ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="font-label text-[10px] uppercase tracking-[0.2em] text-[#54D6F6]">{label}</p>
+                    <p className="mt-1 text-sm text-white/72">
+                      {uploaded ? 'Imagem pronta para gerar.' : busy ? 'Enviando referencia...' : 'Clique para enviar sua referencia.'}
+                    </p>
+                  </div>
+                </label>
+              )
+            })}
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => void handleGenerate()}
+              disabled={generating || uploadingIndex !== null}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-cyan-gradient px-5 py-3 font-display text-sm font-bold tracking-[0.08em] text-[#001f26] transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {generating ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />}
+              {generating ? 'Gerando imagem...' : `Gerar imagem - ${template.creditCost} CR`}
+            </button>
+            <p className="text-center text-[11px] leading-relaxed text-white/28">
+              O cliente so envia a foto. A geracao e salva por baixo dos panos.
+            </p>
+            {generateError ? (
+              <p className="rounded-[18px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-xs leading-relaxed text-red-200">
+                {generateError}
+              </p>
+            ) : null}
+          </div>
         </div>
 
         {resultUrl ? (
@@ -343,9 +355,9 @@ function MetricCard({
   accent?: boolean
 }) {
   return (
-    <div className="rounded-[24px] border border-white/8 bg-black/18 px-5 py-4">
-      <p className="font-label text-[10px] uppercase tracking-[0.24em] text-[#7D8B90]">{label}</p>
-      <p className={`mt-3 font-display text-3xl font-bold tracking-[-0.04em] ${accent ? 'text-[#54D6F6]' : 'text-white'}`}>
+    <div className="rounded-[18px] border border-white/8 bg-black/18 px-3 py-3 md:rounded-[24px] md:px-5 md:py-4">
+      <p className="font-label text-[8px] uppercase tracking-[0.16em] text-[#7D8B90] md:text-[10px] md:tracking-[0.24em]">{label}</p>
+      <p className={`mt-2 font-display text-xl font-bold tracking-[-0.04em] md:mt-3 md:text-3xl ${accent ? 'text-[#54D6F6]' : 'text-white'}`}>
         {value}
       </p>
     </div>
