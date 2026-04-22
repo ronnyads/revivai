@@ -4,17 +4,22 @@ import Script from 'next/script'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, Suspense } from 'react'
 
+type FacebookPixel = (...args: unknown[]) => void
+
 declare global {
-  interface Window { fbq: (...args: any[]) => void; _fbq: any }
+  interface Window {
+    fbq?: FacebookPixel
+    _fbq?: FacebookPixel
+  }
 }
 
-export function fbq(...args: any[]) {
+export function fbq(...args: unknown[]) {
   if (typeof window !== 'undefined' && window.fbq) {
     window.fbq(...args)
   }
 }
 
-function PixelTracker({ pixelId }: { pixelId: string }) {
+function PixelTracker() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -30,7 +35,7 @@ export default function MetaPixel({ pixelId }: { pixelId: string }) {
 
   return (
     <>
-      <Script id="fb-pixel" strategy="afterInteractive">
+      <Script id="fb-pixel" strategy="lazyOnload">
         {`
           !function(f,b,e,v,n,t,s)
           {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -45,6 +50,7 @@ export default function MetaPixel({ pixelId }: { pixelId: string }) {
         `}
       </Script>
       <noscript>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           height="1"
           width="1"
@@ -54,7 +60,7 @@ export default function MetaPixel({ pixelId }: { pixelId: string }) {
         />
       </noscript>
       <Suspense>
-        <PixelTracker pixelId={pixelId} />
+        <PixelTracker />
       </Suspense>
     </>
   )

@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { ArrowRight } from 'lucide-react'
 
 const STRUCTURE_ITEMS = [
@@ -50,7 +51,16 @@ export default function Features() {
 
         <div className="relative">
           <div className="pointer-events-none absolute -top-8 -right-4 h-32 w-32 border-t border-r border-[#54D6F6]/20" />
-          <img src={PORTRAIT_IMAGE} alt="Retrato editorial RevivAI" className="aspect-[3/4] w-full object-cover grayscale transition-all duration-700 hover:grayscale-0" />
+          <div className="relative aspect-[3/4] w-full overflow-hidden">
+            <Image
+              src={PORTRAIT_IMAGE}
+              alt="Retrato editorial RevivAI"
+              fill
+              quality={68}
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover grayscale transition-all duration-700 hover:grayscale-0"
+            />
+          </div>
           <div className="obsidian-chip absolute bottom-5 left-0 hidden translate-x-[-14%] p-5 lg:block">
             <span className="font-label block text-[10px] text-white/35">Código de status</span>
             <span className="font-label mt-2 block text-[11px] text-[#54D6F6]">Fluxo criptografado ativo</span>

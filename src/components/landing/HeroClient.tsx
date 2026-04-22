@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 
 type Stats = { photos: number; models: number; satisfaction: number; avgTime: number }
@@ -46,14 +48,22 @@ export default function HeroClient({ stats }: { stats: Stats }) {
     <>
       <section className="relative flex min-h-[100dvh] items-center overflow-hidden pt-28">
         <div className="absolute inset-0">
-          <img src={HERO_IMAGE} alt="Retrato futurista RevivAI" className="h-full w-full object-cover" />
+          <Image
+            src={HERO_IMAGE}
+            alt="Retrato futurista RevivAI"
+            fill
+            preload
+            quality={68}
+            sizes="100vw"
+            className="object-cover"
+          />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(14,14,14,0.92)_0%,rgba(14,14,14,0.68)_44%,rgba(14,14,14,0.78)_100%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_left_center,rgba(84,214,246,0.16),transparent_28%)]" />
         </div>
 
         <div className="relative z-10 mx-auto flex w-full max-w-[1440px] flex-col justify-between gap-10 px-6 pb-16 md:px-8 lg:flex-row lg:items-end">
           <div className="max-w-3xl pt-16">
-            <p className="font-label mb-5 text-xs text-[#54D6F6]">// estúdio visual · IA generativa</p>
+            <p className="font-label mb-5 text-xs text-[#54D6F6]">estúdio visual · IA generativa</p>
             <h1 className="font-display text-6xl font-bold leading-[0.9] tracking-[-0.06em] text-white md:text-[112px]">
               VISUAL DO
               <br />
@@ -65,12 +75,12 @@ export default function HeroClient({ stats }: { stats: Stats }) {
             </p>
 
             <div className="mt-10 flex flex-wrap items-center gap-4">
-              <a
+              <Link
                 href="/dashboard/studio"
                 className="bg-cyan-gradient inline-flex items-center gap-3 rounded-full px-7 py-4 font-label text-xs text-[#003641] shadow-[0_12px_36px_rgba(0,173,204,0.25)] transition-all duration-300 hover:-translate-y-0.5"
               >
                 Criar Projeto
-              </a>
+              </Link>
               <a
                 href="#recursos"
                 className="inline-flex items-center gap-3 rounded-full border border-white/10 px-7 py-4 font-label text-xs text-white/70 transition-colors duration-300 hover:border-[#54D6F6]/40 hover:text-white"

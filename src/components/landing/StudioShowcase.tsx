@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+
 const UGC_MODEL_IMAGE =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuBzbh-2si6l4m2hd2IlsT5HiXwV7rVquQJQb-A6jdl1vRKcYXNG3oohzWX4Oh__z53Ral7zgSexR3vyxb238SXs4MRJV7C9ijm_091l8Cmq47B1oBbOQlxFLfyxyj5VSxOJT7ss6cWxGD3cNft6sAZSvw5fzY5373ALrE3bDYVj7mgYfJKZv6treFqo8JLH4-hm1IJTtQwDH6J_x5tshZUEo8rvW61C5H9Bh1cTaTaCCdBhh1MVT8lQOLdJ39Xk-upEZKIImLbjuW5l'
 
@@ -45,10 +47,13 @@ export default function StudioShowcase() {
       <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-6 px-6 md:grid-cols-12 md:px-8">
         {SHOWCASE_ITEMS.map((item) => (
           <article key={item.title} className={`group relative overflow-hidden rounded-sm ${item.className}`}>
-            <img
+            <Image
               src={item.image}
               alt={item.title}
-              className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              fill
+              quality={66}
+              sizes="(max-width: 768px) 100vw, 58vw"
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_34%,rgba(14,14,14,0.82)_100%)]" />
             <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
