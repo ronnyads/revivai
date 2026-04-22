@@ -2247,22 +2247,23 @@ export async function generatePresetIdentityScene(params: {
   const identityLockBlock = [
     'IDENTITY LOCK — person[1] é a referência exclusiva.',
     'RULE 1 — FACIAL & BODY IDENTITY: Clonagem 100% fiel — estrutura óssea, nariz, lábios, olhos, cor dos olhos, sobrancelhas, tom de pele, idade, cabelo. Nada de deixar mais jovem ou diferente.',
-    'RULE 2 — OUTFIT FIDELITY: Roupa pixel-perfect idêntica — tipo, cor, textura, decote, alças, fit.',
-    'RULE 2B — NO INVENTED OBJECTS: Nenhum produto, objeto ou acessório que não esteja na pessoa original. Mãos vazias ficam vazias.',
+    'RULE 2 — OUTFIT FIDELITY: Roupa da pessoa enviada pixel-perfect idêntica — tipo de peça, cor, textura, decote, alças, mangas, fit, caimento, estampas, acessórios e todos os detalhes visíveis. Não invente fantasia, uniforme, traje de personagem, roupa premium ou roupa nova.',
+    'RULE 2B — NO INVENTED OBJECTS: Nenhum produto, objeto, acessório ou peça de roupa que não esteja na pessoa original. Mãos vazias ficam vazias.',
     'RULE 3 — ANATOMY: Foto única. Os 2 braços completamente visíveis e anatomicamente corretos — exatamente 2 braços, 2 mãos, 5 dedos cada.',
-    'RULE 4 — DYNAMIC POSE: Executa a pose do template scene com naturalidade premium.',
+    'RULE 4 — POSE/POSITION LOCK: Copie a pose, posição corporal, gesto, direção do olhar, distância da câmera e ângulo do template scene. Não mude pose, perspectiva, lente ou enquadramento.',
     'RULE 5 — LIGHTING: Iluminação comercial cinematográfica, profundidade de campo natural, bokeh suave.',
-    'RULE 6 — CAMERA: Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, film grain, 8K.',
+    'RULE 6 — CAMERA: Preserve a câmera e lente aparentes da cena-base; não rotacione, aproxime, afaste ou mude o ângulo.',
   ].join(' ')
 
   const templatePreservationBlock = [
     'TEMPLATE SCENE LOCK: a primeira imagem é a cena-base absoluta.',
-    'Preserve com fidelidade máxima a composição, enquadramento, proporção da câmera, fundo, profundidade, ambiente, posição dos personagens secundários, objetos, atmosfera e storytelling da cena-base.',
+    'Preserve com fidelidade máxima a composição, enquadramento, proporção da câmera, distância focal, ângulo, pose, posição corporal, gestos, fundo, profundidade, ambiente, posição dos personagens secundários, objetos, atmosfera e storytelling da cena-base.',
     'Substitua somente a pessoa humana principal da cena-base por person[1].',
     'Remova completamente a pessoa original da cena-base.',
     'Não simplifique a imagem para um retrato isolado.',
     'Não corte personagens secundários.',
     'Não troque o fundo por outro ambiente.',
+    'Não mude pose, ângulo, perspectiva, lente, zoom, rotação, altura da câmera ou posição dos personagens.',
     'Não transforme a saída em foto solo de estúdio, floresta ou fundo neutro se a cena-base for uma selfie urbana com personagens.',
     'Se a cena-base for selfie, mantenha a lógica de selfie, braço estendido e perspectiva de câmera em primeira pessoa.',
     'A cena final deve parecer a mesma foto-base, porém com a pessoa principal trocada pela identidade de person[1].',
@@ -2336,10 +2337,11 @@ export async function generatePresetIdentityScene(params: {
       },
       body: JSON.stringify({
         prompt: [
-          `Create a photorealistic commercial image inspired by the provided preset scene.`,
+          `Create a photorealistic commercial image using the provided preset scene as a strict composition reference.`,
           `Creative direction: ${params.scene_prompt}.`,
-          `Use the reference person as the main subject and preserve face, age, skin tone, hair, outfit colors, body proportions and identity as closely as possible.`,
-          `Keep the same overall mood, framing logic, environment, camera feeling and storytelling from the preset scene when possible.`,
+          `Use the reference person as the main subject and preserve face, age, skin tone, hair, body proportions and identity as closely as possible.`,
+          `Hard lock the reference person's clothing: do not change garment type, colors, fabric, fit, sleeves, neckline, prints, accessories, or visible details. Do not invent costumes, uniforms, character outfits, luxury outfits, or new clothes.`,
+          `Hard lock the preset scene pose and camera: keep the same pose, body position, gesture, camera angle, perspective, lens feeling, framing, zoom distance, environment, background, secondary characters, objects and storytelling.`,
           ratioInstruction,
           `Natural lighting, correct shadows, realistic perspective, no watermark.`,
         ].join(' '),

@@ -11,9 +11,12 @@ import { getDefaultPromptTemplateById, normalizePromptTemplate, PromptTemplateRo
 function buildHiddenIdentityScenePrompt(templateTitle: string, templatePrompt: string) {
   return [
     'Use a PRIMEIRA imagem como cena-base absoluta.',
-    'Mantenha a composição, enquadramento, fundo, personagens secundários, objetos e atmosfera da imagem-base.',
+    'Mantenha a composição, enquadramento, posição corporal, pose, gestos, distância de câmera, ângulo de câmera, fundo, personagens secundários, objetos e atmosfera da imagem-base.',
     'Use a foto enviada como referência exclusiva da nova pessoa principal.',
     'Substitua somente o indivíduo principal da imagem-base pela pessoa da foto enviada.',
+    'Não altere a roupa da pessoa enviada: preserve tipo de peça, cor, textura, caimento, mangas, decote, estampas, acessórios e detalhes visíveis.',
+    'Não invente fantasia, uniforme, traje de personagem, roupa premium ou roupa nova.',
+    'Não mude a pose, posição, perspectiva, lente, distância focal ou ângulo da cena-base.',
     'Não troque o fundo.',
     'Não simplifique para retrato solo.',
     'Não remover personagens secundários.',
