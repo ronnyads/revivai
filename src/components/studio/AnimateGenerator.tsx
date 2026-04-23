@@ -67,6 +67,12 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
         Se gravar pela webcam aqui no card, o limite e de <span className="font-semibold text-white">30 segundos</span>.
       </div>
 
+      <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 px-3 py-2 text-[11px] leading-relaxed text-zinc-400">
+        <span className="font-semibold text-amber-300">Importante:</span> este modo copia o
+        movimento, pose e expressao do video. <span className="font-semibold text-white">O audio nao e copiado.</span>
+        Para fazer falar ou sincronizar a boca, use <span className="font-semibold text-white">Lip Sync</span> depois.
+      </div>
+
       <ImageUpload
         value={uploadedPortraitUrl}
         onChange={setUploadedPortraitUrl}
@@ -147,8 +153,8 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
       <div className="flex items-start gap-2 rounded-xl border border-fuchsia-500/10 bg-fuchsia-500/5 p-3">
         <div className="mt-1.5 h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-fuchsia-500" />
         <p className="text-[10px] leading-relaxed text-zinc-500">
-          Use este modo quando quiser copiar um movimento real. Se quiser inventar uma cena nova, use o card
-          de video.
+          Use este modo quando quiser copiar um movimento real. Se tambem quiser voz ou boca sincronizada,
+          encaixe o resultado no card de Lip Sync. Para inventar uma cena nova, use o card de video.
         </p>
       </div>
 
