@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Camera, Square, CheckCircle, RotateCcw, Loader2, Upload, X } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 type Phase = 'idle' | 'preview' | 'countdown' | 'recording' | 'recorded' | 'uploading'
 
@@ -12,7 +13,12 @@ interface Props {
 
 const MAX_SECONDS = 30
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
 export default function WebcamRecorder({ value, onChange }: Props) {
+  const supabase = createClient()
   const [phase,       setPhase]       = useState<Phase>('idle')
   const [countdown,   setCountdown]   = useState(3)
   const [elapsed,     setElapsed]     = useState(0)
@@ -121,8 +127,8 @@ export default function WebcamRecorder({ value, onChange }: Props) {
       const data = await res.json()
       if (data.url) { onChange(data.url) }
       else { throw new Error(data.error ?? 'Erro no upload') }
-    } catch (e: any) {
-      setError(e.message ?? 'Erro ao enviar vídeo')
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, 'Erro ao enviar vídeo'))
       setPhase('recorded')
     }
   }, [onChange])
@@ -204,19 +210,17 @@ export default function WebcamRecorder({ value, onChange }: Props) {
                     body: JSON.stringify({ filename: file.name, contentType: file.type }),
                   })
                   const signData = await signRes.json()
-                  if (!signData.signedUrl) throw new Error(signData.error ?? 'Erro ao obter URL')
+                  if (!signData.path || !signData.token) throw new Error(signData.error ?? 'Erro ao obter URL')
 
-                  // 2. Upload direto para o Supabase (bypassa Vercel)
-                  const putRes = await fetch(signData.signedUrl, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': file.type },
-                    body: file,
-                  })
-                  if (!putRes.ok) throw new Error(`Upload falhou: ${putRes.status}`)
+                  // 2. Upload direto para o Supabase usando a assinatura correta
+                  const { error: uploadError } = await supabase.storage
+                    .from('studio')
+                    .uploadToSignedUrl(signData.path, signData.token, file)
+                  if (uploadError) throw uploadError
 
                   onChange(signData.publicUrl)
-                } catch (err: any) {
-                  setError(err.message ?? 'Erro ao enviar')
+                } catch (error: unknown) {
+                  setError(getErrorMessage(error, 'Erro ao enviar'))
                   setPhase('idle')
                 }
               }}

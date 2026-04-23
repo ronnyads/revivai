@@ -115,6 +115,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [assets,      setAssets]      = useState<StudioAsset[]>(initialAssets)
   const [connections, setConnections] = useState<StudioConnection[]>(initialConnections)
   const [credits,     setCredits]     = useState(userCredits)
+  const [hydrated,    setHydrated]    = useState(false)
   const { screenToFlowPosition } = useReactFlow()
   const [title,       setTitle]       = useState(project.title)
   const [editing,     setEditing]     = useState(false)
@@ -147,6 +148,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   )
 
   // ── Atalhos de Teclado (Ctrl+Z e Ctrl+S) ────────────────────────────────
+  useEffect(() => {
+    setHydrated(true)
+  }, [])
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignora se estiver digitando em um input
@@ -1244,8 +1249,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
               {saveState === 'error' ? 'falha no autosave' : saveState === 'saving' ? 'salvando rascunho' : 'progresso salvo'}
             </span>
             {lastSavedAt ? (
-              <span className="font-label text-[10px] text-white/38">
-                {lastSavedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+              <span className="font-label text-[10px] text-white/38" suppressHydrationWarning>
+                {hydrated ? lastSavedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--'}
               </span>
             ) : null}
           </div>

@@ -563,17 +563,14 @@ function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: () =
 function ProcessingCard({ type, createdAt, assetId }: { type: AssetType; createdAt: string; assetId: string }) {
   const estimated = ESTIMATED[type] ?? 30
   const label     = LABELS[type] ?? 'Gerando com IA...'
-
-  const [elapsed, setElapsed] = useState(() => {
-    const start = new Date(createdAt).getTime()
-    return Math.floor((Date.now() - start) / 1000)
-  })
+  const [elapsed, setElapsed] = useState(0)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
 
   useEffect(() => {
+    const start = new Date(createdAt).getTime()
+    setElapsed(Math.floor((Date.now() - start) / 1000))
     const t = setInterval(() => {
-      const start = new Date(createdAt).getTime()
       setElapsed(Math.floor((Date.now() - start) / 1000))
     }, 1000)
     return () => clearInterval(t)
