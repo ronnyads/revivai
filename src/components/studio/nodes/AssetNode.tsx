@@ -21,6 +21,7 @@ import AngleGenerator from '../AngleGenerator'
 import MusicGenerator from '../MusicGenerator'
 import SceneGenerator from '../SceneGenerator'
 import UGCBundleGenerator from '../UGCBundleGenerator'
+import { getStudioNodeCardWidth } from '../node-layout'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string; hint: string; output: string }> = {
   face:    { icon: <User size={14} />,     label: 'Rosto Real (Upload)', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Faça upload de uma foto', output: 'Foto salva →' },
@@ -87,7 +88,6 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
 
 const PAID_PLANS = ['subscription', 'package', 'starter', 'popular', 'pro', 'agency']
 const VIDEO_LOCKED_TYPES: AssetType[] = ['video', 'animate', 'lipsync']
-const WIDE_LAYOUT_TYPES: AssetType[] = ['scene', 'compose', 'angles', 'video', 'image', 'upscale', 'lipsync', 'animate']
 
 export interface AssetNodeData {
   asset: StudioAsset
@@ -102,7 +102,6 @@ export interface AssetNodeData {
 function AssetNode({ data }: NodeProps) {
   const { asset, userPlan, onDelete, onGenerate, onUpdateParams, onDuplicate } = data as AssetNodeData
   const isVideoLocked = VIDEO_LOCKED_TYPES.includes(asset.type) && !PAID_PLANS.includes(userPlan ?? '')
-  const isWideLayout = WIDE_LAYOUT_TYPES.includes(asset.type)
   const meta = TYPE_META[asset.type]
   const composeVariant = asset.type === 'compose' ? String(asset.input_params.compose_variant ?? 'fitting') : ''
   const displayMeta = asset.type === 'compose'
@@ -127,9 +126,9 @@ function AssetNode({ data }: NodeProps) {
   }
 
   return (
-    <div className={`${isWideLayout ? 'w-[620px]' : 'w-[320px]'} bg-zinc-950/90 backdrop-blur-md border ${asset.type === 'render' ? 'border-rose-500/40' : 'border-white/5'} rounded-[1.5rem] overflow-visible shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] group/node hover:ring-2 hover:ring-accent/20 transition-all duration-300 ${
+    <div className={`bg-zinc-950/90 backdrop-blur-md border ${asset.type === 'render' ? 'border-rose-500/40' : 'border-white/5'} rounded-[1.5rem] overflow-visible shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] group/node hover:ring-2 hover:ring-accent/20 transition-all duration-300 ${
       asset.isNew ? 'ring-4 ring-orange-500 shadow-[0_0_50px_rgba(249,115,22,0.5)] animate-fire-pulse scale-[1.02]' : ''
-    }`}>
+    }`} style={{ width: getStudioNodeCardWidth(asset.type) }}>
       
       {/* Estilos para o Efeito de Fogo (Fire Highlight) */}
       <style jsx>{`

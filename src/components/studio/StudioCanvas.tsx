@@ -19,6 +19,11 @@ import CampaignWizard, { WizardResult } from './CampaignWizard'
 import TemplateGallery, { WorkflowTemplate } from './TemplateGallery'
 import StudioChatPanel from './StudioChatPanel'
 import {
+  getStudioNodeCardWidth,
+  STUDIO_NODE_GRID_SPACING_X,
+  STUDIO_NODE_GRID_SPACING_Y,
+} from './node-layout'
+import {
   HERO_SELFIE_TEMPLATE_ID,
   PENDING_GENERATION_STORAGE_KEY,
   type PendingPromptGenerationSession,
@@ -26,12 +31,6 @@ import {
 
 const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
-
-const WIDE_NODE_TYPES: AssetType[] = ['scene', 'compose', 'angles', 'video', 'image', 'upscale', 'lipsync', 'animate']
-
-function getNodeCardWidth(type: AssetType) {
-  return WIDE_NODE_TYPES.includes(type) ? 620 : 320
-}
 
 const CREDIT_COST: Record<AssetType, number> = {
   image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12,
@@ -92,11 +91,11 @@ function buildNodes(assets: StudioAsset[], callbacks: Omit<AssetNodeData, 'asset
     id: asset.id,
     type: 'assetNode',
     position: {
-      x: asset.position_x ?? (100 + (i % 3) * 380),
-      y: asset.position_y ?? (100 + Math.floor(i / 3) * 440),
+      x: asset.position_x ?? (100 + (i % 3) * STUDIO_NODE_GRID_SPACING_X),
+      y: asset.position_y ?? (100 + Math.floor(i / 3) * STUDIO_NODE_GRID_SPACING_Y),
     },
     data: { asset, ...callbacks } as unknown as Record<string, unknown>,
-    style: { overflow: 'visible', width: getNodeCardWidth(asset.type) },
+    style: { overflow: 'visible', width: getStudioNodeCardWidth(asset.type) },
   }))
 }
 
@@ -326,7 +325,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
     const pos = currentAsset
       ? { x: currentAsset.position_x, y: currentAsset.position_y }
-      : { x: 100 + (assets.length % 3) * 380, y: 100 + Math.floor(assets.length / 3) * 440 }
+      : {
+          x: 100 + (assets.length % 3) * STUDIO_NODE_GRID_SPACING_X,
+          y: 100 + Math.floor(assets.length / 3) * STUDIO_NODE_GRID_SPACING_Y,
+        }
 
     // Mescla params do form com campos já preenchidos por conexões (ex: model_prompt, source_image_url)
     // Os params do form têm prioridade sobre os defaults, mas campos de conexão são preservados
@@ -453,7 +455,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         .map(n => ({
           ...n,
           data: { ...n.data, asset: assetMap.get(n.id)!, ...nodeCallbacks },
-          style: { overflow: 'visible', width: getNodeCardWidth(assetMap.get(n.id)!.type) },
+          style: { overflow: 'visible', width: getStudioNodeCardWidth(assetMap.get(n.id)!.type) },
         }))
 
       // Adiciona nodes novos que ainda não existem no ReactFlow
@@ -463,11 +465,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         id: asset.id,
         type: 'assetNode' as const,
         position: {
-          x: asset.position_x ?? (100 + ((offset + j) % 3) * 380),
-          y: asset.position_y ?? (100 + Math.floor((offset + j) / 3) * 440),
+          x: asset.position_x ?? (100 + ((offset + j) % 3) * STUDIO_NODE_GRID_SPACING_X),
+          y: asset.position_y ?? (100 + Math.floor((offset + j) / 3) * STUDIO_NODE_GRID_SPACING_Y),
         },
         data: { asset, ...nodeCallbacks } as unknown as Record<string, unknown>,
-        style: { overflow: 'visible', width: getNodeCardWidth(asset.type) },
+        style: { overflow: 'visible', width: getStudioNodeCardWidth(asset.type) },
       }))
 
       return [...updated, ...newNodes]
@@ -865,8 +867,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
     // Posicionamento inteligente: se vier do botão direito, usa a posição do mouse.
     // Se vier do botão do topo, nasce no CENTRO da tela atual.
-    let pX = 60 + (i % 3) * 380
-    let pY = 450 + Math.floor(i / 3) * 440
+    let pX = 60 + (i % 3) * STUDIO_NODE_GRID_SPACING_X
+    let pY = 450 + Math.floor(i / 3) * STUDIO_NODE_GRID_SPACING_Y
 
     if (quickAddMenu) {
       const flowPos = screenToFlowPosition({ x: quickAddMenu.x, y: quickAddMenu.y })
@@ -875,7 +877,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     } else {
       // Nasce no centro exato da visão atual do usuário
       const flowPos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
-      pX = flowPos.x - getNodeCardWidth(type) / 2
+      pX = flowPos.x - getStudioNodeCardWidth(type) / 2
       pY = flowPos.y - 100 // Sobe um pouco para ficar bem no meio
     }
     
@@ -1007,13 +1009,15 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
     // 1. Card Modelo UGC — coluna esquerda
     const modelId = crypto.randomUUID()
+    const laneStartX = 60
+    const secondLaneX = laneStartX + STUDIO_NODE_GRID_SPACING_X
     newAssets.push({
       id: modelId,
       project_id: project.id, user_id: project.user_id,
       type: 'model', status: 'idle',
       input_params: { ...result.modelConfig },
       credits_cost: 8, board_order: idx++,
-      position_x: 60, position_y: 440,
+      position_x: laneStartX, position_y: 440,
       created_at: new Date().toISOString(),
       isLocal: true,
     })
@@ -1028,7 +1032,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         type: 'compose', status: 'idle',
         input_params: { portrait_url: '', product_url: result.productUrl, position: 'southeast', product_scale: 0.35 },
         credits_cost: 12, board_order: idx++,
-        position_x: 440, position_y: 440,
+        position_x: secondLaneX, position_y: 440,
         created_at: new Date().toISOString(),
         isLocal: true,
       })
@@ -1036,11 +1040,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     }
 
     // 3. Cards por segmento: Script → Voz → Vídeo (contínuo) → Lip Sync
-    const baseX = result.productUrl ? 820 : 440
+    const baseX = result.productUrl ? secondLaneX + STUDIO_NODE_GRID_SPACING_X : secondLaneX
     let prevVideoId: string | null = null
 
     result.segments.forEach((seg, i) => {
-      const colX      = baseX + i * 380
+      const colX      = baseX + i * STUDIO_NODE_GRID_SPACING_X
       const scriptId  = crypto.randomUUID()
       const voiceId   = crypto.randomUUID()
       const videoId   = crypto.randomUUID()
