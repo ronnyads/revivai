@@ -90,8 +90,23 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
                 muted
                 autoPlay
                 loop
-                preload="metadata"
+                preload="auto"
+                onLoadedMetadata={(event) => {
+                  const video = event.currentTarget
+                  const targetTime = Math.min(0.15, Math.max((video.duration || 0) - 0.01, 0))
+                  if (targetTime > 0) {
+                    video.currentTime = targetTime
+                    return
+                  }
+                  setLoadedPreviewUrl(drivingUrl)
+                  void video.play().catch(() => {})
+                }}
+                onSeeked={(event) => {
+                  setLoadedPreviewUrl(drivingUrl)
+                  void event.currentTarget.play().catch(() => {})
+                }}
                 onLoadedData={(event) => {
+                  if (loadedPreviewUrl === drivingUrl) return
                   setLoadedPreviewUrl(drivingUrl)
                   void event.currentTarget.play().catch(() => {})
                 }}
