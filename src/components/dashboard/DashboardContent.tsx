@@ -19,7 +19,7 @@ type DashboardProject = Pick<StudioProject, 'id' | 'title' | 'updated_at' | 'sta
 }
 
 const PLAN_LABELS: Record<string, string> = {
-  free: 'Plano Free',
+  free: 'Explorador',
   subscription: 'Assinatura',
   package: 'Pacote',
 }

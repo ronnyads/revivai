@@ -52,7 +52,7 @@ export default function DashboardShell({
 
   const sidebarWidth = sidebarCollapsed ? 104 : 320
   const toggleSidebar = () => setSidebarCollapsed((value) => !value)
-  const resolvedPlan = userPlan === 'subscription' ? 'Assinatura' : userPlan === 'package' ? 'Pacote' : 'Free'
+  const resolvedPlan = userPlan === 'subscription' ? 'Assinatura' : userPlan === 'package' ? 'Pacote' : 'Explorador'
   const creditRatio = Math.max(6, Math.min(100, userCredits > 0 ? Math.round((userCredits / Math.max(userCredits, 200)) * 100) : 6))
 
   const contextValue = useMemo(
