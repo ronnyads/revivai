@@ -54,6 +54,11 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
         {isConnected ? 'Modelo conectado' : hasPortrait ? 'Retrato definido' : 'Aguardando retrato...'}
       </div>
 
+      <div className="rounded-xl border border-fuchsia-500/10 bg-fuchsia-500/5 px-3 py-2 text-[11px] leading-relaxed text-zinc-400">
+        <span className="font-semibold text-fuchsia-300">Duracao do video:</span> segue o video de referencia.
+        Se gravar pela webcam aqui no card, o limite e de <span className="font-semibold text-white">30 segundos</span>.
+      </div>
+
       {!hasPortrait && (
         <ImageUpload
           value={uploadedPortraitUrl}
