@@ -26,9 +26,15 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
   const drivingUrl = recordedDrivingUrl || connectedDrivingUrl
   const hasPortrait = !!portraitUrl.trim()
   const hasDriving = !!drivingUrl.trim()
-  const isConnected = !!connectedPortraitUrl
   const cost = CREDIT_COST.animate
   const previewReady = loadedPreviewUrl === drivingUrl
+  const portraitSourceLabel = uploadedPortraitUrl
+    ? 'Foto enviada: upload manual'
+    : connectedPortraitUrl
+      ? 'Foto enviada: modelo conectado'
+      : hasPortrait
+        ? 'Retrato definido'
+        : 'Aguardando retrato...'
 
   return (
     <div className="flex flex-col gap-3">
@@ -53,7 +59,7 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
         }`}
       >
         <User size={11} strokeWidth={3} />
-        {isConnected ? 'Modelo conectado' : hasPortrait ? 'Retrato definido' : 'Aguardando retrato...'}
+        {portraitSourceLabel}
       </div>
 
       <div className="rounded-xl border border-fuchsia-500/10 bg-fuchsia-500/5 px-3 py-2 text-[11px] leading-relaxed text-zinc-400">
@@ -61,14 +67,18 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
         Se gravar pela webcam aqui no card, o limite e de <span className="font-semibold text-white">30 segundos</span>.
       </div>
 
-      {!hasPortrait && (
-        <ImageUpload
-          value={uploadedPortraitUrl}
-          onChange={setUploadedPortraitUrl}
-          label="Foto da pessoa"
-          accept="image/*"
-          preview
-        />
+      <ImageUpload
+        value={uploadedPortraitUrl}
+        onChange={setUploadedPortraitUrl}
+        label={hasPortrait ? 'Trocar foto da pessoa (opcional)' : 'Foto da pessoa'}
+        accept="image/*"
+        preview
+      />
+
+      {connectedPortraitUrl && !uploadedPortraitUrl && (
+        <p className="text-[10px] leading-relaxed text-zinc-500">
+          A foto conectada do board e a que sera enviada para a IA. Se quiser usar outra, envie uma nova foto acima.
+        </p>
       )}
 
       {hasPortrait && hasDriving && (
