@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, X, Loader2, Image as ImageIcon } from 'lucide-react'
+import { X, Loader2, Image as ImageIcon } from 'lucide-react'
 
 interface Props {
   value: string
@@ -20,7 +20,7 @@ export default function ImageUpload({ value, onChange, label = 'Imagem', accept 
     setUploading(true)
     setError('')
     try {
-      let finalFile = file;
+      let finalFile = file
       
       // Se for imagem e pesar mais que 1.5MB, comprimimos no client para não bater no 4.5MB limit da Vercel
       if (file.type.startsWith('image/') && file.size > 1.5 * 1024 * 1024) {
@@ -44,7 +44,7 @@ export default function ImageUpload({ value, onChange, label = 'Imagem', accept 
   }
 
   function compressImage(file: File): Promise<File> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const img = new globalThis.Image()
       img.src = URL.createObjectURL(file)
       img.onload = () => {
@@ -65,12 +65,22 @@ export default function ImageUpload({ value, onChange, label = 'Imagem', accept 
         canvas.width = width
         canvas.height = height
         const ctx = canvas.getContext('2d')
-        ctx?.drawImage(img, 0, 0, width, height)
+        if (!ctx) {
+          URL.revokeObjectURL(img.src)
+          resolve(file)
+          return
+        }
+
+        // Mantem PNG consistente ao converter para JPG, evitando fundo preto/transparencia estranha.
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, width, height)
+        ctx.drawImage(img, 0, 0, width, height)
         
         canvas.toBlob(blob => {
           URL.revokeObjectURL(img.src)
           if (blob) {
-            resolve(new File([blob], file.name, { type: 'image/jpeg' }))
+            const safeName = file.name.replace(/\.[^.]+$/, '') || 'image'
+            resolve(new File([blob], `${safeName}.jpg`, { type: 'image/jpeg' }))
           } else {
             resolve(file)
           }
@@ -89,6 +99,7 @@ export default function ImageUpload({ value, onChange, label = 'Imagem', accept 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (file) handleFile(file)
+    e.target.value = ''
   }
 
   // Se já tem URL e é imagem com preview
