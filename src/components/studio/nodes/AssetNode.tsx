@@ -84,7 +84,7 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
   scene:   [{ id: 'source_url', label: 'Modelo/Fusão' }],
 }
 
-const PAID_PLANS = ['starter', 'popular', 'pro', 'agency']
+const PAID_PLANS = ['subscription', 'package', 'starter', 'popular', 'pro', 'agency']
 const VIDEO_LOCKED_TYPES: AssetType[] = ['video', 'animate', 'lipsync']
 const WIDE_LAYOUT_TYPES: AssetType[] = ['scene', 'compose', 'angles', 'video', 'image', 'upscale', 'lipsync', 'animate']
 
@@ -274,7 +274,7 @@ function AssetNode({ data }: NodeProps) {
                   onRegenerate={() => onGenerate(asset.type, asset.input_params, asset.id)}
                 />
               )}
-              {asset.type === 'lipsync' && <LipsyncGenerator initial={asset.input_params} onGenerate={(p: any) => { onUpdateParams(asset.id, p); onGenerate(asset.type, p, asset.id) }} />}
+              {asset.type === 'lipsync' && <LipsyncGenerator initial={asset.input_params} onGenerate={(p: Record<string, unknown>) => { onUpdateParams(asset.id, p); onGenerate(asset.type, p, asset.id) }} />}
               {asset.type !== 'script' && asset.type !== 'caption' && asset.type !== 'model' && asset.type !== 'lipsync' && (
                 <button
                   onClick={handleDownload}
@@ -506,7 +506,7 @@ function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: () =
   const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
 
-  const hasPrediction = !!(asset.input_params as any)?.prediction_id
+  const hasPrediction = !!(asset.input_params as { prediction_id?: unknown }).prediction_id
   const canSync = SYNC_TYPES.includes(asset.type) && hasPrediction
 
   async function handleSync() {

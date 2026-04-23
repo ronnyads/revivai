@@ -8,6 +8,11 @@ import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCapt
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
 
+type StudioAssetRecord = {
+  id: string
+  [key: string]: unknown
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/studio/assets — cria asset e dispara geração
    Body: { project_id, type, input_params }
@@ -49,7 +54,7 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await admin.from('users').select('credits, plan').eq('id', user.id).single()
 
   // Bloqueia vídeo/animação/lipsync para plano Explorador (free)
-  const PAID_PLANS = ['starter', 'popular', 'pro', 'agency']
+  const PAID_PLANS = ['subscription', 'package', 'starter', 'popular', 'pro', 'agency']
   const VIDEO_TYPES = ['video', 'animate', 'lipsync']
   if (VIDEO_TYPES.includes(type) && !PAID_PLANS.includes(profile?.plan ?? '')) {
     return NextResponse.json({ error: 'Geração de vídeo disponível apenas nos planos pagos. Faça upgrade para continuar.' }, { status: 403 })
@@ -60,9 +65,8 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Registro do Asset (Smart Upsert)
-  let asset: any
   const status = isDraft ? 'idle' : 'processing'
-  const insertData: any = { 
+  const insertData: Record<string, unknown> = {
     project_id, 
     user_id: user.id, 
     type, 
@@ -82,7 +86,7 @@ export async function POST(req: NextRequest) {
   if (dbErr || !inserted) {
     return NextResponse.json({ error: dbErr?.message ?? 'Erro ao criar registro' }, { status: 500 })
   }
-  asset = inserted
+  const asset = inserted as StudioAssetRecord
 
   await admin
     .from('studio_projects')
@@ -100,8 +104,9 @@ export async function POST(req: NextRequest) {
       user_id_param: user.id, 
       amount_param: effectiveCost 
     })
-  } catch (chargeErr: any) {
-    console.error(`[studio] Falha na cobrança:`, chargeErr.message)
+  } catch (chargeErr: unknown) {
+    const chargeMessage = chargeErr instanceof Error ? chargeErr.message : String(chargeErr)
+    console.error(`[studio] Falha na cobrança:`, chargeMessage)
     return NextResponse.json({ error: 'Falha ao processar créditos.' }, { status: 500 })
   }
 
@@ -258,7 +263,7 @@ export async function POST(req: NextRequest) {
         portrait_url:  String(input_params.portrait_url   ?? ''),
         product_url:   String(input_params.product_url    ?? ''),
         compose_mode:  String(input_params.compose_mode   ?? 'try-on'),
-        position:      (input_params.position as any)     ?? 'southeast',
+        position:      input_params.position ? String(input_params.position) : 'southeast',
         product_scale: input_params.product_scale ? Number(input_params.product_scale) : 0.35,
         vton_category: String(input_params.vton_category  ?? 'tops'),
         costume_prompt: input_params.costume_prompt ? String(input_params.costume_prompt) : undefined,
@@ -290,9 +295,10 @@ export async function POST(req: NextRequest) {
 
         resultUrl = positions[0].url || null
         extraData = { ugc_bundle: positions }
-      } catch (bundleErr: any) {
+      } catch (bundleErr: unknown) {
+        const bundleMessage = bundleErr instanceof Error ? bundleErr.message : String(bundleErr)
         console.error('[studio] Erro específico no bundle:', bundleErr)
-        throw new Error(`Falha no Bundle UGC: ${bundleErr.message}`)
+        throw new Error(`Falha no Bundle UGC: ${bundleMessage}`)
       }
     } else if (type === 'scene') {
       const extraUrls = Array.isArray(input_params.extra_source_urls)
@@ -346,7 +352,7 @@ export async function POST(req: NextRequest) {
       }
     }, { status: 201 })
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err)
     const errorStack = err instanceof Error ? err.stack : ''
     

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowUpRight, Camera, CheckCircle2, Clock3, CreditCard, Download, FolderKanban, Loader2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { getCommercialPlanLabel } from '@/lib/plan-labels'
 import type { Photo, StudioProject } from '@/types'
 
 type DashboardMetric = {
@@ -16,12 +17,6 @@ type DashboardPhoto = Pick<
 
 type DashboardProject = Pick<StudioProject, 'id' | 'title' | 'updated_at' | 'status'> & {
   asset_count?: number
-}
-
-const PLAN_LABELS: Record<string, string> = {
-  free: 'Explorador',
-  subscription: 'Assinatura',
-  package: 'Pacote',
 }
 
 const PHOTO_STATUS_LABELS: Record<DashboardPhoto['status'], string> = {
@@ -62,6 +57,7 @@ export default function DashboardContent({
   totalProjects,
   recentPhotos,
   recentProjects,
+  latestPaidOrderAmount = null,
 }: {
   credits: number
   plan: string
@@ -71,6 +67,7 @@ export default function DashboardContent({
   totalProjects: number
   recentPhotos: DashboardPhoto[]
   recentProjects: DashboardProject[]
+  latestPaidOrderAmount?: number | null
 }) {
   const metrics: DashboardMetric[] = [
     {
@@ -96,7 +93,7 @@ export default function DashboardContent({
   ]
 
   const hasActivity = totalPhotos > 0 || totalProjects > 0 || processingPhotos > 0
-  const resolvedPlan = PLAN_LABELS[plan] ?? plan
+  const resolvedPlan = getCommercialPlanLabel(plan, { latestPaidAmount: latestPaidOrderAmount, credits })
 
   return (
     <div className="mx-auto min-h-screen max-w-7xl px-6 py-8 md:px-10 lg:px-14">

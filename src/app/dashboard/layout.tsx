@@ -1,5 +1,6 @@
 import DashboardShell from '@/components/dashboard/DashboardShell'
 import { createClient } from '@/lib/supabase/server'
+import { getCommercialPlanLabel } from '@/lib/plan-labels'
 import { redirect } from 'next/navigation'
 
 export default async function DashboardLayout({
@@ -14,14 +15,32 @@ export default async function DashboardLayout({
 
   if (!user) redirect('/auth/login')
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('credits, plan')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: latestPaidOrder }] = await Promise.all([
+    supabase
+      .from('users')
+      .select('credits, plan')
+      .eq('id', user.id)
+      .single(),
+    supabase
+      .from('orders')
+      .select('amount')
+      .eq('user_id', user.id)
+      .eq('status', 'paid')
+      .in('type', ['package', 'subscription'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
+
+  const plan = profile?.plan ?? 'free'
+  const credits = profile?.credits ?? 0
+  const planLabel = getCommercialPlanLabel(plan, {
+    latestPaidAmount: latestPaidOrder?.amount ?? null,
+    credits,
+  })
 
   return (
-    <DashboardShell userCredits={profile?.credits ?? 0} userPlan={profile?.plan ?? 'free'}>
+    <DashboardShell userCredits={credits} userPlan={plan} userPlanLabel={planLabel}>
       {children}
     </DashboardShell>
   )
