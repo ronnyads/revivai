@@ -706,6 +706,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
         case 'animate':
           if (isImage(s))        return 'portrait_image_url'
+          if (isVideo(s))        return 'driving_video_url'
           break
 
         case 'compose':

@@ -236,6 +236,7 @@ export async function POST(req: NextRequest) {
       await startAnimateGeneration({
         portrait_image_url: String(input_params.portrait_image_url ?? ''),
         driving_video_url:  String(input_params.driving_video_url  ?? ''),
+        motion_prompt: input_params.motion_prompt ? String(input_params.motion_prompt) : undefined,
         assetId: asset.id,
         userId: user.id,
         appUrl,

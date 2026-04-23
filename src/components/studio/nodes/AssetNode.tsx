@@ -61,7 +61,8 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
     { id: 'audio_url',          label: 'Voz'       },
   ],
   animate: [
-    { id: 'portrait_image_url', label: 'Retrato'      },
+    { id: 'portrait_image_url', label: 'Retrato' },
+    { id: 'driving_video_url',  label: 'Movimento' },
   ],
   compose: [
     { id: 'portrait_url',       label: 'Cena/Modelo'  },

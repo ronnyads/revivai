@@ -158,7 +158,7 @@ export async function POST(
     }
   }
 
-  // ── Fal AI: video (Kling), animate (live-portrait), lipsync (latentsync)
+  // ── Fal AI: video (Kling/Veo), animate (Wan Motion), lipsync (SyncLabs/LatentSync)
   if (asset.type === 'video' || asset.type === 'animate' || asset.type === 'lipsync') {
     const falKey = process.env.FAL_KEY
     if (!falKey) return NextResponse.json({ status: 'error', error: 'FAL_KEY não configurada' }, { status: 500 })
@@ -170,14 +170,17 @@ export async function POST(
       modelPath = savedPath
         ?? (engine === 'veo' ? 'fal-ai/veo3.1/image-to-video' : 'fal-ai/kling-video/v1.5/pro/image-to-video')
     } else if (asset.type === 'animate') {
-      modelPath = 'fal-ai/live-portrait'
+      const savedPath = (asset.input_params as any)?.fal_model_path as string | undefined
+      modelPath = savedPath ?? 'fal-ai/wan-motion'
     } else {
       modelPath = 'fal-ai/latentsync'
     }
 
-    // Para video sem engine salvo, tenta os dois endpoints como fallback
+    // Para jobs antigos sem engine salvo, tenta endpoints alternativos.
     const altModelPath = asset.type === 'video'
       ? (modelPath.includes('veo') ? 'fal-ai/kling-video/v1.5/pro/image-to-video' : 'fal-ai/veo3.1/image-to-video')
+      : asset.type === 'animate'
+        ? (modelPath.includes('wan-motion') ? 'fal-ai/live-portrait' : 'fal-ai/wan-motion')
       : null
 
     async function fetchFalStatus(path: string) {

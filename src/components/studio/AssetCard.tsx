@@ -13,6 +13,7 @@ import FaceGenerator from './FaceGenerator'
 import JoinGenerator from './JoinGenerator'
 import AngleGenerator from './AngleGenerator'
 import MusicGenerator from './MusicGenerator'
+import AnimateGenerator from './AnimateGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string }> = {
   face:    { icon: <User size={15} />,     label: 'Rosto Real',  color: 'text-indigo-400' },
@@ -293,5 +294,6 @@ function FormForType({ type, initialParams, onGenerate }: {
   if (type === 'upscale') return <UpscaleCard      initial={initialParams} onGenerate={onGenerate} />
   if (type === 'angles')  return <AngleGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'music')   return <MusicGenerator   initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'animate') return <AnimateGenerator initial={initialParams} onGenerate={onGenerate} />
   return null
 }

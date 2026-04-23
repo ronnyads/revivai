@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
   // ── Idempotência: se já está 'done', ignora retry do provider ──
   const { data: current } = await admin
     .from('studio_assets')
-    .select('status, credits_cost')
+    .select('status')
     .eq('id', assetId)
     .single()
 
@@ -105,13 +105,6 @@ export async function POST(req: NextRequest) {
       result_url: rawUrl,
       last_frame_url: rawUrl,
     }).eq('id', assetId)
-
-    // Debita créditos de forma atômica
-    const cost = current?.credits_cost ?? 3
-    await admin.rpc('debit_credits_bulk', {
-      user_id_param: userId,
-      amount_param: cost
-    })
 
     console.log(`[studio/webhook] ✅ Asset ${assetId} concluído (URL temporária): ${rawUrl}`)
 

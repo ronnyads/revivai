@@ -1342,109 +1342,75 @@ export async function startLipsyncGeneration(params: {
     .eq('id', params.assetId)
 }
 
-// ── Animate — Fal AI live-portrait (síncrono — mesma estratégia do Lip Sync) ─
+// ── Animate — Fal AI Wan Motion (motion transfer real com vídeo guia) ─
 export async function startAnimateGeneration(params: {
   portrait_image_url: string
   driving_video_url: string
+  motion_prompt?: string
   assetId: string
   appUrl: string
   userId: string
 }) {
   const falKey = process.env.FAL_KEY
   if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+  if (!params.portrait_image_url) throw new Error('Imagem/retrato obrigatório para imitar movimento')
+  if (!params.driving_video_url) throw new Error('Vídeo de referência obrigatório para imitar movimento')
 
   const admin = createAdminClient()
+  const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
 
-  const configStr = await getStudioPrompt(admin, 'video_liveportrait_config', '{}')
-  let config: any = {}
+  const configStr = await getStudioPrompt(admin, 'video_wan_motion_config', '{}')
+  let config: Record<string, unknown> = {}
   try { config = JSON.parse(configStr) } catch { /* ignore */ }
 
-  // 1. Envia o job para a Fal AI
-  const queueRes = await fetch('https://queue.fal.run/fal-ai/live-portrait', {
+  const falModelPath = 'fal-ai/wan-motion'
+  const prompt = params.motion_prompt?.trim()
+    || 'Transfer the body pose, gestures, camera movement, head movement, and facial expression from the driving video to the reference character. Preserve the reference character identity, outfit, proportions, lighting, and visual style. Avoid flicker, warping, extra limbs, distorted hands, face drift, and scene cuts.'
+
+  const payload = {
+    video_url: params.driving_video_url,
+    image_url: params.portrait_image_url,
+    prompt,
+    adapt_motion: true,
+    enhance_identity: true,
+    acceleration: 'regular',
+    video_quality: 'high',
+    video_write_mode: 'balanced',
+    webhook_url: webhookUrl,
+    ...config,
+  }
+
+  const queueRes = await fetch(`https://queue.fal.run/${falModelPath}`, {
     method: 'POST',
     headers: {
       'Authorization': `Key ${falKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      image_url:  params.portrait_image_url,
-      video_url:  params.driving_video_url,
-      ...config
-    })
+    body: JSON.stringify(payload)
   })
 
   if (!queueRes.ok) {
     const err = await queueRes.text()
-    throw new Error(`Fal AI (animate) erro: ${err}`)
+    throw new Error(`Fal AI Wan Motion erro ao enfileirar: ${err}`)
   }
 
   const { request_id } = await queueRes.json()
   if (!request_id) throw new Error('Fal AI não retornou request_id para animate')
 
-  // Salva prediction_id para permitir sync manual caso o polling expire
+  // Salva prediction_id para permitir webhook/sync manual sem custo extra.
   await admin.from('studio_assets')
-    .update({ input_params: { prediction_id: request_id, portrait_image_url: params.portrait_image_url, driving_video_url: params.driving_video_url } })
-    .eq('id', params.assetId)
-
-  // 2. Polling síncrono — até 240s
-  const statusUrl = `https://queue.fal.run/fal-ai/live-portrait/requests/${request_id}`
-  const deadline = Date.now() + 240_000
-  let videoUrl: string | null = null
-
-  while (Date.now() < deadline) {
-    await new Promise(r => setTimeout(r, 5000))
-
-    const statusRes = await fetch(statusUrl, {
-      headers: { 'Authorization': `Key ${falKey}` }
-    })
-    const status = await statusRes.json()
-
-    if (status.status === 'COMPLETED') {
-      const resultRes = await fetch(`${statusUrl}/output`, {
-        headers: { 'Authorization': `Key ${falKey}` }
-      })
-      const result = await resultRes.json()
-      videoUrl = result.video?.url ?? result.output?.[0] ?? null
-      break
-    }
-
-    if (status.status === 'ERROR' || status.status === 'FAILED') {
-      throw new Error(`Fal AI (animate) falhou: ${status.error ?? 'erro desconhecido'}`)
-    }
-  }
-
-  if (!videoUrl) throw new Error('Fal AI (animate): timeout aguardando resultado')
-
-  // 3. Re-upload para Supabase — URL Fal AI expira após horas
-  try {
-    const videoRes = await fetch(videoUrl)
-    if (videoRes.ok) {
-      const buffer = Buffer.from(await videoRes.arrayBuffer())
-      const path = `${params.userId}/${params.assetId}-animate.mp4`
-      const { error: uploadErr } = await admin.storage
-        .from('studio')
-        .upload(path, buffer, { contentType: 'video/mp4', upsert: true })
-      if (!uploadErr) {
-        const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
-        videoUrl = publicUrl
+    .update({
+      input_params: {
+        prediction_id: request_id,
+        provider: 'fal',
+        engine: 'wan-motion',
+        fal_model_path: falModelPath,
+        portrait_image_url: params.portrait_image_url,
+        driving_video_url: params.driving_video_url,
+        motion_prompt: prompt,
       }
-    }
-  } catch (e) {
-    console.warn(`[animate] Re-upload Supabase falhou para ${params.assetId}, usando URL Fal AI:`, e)
-  }
-
-  // 4. Salva resultado
-  await admin.from('studio_assets').update({
-    status: 'done',
-    result_url: videoUrl,
-    last_frame_url: videoUrl,
-  }).eq('id', params.assetId)
-
-  for (let i = 0; i < 3; i++) {
-    await admin.rpc('debit_credit', { user_id_param: params.userId })
-  }
-
-  return videoUrl
+    })
+    .eq('id', params.assetId)
 }
 
 // ── Join — Costura de vídeos via FFmpeg (Fase 3) ───────────────────────────
