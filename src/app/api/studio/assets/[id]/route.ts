@@ -77,10 +77,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: existingAsset } = await supabase
     .from('studio_assets')
-    .select('project_id')
+    .select('project_id, input_params')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
+
+  if (body.input_params !== undefined) {
+    const currentInputParams =
+      existingAsset?.input_params && typeof existingAsset.input_params === 'object'
+        ? (existingAsset.input_params as Record<string, unknown>)
+        : {}
+
+    const nextInputParams =
+      body.input_params && typeof body.input_params === 'object'
+        ? (body.input_params as Record<string, unknown>)
+        : {}
+
+    updates.input_params = { ...currentInputParams, ...nextInputParams }
+  }
 
   const admin = createAdminClient()
   const { error } = await admin
