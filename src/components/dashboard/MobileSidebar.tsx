@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BookOpen, Camera, CreditCard, Image as ImageIcon, Menu, Wand2, X } from 'lucide-react'
+import { BookOpen, Camera, CreditCard, Image as ImageIcon, Menu, UserRound, Wand2, X } from 'lucide-react'
 import DashboardNav from './DashboardNav'
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
 import LogoutButton from '@/components/dashboard/LogoutButton'
@@ -13,11 +13,12 @@ const MOBILE_NAV_ITEMS = [
   { href: '/dashboard/upload', label: 'Criar', icon: Wand2 },
   { href: '/dashboard/studio', label: 'Studio', icon: Camera },
   { href: '/dashboard/prompts', label: 'Prompts', icon: BookOpen },
+  { href: '/dashboard/profile', label: 'Perfil', icon: UserRound },
   { href: '/dashboard/billing', label: 'Planos', icon: CreditCard },
 ] as const
 
 export default function MobileSidebar({
-  userPlan = 'Free',
+  userPlan = 'Explorador',
   userCredits = 0,
 }: {
   userPlan?: string
@@ -50,7 +51,7 @@ export default function MobileSidebar({
         </div>
       </div>
 
-      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 rounded-[24px] border border-white/10 bg-[#050505]/92 p-2 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl lg:hidden">
+      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-6 rounded-[24px] border border-white/10 bg-[#050505]/92 p-2 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl lg:hidden">
         {MOBILE_NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const isActive = href === '/dashboard' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
 

@@ -2,14 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Image as ImageIcon, Wand2, Camera, CreditCard, BookOpen } from 'lucide-react'
+import { Image as ImageIcon, Wand2, Camera, CreditCard, BookOpen, UserRound } from 'lucide-react'
 import { useT } from '@/contexts/LanguageContext'
 
 const NAV_ITEMS = [
   { href: '/dashboard', fallbackLabel: 'Painel', labelKey: 'nav_photos', icon: ImageIcon },
-  { href: '/dashboard/upload', fallbackLabel: 'Restauracao', labelKey: 'nav_restore', icon: Wand2 },
+  { href: '/dashboard/upload', fallbackLabel: 'Restauração', labelKey: 'nav_restore', icon: Wand2 },
   { href: '/dashboard/studio', fallbackLabel: 'Ad Studio', labelKey: 'nav_studio', icon: Camera },
   { href: '/dashboard/prompts', fallbackLabel: 'Prompts', labelKey: 'nav_prompts', icon: BookOpen },
+  { href: '/dashboard/profile', fallbackLabel: 'Perfil', labelKey: 'nav_profile', icon: UserRound },
   { href: '/dashboard/billing', fallbackLabel: 'Planos', labelKey: 'nav_billing', icon: CreditCard },
 ] as const
 

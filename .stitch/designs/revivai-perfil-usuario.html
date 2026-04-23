@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RevivAI - Perfil do Usuário</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#004e5d",
+                        "on-primary-fixed": "#001f26",
+                        "error-container": "#93000a",
+                        "on-primary": "#003641",
+                        "on-surface": "#e5e2e1",
+                        "primary-fixed": "#afecff",
+                        "outline": "#869397",
+                        "inverse-primary": "#00687b",
+                        "secondary-container": "#01adcb",
+                        "tertiary": "#ffb877",
+                        "tertiary-fixed": "#ffdcc0",
+                        "surface": "#131313",
+                        "tertiary-fixed-dim": "#ffb877",
+                        "outline-variant": "#3d494d",
+                        "secondary-fixed-dim": "#54d6f6",
+                        "on-primary-container": "#003b47",
+                        "secondary": "#54d6f6",
+                        "surface-container-highest": "#353534",
+                        "primary": "#54d6f6",
+                        "on-tertiary-fixed": "#2e1600",
+                        "surface-container-low": "#1c1b1b",
+                        "primary-fixed-dim": "#54d6f6",
+                        "surface-variant": "#353534",
+                        "on-error": "#690005",
+                        "inverse-on-surface": "#313030",
+                        "surface-tint": "#54d6f6",
+                        "background": "#131313",
+                        "surface-dim": "#131313",
+                        "surface-bright": "#393939",
+                        "on-tertiary": "#4b2700",
+                        "tertiary-container": "#df8b35",
+                        "on-tertiary-fixed-variant": "#6c3a00",
+                        "on-surface-variant": "#bcc9cd",
+                        "error": "#ffb4ab",
+                        "on-secondary-fixed": "#001f26",
+                        "primary-container": "#00adcc",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed": "#aeecff",
+                        "surface-container-high": "#2a2a2a",
+                        "on-secondary": "#003641",
+                        "surface-container": "#201f1f",
+                        "on-primary-fixed-variant": "#004e5d",
+                        "on-background": "#e5e2e1",
+                        "inverse-surface": "#e5e2e1",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-secondary-container": "#003b47",
+                        "on-tertiary-container": "#532c00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "display": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"],
+                        "mono": ["IBM Plex Mono"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #131313;
+            color: #e5e2e1;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        .tech-glow {
+            background: radial-gradient(circle at 50% 50%, rgba(84, 214, 246, 0.08) 0%, transparent 70%);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-nav {
+            backdrop-filter: blur(20px);
+            background-color: rgba(28, 27, 27, 0.7);
+        }
+        .space-tight {
+            letter-spacing: -0.03em;
+        }
+        .mono-wide {
+            font-family: 'IBM Plex Mono', monospace;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+<!-- Ambient Glow Background -->
+<div class="fixed inset-0 tech-glow pointer-events-none"></div>
+<!-- Side Navigation -->
+<aside class="fixed left-0 top-0 h-full w-72 glass-nav z-50 flex flex-col p-6">
+<div class="flex items-center gap-3 mb-12">
+<div class="size-10 rounded-full bg-cover bg-center" data-alt="abstract geometric logo with cyan neon accents on a dark metallic background" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDgnkZ6oKc6Sdbx6E6FdSRoHW8nishK67SGdB3ilSo0HIuKyVqAgi0VL7PYKHY0_5Qph-cHs_vjYbhUbBfDO1HWUBGVJXUr_h-e3-sYWB51ShLGxM6c-85bGwWNo3MjLfe2D4NNyhDBZtCqQqy8nO1OjQ0TRVz7hmg_9NOfkpqPsGXUotMTS2wjbLpmkeYXCQZS8Cw03W4oNtbwqOLZxr9Pc_CWwk7tErE_Z3qkZQ3J7HU0s-c6Hwne22LuJFP0NQ9F8eu_FhyKKy_n')"></div>
+<div>
+<h1 class="font-headline font-bold text-lg text-white space-tight">RevivAI</h1>
+<p class="text-[10px] mono-wide text-secondary opacity-70">Obsidian Flux Edition</p>
+</div>
+</div>
+<nav class="flex flex-col gap-2 grow">
+<a class="flex items-center gap-4 px-4 py-3 rounded-full text-on-surface-variant hover:text-white hover:bg-surface-container-high transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-sm font-medium">Painel</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-full text-on-surface-variant hover:text-white hover:bg-surface-container-high transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="folder">folder</span>
+<span class="text-sm font-medium">Projetos</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-full bg-surface-container-high text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="person" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="text-sm font-medium">Perfil</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-full text-on-surface-variant hover:text-white hover:bg-surface-container-high transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-sm font-medium">Configurações</span>
+</a>
+</nav>
+<div class="mt-auto pt-6">
+<a class="flex items-center gap-4 px-4 py-3 rounded-full text-on-surface-variant hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="contact_support">contact_support</span>
+<span class="text-sm font-medium">Suporte</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-72 flex-1 p-12 max-w-6xl mx-auto">
+<!-- Header -->
+<header class="mb-16 relative">
+<span class="mono-wide text-[10px] text-secondary mb-2 block">Central de Identidade</span>
+<h1 class="text-6xl font-headline font-black text-white space-tight mb-4">Configurações de Perfil</h1>
+<p class="text-on-surface-variant text-lg max-w-2xl leading-relaxed">Gerencie sua identidade digital e preferências de IA no ecossistema Obsidian.</p>
+</header>
+<!-- Section 1: Informações da Conta -->
+<section class="mb-20">
+<h2 class="mono-wide text-xs text-on-surface-variant opacity-60 mb-8 flex items-center gap-3">
+<span class="size-2 rounded-full bg-secondary"></span>
+                Informações da Conta
+            </h2>
+<div class="bg-surface-container-low rounded-xl p-8 flex flex-col md:flex-row items-center gap-10">
+<div class="relative group">
+<div class="size-40 rounded-full bg-cover bg-center overflow-hidden" data-alt="professional portrait of a creative professional in soft tech-noir lighting with subtle cyan highlights" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBDX9yCL-Fvap_OtIvPfhRtnnZp549vr1pEFHQMTrYbwQ8UgI36wTNxeOU84mn1Ipm2FrWRi7-lt1EHZZEAIlhoVswJ5XjK7umve411kMvpOHVXBgvs6DnlkoHnt6ozCyQOgZblgaJoxoNRb1ykAbeLTRQISCpABHP8uVr5PIIq-PNBiIQpapM7Hwq_RWKDYqI_MUh5Sc7g8gT5PEADsPuRp55q1SS4Rvl3TS--zuXSOI9wfx3ffoqtAHdXTSyzI6awOSLD3T6mFMGy')"></div>
+<button class="absolute bottom-2 right-2 size-10 bg-primary text-background rounded-full flex items-center justify-center hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-xl" data-icon="edit">edit</span>
+</button>
+</div>
+<div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="flex flex-col gap-1">
+<label class="mono-wide text-[9px] text-on-surface-variant">Nome de Exibição</label>
+<p class="text-2xl font-headline font-bold text-white">Alexandre Silva</p>
+</div>
+<div class="flex flex-col gap-1">
+<label class="mono-wide text-[9px] text-on-surface-variant">Email Institucional</label>
+<p class="text-lg text-on-surface">alexandre@revivai.com.br</p>
+</div>
+<div class="flex flex-col gap-1">
+<label class="mono-wide text-[9px] text-on-surface-variant">Plano Atual</label>
+<div class="flex items-center gap-2">
+<span class="text-lg font-bold text-secondary">CRESCIMENTO</span>
+<span class="px-2 py-0.5 rounded bg-secondary/10 text-secondary text-[10px] mono-wide font-bold">Ativo</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 2: Estatísticas -->
+<section class="mb-20">
+<h2 class="mono-wide text-xs text-on-surface-variant opacity-60 mb-8 flex items-center gap-3">
+<span class="size-2 rounded-full bg-tertiary"></span>
+                Estatísticas de Fluxo
+            </h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Stat Card 1 -->
+<div class="bg-surface-container-high rounded-lg p-8 flex justify-between items-end border-b border-secondary/20">
+<div>
+<span class="mono-wide text-[10px] text-on-surface-variant block mb-2">Total de Gerações</span>
+<p class="text-5xl font-mono font-medium text-white tracking-tighter">1.240</p>
+</div>
+<div class="text-secondary opacity-30">
+<span class="material-symbols-outlined text-6xl" data-icon="auto_awesome">auto_awesome</span>
+</div>
+</div>
+<!-- Stat Card 2 -->
+<div class="bg-surface-container-high rounded-lg p-8 flex justify-between items-end border-b border-tertiary/20">
+<div>
+<span class="mono-wide text-[10px] text-on-surface-variant block mb-2">Créditos Restantes</span>
+<p class="text-5xl font-mono font-medium text-white tracking-tighter">150</p>
+</div>
+<div class="text-tertiary opacity-30">
+<span class="material-symbols-outlined text-6xl" data-icon="bolt">bolt</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 3: Segurança -->
+<section class="mb-20">
+<h2 class="mono-wide text-xs text-on-surface-variant opacity-60 mb-8 flex items-center gap-3">
+<span class="size-2 rounded-full bg-error"></span>
+                Protocolos de Segurança
+            </h2>
+<div class="flex flex-col gap-4">
+<!-- Security Item -->
+<div class="group flex items-center justify-between p-6 bg-surface-container-low rounded-lg hover:bg-surface-container transition-colors">
+<div class="flex items-center gap-6">
+<div class="size-12 rounded bg-surface-container-high flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="key">key</span>
+</div>
+<div>
+<h3 class="text-lg font-bold text-white">Senha de Acesso</h3>
+<p class="text-sm text-on-surface-variant">Última alteração realizada há 3 meses.</p>
+</div>
+</div>
+<button class="px-6 py-2 rounded-full border border-outline/20 text-on-surface text-sm font-medium hover:bg-white hover:text-background transition-all">
+                        Trocar Senha
+                    </button>
+</div>
+<!-- Security Item -->
+<div class="group flex items-center justify-between p-6 bg-surface-container-low rounded-lg hover:bg-surface-container transition-colors">
+<div class="flex items-center gap-6">
+<div class="size-12 rounded bg-surface-container-high flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined" data-icon="verified_user">verified_user</span>
+</div>
+<div>
+<h3 class="text-lg font-bold text-white">Autenticação de Dois Fatores (2FA)</h3>
+<p class="text-sm text-on-surface-variant">Adicione uma camada extra de proteção via app ou SMS.</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="text-[10px] mono-wide text-error font-bold">Desativado</span>
+<button class="px-6 py-2 rounded-full border border-secondary/40 text-secondary text-sm font-medium hover:bg-secondary hover:text-background transition-all">
+                            Configurar
+                        </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer Actions -->
+<footer class="flex justify-end gap-6 pt-12 border-t border-outline-variant/10">
+<button class="px-8 py-3 rounded-full text-on-surface-variant text-sm font-medium hover:text-white transition-colors">
+                Descartar
+            </button>
+<button class="px-10 py-4 rounded-full bg-gradient-to-r from-primary to-primary-container text-background font-bold text-sm uppercase tracking-wider shadow-lg shadow-primary/20 hover:scale-105 transition-transform">
+                Salvar Alterações
+            </button>
+</footer>
+</main>
+</body></html>
