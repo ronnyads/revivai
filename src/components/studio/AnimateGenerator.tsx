@@ -20,6 +20,7 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
   const [uploadedPortraitUrl, setUploadedPortraitUrl] = useState('')
   const [recordedDrivingUrl, setRecordedDrivingUrl] = useState('')
   const [motionPrompt, setMotionPrompt] = useState(String(initial.motion_prompt ?? DEFAULT_MOTION_PROMPT))
+  const [loadedPreviewUrl, setLoadedPreviewUrl] = useState('')
 
   const portraitUrl = uploadedPortraitUrl || connectedPortraitUrl
   const drivingUrl = recordedDrivingUrl || connectedDrivingUrl
@@ -27,6 +28,7 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
   const hasDriving = !!drivingUrl.trim()
   const isConnected = !!connectedPortraitUrl
   const cost = CREDIT_COST.animate
+  const previewReady = loadedPreviewUrl === drivingUrl
 
   return (
     <div className="flex flex-col gap-3">
@@ -79,8 +81,26 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
           </div>
           <div className="flex flex-1 flex-col gap-1.5">
             <p className="text-center text-[9px] font-black uppercase tracking-widest text-zinc-500">Movimento</p>
-            <div className="aspect-square overflow-hidden rounded-2xl border border-white/5 ring-4 ring-black/20">
-              <video src={drivingUrl} className="h-full w-full object-cover" playsInline muted />
+            <div className="relative aspect-square overflow-hidden rounded-2xl border border-white/5 ring-4 ring-black/20 bg-zinc-950">
+              <video
+                key={drivingUrl}
+                src={drivingUrl}
+                className="h-full w-full object-cover"
+                playsInline
+                muted
+                autoPlay
+                loop
+                preload="metadata"
+                onLoadedData={(event) => {
+                  setLoadedPreviewUrl(drivingUrl)
+                  void event.currentTarget.play().catch(() => {})
+                }}
+              />
+              {!previewReady && (
+                <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/90 px-4 text-center text-[10px] font-medium uppercase tracking-[0.2em] text-zinc-500">
+                  Carregando previa
+                </div>
+              )}
             </div>
           </div>
         </div>
