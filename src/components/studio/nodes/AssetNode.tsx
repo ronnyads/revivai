@@ -148,7 +148,7 @@ function AssetNode({ data }: NodeProps) {
         <div
           key={h.id}
           className="group"
-          style={{ position: 'absolute', left: 0, top: `${48 + i * 28}px`, transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', zIndex: 60, pointerEvents: 'none' }}
+          style={{ position: 'absolute', left: 0, top: `${48 + i * 28}px`, transform: 'translateY(-50%)', width: 20, height: 20, zIndex: 60, pointerEvents: 'none' }}
         >
           <Handle
             type="target"
@@ -170,15 +170,21 @@ function AssetNode({ data }: NodeProps) {
             }}
             title={h.label}
           />
-          <span className="ml-2.5 text-[10px] font-bold text-zinc-300 uppercase tracking-tight bg-zinc-900/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/5 opacity-60 group-hover:opacity-100 transition-opacity">
+          <span
+            className="whitespace-nowrap text-[10px] font-bold text-zinc-300 uppercase tracking-tight bg-zinc-900/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/5 opacity-70 group-hover:opacity-100 transition-opacity"
+            style={{ position: 'absolute', right: 'calc(100% + 10px)', top: '50%', transform: 'translateY(-50%)' }}
+          >
             {h.label}
           </span>
         </div>
       ))}
 
       {/* OUTPUT handle — direita */}
-      <div className="group" style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', zIndex: 60, pointerEvents: 'none' }}>
-        <span className="mr-2.5 text-[10px] font-bold text-orange-400 uppercase tracking-tight bg-zinc-900/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-orange-500/20 opacity-60 group-hover:opacity-100 transition-opacity">
+      <div className="group" style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, zIndex: 60, pointerEvents: 'none' }}>
+        <span
+          className="whitespace-nowrap text-[10px] font-bold text-orange-400 uppercase tracking-tight bg-zinc-900/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-orange-500/20 opacity-70 group-hover:opacity-100 transition-opacity"
+          style={{ position: 'absolute', left: 'calc(100% + 10px)', top: '50%', transform: 'translateY(-50%)' }}
+        >
           {displayMeta.output}
         </span>
         <Handle
