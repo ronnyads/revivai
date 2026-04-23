@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { CheckCheck, Copy, ImageIcon, Sparkles, Video } from 'lucide-react'
+import { fbq } from '@/components/MetaPixel'
 
 const PLAN_META: Record<
   string,
@@ -31,21 +32,21 @@ const PLAN_META: Record<
   },
   popular: {
     name: 'Creator',
-    credits: 1100,
+    credits: 1200,
     accent: '#54d6f6',
     glow: 'rgba(84,214,246,0.2)',
     badge: 'bg-cyan-500/10 text-cyan-300 border-cyan-400/20',
   },
   pro: {
     name: 'Pro',
-    credits: 2100,
+    credits: 3000,
     accent: '#7dd3fc',
     glow: 'rgba(125,211,252,0.18)',
     badge: 'bg-sky-500/10 text-sky-300 border-sky-400/20',
   },
   agency: {
     name: 'Studio',
-    credits: 5100,
+    credits: 8000,
     accent: '#f6c454',
     glow: 'rgba(246,196,84,0.18)',
     badge: 'bg-amber-500/10 text-amber-300 border-amber-400/20',
@@ -99,6 +100,37 @@ function ThankYouClient() {
     setCopied(true)
     window.setTimeout(() => setCopied(false), 2200)
   }
+
+  useEffect(() => {
+    const rawId =
+      params.get('sale_id') ??
+      params.get('transaction_id') ??
+      params.get('order_id') ??
+      params.get('payment_id') ??
+      params.get('purchase_id')
+
+    if (!rawId) return
+
+    const eventId = `purchase:${rawId}:${planKey}`
+    const storageKey = `meta_purchase_sent:${eventId}`
+
+    try {
+      if (window.sessionStorage.getItem(storageKey)) return
+      window.sessionStorage.setItem(storageKey, '1')
+    } catch {}
+
+    fbq(
+      'track',
+      'Purchase',
+      {
+        value: Number(params.get('value') ?? params.get('amount') ?? 0) || undefined,
+        currency: params.get('currency') ?? 'BRL',
+        content_ids: [planKey],
+        content_type: 'product',
+      },
+      { eventID: eventId }
+    )
+  }, [params, planKey])
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#0e0e0e] text-[#e5e2e1]">

@@ -12,7 +12,7 @@ interface Props {
 }
 
 const DEFAULT_MOTION_PROMPT =
-  'Imite a pose, os gestos, a expressão facial, o movimento de cabeça e o ritmo corporal do vídeo guia, mantendo a identidade, roupa, proporções e estilo visual da imagem de referência.'
+  'Copie o jeito de se mover do video de referencia, mantendo o mesmo rosto, roupa e estilo da imagem.'
 
 export default function AnimateGenerator({ initial, onGenerate }: Props) {
   const connectedPortraitUrl = String(initial.portrait_image_url ?? '')
@@ -35,10 +35,10 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
           <Film size={18} className="text-fuchsia-400" />
         </div>
         <div>
-          <h4 className="text-[13px] font-bold leading-tight text-white">Motion Transfer Wan</h4>
+          <h4 className="text-[13px] font-bold leading-tight text-white">Imitar Movimento</h4>
           <p className="mt-1 text-[11px] leading-relaxed text-zinc-400">
-            Use uma foto do personagem e um vídeo guia para transferir pose, gestos e expressão. Para melhores
-            resultados, use vídeo com uma pessoa, boa luz e corpo visível.
+            Envie uma foto da pessoa e um video de exemplo. A IA usa esse video para copiar o jeito de mexer,
+            as expressoes e o ritmo do corpo.
           </p>
         </div>
       </div>
@@ -58,7 +58,7 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
         <ImageUpload
           value={uploadedPortraitUrl}
           onChange={setUploadedPortraitUrl}
-          label="Foto da persona"
+          label="Foto da pessoa"
           accept="image/*"
           preview
         />
@@ -67,9 +67,9 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
       {hasPortrait && hasDriving && (
         <div className="flex gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
           <div className="flex flex-1 flex-col gap-1.5">
-            <p className="text-center text-[9px] font-black uppercase tracking-widest text-zinc-500">Persona</p>
+            <p className="text-center text-[9px] font-black uppercase tracking-widest text-zinc-500">Pessoa</p>
             <div className="aspect-square overflow-hidden rounded-2xl border border-white/5 ring-4 ring-black/20">
-              <img src={portraitUrl} alt="Persona" className="h-full w-full object-cover" />
+              <img src={portraitUrl} alt="Pessoa" className="h-full w-full object-cover" />
             </div>
           </div>
           <div className="flex flex-1 flex-col gap-1.5">
@@ -84,21 +84,21 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
       <WebcamRecorder value={drivingUrl} onChange={setRecordedDrivingUrl} />
 
       <label className="flex flex-col gap-2">
-        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Direção do movimento</span>
+        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Instrucao do movimento</span>
         <textarea
           value={motionPrompt}
           onChange={(event) => setMotionPrompt(event.target.value)}
           rows={3}
           className="resize-none rounded-2xl border border-zinc-800 bg-zinc-950 px-3 py-3 text-xs leading-relaxed text-zinc-200 outline-none transition-colors placeholder:text-zinc-700 focus:border-fuchsia-500/50"
-          placeholder="Descreva o que precisa preservar e como o movimento deve ser transferido."
+          placeholder="Exemplo: copie o jeito de andar, olhar e mexer os bracos do video."
         />
       </label>
 
       <div className="flex items-start gap-2 rounded-xl border border-fuchsia-500/10 bg-fuchsia-500/5 p-3">
         <div className="mt-1.5 h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-fuchsia-500" />
         <p className="text-[10px] leading-relaxed text-zinc-500">
-          O motor <span className="font-bold text-fuchsia-400">Wan Motion</span> foi escolhido para motion transfer
-          corporal. O antigo LivePortrait era focado só em expressão de retrato.
+          Use este modo quando quiser copiar um movimento real. Se quiser inventar uma cena nova, use o card
+          de video.
         </p>
       </div>
 
@@ -115,7 +115,7 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
       >
         <div className="absolute inset-0 bg-white/10 opacity-0 transition-opacity group-hover:opacity-100" />
         <Sparkles size={18} className="transition-transform group-hover:rotate-12" />
-        IMITAR MOVIMENTO - {cost} CRÉDITOS
+        IMITAR MOVIMENTO - {cost} CREDITOS
       </button>
     </div>
   )

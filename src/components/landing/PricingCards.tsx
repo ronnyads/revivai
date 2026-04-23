@@ -1,4 +1,5 @@
 import { Check, ArrowRight } from 'lucide-react'
+import MetaCheckoutLink from '@/components/MetaCheckoutLink'
 
 const STUDIO_PLANS = [
   {
@@ -134,10 +135,10 @@ export default function PricingCards({ prices }: { prices: Prices }) {
                 ))}
               </ul>
 
-              <a
+              <MetaCheckoutLink
                 href={KIRVANO_LINKS[plan.id]}
-                target="_blank"
-                rel="noopener noreferrer"
+                planId={plan.id}
+                value={price}
                 className={`group/btn relative w-full py-6 text-[10px] font-bold uppercase tracking-[0.4em] transition-all duration-700 overflow-hidden flex items-center justify-center gap-4 rounded-full ${
                   plan.popular
                     ? 'bg-cyan-gradient text-[#031317] shadow-[0_18px_50px_rgba(84,214,246,0.18)] hover:brightness-110'
@@ -145,7 +146,7 @@ export default function PricingCards({ prices }: { prices: Prices }) {
                 }`}
               >
                 SELECT PLAN <ArrowRight size={14} className="group-hover/btn:translate-x-3 transition-transform duration-700" />
-              </a>
+              </MetaCheckoutLink>
             </div>
           )
         })}

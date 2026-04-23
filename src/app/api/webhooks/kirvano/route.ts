@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendPurchaseEmail, sendRefundEmail, sendAbandonedCartEmail } from '@/lib/email'
 import { isDisposableEmail } from '@/lib/disposableEmails'
+import { sendMetaServerEvent } from '@/lib/meta-capi'
 
 type KirvanoPlan = {
   productPlanId: string
@@ -49,7 +50,7 @@ const KIRVANO_PRODUCTS: Record<string, KirvanoPlan> = {
     productPlanId: 'popular',
     accountPlan: 'package',
     orderType: 'package',
-    credits: 1100,
+    credits: 1200,
     name: 'Creator',
     price: 79,
   },
@@ -57,7 +58,7 @@ const KIRVANO_PRODUCTS: Record<string, KirvanoPlan> = {
     productPlanId: 'pro',
     accountPlan: 'package',
     orderType: 'package',
-    credits: 2100,
+    credits: 3000,
     name: 'Pro',
     price: 149,
   },
@@ -65,7 +66,7 @@ const KIRVANO_PRODUCTS: Record<string, KirvanoPlan> = {
     productPlanId: 'agency',
     accountPlan: 'package',
     orderType: 'package',
-    credits: 5100,
+    credits: 8000,
     name: 'Studio',
     price: 397,
   },
@@ -85,13 +86,13 @@ function planFromFallback(offerName: string, offerPrice: number): KirvanoPlan | 
     return { productPlanId: 'starter', accountPlan: 'package', orderType: 'package', credits: 600, name: 'Rookie', price: 47 }
   }
   if (offerName.includes('creator') || offerName.includes('popular') || (offerPrice >= 7900 && offerPrice < 14900)) {
-    return { productPlanId: 'popular', accountPlan: 'package', orderType: 'package', credits: 1100, name: 'Creator', price: 79 }
+    return { productPlanId: 'popular', accountPlan: 'package', orderType: 'package', credits: 1200, name: 'Creator', price: 79 }
   }
   if (offerName.includes(' pro') || offerName === 'pro' || (offerPrice >= 14900 && offerPrice < 39700)) {
-    return { productPlanId: 'pro', accountPlan: 'package', orderType: 'package', credits: 2100, name: 'Pro', price: 149 }
+    return { productPlanId: 'pro', accountPlan: 'package', orderType: 'package', credits: 3000, name: 'Pro', price: 149 }
   }
   if (offerName.includes('studio') || offerName.includes('agency') || offerPrice >= 39700) {
-    return { productPlanId: 'agency', accountPlan: 'package', orderType: 'package', credits: 5100, name: 'Studio', price: 397 }
+    return { productPlanId: 'agency', accountPlan: 'package', orderType: 'package', credits: 8000, name: 'Studio', price: 397 }
   }
 }
 
@@ -237,6 +238,29 @@ export async function POST(req: NextRequest) {
     })
     if (emailErr) console.warn('[kirvano] E-mail de compra falhou:', emailErr)
     else console.log(`[kirvano] E-mail enviado para ${email} - Plano ${plan.name}`)
+
+    const saleId = asString(body.sale_id ?? body.id ?? `${email}:${plan.productPlanId}`)
+    const metaEventName = plan.price > 0 ? 'Purchase' : 'CompleteRegistration'
+    const metaEventId =
+      metaEventName === 'Purchase'
+        ? `purchase:${saleId}:${plan.productPlanId}`
+        : `registration:${saleId}:${plan.productPlanId}`
+
+    const metaResult = await sendMetaServerEvent({
+      eventName: metaEventName,
+      eventId: metaEventId,
+      eventSourceUrl: process.env.NEXT_PUBLIC_APP_URL,
+      email,
+      name,
+      externalId: cpf || email,
+      value: plan.price > 0 ? plan.price : undefined,
+      currency: plan.price > 0 ? 'BRL' : undefined,
+      contentIds: [plan.productPlanId],
+      contentName: plan.name,
+    })
+    if (!metaResult.ok) {
+      console.warn(`[kirvano] Meta CAPI pulado: ${metaResult.skipped}`)
+    }
 
     return NextResponse.json({ ok: true })
   }

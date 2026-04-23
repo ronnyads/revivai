@@ -17,9 +17,9 @@ function labelFromPaidAmount(amount?: number | null) {
 
 function labelFromCredits(credits?: number | null) {
   if (typeof credits !== 'number' || !Number.isFinite(credits)) return null
-  if (credits >= 5100) return 'Studio'
-  if (credits >= 2100) return 'Pro'
-  if (credits >= 1100) return 'Creator'
+  if (credits >= 8000) return 'Studio'
+  if (credits >= 3000) return 'Pro'
+  if (credits >= 1200) return 'Creator'
   if (credits >= 600) return 'Rookie'
   return null
 }
