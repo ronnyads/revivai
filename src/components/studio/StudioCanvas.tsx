@@ -97,20 +97,36 @@ interface Props {
   userId: string
 }
 
-function buildNodes(assets: StudioAsset[], callbacks: Omit<AssetNodeData, 'asset'>): Node[] {
+function getDefaultNodePosition(index: number, type: AssetType) {
+  const baseWidth = getStudioNodeCardWidth(type, { status: 'idle', collapsed: true })
+  const columnWidth = Math.max(STUDIO_NODE_GRID_SPACING_X, baseWidth + 180)
+
+  return {
+    x: 120 + (index % 3) * columnWidth,
+    y: 110 + Math.floor(index / 3) * STUDIO_NODE_GRID_SPACING_Y,
+  }
+}
+
+function buildNodes(
+  assets: StudioAsset[],
+  callbacks: Omit<AssetNodeData, 'asset' | 'selectionActive'>,
+  selectionActive: boolean,
+): Node[] {
   return assets.map((asset, i) => ({
     id: asset.id,
     type: 'assetNode',
     position: {
-      x: asset.position_x ?? (100 + (i % 3) * STUDIO_NODE_GRID_SPACING_X),
-      y: asset.position_y ?? (100 + Math.floor(i / 3) * STUDIO_NODE_GRID_SPACING_Y),
+      x: asset.position_x ?? getDefaultNodePosition(i, asset.type).x,
+      y: asset.position_y ?? getDefaultNodePosition(i, asset.type).y,
     },
-    data: { asset, ...callbacks } as unknown as Record<string, unknown>,
-    style: { overflow: 'visible', width: getStudioNodeCardWidth(asset.type) },
+    data: { asset, selectionActive, ...callbacks } as unknown as Record<string, unknown>,
+    style: { overflow: 'visible' },
   }))
 }
 
-function buildEdges(connections: StudioConnection[]): Edge[] {
+function buildEdges(connections: StudioConnection[], selectedNodeIds: string[] = []): Edge[] {
+  const selectedNodeIdSet = new Set(selectedNodeIds)
+
   return connections.map(c => ({
     id: c.id,
     source: c.source_id,
@@ -119,6 +135,10 @@ function buildEdges(connections: StudioConnection[]): Edge[] {
     targetHandle: c.target_handle,
     type: 'lightEdge',
     markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
+    data: {
+      hasSelection: selectedNodeIdSet.size > 0,
+      isHighlighted: selectedNodeIdSet.has(c.source_id) || selectedNodeIdSet.has(c.target_id),
+    },
   }))
 }
 
@@ -133,6 +153,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [showWizard,  setShowWizard]  = useState(false)
   const [showGallery, setShowGallery] = useState(initialAssets.length === 0)
   const [chatOpen,    setChatOpen]    = useState(false)
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
   const pollingRef        = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
   const startPollingRef   = useRef<(id: string) => void>(() => {})
   
@@ -447,7 +468,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     } catch { /* fica local se falhar */ }
   }, [assets])
 
-  const nodeCallbacks = useMemo<Omit<AssetNodeData, 'asset'>>(() => ({
+  const nodeCallbacks = useMemo<Omit<AssetNodeData, 'asset' | 'selectionActive'>>(() => ({
     onDelete: handleDelete,
     onGenerate: handleGenerate,
     onUpdateParams: handleUpdateParams,
@@ -456,8 +477,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   }), [handleDelete, handleGenerate, handleUpdateParams, handleDuplicate, userPlan])
 
   // ── React Flow state ─────────────────────────────────────────────────────
-  const [nodes, setNodes, onNodesChange] = useNodesState(buildNodes(assets, nodeCallbacks))
-  const [edges, setEdges, onEdgesChange] = useEdgesState(buildEdges(connections))
+  const [nodes, setNodes, onNodesChange] = useNodesState(buildNodes(assets, nodeCallbacks, selectedNodeIds.length > 0))
+  const [edges, setEdges, onEdgesChange] = useEdgesState(buildEdges(connections, selectedNodeIds))
 
   // Sincroniza assets → nodes de forma granular (sem recriar todos — preserva edges)
   useEffect(() => {
@@ -466,13 +487,13 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       const existingIds = new Set(prev.map(n => n.id))
 
       // Atualiza apenas o campo `asset` dos nodes existentes (posição preservada)
-      const updated = prev
-        .filter(n => assetMap.has(n.id))
-        .map(n => ({
-          ...n,
-          data: { ...n.data, asset: assetMap.get(n.id)!, ...nodeCallbacks },
-          style: { overflow: 'visible', width: getStudioNodeCardWidth(assetMap.get(n.id)!.type) },
-        }))
+        const updated = prev
+          .filter(n => assetMap.has(n.id))
+          .map(n => ({
+            ...n,
+            data: { ...n.data, asset: assetMap.get(n.id)!, selectionActive: selectedNodeIds.length > 0, ...nodeCallbacks },
+            style: { overflow: 'visible' },
+          }))
 
       // Adiciona nodes novos que ainda não existem no ReactFlow
       const newAssets = assets.filter(a => !existingIds.has(a.id))
@@ -481,22 +502,22 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         id: asset.id,
         type: 'assetNode' as const,
         position: {
-          x: asset.position_x ?? (100 + ((offset + j) % 3) * STUDIO_NODE_GRID_SPACING_X),
-          y: asset.position_y ?? (100 + Math.floor((offset + j) / 3) * STUDIO_NODE_GRID_SPACING_Y),
+          x: asset.position_x ?? getDefaultNodePosition(offset + j, asset.type).x,
+          y: asset.position_y ?? getDefaultNodePosition(offset + j, asset.type).y,
         },
-        data: { asset, ...nodeCallbacks } as unknown as Record<string, unknown>,
-        style: { overflow: 'visible', width: getStudioNodeCardWidth(asset.type) },
+        data: { asset, selectionActive: selectedNodeIds.length > 0, ...nodeCallbacks } as unknown as Record<string, unknown>,
+        style: { overflow: 'visible' },
       }))
 
       return [...updated, ...newNodes]
     })
-  }, [assets, nodeCallbacks]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [assets, nodeCallbacks, selectedNodeIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Merge: mantém edges temp visuais + sincroniza as do banco
     // Deduplication por source+target+handle evita fios duplos quando temp vira UUID real
     setEdges(prev => {
-      const dbEdges = buildEdges(connections)
+      const dbEdges = buildEdges(connections, selectedNodeIds)
       const tempEdges = prev.filter(e => {
         if (!(e as any).isLocalConn) return false
         // Remove temp edge se já existe uma DB edge cobrindo a mesma conexão
@@ -505,10 +526,16 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           de.target === e.target &&
           de.targetHandle === e.targetHandle
         )
-      })
+      }).map(edge => ({
+        ...edge,
+        data: {
+          hasSelection: selectedNodeIds.length > 0,
+          isHighlighted: selectedNodeIds.includes(edge.source) || selectedNodeIds.includes(edge.target),
+        },
+      }))
       return [...dbEdges, ...tempEdges]
     })
-  }, [connections]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [connections, selectedNodeIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Promove arestas locais → DB quando ambos os nós ganham ID real ─────────
   const promotedEdgesRef = useRef<Set<string>>(new Set())
@@ -883,8 +910,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
     // Posicionamento inteligente: se vier do botão direito, usa a posição do mouse.
     // Se vier do botão do topo, nasce no CENTRO da tela atual.
-    let pX = 60 + (i % 3) * STUDIO_NODE_GRID_SPACING_X
-    let pY = 450 + Math.floor(i / 3) * STUDIO_NODE_GRID_SPACING_Y
+    let pX = getDefaultNodePosition(i, type).x
+    let pY = getDefaultNodePosition(i, type).y + 180
 
     if (quickAddMenu) {
       const flowPos = screenToFlowPosition({ x: quickAddMenu.x, y: quickAddMenu.y })
@@ -893,8 +920,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     } else {
       // Nasce no centro exato da visão atual do usuário
       const flowPos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
-      pX = flowPos.x - getStudioNodeCardWidth(type) / 2
-      pY = flowPos.y - 100 // Sobe um pouco para ficar bem no meio
+      pX = flowPos.x - getStudioNodeCardWidth(type, { status: 'idle', collapsed: true }) / 2
+      pY = flowPos.y - 90
     }
     
     // 1. Cria localmente para feedback instantâneo (otimista)
@@ -1213,10 +1240,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   }
 
   return (
-    <div className="w-full h-screen flex flex-row overflow-hidden">
-      <div className="flex-1 min-w-0 flex flex-col bg-[#F5F5F3]">
+    <div className="relative h-screen w-full overflow-hidden bg-[#F2F1EC]">
+      <div className="flex h-full min-w-0 flex-col bg-[#F2F1EC]">
       {/* Top bar */}
-      <div className="shrink-0 z-10 bg-[#050505]/96 backdrop-blur-xl border-b border-white/8 px-6 py-3 flex items-center justify-between gap-4 text-white">
+      <div className="z-10 flex shrink-0 items-center justify-between gap-4 border-b border-black/6 bg-[#050505]/96 px-6 py-3 text-white backdrop-blur-xl">
         <div className="flex items-center gap-3 min-w-0">
           <Link href="/dashboard/studio" className="text-white/35 hover:text-[#54D6F6] transition-colors shrink-0">
             <ArrowLeft size={18} />
@@ -1311,6 +1338,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           translateExtent={[[-5000, -5000], [5000, 5000]]}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onSelectionChange={({ nodes: selectedNodes }) => setSelectedNodeIds(selectedNodes.map((node) => node.id))}
           onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           onEdgesDelete={onEdgesDelete}
@@ -1322,32 +1350,32 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.2}
-          maxZoom={1.5}
+          fitViewOptions={{ padding: 0.12 }}
+          minZoom={0.32}
+          maxZoom={1.35}
           connectionMode={ConnectionMode.Loose}
           connectionRadius={60}
           deleteKeyCode="Delete"
           proOptions={{ hideAttribution: true }}
         >
-          <Background variant={BackgroundVariant.Dots} color="#3d494d" gap={24} size={1.3} />
+          <Background variant={BackgroundVariant.Dots} color="#d9d4ca" gap={28} size={1.15} />
           <MiniMap
             position="bottom-right"
-            nodeColor="#1f1f1f"
-            maskColor="rgba(255, 255, 255, 0.72)"
+            nodeColor="#2b3033"
+            maskColor="rgba(242, 241, 236, 0.84)"
             pannable
             zoomable
-            style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, boxShadow: '0 20px 40px rgba(0, 0, 0, 0.18)', right: 18, bottom: 18, width: 150, height: 100 }}
+            style={{ background: 'rgba(17, 17, 17, 0.88)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, boxShadow: '0 18px 36px rgba(0, 0, 0, 0.16)', right: 16, bottom: 14, width: 132, height: 88 }}
           />
           <Controls
             position="top-left"
-            style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, boxShadow: '0 20px 40px rgba(0, 0, 0, 0.18)', fill: '#bcc9cd', left: 18, top: 18 }}
+            style={{ background: 'rgba(17, 17, 17, 0.88)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, boxShadow: '0 18px 36px rgba(0, 0, 0, 0.16)', fill: '#bcc9cd', left: 14, top: 14 }}
           />
 
           {/* Empty state */}
           {assets.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="panel-card bg-[#111111]/88 px-7 py-4 text-center shadow-[0_24px_80px_rgba(0,0,0,0.38)] backdrop-blur-xl">
+              <div className="panel-card bg-[#111111]/86 px-7 py-4 text-center shadow-[0_20px_64px_rgba(0,0,0,0.24)] backdrop-blur-xl">
                 <p className="font-label text-[10px] uppercase tracking-[0.32em] text-[#54D6F6]">Workspace armed</p>
                 <p className="mt-2 text-sm text-[#D7E4E8]">
                   Canvas vazio. Clique em <span className="text-[#54D6F6] underline decoration-[#54D6F6]/30 underline-offset-4">Templates</span> para iniciar o fluxo.
@@ -1359,7 +1387,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       </div>
 
       {/* Dica de conexão */}
-      <div className="shrink-0 border-t border-white/5 bg-[#101010]/94 px-6 py-3 backdrop-blur-xl">
+      <div className="shrink-0 border-t border-black/6 bg-[#0C0C0C]/92 px-6 py-2.5 backdrop-blur-xl">
         <div className="flex flex-wrap items-center gap-3 text-[10px] uppercase tracking-[0.22em] text-[#7D8B90]">
           <span className="obsidian-chip border-[#54D6F6]/15 bg-[#0C171A] text-[#54D6F6]">Flow guide</span>
           <span>Arraste do ponto de saída para encadear automações</span>
@@ -1415,7 +1443,9 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
       {/* Chat IA Panel */}
       {chatOpen && (
-        <StudioChatPanel projectId={project.id} userId={userId} onClose={() => setChatOpen(false)} />
+        <div className="absolute inset-y-0 right-0 z-20 flex">
+          <StudioChatPanel projectId={project.id} userId={userId} onClose={() => setChatOpen(false)} />
+        </div>
       )}
     </div>
   )

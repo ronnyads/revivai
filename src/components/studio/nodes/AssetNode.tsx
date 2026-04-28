@@ -1,11 +1,34 @@
 'use client'
 
-import { memo, useState, useEffect } from 'react'
-import { Handle, Position, NodeProps } from '@xyflow/react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, Music, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, User, Film, Sparkles, Layers, Wand2, CopyPlus, Camera, GripHorizontal, Lock } from 'lucide-react'
-import { StudioAsset, AssetType } from '@/types'
+import { memo, useEffect, useMemo, useState } from 'react'
+import { Handle, NodeProps, Position } from '@xyflow/react'
+import {
+  ArrowRight,
+  Camera,
+  Check,
+  Copy,
+  CopyPlus,
+  Download,
+  FileText,
+  Film,
+  GripHorizontal,
+  Image,
+  Layers,
+  Loader2,
+  Lock,
+  Mic,
+  Music,
+  RotateCcw,
+  Sparkles,
+  Trash2,
+  User,
+  Video,
+  Wand2,
+  ZoomIn,
+} from 'lucide-react'
+import { AssetType, StudioAsset } from '@/types'
+import ComposeCard from '../ComposeCard'
 import FaceGenerator from '../FaceGenerator'
-import JoinGenerator from '../JoinGenerator'
 import ImageGenerator from '../ImageGenerator'
 import ScriptGenerator from '../ScriptGenerator'
 import VoiceGenerator from '../VoiceGenerator'
@@ -15,62 +38,182 @@ import UpscaleCard from '../UpscaleCard'
 import ModelGenerator from '../ModelGenerator'
 import RenderCard from '../RenderCard'
 import AnimateGenerator from '../AnimateGenerator'
-import ComposeCard from '../ComposeCard'
+import JoinGenerator from '../JoinGenerator'
 import LipsyncGenerator from '../LipsyncGenerator'
 import AngleGenerator from '../AngleGenerator'
 import MusicGenerator from '../MusicGenerator'
 import SceneGenerator from '../SceneGenerator'
 import UGCBundleGenerator from '../UGCBundleGenerator'
-import { getStudioNodeCardWidth } from '../node-layout'
+import { getStudioNodeCardWidth, getStudioNodeVisualState } from '../node-layout'
 
-const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string; bg: string; hint: string; output: string }> = {
-  face:    { icon: <User size={14} />,     label: 'Rosto Real (Upload)', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Faça upload de uma foto', output: 'Foto salva →' },
-  join:    { icon: <Film size={14} />,     label: 'Exportar MP4 Master', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/30',   hint: '← Conecte vídeos em ordem', output: 'MP4 Master →' },
-  model:   { icon: <User size={14} />,     label: 'Modelo UGC',  color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Gera foto do modelo', output: 'Foto do modelo →' },
-  image:   { icon: <Image size={14} />,    label: 'Imagem',      color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30', hint: 'Gera imagem com IA', output: 'Imagem gerada →' },
-  video:   { icon: <Video size={14} />,    label: 'Vídeo',       color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/30',   hint: '← Conecte imagem + áudio', output: 'Vídeo animado →' },
-  voice:   { icon: <Mic size={14} />,      label: 'Voz',         color: 'text-emerald-400',bg: 'bg-emerald-500/10 border-emerald-500/30', hint: '← Conecte o Script aqui', output: 'Áudio da voz →' },
-  upscale: { icon: <ZoomIn size={14} />,   label: 'Upscale',     color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/30',  hint: '← Conecte imagem para melhorar', output: 'Imagem 4K →' },
-  script:  { icon: <FileText size={14} />, label: 'Script',      color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/30',    hint: 'Escreve a fala do modelo', output: 'Texto do script →' },
-  caption: { icon: <Captions size={14} />, label: 'Legenda',     color: 'text-cyan-400',   bg: 'bg-cyan-500/10 border-cyan-500/30',    hint: '← Conecte o Áudio aqui', output: 'Legendas →' },
-  render:  { icon: <Film size={14} />,     label: 'Vídeo Final', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/30',    hint: '← Conecte Vídeo + Voz → resultado final', output: '🎬 Vídeo com voz →' },
-  animate: { icon: <Sparkles size={14} />, label: 'Imitar Movimentos', color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10 border-fuchsia-500/30', hint: '← Envie foto do modelo + vídeo de referência', output: 'Vídeo animado →' },
-  compose: { icon: <Layers size={14} />,   label: 'Provador',   color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',   hint: 'Vista a modelo com roupa e acessorios no Gemini', output: 'Cena gerada ->' },
-  lipsync: { icon: <Wand2 size={14} />,    label: 'Lip Sync',    color: 'text-cyan-400',    bg: 'bg-cyan-500/10 border-cyan-500/30',        hint: '← Conecte Vídeo + Voz', output: 'Vídeo sincronizado →' },
-  angles:  { icon: <Camera size={14} />,   label: 'Ângulos (Trocar Posição)', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', hint: '← Conecte a Modelo ou Fusão', output: 'Novo Ângulo →' },
-  music:   { icon: <Music size={14} />,    label: 'Trilha Sonora AI', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30', hint: 'Gera música com Lyria 3', output: 'Áudio MP3 →' },
-  ugc_bundle: { icon: <Sparkles size={14} />, label: 'Pacote 8 Poses UGC', color: 'text-indigo-400', bg: 'bg-indigo-500/10 border-indigo-500/30', hint: 'Gera 8 poses em paralelo', output: '8 Fotos UGC →' },
-  scene:      { icon: <Camera size={14} />,   label: 'Cena Livre',         color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30', hint: '← Conecte Modelo ou Fusão', output: 'Cena gerada →' },
+const TYPE_META: Record<
+  AssetType,
+  { icon: React.ReactNode; label: string; color: string; chip: string; hint: string; output: string }
+> = {
+  face: {
+    icon: <User size={14} />,
+    label: 'Rosto Real',
+    color: 'text-indigo-200',
+    chip: 'border-indigo-500/20 bg-indigo-500/10 text-indigo-200',
+    hint: 'Upload de face para reaproveitar no fluxo.',
+    output: 'Face pronta',
+  },
+  join: {
+    icon: <Film size={14} />,
+    label: 'Video Master',
+    color: 'text-rose-100',
+    chip: 'border-rose-500/20 bg-rose-500/10 text-rose-100',
+    hint: 'Costura clipes em um unico MP4.',
+    output: 'Video final',
+  },
+  model: {
+    icon: <User size={14} />,
+    label: 'Modelo UGC',
+    color: 'text-sky-100',
+    chip: 'border-sky-500/20 bg-sky-500/10 text-sky-100',
+    hint: 'Gera uma modelo base para o comercial.',
+    output: 'Modelo pronta',
+  },
+  image: {
+    icon: <Image size={14} />,
+    label: 'Imagem IA',
+    color: 'text-violet-100',
+    chip: 'border-violet-500/20 bg-violet-500/10 text-violet-100',
+    hint: 'Cria stills e fotos de apoio.',
+    output: 'Imagem pronta',
+  },
+  video: {
+    icon: <Video size={14} />,
+    label: 'Video',
+    color: 'text-blue-100',
+    chip: 'border-blue-500/20 bg-blue-500/10 text-blue-100',
+    hint: 'Transforma frame em take com movimento.',
+    output: 'Take pronto',
+  },
+  voice: {
+    icon: <Mic size={14} />,
+    label: 'Voz',
+    color: 'text-emerald-100',
+    chip: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-100',
+    hint: 'Sintetiza a locucao do roteiro.',
+    output: 'Audio pronto',
+  },
+  upscale: {
+    icon: <ZoomIn size={14} />,
+    label: 'Upscale',
+    color: 'text-amber-100',
+    chip: 'border-amber-500/20 bg-amber-500/10 text-amber-100',
+    hint: 'Melhora resolucao e nitidez.',
+    output: 'Imagem 4K',
+  },
+  script: {
+    icon: <FileText size={14} />,
+    label: 'Script',
+    color: 'text-pink-100',
+    chip: 'border-pink-500/20 bg-pink-500/10 text-pink-100',
+    hint: 'Escreve a fala e estrutura do ad.',
+    output: 'Script pronto',
+  },
+  caption: {
+    icon: <FileText size={14} />,
+    label: 'Legenda',
+    color: 'text-cyan-100',
+    chip: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-100',
+    hint: 'Extrai e formata legendas do audio.',
+    output: 'Legenda pronta',
+  },
+  render: {
+    icon: <Film size={14} />,
+    label: 'Video Final',
+    color: 'text-rose-100',
+    chip: 'border-rose-500/20 bg-rose-500/10 text-rose-100',
+    hint: 'Combina video e audio em um render final.',
+    output: 'Render pronto',
+  },
+  animate: {
+    icon: <Sparkles size={14} />,
+    label: 'Imitar Movimento',
+    color: 'text-fuchsia-100',
+    chip: 'border-fuchsia-500/20 bg-fuchsia-500/10 text-fuchsia-100',
+    hint: 'Replica gesto e energia a partir do video driver.',
+    output: 'Animacao pronta',
+  },
+  compose: {
+    icon: <Layers size={14} />,
+    label: 'Provador',
+    color: 'text-orange-100',
+    chip: 'border-orange-500/20 bg-orange-500/10 text-orange-100',
+    hint: 'Fusao comercial entre modelo e produto.',
+    output: 'Composicao pronta',
+  },
+  lipsync: {
+    icon: <Wand2 size={14} />,
+    label: 'Lip Sync',
+    color: 'text-cyan-100',
+    chip: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-100',
+    hint: 'Sincroniza boca, audio e movimento.',
+    output: 'Lip sync pronto',
+  },
+  angles: {
+    icon: <Camera size={14} />,
+    label: 'Dir. de Cena',
+    color: 'text-emerald-100',
+    chip: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-100',
+    hint: 'Varia camera, pose e enquadramento.',
+    output: 'Novo angulo',
+  },
+  music: {
+    icon: <Music size={14} />,
+    label: 'Trilha AI',
+    color: 'text-blue-100',
+    chip: 'border-blue-500/20 bg-blue-500/10 text-blue-100',
+    hint: 'Compoe trilha de apoio para o anuncio.',
+    output: 'Musica pronta',
+  },
+  ugc_bundle: {
+    icon: <Sparkles size={14} />,
+    label: 'Pacote 8 UGC',
+    color: 'text-indigo-100',
+    chip: 'border-indigo-500/20 bg-indigo-500/10 text-indigo-100',
+    hint: 'Gera um conjunto de poses UGC em paralelo.',
+    output: 'Pacote pronto',
+  },
+  scene: {
+    icon: <Camera size={14} />,
+    label: 'Cena Livre',
+    color: 'text-violet-100',
+    chip: 'border-violet-500/20 bg-violet-500/10 text-violet-100',
+    hint: 'Move a modelo para uma cena guiada por prompt.',
+    output: 'Cena pronta',
+  },
 }
 
 const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string }>>> = {
-  image:   [
-    { id: 'model_prompt',      label: 'Modelo'    },
-    { id: 'source_face_url',   label: 'Rosto'     }
+  image: [
+    { id: 'model_prompt', label: 'Modelo' },
+    { id: 'source_face_url', label: 'Rosto' },
   ],
-  video:   [
-    { id: 'source_image_url',   label: 'Imagem'    },
-    { id: 'continuation_frame', label: 'Continuar' },
-    { id: 'model_prompt',       label: 'Modelo'    },
-    { id: 'audio_url',          label: 'Áudio'     },
+  video: [
+    { id: 'source_image_url', label: 'Imagem' },
+    { id: 'continuation_frame', label: 'Continuacao' },
+    { id: 'model_prompt', label: 'Modelo' },
+    { id: 'audio_url', label: 'Audio' },
   ],
-  upscale: [{ id: 'source_url',       label: 'Imagem'    }],
-  voice:   [{ id: 'script',           label: 'Script'    }],
-  caption: [{ id: 'audio_url',        label: 'Áudio'     }],
-  render:  [
-    { id: 'source_image_url',   label: 'Vídeo'     },
-    { id: 'audio_url',          label: 'Voz'       },
+  upscale: [{ id: 'source_url', label: 'Imagem' }],
+  voice: [{ id: 'script', label: 'Script' }],
+  caption: [{ id: 'audio_url', label: 'Audio' }],
+  render: [
+    { id: 'source_image_url', label: 'Video' },
+    { id: 'audio_url', label: 'Voz' },
   ],
   animate: [
     { id: 'portrait_image_url', label: 'Retrato' },
-    { id: 'driving_video_url',  label: 'Movimento' },
+    { id: 'driving_video_url', label: 'Movimento' },
   ],
-  compose: [
-    { id: 'portrait_url',       label: 'Cena/Modelo'  },
-  ],
+  compose: [{ id: 'portrait_url', label: 'Modelo' }],
   lipsync: [
-    { id: 'face_url',           label: 'Vídeo/Rosto'  },
-    { id: 'audio_url',          label: 'Áudio'        },
+    { id: 'face_url', label: 'Video/Rosto' },
+    { id: 'audio_url', label: 'Audio' },
   ],
   join: [
     { id: 'video_0', label: 'Cena 1' },
@@ -80,220 +223,317 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
     { id: 'video_4', label: 'Cena 5' },
     { id: 'video_5', label: 'Cena 6' },
   ],
-  angles:  [{ id: 'source_url', label: 'Imagem/Modelo' }],
-  music:   [{ id: 'source_image_url', label: 'Imagem/Mood' }],
+  angles: [{ id: 'source_url', label: 'Imagem/Modelo' }],
+  music: [{ id: 'source_image_url', label: 'Imagem/Mood' }],
   ugc_bundle: [{ id: 'source_url', label: 'Imagem/Modelo' }],
-  scene:   [{ id: 'source_url', label: 'Modelo/Fusão' }],
+  scene: [{ id: 'source_url', label: 'Modelo/Fusao' }],
 }
 
 const PAID_PLANS = ['subscription', 'package', 'starter', 'popular', 'pro', 'agency']
 const VIDEO_LOCKED_TYPES: AssetType[] = ['video', 'animate', 'lipsync']
+const SYNC_TYPES: AssetType[] = ['video', 'animate', 'lipsync']
+
+const STATUS_META = {
+  idle: {
+    label: 'Rascunho',
+    className: 'border-white/10 bg-white/[0.045] text-white/72',
+  },
+  processing: {
+    label: 'Gerando',
+    className: 'border-[#54D6F6]/18 bg-[#0D171B] text-[#8EDDED]',
+  },
+  done: {
+    label: 'Pronto',
+    className: 'border-emerald-500/18 bg-emerald-500/10 text-emerald-200',
+  },
+  error: {
+    label: 'Erro',
+    className: 'border-red-500/18 bg-red-500/10 text-red-200',
+  },
+} as const
+
+const FIELD_SUMMARIES: Partial<Record<AssetType, Array<{ field: string; label: string }>>> = {
+  script: [
+    { field: 'product', label: 'Produto' },
+    { field: 'audience', label: 'Publico' },
+  ],
+  image: [{ field: 'prompt', label: 'Prompt' }],
+  video: [{ field: 'motion_prompt', label: 'Movimento' }],
+  voice: [{ field: 'voice_id', label: 'Voz selecionada' }],
+  compose: [
+    { field: 'product_url', label: 'Produto' },
+    { field: 'smart_prompt', label: 'Direcao fina' },
+  ],
+  scene: [{ field: 'scene_prompt', label: 'Cena' }],
+  music: [{ field: 'prompt', label: 'Mood' }],
+}
+
+const NEXT_STEPS: Partial<Record<AssetType, { text: string; chip: string }>> = {
+  model: { text: 'Use em Provador ou Cena Livre', chip: 'border-sky-500/18 bg-sky-500/10 text-sky-100' },
+  compose: { text: 'Proximo passo: roteiro, voz ou video', chip: 'border-orange-500/18 bg-orange-500/10 text-orange-100' },
+  video: { text: 'Conecte voz ou renderize o ad final', chip: 'border-blue-500/18 bg-blue-500/10 text-blue-100' },
+  script: { text: 'Envie este texto para Voz', chip: 'border-pink-500/18 bg-pink-500/10 text-pink-100' },
+  voice: { text: 'Combine com video no render final', chip: 'border-emerald-500/18 bg-emerald-500/10 text-emerald-100' },
+}
+
+const ESTIMATED: Partial<Record<AssetType, number>> = {
+  video: 300,
+  animate: 120,
+  model: 35,
+  image: 20,
+  voice: 10,
+  script: 8,
+  upscale: 25,
+  caption: 15,
+  compose: 20,
+  render: 30,
+  lipsync: 120,
+  music: 45,
+  ugc_bundle: 110,
+  scene: 25,
+}
+
+const PROCESSING_LABELS: Partial<Record<AssetType, string>> = {
+  video: 'Gerando movimento e camera comercial...',
+  animate: 'Replicando movimento de referencia...',
+  model: 'Criando modelo UGC premium...',
+  image: 'Renderizando cena em alta definicao...',
+  voice: 'Sintetizando locucao natural...',
+  script: 'Escrevendo roteiro de alta conversao...',
+  upscale: 'Refinando nitidez e resolucao...',
+  caption: 'Extraindo e formatando legendas...',
+  compose: 'Montando composicao final com o produto...',
+  render: 'Renderizando corte final...',
+  lipsync: 'Sincronizando labios e fala...',
+  music: 'Compondo trilha original...',
+  ugc_bundle: 'Gerando o pacote de poses em paralelo...',
+  scene: 'Posicionando modelo na nova cena...',
+}
 
 export interface AssetNodeData {
   asset: StudioAsset
   userPlan: string
-  onDelete:       (id: string) => void
-  onGenerate:     (type: AssetType, params: Record<string, unknown>, existingId: string) => void
+  selectionActive?: boolean
+  onDelete: (id: string) => void
+  onGenerate: (type: AssetType, params: Record<string, unknown>, existingId: string) => void
   onUpdateParams: (id: string, params: Record<string, unknown>) => void
-  onDuplicate:    (id: string) => void
+  onDuplicate: (id: string) => void
   [key: string]: unknown
 }
 
-function AssetNode({ data }: NodeProps) {
-  const { asset, userPlan, onDelete, onGenerate, onUpdateParams, onDuplicate } = data as AssetNodeData
+function hasMeaningfulValue(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some((item) => hasMeaningfulValue(item))
+  if (typeof value === 'string') return value.trim().length > 0
+  if (typeof value === 'number') return true
+  if (typeof value === 'boolean') return value
+  return value !== null && value !== undefined
+}
+
+function getHandleValue(inputParams: Record<string, unknown>, handleId: string) {
+  if (handleId.startsWith('video_')) {
+    const index = Number(handleId.split('_')[1])
+    const values = Array.isArray(inputParams.video_urls) ? inputParams.video_urls : []
+    return values[index]
+  }
+
+  return inputParams[handleId]
+}
+
+function getConnectedInputLabels(asset: StudioAsset, handles: Array<{ id: string; label: string }>) {
+  return handles.filter((handle) => hasMeaningfulValue(getHandleValue(asset.input_params, handle.id))).map((handle) => handle.label)
+}
+
+function getSummaryTokens(asset: StudioAsset, handles: Array<{ id: string; label: string }>) {
+  const tokens = new Set<string>()
+
+  getConnectedInputLabels(asset, handles).forEach((label) => tokens.add(label))
+
+  for (const summary of FIELD_SUMMARIES[asset.type] ?? []) {
+    if (hasMeaningfulValue(asset.input_params[summary.field])) {
+      tokens.add(summary.label)
+    }
+  }
+
+  if (asset.status === 'done' && asset.result_url) tokens.add('Preview pronto')
+  if (asset.status === 'processing') tokens.add('Em progresso')
+  if (asset.status === 'error' && asset.error_msg) tokens.add('Falha detectada')
+
+  return Array.from(tokens).slice(0, 4)
+}
+
+function AssetNode({ data, selected }: NodeProps) {
+  const {
+    asset,
+    userPlan,
+    selectionActive,
+    onDelete,
+    onGenerate,
+    onUpdateParams,
+    onDuplicate,
+  } = data as AssetNodeData
+
   const isVideoLocked = VIDEO_LOCKED_TYPES.includes(asset.type) && !PAID_PLANS.includes(userPlan ?? '')
   const meta = TYPE_META[asset.type]
   const composeVariant = asset.type === 'compose' ? String(asset.input_params.compose_variant ?? 'fitting') : ''
-  const displayMeta = asset.type === 'compose'
-    ? {
-        ...meta,
-        label: composeVariant === 'product' ? 'Modelo + Produto' : 'Provador',
-        hint: composeVariant === 'product'
-          ? 'Produto hero na mao, fundo branco e pose clean'
-          : 'Look guiado por categoria, pose e energia',
-      }
-    : meta
-  const inputHandles = INPUT_HANDLES[asset.type] ?? []
-  const [collapsed, setCollapsed] = useState(asset.status === 'done')
+  const displayMeta =
+    asset.type === 'compose'
+      ? {
+          ...meta,
+          label: composeVariant === 'product' ? 'Modelo + Produto' : 'Provador',
+          hint:
+            composeVariant === 'product'
+              ? 'Hero product em fundo branco com pose clean.'
+              : 'Look guiado por categoria, pose e energia.',
+        }
+      : meta
 
-  function handleDownload() {
-    if (!asset.result_url) return
-    const a = document.createElement('a')
-    a.href = asset.result_url
-    a.download = `studio-${asset.type}-${asset.id.slice(0, 8)}`
-    a.target = '_blank'
-    a.click()
-  }
+  const inputHandles = INPUT_HANDLES[asset.type] ?? []
+  const [collapsed, setCollapsed] = useState(() => asset.status === 'done' || (!asset.isLocal && asset.status === 'idle'))
+
+  useEffect(() => {
+    if (selected || asset.status === 'processing' || asset.status === 'error') {
+      setCollapsed(false)
+    }
+  }, [asset.status, selected])
+
+  useEffect(() => {
+    if (asset.status === 'done' && !selected) {
+      setCollapsed(true)
+    }
+  }, [asset.status, selected])
+
+  const connectedInputLabels = useMemo(() => getConnectedInputLabels(asset, inputHandles), [asset, inputHandles])
+  const summaryTokens = useMemo(() => getSummaryTokens(asset, inputHandles), [asset, inputHandles])
+  const visualState = getStudioNodeVisualState(asset.type, {
+    status: asset.status,
+    collapsed,
+    selected,
+  })
+  const cardWidth = getStudioNodeCardWidth(asset.type, {
+    status: asset.status,
+    collapsed,
+    selected,
+  })
+  const isSelectionMuted = !!selectionActive && !selected
 
   return (
-    <div className={`bg-zinc-950/90 backdrop-blur-md border ${asset.type === 'render' ? 'border-rose-500/40' : 'border-white/5'} rounded-[1.5rem] overflow-visible shadow-[0_10px_40px_-10px_rgba(0,0,0,0.7)] group/node hover:ring-2 hover:ring-accent/20 transition-all duration-300 ${
-      asset.isNew ? 'ring-4 ring-orange-500 shadow-[0_0_50px_rgba(249,115,22,0.5)] animate-fire-pulse scale-[1.02]' : ''
-    }`} style={{ width: getStudioNodeCardWidth(asset.type) }}>
-      
-      {/* Estilos para o Efeito de Fogo (Fire Highlight) */}
-      <style jsx>{`
-        @keyframes firePulse {
-          0% { box-shadow: 0 0 20px rgba(249, 115, 22, 0.4); border-color: rgba(249, 115, 22, 0.6); }
-          50% { box-shadow: 0 0 50px rgba(249, 115, 22, 0.8), 0 0 80px rgba(255, 69, 0, 0.3); border-color: rgba(255, 149, 0, 1); }
-          100% { box-shadow: 0 0 20px rgba(249, 115, 22, 0.4); border-color: rgba(249, 115, 22, 0.6); }
-        }
-        .animate-fire-pulse {
-          animation: firePulse 2s infinite ease-in-out;
-          z-index: 100;
-        }
-      `}</style>
-
-      {/* INPUT handles — esquerda com label visível */}
-      {inputHandles.map((h, i) => (
-        <div
-          key={h.id}
-          className="group"
-          style={{ position: 'absolute', left: 0, top: `${48 + i * 28}px`, transform: 'translateY(-50%)', width: 20, height: 20, zIndex: 60, pointerEvents: 'none' }}
-        >
-          <Handle
-            type="target"
-            position={Position.Left}
-            id={h.id}
-            style={{ 
-              position: 'relative', 
-              left: 1, 
-              top: 0, 
-              transform: 'none', 
-              background: '#3b82f6', 
-              width: 20, 
-              height: 20, 
-              border: '4px solid rgba(255,255,255,0.4)', 
-              cursor: 'crosshair', 
-              pointerEvents: 'auto', 
-              boxShadow: '0 0 15px rgba(139, 92, 246, 0.5)',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-            }}
-            title={h.label}
-          />
-          <span
-            className="whitespace-nowrap text-[10px] font-bold text-zinc-300 uppercase tracking-tight bg-zinc-900/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/5 opacity-70 group-hover:opacity-100 transition-opacity"
-            style={{ position: 'absolute', right: 'calc(100% + 10px)', top: '50%', transform: 'translateY(-50%)' }}
-          >
-            {h.label}
-          </span>
-        </div>
+    <div
+      className={`group/node overflow-visible rounded-[26px] border transition-[width,box-shadow,opacity,transform,border-color,background-color] duration-200 ${
+        selected
+          ? 'border-[#54D6F6]/34 bg-[#0E1011]/97 shadow-[0_24px_80px_rgba(0,173,204,0.16)]'
+          : asset.isNew
+            ? 'border-orange-400/35 bg-[#111111]/96 shadow-[0_22px_70px_rgba(249,115,22,0.18)]'
+            : 'border-white/8 bg-[#101112]/94 shadow-[0_18px_52px_rgba(0,0,0,0.34)]'
+      } ${isSelectionMuted ? 'opacity-55 saturate-[0.82]' : 'opacity-100'} ${
+        selected ? 'translate-y-[-2px]' : ''
+      }`}
+      style={{ width: cardWidth }}
+    >
+      {inputHandles.map((handle, index) => (
+        <HandleTag
+          key={handle.id}
+          id={handle.id}
+          label={handle.label}
+          side="left"
+          top={64 + index * 26}
+          selected={selected}
+        />
       ))}
 
-      {/* OUTPUT handle — direita */}
-      <div className="group" style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, zIndex: 60, pointerEvents: 'none' }}>
-        <span
-          className="whitespace-nowrap text-[10px] font-bold text-orange-400 uppercase tracking-tight bg-zinc-900/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-orange-500/20 opacity-70 group-hover:opacity-100 transition-opacity"
-          style={{ position: 'absolute', left: 'calc(100% + 10px)', top: '50%', transform: 'translateY(-50%)' }}
-        >
-          {displayMeta.output}
-        </span>
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="output"
-          style={{ 
-            position: 'relative', 
-            right: 1, 
-            top: 0, 
-            transform: 'none', 
-            background: '#f97316', 
-            width: 20, 
-            height: 20, 
-            border: '4px solid rgba(255,255,255,0.5)', 
-            cursor: 'pointer', 
-            pointerEvents: 'auto', 
-            boxShadow: '0 0 20px rgba(249, 115, 22, 0.4)',
-            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-          }}
-          title={displayMeta.output}
-        />
-      </div>
+      <HandleTag
+        id="output"
+        label={displayMeta.output}
+        side="right"
+        top={Math.max(96, 64 + Math.floor(inputHandles.length / 2) * 24)}
+        selected={selected}
+      />
 
-      {/* Header */}
-      <div className={`relative flex items-center justify-between px-5 py-3 border-b border-white/5 rounded-t-[1.5rem] overflow-hidden`}>
-        {/* Background Glow */}
-        <div className={`absolute inset-0 opacity-20 bg-gradient-to-br from-zinc-800 via-transparent to-transparent`} />
-        
+      <div className="flex items-start justify-between gap-3 border-b border-white/6 px-4 py-3">
         <button
-          onClick={() => setCollapsed(v => !v)}
-          className="relative flex flex-col items-start text-left z-10"
+          type="button"
+          onClick={() => setCollapsed((value) => !value)}
+          className="flex min-w-0 flex-1 items-start gap-3 text-left"
         >
-          <span className={`flex items-center gap-2 text-[13px] font-bold tracking-tight ${displayMeta.color}`}>
-            <div className={`p-1.5 rounded-lg bg-white/5 border border-white/10`}>{displayMeta.icon}</div>
-            {displayMeta.label}
-          </span>
-          <span className="text-[10px] text-zinc-500 font-medium mt-1 pl-9 opacity-70">{displayMeta.hint}</span>
-        </button>
-        <div className="relative flex items-center gap-3 z-10">
-          <span className="text-[10px] font-bold text-zinc-100 bg-white/5 border border-white/10 px-2 py-1 rounded-lg tabular-nums">{asset.credits_cost} CR</span>
-          <div className="flex items-center gap-1.5 ml-1">
-            <button onClick={() => onDuplicate(asset.id)} title="Duplicar card" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-zinc-500 hover:text-white transition-all">
-              <CopyPlus size={14} />
-            </button>
-            <button onClick={() => onDelete(asset.id)} title="Deletar card" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-zinc-500 hover:text-red-400 transition-all">
-              <Trash2 size={14} />
-            </button>
+          <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border ${displayMeta.chip}`}>
+            {displayMeta.icon}
           </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className={`truncate text-[13px] font-semibold tracking-tight ${displayMeta.color}`}>{displayMeta.label}</p>
+              <StatusPill status={asset.status} />
+              {visualState === 'expanded' ? (
+                <span className="rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.2em] text-white/35">
+                  amplo
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-1 line-clamp-1 text-[11px] leading-relaxed text-white/42">{displayMeta.hint}</p>
+          </div>
+        </button>
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/68">
+            {asset.credits_cost} CR
+          </span>
+          <button
+            type="button"
+            onClick={() => onDuplicate(asset.id)}
+            title="Duplicar card"
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-white/35 transition-colors hover:border-white/8 hover:bg-white/[0.05] hover:text-white"
+          >
+            <CopyPlus size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(asset.id)}
+            title="Excluir card"
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-white/35 transition-colors hover:border-red-500/14 hover:bg-red-500/10 hover:text-red-200"
+          >
+            <Trash2 size={14} />
+          </button>
         </div>
       </div>
 
-      {/* Body */}
-      <div className="p-4 cursor-grab active:cursor-grabbing">
-        <div className="nodrag">
-          {isVideoLocked && (
-            <div className="flex flex-col items-center justify-center gap-3 py-8 px-4 text-center">
-              <div className="w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-                <Lock size={18} className="text-zinc-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-zinc-300">Disponível nos planos pagos</p>
-                <p className="text-xs text-zinc-500 mt-1">Vídeo, Animação e Lip Sync são exclusivos para Rookie+</p>
-              </div>
-              <a
-                href="/#precos"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="nodrag text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl transition-colors"
+      <div className="px-4 py-4">
+        {isVideoLocked ? (
+          <LockedPlanState />
+        ) : asset.status === 'processing' ? (
+          <ProcessingCard type={asset.type} createdAt={asset.created_at} assetId={asset.id} />
+        ) : asset.status === 'error' ? (
+          <ErrorCard asset={asset} onGenerate={() => onGenerate(asset.type, asset.input_params, asset.id)} />
+        ) : asset.status === 'done' && asset.result_url ? (
+          <div className="space-y-3">
+            <ResultPreview type={asset.type} url={asset.result_url} params={asset.input_params} />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onGenerate(asset.type, asset.input_params, asset.id)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70 transition-colors hover:border-white/18 hover:text-white"
               >
-                Ver planos →
-              </a>
-            </div>
-          )}
-          {!isVideoLocked && (<>
-          {asset.status === 'processing' && (
-            <ProcessingCard type={asset.type} createdAt={asset.created_at} assetId={asset.id} />
-          )}
-
-          {asset.status === 'error' && (
-            <ErrorCard
-              asset={asset}
-              onGenerate={() => onGenerate(asset.type, asset.input_params, asset.id)}
-            />
-          )}
-
-          {asset.status === 'done' && asset.result_url && (
-            <div className="flex flex-col gap-2">
-              <ResultPreview type={asset.type} url={asset.result_url} params={asset.input_params} />
-              {asset.type === 'model' && (
-                <ModelDoneActions
-                  asset={asset}
-                  onRegenerate={() => onGenerate(asset.type, asset.input_params, asset.id)}
-                />
-              )}
-              {asset.type === 'lipsync' && <LipsyncGenerator initial={asset.input_params} onGenerate={(p: Record<string, unknown>) => { onUpdateParams(asset.id, p); onGenerate(asset.type, p, asset.id) }} />}
-              {asset.type !== 'script' && asset.type !== 'caption' && asset.type !== 'model' && asset.type !== 'lipsync' && (
+                <RotateCcw size={12} />
+                Regenerar
+              </button>
+              {asset.type !== 'script' && asset.type !== 'caption' ? (
                 <button
-                  onClick={handleDownload}
-                  className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-3 py-1.5 rounded-xl transition-colors w-full"
+                  type="button"
+                  onClick={() => downloadAsset(asset)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#54D6F6]/18 bg-[#0D171B] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8EDDED] transition-colors hover:border-[#54D6F6]/34 hover:text-white"
                 >
-                  <Download size={12} /> Download
+                  <Download size={12} />
+                  Download
                 </button>
-              )}
-              <NextStepHint type={asset.type} />
+              ) : null}
             </div>
-          )}
-
-          {asset.status === 'idle' && !collapsed && (
+            {asset.type === 'model' ? <ModelDoneActions asset={asset} onRegenerate={() => onGenerate(asset.type, asset.input_params, asset.id)} /> : null}
+          </div>
+        ) : collapsed ? (
+          <CollapsedIdleShell
+            summaryTokens={summaryTokens}
+            connectedInputLabels={connectedInputLabels}
+            onOpen={() => setCollapsed(false)}
+          />
+        ) : (
+          <div className="space-y-3">
             <FormForType
               type={asset.type}
               initialParams={asset.input_params}
@@ -302,104 +542,305 @@ function AssetNode({ data }: NodeProps) {
                 onGenerate(asset.type, params, asset.id)
               }}
             />
+            <div className="flex items-center justify-between rounded-[18px] border border-white/8 bg-white/[0.03] px-3 py-2.5">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/52">configuracao ativa</p>
+                <p className="mt-1 text-[11px] text-white/46">Ajuste os campos e use o CTA do card para gerar.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCollapsed(true)}
+                className="rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/62 transition-colors hover:border-white/16 hover:text-white"
+              >
+                Recolher
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-white/6 px-4 py-3">
+        <div className="flex flex-wrap gap-1.5">
+          {connectedInputLabels.length > 0 ? (
+            connectedInputLabels.map((label) => (
+              <span
+                key={label}
+                className="rounded-full border border-[#54D6F6]/16 bg-[#0D171B] px-2.5 py-1 text-[10px] font-medium text-[#8EDDED]"
+              >
+                {label}
+              </span>
+            ))
+          ) : (
+            <span className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] font-medium text-white/38">
+              Sem entradas conectadas
+            </span>
           )}
 
-          {asset.status === 'idle' && collapsed && (
-            <button
-              onClick={() => setCollapsed(false)}
-              className="w-full text-[11px] text-zinc-500 hover:text-accent border border-dashed border-zinc-700 rounded-xl py-3 transition-colors"
-            >
-              Configurar e gerar
-            </button>
-          )}
-          </>)}
+          {NEXT_STEPS[asset.type] ? (
+            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${NEXT_STEPS[asset.type]!.chip}`}>
+              {NEXT_STEPS[asset.type]!.text}
+            </span>
+          ) : null}
         </div>
-        {/* Grip strip — arrastar pelo fundo do card */}
-        <div className="flex items-center justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing opacity-30 hover:opacity-60 transition-opacity">
-          <GripHorizontal size={16} className="text-zinc-500" />
+
+        <div className="mt-3 flex items-center justify-center gap-2 text-white/24">
+          <GripHorizontal size={15} />
+          <span className="text-[10px] uppercase tracking-[0.24em]">drag node</span>
         </div>
       </div>
     </div>
   )
 }
 
-export default memo(AssetNode)
+function HandleTag({
+  id,
+  label,
+  side,
+  top,
+  selected,
+}: {
+  id: string
+  label: string
+  side: 'left' | 'right'
+  top: number
+  selected: boolean
+}) {
+  const isLeft = side === 'left'
 
-// ── Next Step Hint ────────────────────────────────────────────────────────────
-const NEXT_STEPS: Partial<Record<AssetType, { icon: string; text: string; sub: string }>> = {
-  model:   { icon: '🖼️', text: 'Adicione "Compor Cena"',    sub: 'Para incluir seu produto na imagem da modelo' },
-  compose: { icon: '📝', text: 'Adicione "Script" + "Voz"', sub: 'Escreva o que ela vai falar e gere o áudio' },
-  video:   { icon: '🎙️', text: 'Conecte uma "Voz" aqui',    sub: 'Arraste o ponto azul "Áudio" até a saída da Voz' },
-  script:  { icon: '🎙️', text: 'Conecte ao card "Voz"',     sub: 'Arraste a saída deste Script para a entrada da Voz' },
-  voice:   { icon: '🎬', text: 'Adicione "Vídeo Final"',    sub: 'Conecte Vídeo + Voz para gerar o anúncio completo' },
+  return (
+    <div
+      className="group/handle absolute z-[60]"
+      style={{
+        [isLeft ? 'left' : 'right']: -8,
+        top,
+        transform: 'translateY(-50%)',
+      }}
+    >
+      <Handle
+        type={isLeft ? 'target' : 'source'}
+        position={isLeft ? Position.Left : Position.Right}
+        id={id}
+        title={label}
+        style={{
+          width: 14,
+          height: 14,
+          borderRadius: 999,
+          background: isLeft ? '#5FD2EA' : '#00ADCC',
+          border: selected ? '3px solid rgba(255,255,255,0.65)' : '3px solid rgba(255,255,255,0.42)',
+          boxShadow: selected
+            ? '0 0 0 6px rgba(84,214,246,0.10)'
+            : '0 0 0 4px rgba(84,214,246,0.04)',
+          opacity: selected ? 1 : 0.84,
+        }}
+      />
+
+      <span
+        className={`pointer-events-none absolute top-1/2 whitespace-nowrap rounded-full border px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] transition-all ${
+          selected
+            ? 'border-white/12 bg-[#0C1114] text-white/76 opacity-100'
+            : 'border-white/8 bg-[#0C1114]/94 text-white/42 opacity-0 group-hover/handle:opacity-100'
+        } ${isLeft ? 'right-[20px]' : 'left-[20px]'}`}
+        style={{ transform: 'translateY(-50%)' }}
+      >
+        {label}
+      </span>
+    </div>
+  )
+}
+
+function StatusPill({ status }: { status: StudioAsset['status'] }) {
+  const meta = STATUS_META[status]
+
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] ${meta.className}`}>
+      {meta.label}
+    </span>
+  )
+}
+
+function LockedPlanState() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-8 text-center">
+      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/8 bg-black/20">
+        <Lock size={18} className="text-white/50" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-white/78">Disponivel em planos pagos</p>
+        <p className="mt-1 text-[11px] leading-relaxed text-white/42">Video, animacao e lip sync ficam liberados a partir do plano Rookie.</p>
+      </div>
+      <a
+        href="/#precos"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 rounded-full border border-[#54D6F6]/18 bg-[#0D171B] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8EDDED] transition-colors hover:border-[#54D6F6]/34 hover:text-white"
+      >
+        Ver planos
+      </a>
+    </div>
+  )
+}
+
+function CollapsedIdleShell({
+  summaryTokens,
+  connectedInputLabels,
+  onOpen,
+}: {
+  summaryTokens: string[]
+  connectedInputLabels: string[]
+  onOpen: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="w-full rounded-[22px] border border-dashed border-white/10 bg-white/[0.025] p-4 text-left transition-colors hover:border-[#54D6F6]/24 hover:bg-[#0D171B]"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/42">modo compacto</p>
+          <p className="mt-1 text-sm font-medium text-white/78">
+            {summaryTokens.length > 0 ? 'Card pronto para abrir e gerar.' : 'Abra para configurar este card.'}
+          </p>
+        </div>
+        <span className="rounded-full border border-[#54D6F6]/18 bg-[#0D171B] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8EDDED]">
+          Abrir
+        </span>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {summaryTokens.length > 0 ? (
+          summaryTokens.map((token) => (
+            <span key={token} className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] text-white/60">
+              {token}
+            </span>
+          ))
+        ) : (
+          <span className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] text-white/38">
+            Nenhum campo principal preenchido
+          </span>
+        )}
+      </div>
+
+      {connectedInputLabels.length > 0 ? (
+        <p className="mt-3 text-[11px] text-white/38">Entradas prontas: {connectedInputLabels.join(', ')}</p>
+      ) : null}
+    </button>
+  )
 }
 
 function NextStepHint({ type }: { type: AssetType }) {
   const hint = NEXT_STEPS[type]
   if (!hint) return null
-  return (
-    <div className="flex items-start gap-2 mt-1 px-2 py-2 bg-zinc-800/60 border border-zinc-700/50 rounded-xl">
-      <span className="text-sm shrink-0 mt-0.5">{hint.icon}</span>
-      <div>
-        <p className="text-[10px] font-semibold text-zinc-300">{hint.text}</p>
-        <p className="text-[9px] text-zinc-500 leading-relaxed mt-0.5">{hint.sub}</p>
-      </div>
-    </div>
-  )
+
+  return <span className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${hint.chip}`}>{hint.text}</span>
 }
 
-// ── Result previews ───────────────────────────────────────────────────────
-function ResultPreview({ type, url, params }: { type: AssetType; url: string; params: Record<string, unknown> }) {
-  if (type === 'model') return (
-    <div className="flex flex-col gap-2">
-      <img src={url} alt="Modelo UGC" className="w-full rounded-xl object-contain" />
-      {!!params.model_text && (
-        <div className="bg-zinc-800 border border-indigo-500/20 rounded-xl p-2.5">
-          <p className="text-[10px] text-indigo-400 uppercase tracking-widest mb-1 font-medium">Descrição</p>
-          <p className="text-[10px] text-zinc-400 leading-relaxed line-clamp-3">{String(params.model_text)}</p>
-        </div>
-      )}
-    </div>
-  )
-  if (type === 'image' || type === 'upscale' || type === 'compose' || type === 'face' || type === 'angles' || type === 'scene') return <img src={url} alt="" className="w-full rounded-xl object-contain bg-black/20" />
-  if (type === 'video' || type === 'render' || type === 'animate' || type === 'lipsync' || type === 'join') return <video src={url} controls className="w-full rounded-xl object-contain bg-black/20" playsInline />
-  if (type === 'voice') return <audio src={url} controls className="w-full" />
-  if (type === 'script') return <ScriptPreview text={String(params.script_text ?? '')} url={url} />
-  if (type === 'caption') return <CaptionPreview url={url} />
-  if (type === 'music') return <audio src={url} controls className="w-full" />
-  if (type === 'ugc_bundle') {
-    const bundle = params.ugc_bundle as Array<{ position: string; url: string }> || []
+function ResultPreview({
+  type,
+  url,
+  params,
+}: {
+  type: AssetType
+  url: string
+  params: Record<string, unknown>
+}) {
+  if (type === 'model') {
     return (
-      <div className="grid grid-cols-2 gap-1.5">
-        {bundle.map((item, i) => (
-          <div key={i} className="relative group cursor-pointer" onClick={() => window.open(item.url, '_blank')}>
-            <img src={item.url} alt={item.position} className="w-full aspect-[9/16] object-cover rounded-lg border border-white/5" />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-              <Download size={12} className="text-white" />
-            </div>
+      <div className="space-y-3">
+        <div className="overflow-hidden rounded-[22px] border border-white/8 bg-black/20">
+          <img src={url} alt="Modelo UGC" className="max-h-[360px] w-full object-contain" />
+        </div>
+        {typeof params.model_text === 'string' && params.model_text.trim() ? (
+          <div className="rounded-[18px] border border-indigo-500/14 bg-indigo-500/8 p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-200">descricao</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-white/56">{String(params.model_text)}</p>
           </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (type === 'image' || type === 'upscale' || type === 'compose' || type === 'face' || type === 'angles' || type === 'scene') {
+    return (
+      <div className="overflow-hidden rounded-[22px] border border-white/8 bg-black/20">
+        <img src={url} alt={TYPE_META[type].label} className="max-h-[360px] w-full object-contain" />
+      </div>
+    )
+  }
+
+  if (type === 'video' || type === 'render' || type === 'animate' || type === 'lipsync' || type === 'join') {
+    return (
+      <div className="overflow-hidden rounded-[22px] border border-white/8 bg-black/20">
+        <video src={url} controls className="max-h-[360px] w-full object-contain" playsInline />
+      </div>
+    )
+  }
+
+  if (type === 'voice' || type === 'music') {
+    return (
+      <div className="rounded-[18px] border border-white/8 bg-white/[0.03] p-3">
+        <audio src={url} controls className="w-full" />
+      </div>
+    )
+  }
+
+  if (type === 'script') {
+    return <ScriptPreview text={String(params.script_text ?? '')} url={url} />
+  }
+
+  if (type === 'caption') {
+    return <CaptionPreview url={url} />
+  }
+
+  if (type === 'ugc_bundle') {
+    const bundle = Array.isArray(params.ugc_bundle)
+      ? (params.ugc_bundle as Array<{ position: string; url: string }>)
+      : []
+
+    return (
+      <div className="grid max-h-[360px] grid-cols-2 gap-2 overflow-y-auto rounded-[22px] border border-white/8 bg-black/10 p-2">
+        {bundle.map((item, index) => (
+          <button
+            key={`${item.position}-${index}`}
+            type="button"
+            onClick={() => window.open(item.url, '_blank')}
+            className="group relative overflow-hidden rounded-[16px] border border-white/8"
+          >
+            <img src={item.url} alt={item.position} className="aspect-[9/16] w-full object-cover" />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-hover:opacity-100">
+              <Download size={14} className="text-white" />
+            </div>
+          </button>
         ))}
       </div>
     )
   }
+
   return null
 }
 
 function ScriptPreview({ text, url }: { text: string; url: string }) {
   const [copied, setCopied] = useState(false)
+
   async function copy() {
-    const c = text || await fetch(url).then(r => r.text()).catch(() => '')
-    await navigator.clipboard.writeText(c)
+    const content = text || (await fetch(url).then((response) => response.text()).catch(() => ''))
+    await navigator.clipboard.writeText(content)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
   return (
-    <div className="flex flex-col gap-2">
-      <div className="bg-zinc-800 rounded-xl p-2.5 text-[11px] text-zinc-300 whitespace-pre-wrap max-h-44 overflow-y-auto leading-relaxed">
-        {text || <span className="text-zinc-500 italic">Carregando...</span>}
+    <div className="space-y-3">
+      <div className="max-h-[280px] overflow-y-auto rounded-[18px] border border-white/8 bg-white/[0.03] p-3 text-[12px] leading-relaxed text-white/72">
+        {text || <span className="italic text-white/36">Carregando script...</span>}
       </div>
-      <button onClick={copy} className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-3 py-1.5 rounded-xl transition-colors">
-        {copied ? <><Check size={11} className="text-emerald-400" /> Copiado!</> : <><Copy size={11} /> Copiar</>}
+      <button
+        type="button"
+        onClick={copy}
+        className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70 transition-colors hover:border-white/18 hover:text-white"
+      >
+        {copied ? <Check size={12} className="text-emerald-300" /> : <Copy size={12} />}
+        {copied ? 'Copiado' : 'Copiar'}
       </button>
     </div>
   )
@@ -407,13 +848,30 @@ function ScriptPreview({ text, url }: { text: string; url: string }) {
 
 function CaptionPreview({ url }: { url: string }) {
   const [srt, setSrt] = useState('')
+
   return (
-    <div className="flex flex-col gap-2">
-      <div onClick={() => !srt && fetch(url).then(r => r.text()).then(setSrt)} className="bg-zinc-800 rounded-xl p-2.5 text-[11px] text-zinc-300 whitespace-pre-wrap max-h-36 overflow-y-auto cursor-pointer">
-        {srt || <span className="text-zinc-500 italic">Clique para ver a legenda</span>}
-      </div>
-      <a href={url} download className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-3 py-1.5 rounded-xl transition-colors">
-        <Download size={11} /> Baixar .srt
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={() => {
+          if (!srt) {
+            fetch(url)
+              .then((response) => response.text())
+              .then(setSrt)
+              .catch(() => {})
+          }
+        }}
+        className="max-h-[220px] w-full overflow-y-auto rounded-[18px] border border-white/8 bg-white/[0.03] p-3 text-left text-[12px] leading-relaxed text-white/68"
+      >
+        {srt || <span className="italic text-white/36">Clique para visualizar a legenda.</span>}
+      </button>
+      <a
+        href={url}
+        download
+        className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70 transition-colors hover:border-white/18 hover:text-white"
+      >
+        <Download size={12} />
+        Baixar .srt
       </a>
     </div>
   )
@@ -421,237 +879,247 @@ function CaptionPreview({ url }: { url: string }) {
 
 function ModelDoneActions({ asset, onRegenerate }: { asset: StudioAsset; onRegenerate: () => void }) {
   const [saved, setSaved] = useState(false)
+
   async function handleSave() {
     const text = String(asset.input_params.model_text ?? '')
     if (!text) return
-    const res = await fetch('/api/studio/save-model', {
+
+    const response = await fetch('/api/studio/save-model', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: text }),
     })
-    if (res.ok) setSaved(true)
+
+    if (response.ok) setSaved(true)
   }
+
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <button
+        type="button"
         onClick={onRegenerate}
-        className="flex items-center justify-center gap-1.5 flex-1 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 py-2 rounded-xl transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70 transition-colors hover:border-white/18 hover:text-white"
       >
-        <RotateCcw size={11} /> Regenerar
+        <RotateCcw size={12} />
+        Variar
       </button>
       <button
+        type="button"
         onClick={handleSave}
-        className={`flex items-center justify-center gap-1.5 flex-1 text-[11px] py-2 rounded-xl transition-colors border ${
-          saved ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : 'border-indigo-500/30 text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500/20'
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] transition-colors ${
+          saved
+            ? 'border-emerald-500/24 bg-emerald-500/10 text-emerald-200'
+            : 'border-indigo-500/20 bg-indigo-500/10 text-indigo-200 hover:border-indigo-500/36 hover:text-white'
         }`}
       >
-        {saved ? <><Check size={11} /> Salvo!</> : <><ArrowRight size={11} /> Salvar Modelo</>}
+        {saved ? <Check size={12} /> : <ArrowRight size={12} />}
+        {saved ? 'Modelo salvo' : 'Salvar modelo'}
       </button>
     </div>
   )
 }
 
-function FormForType({ type, initialParams, onGenerate }: { type: AssetType; initialParams: Record<string, unknown>; onGenerate: (p: Record<string, unknown>) => void }) {
-  if (type === 'face')    return <FaceGenerator    initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'join')    return <JoinGenerator    initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'image')   return <ImageGenerator   initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'script')  return <ScriptGenerator  initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'voice')   return <VoiceGenerator   initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'video')   return <VideoGenerator   initial={initialParams} onGenerate={onGenerate} />
+function FormForType({
+  type,
+  initialParams,
+  onGenerate,
+}: {
+  type: AssetType
+  initialParams: Record<string, unknown>
+  onGenerate: (params: Record<string, unknown>) => void
+}) {
+  if (type === 'face') return <FaceGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'join') return <JoinGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'image') return <ImageGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'script') return <ScriptGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'voice') return <VoiceGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'video') return <VideoGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'caption') return <CaptionGenerator initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'upscale') return <UpscaleCard      initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'model')   return <ModelGenerator   initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'render')  return <RenderCard       initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'upscale') return <UpscaleCard initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'model') return <ModelGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'render') return <RenderCard initial={initialParams} onGenerate={onGenerate} />
   if (type === 'animate') return <AnimateGenerator initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'compose') return <ComposeCard      initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'compose') return <ComposeCard initial={initialParams} onGenerate={onGenerate} />
   if (type === 'lipsync') return <LipsyncGenerator initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'angles')  return <AngleGenerator   initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'music')   return <MusicGenerator   initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'scene')      return <SceneGenerator      initial={initialParams} onGenerate={onGenerate} />
-  if (type === 'ugc_bundle') return <UGCBundleGenerator  initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'angles') return <AngleGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'music') return <MusicGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'scene') return <SceneGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'ugc_bundle') return <UGCBundleGenerator initial={initialParams} onGenerate={onGenerate} />
   return null
 }
-// ── Processing card com barra de progresso e timer ──────────────────────────────
-const ESTIMATED: Partial<Record<AssetType, number>> = {
-  video:   300, // 5 min
-  animate: 120, // 2 min
-  model:   35,
-  image:   20,
-  voice:   10,
-  script:  8,
-  upscale: 25,
-  caption: 15,
-  compose: 20,
-  render:  30,
-  lipsync: 120, // 2 min
-  music:   45,
-  ugc_bundle: 110,
-  scene: 25,
-}
-
-const LABELS: Partial<Record<AssetType, string>> = {
-  video:   'Animador Neural gerando movimentos...',
-  animate: 'Reanimando características da modelo...',
-  model:   'Fotógrafo Virtual criando modelo UGC...',
-  image:   'Renderizando cena em alta definição...',
-  voice:   'Sintetizando locução humana natural...',
-  script:  'Roteirista de Alta Conversão redigindo...',
-  upscale: 'Elevando nitidez para Ultra Resolução...',
-  caption: 'Transcrevendo áudio em legendas dinâmicas...',
-  compose: 'Integrando seu produto ao ambiente...',
-  render:  'Processando corte final e áudio...',
-  lipsync: 'Motor de Mapeamento sincronizando lábios...',
-  music:   'Maestro Virtual compondo trilha sonora...',
-  ugc_bundle: 'Renderizando 8 ângulos UGC em paralelo...',
-  scene: 'Integrando modelo na cena descrita...',
-}
-
-const SYNC_TYPES: AssetType[] = ['video', 'animate', 'lipsync']
 
 function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: () => void }) {
   const [syncing, setSyncing] = useState(false)
-  const [msg, setMsg] = useState('')
-
+  const [message, setMessage] = useState('')
   const hasPrediction = !!(asset.input_params as { prediction_id?: unknown }).prediction_id
   const canSync = SYNC_TYPES.includes(asset.type) && hasPrediction
 
   async function handleSync() {
     setSyncing(true)
-    setMsg('')
+    setMessage('')
+
     try {
-      const res = await fetch(`/api/studio/assets/${asset.id}/sync`, { method: 'POST' })
-      const data = await res.json()
+      const response = await fetch(`/api/studio/assets/${asset.id}/sync`, { method: 'POST' })
+      const data = await response.json()
+
       if (data.status === 'done') {
-        setMsg('Pronto! Recarregando...')
+        setMessage('Resultado encontrado. Recarregando...')
         setTimeout(() => window.location.reload(), 1200)
       } else if (data.status === 'error') {
-        setMsg(data.error ?? 'Erro no sync')
+        setMessage(data.error ?? 'Falha ao sincronizar')
       } else {
-        setMsg('Ainda processando...')
+        setMessage('Ainda em processamento no provedor.')
       }
     } catch {
-      setMsg('Erro ao verificar')
+      setMessage('Nao foi possivel consultar o status agora.')
     } finally {
       setSyncing(false)
     }
   }
 
   return (
-    <div className="flex flex-col items-center py-4 gap-2">
-      <p className="text-xs text-red-400 text-center">{asset.error_msg || 'Erro ao gerar'}</p>
-      {canSync && (
+    <div className="space-y-3 rounded-[22px] border border-red-500/18 bg-red-500/8 p-4">
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-red-200">falha na geracao</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-red-100/88">{asset.error_msg || 'Erro ao gerar este card.'}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {canSync ? (
+          <button
+            type="button"
+            onClick={handleSync}
+            disabled={syncing}
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-100 transition-colors hover:border-amber-500/34 hover:text-white disabled:opacity-60"
+          >
+            <RotateCcw size={12} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Verificando' : 'Buscar resultado'}
+          </button>
+        ) : null}
         <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="flex items-center gap-1.5 text-[11px] text-amber-400 hover:text-white border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+          type="button"
+          onClick={onGenerate}
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/78 transition-colors hover:border-white/18 hover:text-white"
         >
-          <RotateCcw size={11} className={syncing ? 'animate-spin' : ''} />
-          {syncing ? 'Verificando...' : 'Buscar resultado (sem custo)'}
+          <RotateCcw size={12} />
+          Tentar novamente
         </button>
-      )}
-      <button
-        onClick={onGenerate}
-        className="flex items-center gap-1.5 text-[11px] text-zinc-400 hover:text-white border border-zinc-700 px-2.5 py-1.5 rounded-lg transition-colors"
-      >
-        <RotateCcw size={11} /> {canSync ? 'Gerar novamente (cobra créditos)' : 'Tentar novamente'}
-      </button>
-      {msg && <p className="text-[10px] text-zinc-400 text-center">{msg}</p>}
+      </div>
+      {message ? <p className="text-[11px] text-white/56">{message}</p> : null}
     </div>
   )
 }
 
-function ProcessingCard({ type, createdAt, assetId }: { type: AssetType; createdAt: string; assetId: string }) {
+function ProcessingCard({
+  type,
+  createdAt,
+  assetId,
+}: {
+  type: AssetType
+  createdAt: string
+  assetId: string
+}) {
   const estimated = ESTIMATED[type] ?? 30
-  const label     = LABELS[type] ?? 'Gerando com IA...'
+  const label = PROCESSING_LABELS[type] ?? 'Gerando com IA...'
   const [elapsed, setElapsed] = useState(0)
   const [syncing, setSyncing] = useState(false)
-  const [syncMsg, setSyncMsg] = useState('')
+  const [syncMessage, setSyncMessage] = useState('')
 
   useEffect(() => {
     const start = new Date(createdAt).getTime()
     setElapsed(Math.floor((Date.now() - start) / 1000))
-    const t = setInterval(() => {
+
+    const timer = setInterval(() => {
       setElapsed(Math.floor((Date.now() - start) / 1000))
     }, 1000)
-    return () => clearInterval(t)
+
+    return () => clearInterval(timer)
   }, [createdAt])
 
-  // Progresso falso: vai até 90% suavemente, nunca termina antes do webhook
-  const rawProgress = Math.min((elapsed / estimated) * 100, 90)
-  const progress    = Math.round(rawProgress)
-  const isStuck     = elapsed > estimated + 60 // +1 min de tolerância
-
+  const progress = Math.round(Math.min((elapsed / estimated) * 100, 90))
   const remaining = Math.max(estimated - elapsed, 0)
-  const fmt = (s: number) => s >= 60
-    ? `${Math.floor(s / 60)}m ${s % 60}s`
-    : `${s}s`
+  const isStuck = elapsed > estimated + 60
+
+  const formatSeconds = (seconds: number) =>
+    seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`
 
   async function syncNow() {
     setSyncing(true)
-    setSyncMsg('')
+    setSyncMessage('')
+
     try {
-      const res = await fetch(`/api/studio/assets/${assetId}/sync`, { method: 'POST' })
-      const data = await res.json()
+      const response = await fetch(`/api/studio/assets/${assetId}/sync`, { method: 'POST' })
+      const data = await response.json()
+
       if (data.status === 'done') {
-        setSyncMsg('✅ Pronto! Recarregando...')
-        setTimeout(() => window.location.reload(), 1500)
+        setSyncMessage('Pronto. Recarregando...')
+        setTimeout(() => window.location.reload(), 1400)
       } else if (data.status === 'error') {
-        setSyncMsg(`❌ ${data.error}`)
-        setTimeout(() => window.location.reload(), 2500)
+        setSyncMessage(data.error ?? 'Erro ao sincronizar')
+        setTimeout(() => window.location.reload(), 2200)
       } else {
-        setSyncMsg(`⏳ Status: ${data.status}`)
+        setSyncMessage(`Status atual: ${data.status}`)
       }
     } catch {
-      setSyncMsg('Erro ao verificar')
+      setSyncMessage('Nao foi possivel atualizar agora.')
     } finally {
       setSyncing(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-3 py-4">
-      <div className="flex items-center gap-2.5">
-        <Loader2 size={15} className="animate-spin text-accent shrink-0" />
-        <p className="text-[11px] text-zinc-300 font-medium leading-tight">{label}</p>
+    <div className="space-y-4 rounded-[22px] border border-[#54D6F6]/14 bg-[#0D171B] p-4">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#54D6F6]/16 bg-[#091116] text-[#8EDDED]">
+          <Loader2 size={15} className="animate-spin" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8EDDED]">processing</p>
+          <p className="mt-1 text-[12px] leading-relaxed text-white/78">{label}</p>
+        </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="relative h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-        <div
-          className="absolute inset-y-0 left-0 bg-gradient-to-r from-accent to-fuchsia-500 rounded-full transition-all duration-1000"
-          style={{ width: `${progress}%` }}
-        />
-        {/* Shimmer */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
+      <div className="space-y-2">
+        <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+          <div
+            className="h-full rounded-full bg-[linear-gradient(90deg,#54D6F6_0%,#00ADCC_55%,#9B8CFF_100%)] transition-[width] duration-700"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="flex items-center justify-between text-[10px] text-white/42">
+          <span>{progress}%</span>
+          <span>{remaining > 0 ? `~${formatSeconds(remaining)} restantes` : 'Aguardando retorno do provedor'}</span>
+        </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] text-zinc-600">{progress}%</span>
-        <span className="text-[10px] text-zinc-600">
-          {remaining > 0
-            ? `~${fmt(remaining)} restante`
-            : 'Aguardando confirmação...'}
-        </span>
-      </div>
-
-      {/* Botão de sync manual quando travado */}
-      {isStuck && (
-        <div className="flex flex-col gap-1.5">
+      {isStuck ? (
+        <div className="space-y-2 rounded-[18px] border border-amber-500/18 bg-amber-500/8 p-3">
+          <p className="text-[11px] leading-relaxed text-amber-100/88">
+            Esta geracao esta demorando mais do que o esperado. Voce pode verificar o status sem custo extra.
+          </p>
           <button
+            type="button"
             onClick={syncNow}
             disabled={syncing}
-            className="flex items-center justify-center gap-1.5 text-[10px] text-amber-400 border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/24 bg-amber-500/12 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-100 transition-colors hover:border-amber-500/36 hover:text-white disabled:opacity-60"
           >
-            {syncing
-              ? <><Loader2 size={10} className="animate-spin" /> Verificando...</>
-              : <><RotateCcw size={10} /> Forçar atualização de status</>}
+            {syncing ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+            {syncing ? 'Verificando' : 'Forcar atualizacao'}
           </button>
-          {syncMsg && (
-            <p className="text-[10px] text-zinc-400 text-center">{syncMsg}</p>
-          )}
+          {syncMessage ? <p className="text-[11px] text-white/56">{syncMessage}</p> : null}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
 
+function downloadAsset(asset: StudioAsset) {
+  if (!asset.result_url) return
+
+  const anchor = document.createElement('a')
+  anchor.href = asset.result_url
+  anchor.download = `studio-${asset.type}-${asset.id.slice(0, 8)}`
+  anchor.target = '_blank'
+  anchor.click()
+}
+
+export default memo(AssetNode)
