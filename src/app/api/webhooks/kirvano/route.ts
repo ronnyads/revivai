@@ -5,11 +5,12 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { sendPurchaseEmail, sendRefundEmail, sendAbandonedCartEmail } from '@/lib/email'
 import { isDisposableEmail } from '@/lib/disposableEmails'
 import { sendMetaServerEvent } from '@/lib/meta-capi'
+import crypto from 'crypto'
 
 type KirvanoPlan = {
   productPlanId: string
   accountPlan: 'free' | 'package'
-  orderType: 'free' | 'package'
+  orderType: 'per_photo' | 'subscription' | 'package'
   credits: number
   name: string
   price: number
@@ -33,7 +34,7 @@ const KIRVANO_PRODUCTS: Record<string, KirvanoPlan> = {
   [process.env.KIRVANO_PRODUCT_FREE ?? '8be0d9b0-c20d-471e-9988-0c5b1951c3b1']: {
     productPlanId: 'free',
     accountPlan: 'free',
-    orderType: 'free',
+    orderType: 'package',
     credits: 50,
     name: 'Explorador',
     price: 0,
@@ -80,7 +81,7 @@ function normalizePriceCents(value: unknown) {
 
 function planFromFallback(offerName: string, offerPrice: number): KirvanoPlan | undefined {
   if (offerName.includes('explorador') || offerName.includes('free') || offerName.includes('gratuito') || offerPrice === 0) {
-    return { productPlanId: 'free', accountPlan: 'free', orderType: 'free', credits: 50, name: 'Explorador', price: 0 }
+    return { productPlanId: 'free', accountPlan: 'free', orderType: 'package', credits: 50, name: 'Explorador', price: 0 }
   }
   if (offerName.includes('rookie') || offerName.includes('starter') || (offerPrice >= 4700 && offerPrice < 7900)) {
     return { productPlanId: 'starter', accountPlan: 'package', orderType: 'package', credits: 600, name: 'Rookie', price: 47 }
@@ -94,6 +95,24 @@ function planFromFallback(offerName: string, offerPrice: number): KirvanoPlan | 
   if (offerName.includes('studio') || offerName.includes('agency') || offerPrice >= 39700) {
     return { productPlanId: 'agency', accountPlan: 'package', orderType: 'package', credits: 8000, name: 'Studio', price: 397 }
   }
+}
+
+function buildKirvanoOrderId(body: JsonRecord, plan: KirvanoPlan, email: string, cpf: string) {
+  const saleId = asString(body.sale_id ?? body.id).trim()
+  const prefix = plan.productPlanId === 'free' ? 'kirvano-free' : 'kirvano'
+  const cpfMarker = cpf ? `|cpf:${cpf.slice(0, 6)}***` : ''
+
+  if (saleId) return `${prefix}:${saleId}${cpfMarker}`
+
+  const fallbackSeed = [
+    plan.productPlanId,
+    email.trim().toLowerCase(),
+    asString(body.created_at ?? body.createdAt ?? body.date_created ?? body.approved_at),
+    asString(body.price ?? body.amount),
+  ].join('|')
+
+  const hash = crypto.createHash('sha256').update(fallbackSeed).digest('hex').slice(0, 24)
+  return `${prefix}:${hash}${cpfMarker}`
 }
 
 export async function POST(req: NextRequest) {
@@ -164,8 +183,7 @@ export async function POST(req: NextRequest) {
       const { data: existingOrder } = await admin
         .from('orders')
         .select('id')
-        .eq('type', 'free')
-        .like('stripe_id', `%${cpf.slice(0, 6)}%`)
+        .like('stripe_id', `kirvano-free:%|cpf:${cpf.slice(0, 6)}***`)
         .maybeSingle()
 
       if (existingOrder) {
@@ -175,22 +193,31 @@ export async function POST(req: NextRequest) {
     }
 
     let userId: string
-    const { data: existingUser } = await admin.auth.admin.listUsers()
-    const found = existingUser?.users?.find((u) => u.email === email)
+    const { data: existingProfile } = await admin
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle()
 
-    if (found) {
-      userId = found.id
+    if (existingProfile?.id) {
+      userId = existingProfile.id
     } else {
       const { data: newUser, error: createErr } = await admin.auth.admin.createUser({
         email,
-        password: '123456',
         email_confirm: true,
       })
-      if (createErr || !newUser?.user) {
-        console.error('[kirvano] Falha ao criar usuario:', createErr?.message)
-        return NextResponse.json({ error: 'Falha ao criar usuario' }, { status: 500 })
+
+      if (!createErr && newUser?.user) {
+        userId = newUser.user.id
+      } else {
+        const { data: authUsers } = await admin.auth.admin.listUsers()
+        const found = authUsers?.users?.find((u) => u.email === email)
+        if (!found) {
+          console.error('[kirvano] Falha ao criar usuario:', createErr?.message)
+          return NextResponse.json({ error: 'Falha ao criar usuario' }, { status: 500 })
+        }
+        userId = found.id
       }
-      userId = newUser.user.id
     }
 
     const { error: upsertErr } = await admin.from('users').upsert({
@@ -203,37 +230,121 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Falha ao atualizar usuario' }, { status: 500 })
     }
 
+    const externalId = buildKirvanoOrderId(body, plan, email, cpf)
+    const { data: existingPaidOrder } = await admin
+      .from('orders')
+      .select('id, status')
+      .eq('stripe_id', externalId)
+      .maybeSingle()
+
+    if (existingPaidOrder?.status === 'paid') {
+      console.log(`[kirvano] Pedido ja processado: ${externalId}`)
+      return NextResponse.json({ ok: true })
+    }
+
+    let ownsOrderLock = false
+    let orderId = existingPaidOrder?.id ?? null
+
+    if (!existingPaidOrder) {
+      const { data: insertedOrder, error: insertOrderErr } = await admin
+        .from('orders')
+        .insert({
+          user_id: userId,
+          type: plan.orderType,
+          amount: plan.price * 100,
+          status: 'pending',
+          stripe_id: externalId,
+        })
+        .select('id')
+        .single()
+
+      if (insertOrderErr) {
+        const isDuplicate = insertOrderErr.code === '23505' || insertOrderErr.message.toLowerCase().includes('duplicate')
+        if (isDuplicate) {
+          console.warn(`[kirvano] Pedido em processamento por outro worker: ${externalId}`)
+          return NextResponse.json({ ok: true })
+        }
+        console.error('[kirvano] Falha ao reservar pedido:', insertOrderErr.message)
+        return NextResponse.json({ error: 'Falha ao reservar pedido' }, { status: 500 })
+      }
+
+      ownsOrderLock = true
+      orderId = insertedOrder?.id ?? null
+    } else if (existingPaidOrder.status === 'failed' && existingPaidOrder.id) {
+      const { data: reclaimedOrder, error: reclaimErr } = await admin
+        .from('orders')
+        .update({ status: 'pending' })
+        .eq('id', existingPaidOrder.id)
+        .eq('status', 'failed')
+        .select('id')
+        .single()
+
+      if (!reclaimErr && reclaimedOrder?.id) {
+        ownsOrderLock = true
+        orderId = reclaimedOrder.id
+      } else {
+        console.warn(`[kirvano] Pedido falho nao pode ser recuperado agora: ${externalId}`)
+        return NextResponse.json({ ok: true })
+      }
+    } else {
+      console.warn(`[kirvano] Pedido pendente detectado, ignorando replay: ${externalId}`)
+      return NextResponse.json({ ok: true })
+    }
+
     const { error: creditsErr } = await admin.rpc('add_credits', { user_id_param: userId, amount: plan.credits })
     if (creditsErr) {
       console.warn('[kirvano] add_credits falhou:', creditsErr.message)
       const { data: currentUser } = await admin.from('users').select('credits').eq('id', userId).single()
       const newCredits = (currentUser?.credits ?? 0) + plan.credits
       const { error: fallbackCreditsErr } = await admin.from('users').update({ credits: newCredits }).eq('id', userId)
-      if (fallbackCreditsErr) console.warn('[kirvano] update credits falhou:', fallbackCreditsErr.message)
-      else console.log(`[kirvano] Creditos adicionados por fallback: ${plan.credits} -> total: ${newCredits}`)
+      if (fallbackCreditsErr) {
+        console.warn('[kirvano] update credits falhou:', fallbackCreditsErr.message)
+        if (ownsOrderLock && orderId) {
+          await admin.from('orders').update({ status: 'failed' }).eq('id', orderId)
+        }
+        return NextResponse.json({ error: 'Falha ao adicionar creditos' }, { status: 500 })
+      }
+      console.log(`[kirvano] Creditos adicionados por fallback: ${plan.credits} -> total: ${newCredits}`)
     } else {
       console.log(`[kirvano] Creditos adicionados: ${plan.credits}`)
     }
 
-    const externalId = cpf
-      ? `${body.sale_id ?? body.id ?? 'kirvano'}|cpf:${cpf.slice(0, 6)}***`
-      : asString(body.sale_id ?? body.id) || `kirvano-${Date.now()}`
-    const { error: orderErr } = await admin.from('orders').insert({
-      user_id: userId,
-      type: plan.orderType,
-      amount: plan.price * 100,
-      status: 'paid',
-      stripe_id: externalId,
-    })
-    if (orderErr) console.warn('[kirvano] pedido nao salvo:', orderErr.message)
+    if (orderId) {
+      const { error: finalizeOrderErr } = await admin
+        .from('orders')
+        .update({
+          user_id: userId,
+          type: plan.orderType,
+          amount: plan.price * 100,
+          status: 'paid',
+        })
+        .eq('id', orderId)
 
-    const loginUrl = 'https://revivads.com/auth/login'
+      if (finalizeOrderErr) {
+        console.warn('[kirvano] pedido nao finalizado:', finalizeOrderErr.message)
+      }
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://revivads.com'
+    let loginUrl = `${appUrl}/auth/login`
+    try {
+      const { data: linkData } = await admin.auth.admin.generateLink({
+        type: 'magiclink',
+        email,
+        options: {
+          redirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent('/dashboard')}`,
+        },
+      })
+      loginUrl = linkData?.properties?.action_link ?? loginUrl
+    } catch (linkErr) {
+      console.warn('[kirvano] Falha ao gerar magic link:', linkErr)
+    }
+
     const { error: emailErr } = await sendPurchaseEmail({
       email,
       name,
       planName: plan.name,
       credits: plan.credits,
-      password: '123456',
       loginUrl,
     })
     if (emailErr) console.warn('[kirvano] E-mail de compra falhou:', emailErr)

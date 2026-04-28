@@ -58,8 +58,8 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
   {
     label: 'Estudio de Entrega',
     items: [
-      { type: 'compose', icon: <Layers size={20} />, label: 'Provador', desc: 'Look, roupa e visual com produto', gradient: 'from-amber-400 to-yellow-500', presetParams: { compose_variant: 'fitting' } },
-      { type: 'compose', icon: <Layers size={20} />, label: 'Produto + Modelo', desc: 'Cena comercial com produto em destaque', gradient: 'from-orange-500 to-amber-500', presetParams: { compose_variant: 'product' } },
+      { type: 'compose', icon: <Layers size={20} />, label: 'Provador', desc: 'Roupa e acessorios com look guiado', gradient: 'from-amber-400 to-yellow-500', presetParams: { compose_variant: 'fitting' } },
+      { type: 'compose', icon: <Layers size={20} />, label: 'Modelo + Produto', desc: 'Fundo branco e produto hero na mao', gradient: 'from-orange-500 to-amber-500', presetParams: { compose_variant: 'product' } },
       { type: 'upscale', icon: <ZoomIn size={20} />, label: 'Upscale 4K', desc: 'Nitidez extrema', gradient: 'from-emerald-400 to-cyan-500' },
       { type: 'caption', icon: <Captions size={20} />, label: 'Legendas', desc: 'Dinamicas e cores', gradient: 'from-violet-500 to-indigo-500' },
       { type: 'render', icon: <Film size={20} />, label: 'Video Final', desc: 'Mix render master', gradient: 'from-zinc-300 to-zinc-500' },

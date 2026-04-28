@@ -12,7 +12,6 @@ export async function sendPurchaseEmail(opts: {
   name: string
   planName: string
   credits: number
-  password: string
   loginUrl: string
 }) {
   return resend.emails.send({

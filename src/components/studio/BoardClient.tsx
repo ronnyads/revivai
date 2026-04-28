@@ -26,7 +26,18 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   upscale: { source_url: '', scale: 4 },
   render:  { source_image_url: '', audio_url: '' },
   animate: { portrait_image_url: '', driving_video_url: '' },
-  compose: { portrait_url: '', product_url: '', position: 'southeast', product_scale: 0.35 },
+  compose: {
+    portrait_url: '',
+    product_url: '',
+    position: 'southeast',
+    product_scale: 0.35,
+    compose_variant: 'fitting',
+    compose_mode: 'gemini',
+    fitting_category: 'tops',
+    fitting_style_preset: 'fashion-clean',
+    fitting_pose_preset: 'three-quarter',
+    fitting_energy_preset: 'natural',
+  },
   lipsync: { face_url: '', audio_url: '' },
   face:    { face_image_url: '' },
   join:    { video_urls: [] },
@@ -96,12 +107,12 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
     setAssets(prev => [...prev, tempAsset])
   }
 
-  async function addCard(type: AssetType) {
+  async function addCard(type: AssetType, prefillParams?: Record<string, unknown>) {
     if (credits < CREDIT_COST[type]) {
       alert(`Você precisa de ${CREDIT_COST[type]} crédito(s) para gerar ${type}.`)
       return
     }
-    addIdleCard(type)
+    addIdleCard(type, prefillParams)
   }
 
   // ── "Usar em..." — cria card pré-preenchido ──────────────────────────────
@@ -164,7 +175,7 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ project_id: project.id, type, input_params: params }),
       })
-    } catch (networkErr) {
+    } catch {
       // Erro de rede — restaura o card para idle
       setAssets(prev => prev.map(a =>
         a.id === existingId ? { ...a, status: 'idle' as const } : a

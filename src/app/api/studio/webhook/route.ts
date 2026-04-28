@@ -3,6 +3,13 @@ export const maxDuration = 120 // 2 minutes to allow downloading/uploading video
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/studio/webhook?assetId=&userId=
@@ -83,18 +90,23 @@ export async function POST(req: NextRequest) {
     if (output) { // Replicate
       rawUrl = Array.isArray(output) ? (output as string[])[0] : output as string
     } else if (payload) { // Fal AI
-      const falPayload = payload as Record<string, any>
-      const v = falPayload.video
-      const firstVidUrl = Array.isArray(v) ? v[0]?.url : v?.url
-      rawUrl = firstVidUrl ?? falPayload.video?.url ?? falPayload.video_url ?? falPayload.url ?? falPayload.result?.video?.url ?? falPayload.output?.[0] ?? ''
+      const falPayload = asRecord(payload)
+      const videoValue = falPayload.video as { url?: string } | Array<{ url?: string }> | undefined
+      const resultValue = asRecord(falPayload.result)
+      const nestedResultVideo = asRecord(resultValue.video)
+      const outputValue = Array.isArray(falPayload.output) ? falPayload.output : []
+      const firstVidUrl = Array.isArray(videoValue) ? videoValue[0]?.url : videoValue?.url
+      rawUrl = firstVidUrl ?? String(falPayload.video_url ?? falPayload.url ?? nestedResultVideo.url ?? outputValue[0] ?? '')
     }
 
     if (!rawUrl) {
       console.warn(`[studio/webhook] Nenhuma URL extraída do payload para ${assetId}`)
-      await admin.from('studio_assets').update({
-        status: 'error',
-        error_msg: `Succeeded but no URL found. Body: ${JSON.stringify(body).slice(0, 500)}`
-      }).eq('id', assetId)
+      await markStudioAssetFailed({
+        admin,
+        assetId,
+        errorMsg: `Succeeded but no URL found. Body: ${JSON.stringify(body).slice(0, 500)}`,
+        refundReason: 'async-webhook:missing-output-url',
+      })
       return NextResponse.json({ ok: true })
     }
 
@@ -122,10 +134,12 @@ export async function POST(req: NextRequest) {
     status === 'failed' || status === 'canceled' ||
     status === 'ERROR'  || status === 'FAILED'
   ) {
-    await admin.from('studio_assets').update({
-      status: 'error',
-      error_msg: reqError ? String(reqError) : 'Geração falhou no provedor',
-    }).eq('id', assetId)
+    await markStudioAssetFailed({
+      admin,
+      assetId,
+      errorMsg: reqError ? String(reqError) : 'Geração falhou no provedor',
+      refundReason: `async-webhook:${String(status ?? 'unknown').toLowerCase()}`,
+    })
 
     console.log(`[studio/webhook] ❌ Asset ${assetId} falhou: ${reqError}`)
   }

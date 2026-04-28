@@ -955,14 +955,329 @@ RULES — non-negotiable:
 6. OUTPUT: Natural commercial lighting and shadows that make the product look real and grounded in the scene. No watermarks, borders, or text outside the product itself.`
 }
 
-function buildRetryPrompt(basePrompt: string, issues: string[], weakestDimension?: string): string {
+const PRODUCT_SHOWCASE_FALLBACK_INTENT =
+  'No extra refinement. Stay close to the auto pose preset with a clean commercial expression and clear product visibility.'
+
+const PRODUCT_SHOWCASE_BLOCKLIST: { pattern: RegExp; label: string }[] = [
+  { pattern: /(praia|beach|cozinha|kitchen|sala|living room|sofa|rua|street|cidade|city|floresta|forest|restaurante|restaurant|cafe|office|escritorio|quarto|bedroom|banheiro|bathroom|sunset|por do sol|outdoor|indoor|ambiente|cenario|background|fundo|parede|wall)/i, label: 'scenario' },
+  { pattern: /(editorial|fashion|magazine|runway|passarela|luxury set|cinematic|dramatic|sombras dramaticas|shadow dramatic|studio set)/i, label: 'editorial styling' },
+  { pattern: /(vestindo|wearing|dress the model|outfit|look completo|look fashion|roupa|camiseta|jaqueta|vestido|calca|saia|sapato|shoes|heels|hat|bone)/i, label: 'wearable styling' },
+]
+
+function normalizeProductShowcasePrompt(userPrompt?: string): { intent: string; removedDirectives: string[] } {
+  const raw = userPrompt?.trim()
+  if (!raw) return { intent: '', removedDirectives: [] }
+
+  const segments = raw
+    .split(/[\n,.;]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+
+  const kept: string[] = []
+  const removed = new Set<string>()
+
+  for (const segment of segments) {
+    const blockedRule = PRODUCT_SHOWCASE_BLOCKLIST.find((rule) => rule.pattern.test(segment))
+    if (blockedRule) {
+      removed.add(blockedRule.label)
+      continue
+    }
+    kept.push(segment)
+  }
+
+  return {
+    intent: kept.join(', '),
+    removedDirectives: Array.from(removed),
+  }
+}
+
+function getProductShowcasePosePreset(profile: ProductProfile): { name: string; instruction: string } {
+  switch (profile.category) {
+    case 'packaged':
+      return {
+        name: 'packaged-clean-hero',
+        instruction: 'Hold the packaged product near chest or face level with the main label facing camera, fingers not covering the label, and use a clean premium e-commerce smile.',
+      }
+    case 'handheld':
+      return {
+        name: 'handheld-demo',
+        instruction: 'Present the device clearly in one hand with the main surface facing camera, while the second hand stays relaxed or lightly supports the product like a commercial demo.',
+      }
+    case 'delicate':
+      return {
+        name: 'delicate-beauty-closeup',
+        instruction: 'Use elegant fingertips and a careful beauty-style hold that protects delicate details, with a refined close commercial framing and minimal visual clutter.',
+      }
+    case 'no-identity':
+      return {
+        name: 'generic-visibility',
+        instruction: 'Use a straightforward centered hold that maximizes readability, with one or two hands only when necessary, keeping the product fully visible as the hero.',
+      }
+    default:
+      return {
+        name: 'default-clean-showcase',
+        instruction: 'Use a simple commercial hold near chest level, keep the product facing camera when possible, and make the product clearly dominant in a clean e-commerce frame.',
+      }
+  }
+}
+
+function buildProductShowcasePrompt(profile: ProductProfile, posePreset: string, userIntent: string): string {
+  const featureLine = profile.key_features.length > 0
+    ? `Protect these product features exactly: ${profile.key_features.join(', ')}.`
+    : 'Protect every visible shape, label, finish, cap, button, edge, contour, and detail from the original product.'
+
+  return `You are a world-class e-commerce product photographer and identity-preserving compositor. Produce ONE single unified product showcase photograph.
+
+You receive two images:
+[BASE PHOTO]: the exact model identity and clothing reference.
+[PRODUCT]: the exact client product to be held and showcased.
+
+AUTO POSE PRESET: ${posePreset}
+USER REFINEMENT: ${userIntent}
+
+GOAL:
+- Create a clean commercial photo where the model supports the hero product.
+- This is a single product hero shot with model support, not an editorial campaign image.
+
+RULES - non-negotiable:
+1. FACE & IDENTITY LOCK: Preserve the person's exact facial structure, features, skin tone, hair, makeup, and identity from [BASE PHOTO].
+2. CLOTHING LOCK: Keep the person's existing clothing exactly as in [BASE PHOTO]. Do not restyle wardrobe, add fashion pieces, or change outfit details.
+3. PRODUCT FIDELITY - CRITICAL: Treat [PRODUCT] like a literal restoration target. Preserve 100% of its shape, silhouette, colors, texture, proportions, text, label, logo, finish, and every visual detail. ${featureLine}
+4. PRODUCT USAGE MODE: The product must be naturally held or intentionally presented with one or two hands. Do NOT make the model wear the product as clothing, and do NOT convert it into a scenario prop.
+5. PRODUCT PRIORITY: The product is the hero. It must be fully visible, large enough to read or recognize clearly, and intentionally facing the camera when physically possible.
+6. FRAMING & POSE: Follow the AUTO POSE PRESET as the structural pose. Apply the USER REFINEMENT only as a light adjustment. Use a clean commercial pose, natural confident expression, medium or medium-close framing, and anatomically correct hands and arms. Exactly 2 hands maximum. No extra fingers, hands, or limbs.
+7. BACKGROUND: Pure white (#FFFFFF) only. No set, no room, no outdoor scene, no gradient backdrop, no furniture, no decorative props.
+8. LIGHTING: Clean e-commerce lighting with natural soft shadows only. No dramatic editorial shadows, no cinematic environment light, no colored gels.
+9. OUTPUT: Photorealistic commercial photography, no collage, no split screen, no watermarks, no text outside the product itself. Ignore any request for scenario, environment, background color, or fashion editorial styling.`
+}
+
+const FITTING_PROMPT_BLOCKLIST: { pattern: RegExp; label: string }[] = [
+  { pattern: /(praia|beach|floresta|forest|espaco|space|sci-fi|ficcao cientifica|cyberpunk|cidade futurista|battle|explosion|action scene|luta|correndo|jumping|voando)/i, label: 'extreme scenario' },
+  { pattern: /(duas roupas|dois looks|multiple looks|multiple outfits|trocar de roupa no meio|antes e depois|split screen|side by side|colagem)/i, label: 'multiple looks' },
+  { pattern: /(quatro bracos|four arms|extra arms|extra hands|six fingers|corpo impossivel|anatomia impossivel|levitando sem apoio|pose impossivel)/i, label: 'impossible anatomy' },
+]
+
+function normalizeFittingCategory(input?: string): string {
+  switch ((input ?? '').trim().toLowerCase()) {
+    case 'tops':
+    case 'top':
+      return 'tops'
+    case 'bottoms':
+    case 'bottom':
+      return 'bottoms'
+    case 'one-pieces':
+    case 'one-pieceses':
+    case 'dress':
+    case 'dresses':
+    case 'vestido':
+    case 'macacao':
+      return 'one-pieces'
+    case 'outerwear':
+    case 'jaqueta':
+    case 'casaco':
+      return 'outerwear'
+    case 'bags':
+    case 'bag':
+    case 'bolsa':
+      return 'bags'
+    case 'glasses':
+    case 'oculos':
+      return 'glasses'
+    case 'jewelry':
+    case 'joia':
+    case 'jewellery':
+      return 'jewelry'
+    case 'shoes':
+    case 'shoe':
+    case 'sapato':
+      return 'shoes'
+    default:
+      return 'tops'
+  }
+}
+
+function normalizeFittingPrompt(userPrompt?: string): { intent: string; removedDirectives: string[] } {
+  const raw = userPrompt?.trim()
+  if (!raw) return { intent: '', removedDirectives: [] }
+
+  const segments = raw
+    .split(/[\n,.;]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+
+  const kept: string[] = []
+  const removed = new Set<string>()
+
+  for (const segment of segments) {
+    const blockedRule = FITTING_PROMPT_BLOCKLIST.find((rule) => rule.pattern.test(segment))
+    if (blockedRule) {
+      removed.add(blockedRule.label)
+      continue
+    }
+    kept.push(segment)
+  }
+
+  return {
+    intent: kept.join(', '),
+    removedDirectives: Array.from(removed),
+  }
+}
+
+function getFittingCategoryPreset(category: string): { name: string; instruction: string } {
+  switch (category) {
+    case 'tops':
+      return {
+        name: 'tops-wardrobe-swap',
+        instruction: 'Replace only the upper-body garment with the reference piece, keeping neckline, shoulders, sleeves, hem, fabric behavior, and fit coherent while preserving lower-body clothing from the base photo.',
+      }
+    case 'bottoms':
+      return {
+        name: 'bottoms-wardrobe-swap',
+        instruction: 'Replace only the lower-body garment with the reference piece, preserving waist placement, leg silhouette, and natural drape while keeping the top from the base photo unchanged.',
+      }
+    case 'one-pieces':
+      return {
+        name: 'one-piece-full-look',
+        instruction: 'Dress the model in the full one-piece outfit from the reference, preserving silhouette, seams, straps, length, and fabric drape with a clean full-look presentation.',
+      }
+    case 'outerwear':
+      return {
+        name: 'outerwear-layered-look',
+        instruction: 'Apply the outerwear piece as a realistic top layer with natural opening, sleeve length, and shoulder fit, keeping the rest of the look coherent underneath.',
+      }
+    case 'bags':
+      return {
+        name: 'bag-accessory-look',
+        instruction: 'Keep the base outfit intact and integrate the bag naturally on shoulder, arm, or hand with believable strap behavior, scale, and visibility.',
+      }
+    case 'glasses':
+      return {
+        name: 'glasses-accessory-look',
+        instruction: 'Keep the base outfit intact and fit the glasses naturally to the face with correct frame alignment, temple placement, and lens perspective.',
+      }
+    case 'jewelry':
+      return {
+        name: 'jewelry-accessory-look',
+        instruction: 'Keep the base outfit intact and place the jewelry cleanly with believable scale, attachment, and shine, without fusing it into skin or hair.',
+      }
+    case 'shoes':
+      return {
+        name: 'shoes-accessory-look',
+        instruction: 'Keep the base outfit intact and replace only the shoes with a stance that shows them clearly, preserving realistic foot angle, pair symmetry, and floor contact.',
+      }
+    default:
+      return {
+        name: 'fashion-default',
+        instruction: 'Integrate the reference fashion item naturally into the model look while preserving identity, anatomy, and a premium fashion-photo finish.',
+      }
+  }
+}
+
+function getFittingStyleInstruction(stylePreset?: string): string {
+  switch (stylePreset) {
+    case 'casual':
+      return 'Use a relaxed everyday fashion mood with believable styling and easy body language.'
+    case 'premium':
+      return 'Use a polished premium fashion direction with elevated taste, crisp styling, and refined visual balance.'
+    case 'elegante':
+      return 'Use a sophisticated elegant styling direction with clean lines and composed posture.'
+    case 'street':
+      return 'Use a confident streetwear-inspired fashion attitude while keeping the image commercially clean and photorealistic.'
+    case 'minimalista':
+      return 'Use a minimal clean styling direction with low clutter and restrained visual energy.'
+    default:
+      return 'Use a fashion-clean commercial direction that feels premium, modern, and wearable.'
+  }
+}
+
+function getFittingPoseInstruction(posePreset?: string): string {
+  switch (posePreset) {
+    case 'frontal':
+      return 'Use a front-facing pose that clearly shows the look with balanced shoulders and stable anatomy.'
+    case 'three-quarter':
+      return 'Use a three-quarter fashion pose that flatters the garment or accessory while keeping visibility clear.'
+    case 'full-body':
+      return 'Use a full-body framing that shows the complete silhouette and keeps posture natural.'
+    case 'seated':
+      return 'Use a seated pose only if the garment or accessory remains clearly visible and anatomy stays natural.'
+    case 'standing':
+      return 'Use a clean standing pose with natural weight distribution and clear fashion presentation.'
+    case 'hand-in-pocket':
+      return 'Use a relaxed fashion pose with one hand in pocket only if it does not hide the key piece.'
+    case 'showing-bag':
+      return 'Use a pose that intentionally presents the bag with clear strap logic and comfortable arm placement.'
+    case 'adjusting-glasses':
+      return 'Use a subtle gesture of adjusting the glasses while keeping hands, face, and frame alignment natural.'
+    default:
+      return 'Use a commercially clean fashion pose with clear visibility of the key item.'
+  }
+}
+
+function getFittingEnergyInstruction(energyPreset?: string): string {
+  switch (energyPreset) {
+    case 'confiante':
+      return 'Give the model a confident fashion presence without changing her identity.'
+    case 'sorriso-suave':
+      return 'Use a soft approachable smile and relaxed facial energy.'
+    case 'editorial-leve':
+      return 'Use a lightly editorial expression and posture, but keep the final image realistic and commercially usable.'
+    default:
+      return 'Use natural believable energy with a subtle fashion attitude.'
+  }
+}
+
+function buildFittingPrompt(params: {
+  category: string
+  categoryPreset: string
+  styleInstruction: string
+  poseInstruction: string
+  energyInstruction: string
+  userIntent: string
+}): string {
+  return `You are a world-class fashion photographer and identity-preserving stylist compositor. Produce ONE single unified fashion photograph.
+
+You receive two images:
+[BASE PHOTO]: the exact model identity, body proportions, hair, and base scene reference.
+[FASHION ITEM]: the exact clothing piece or accessory to integrate into the look.
+
+FASHION CATEGORY: ${params.category}
+CATEGORY PRESET: ${params.categoryPreset}
+STYLE PRESET: ${params.styleInstruction}
+POSE PRESET: ${params.poseInstruction}
+ENERGY PRESET: ${params.energyInstruction}
+USER REFINEMENT: ${params.userIntent}
+
+GOAL:
+- Create a strong, photorealistic fashion image where the model is wearing or naturally using the reference item.
+- Keep the result commercially beautiful, coherent, and wearable.
+
+RULES - non-negotiable:
+1. FACE AND IDENTITY LOCK: Preserve the model exact face, facial structure, skin tone, hair identity, and body proportions from [BASE PHOTO].
+2. ANATOMY LOCK: Keep natural anatomy only. Exactly two arms, two hands, and realistic legs, feet, neck, and shoulders. No fused limbs or impossible body positions.
+3. FASHION ITEM FIDELITY: Preserve the reference item exact silhouette, color, pattern, texture, material, trim, hardware, seams, proportions, and visible details. Do not redesign it.
+4. CATEGORY APPLICATION: Follow the CATEGORY PRESET as the structural wardrobe rule. Replace only the relevant garment area or integrate the accessory naturally without corrupting unrelated parts of the outfit.
+5. STYLING DIRECTION: Follow the STYLE PRESET, POSE PRESET, and ENERGY PRESET as the primary direction. Apply the USER REFINEMENT only as a light adjustment.
+6. SCENE DISCIPLINE: Preserve the base photo camera logic and keep the environment commercially clean. Light editorial polish is allowed, but do not invent extreme scenarios, action scenes, sci-fi worlds, or multi-look collages.
+7. GARMENT AND ACCESSORY COHERENCE: Fabric must drape naturally, accessories must attach or sit correctly, and the look must feel physically wearable in one believable photo.
+8. OUTPUT: Photorealistic high-end fashion photography, no collage, no split image, no extra props unless implied by the base photo, no text or watermark.`
+}
+
+function buildRetryPrompt(
+  basePrompt: string,
+  issues: string[],
+  weakestDimension?: string,
+  composeVariant: 'product' | 'fitting' = 'fitting',
+): string {
   const issueBlock = issues.length > 0
     ? `\n\nPREVIOUS ATTEMPT FAILED. Issues detected: ${issues.join('; ')}. You MUST fix ALL of these.`
     : ''
   const focusBlock = weakestDimension
     ? `\nCRITICAL FOCUS FOR THIS RETRY: ${weakestDimension}. Do not compromise on this dimension.`
     : ''
-  return basePrompt + issueBlock + focusBlock
+  const modeLockBlock = composeVariant === 'product'
+    ? '\nMODE LOCK: PRODUCT SHOWCASE ONLY. Keep pure white background, no scenario, no props, no outfit changes, product fully visible and dominant, and hands anatomically correct.'
+    : '\nMODE LOCK: FASHION FITTING ONLY. Preserve identity, fix garment drape, correct accessory placement, clean anatomy, and keep the outfit physically wearable in one coherent photo.'
+  return basePrompt + issueBlock + focusBlock + modeLockBlock
 }
 
 function decideRoute(profile: ProductProfile): string {
@@ -976,9 +1291,14 @@ export async function composeProductScene(params: {
   portrait_url:   string
   product_url:    string
   compose_mode?:  string   // 'try-on' (default), 'overlay', 'prompt'
+  compose_variant?: string
   position?:      string
   product_scale?: number
   vton_category?: string
+  fitting_category?: string
+  fitting_style_preset?: string
+  fitting_pose_preset?: string
+  fitting_energy_preset?: string
   costume_prompt?: string
   smart_prompt?:  string
   assetId:        string
@@ -1135,9 +1455,38 @@ export async function composeProductScene(params: {
 
     // Classificar produto e decidir rota
     const profile = await classifyProduct(productBuf, apiKey)
+    const composeVariant = params.compose_variant === 'product' ? 'product' : 'fitting'
     const route = decideRoute(profile)
     console.log(`[studio] product-profile | category=${profile.category} has_text=${profile.has_text_logo} risk=${profile.deformation_risk} complexity=${profile.shape_complexity} route=${route}`)
     console.log(`[studio] key_features: ${profile.key_features.join(', ')}`)
+
+    if (composeVariant === 'product' && profile.category === 'wearable') {
+      throw new Error('Esse card Modelo + Produto e para produtos de demonstracao na mao. Para roupas ou itens de vestir, use o card Provador.')
+    }
+
+    const posePreset = composeVariant === 'product'
+      ? getProductShowcasePosePreset(profile)
+      : null
+    const fittingCategory = normalizeFittingCategory(params.fitting_category ?? params.vton_category)
+    const fittingCategoryPreset = composeVariant === 'fitting'
+      ? getFittingCategoryPreset(fittingCategory)
+      : null
+    const fittingStyleInstruction = composeVariant === 'fitting'
+      ? getFittingStyleInstruction(params.fitting_style_preset)
+      : null
+    const fittingPoseInstruction = composeVariant === 'fitting'
+      ? getFittingPoseInstruction(params.fitting_pose_preset)
+      : null
+    const fittingEnergyInstruction = composeVariant === 'fitting'
+      ? getFittingEnergyInstruction(params.fitting_energy_preset)
+      : null
+
+    if (posePreset) {
+      console.log(`[studio] product-showcase preset=${posePreset.name}`)
+    }
+    if (fittingCategoryPreset) {
+      console.log(`[studio] fitting preset=${fittingCategoryPreset.name} category=${fittingCategory}`)
+    }
 
     // Auto-remove product background via Fal AI Bria
     const falKey = process.env.FAL_KEY
@@ -1167,11 +1516,28 @@ export async function composeProductScene(params: {
       }
     }
 
-    const userIntent = params.smart_prompt?.trim()
-      || profile.placement_suggestion
-      || 'place the product naturally in the model\'s hands, she is holding it'
+    const normalizedPrompt = composeVariant === 'product'
+      ? normalizeProductShowcasePrompt(params.smart_prompt)
+      : normalizeFittingPrompt(params.smart_prompt)
 
-    const finalPrompt = buildCompositionPrompt(profile, userIntent)
+    if (normalizedPrompt.removedDirectives.length > 0) {
+      console.log(`[studio] ${composeVariant} prompt normalized | removed=${normalizedPrompt.removedDirectives.join(', ')}`)
+    }
+
+    const userIntent = composeVariant === 'product'
+      ? normalizedPrompt.intent || PRODUCT_SHOWCASE_FALLBACK_INTENT
+      : normalizedPrompt.intent || 'No extra refinement. Stay close to the selected fashion presets and keep the look coherent.'
+
+    const finalPrompt = composeVariant === 'product'
+      ? buildProductShowcasePrompt(profile, posePreset?.instruction ?? PRODUCT_SHOWCASE_FALLBACK_INTENT, userIntent)
+      : buildFittingPrompt({
+          category: fittingCategory,
+          categoryPreset: fittingCategoryPreset?.instruction ?? 'Integrate the item naturally into the look.',
+          styleInstruction: fittingStyleInstruction ?? getFittingStyleInstruction('fashion-clean'),
+          poseInstruction: fittingPoseInstruction ?? getFittingPoseInstruction('three-quarter'),
+          energyInstruction: fittingEnergyInstruction ?? getFittingEnergyInstruction('natural'),
+          userIntent,
+        })
 
     const COMPOSE_MODELS = [
       'gemini-2.5-flash-image',
@@ -1218,13 +1584,19 @@ export async function composeProductScene(params: {
     let currentBase64 = initialBase64
     resultBuffer = Buffer.from(currentBase64, 'base64')
 
-    const qc1 = await assessCompositionQuality(params.product_url, currentBase64, profile)
+    const qc1 = await assessCompositionQuality(params.product_url, currentBase64, profile, {
+      variant: composeVariant,
+      fittingCategory,
+    })
     console.log(`[compose-qc] route=${route} attempt=1 | approved=${qc1.approved} score=${qc1.score}`)
     if (!qc1.approved) {
       console.warn(`[compose-qc] REPROVADO | weakest=${qc1.weakest_dimension} | issues: ${qc1.issues.join(', ')}`)
-      const retryBase64 = await callGeminiCompose(buildRetryPrompt(finalPrompt, qc1.issues, qc1.weakest_dimension))
+      const retryBase64 = await callGeminiCompose(buildRetryPrompt(finalPrompt, qc1.issues, qc1.weakest_dimension, composeVariant))
       if (retryBase64) {
-        const qc2 = await assessCompositionQuality(params.product_url, retryBase64, profile)
+        const qc2 = await assessCompositionQuality(params.product_url, retryBase64, profile, {
+          variant: composeVariant,
+          fittingCategory,
+        })
         console.log(`[compose-qc] attempt=2 | approved=${qc2.approved} score=${qc2.score}`)
         if (qc2.approved) {
           currentBase64 = retryBase64

@@ -5,6 +5,17 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Replicate from 'replicate'
 import { saveLastFrame } from '@/lib/videoUtils'
+import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/studio/assets/[id]/sync
@@ -55,15 +66,16 @@ export async function POST(
   if (!asset) return NextResponse.json({ error: 'Asset não encontrado' }, { status: 404 })
   if (asset.status === 'done') return NextResponse.json({ status: 'done', asset })
 
-  const predictionId = (asset.input_params as Record<string, unknown>)?.prediction_id as string | undefined
+  const assetInputParams = asRecord(asset.input_params)
+  const predictionId = typeof assetInputParams.prediction_id === 'string' ? assetInputParams.prediction_id : undefined
 
   if (!predictionId) {
     return NextResponse.json({ status: asset.status, message: 'prediction_id não encontrado' })
   }
 
   // ── Google Veo3 direto (provider === 'google')
-  const provider = (asset.input_params as any)?.provider as string | undefined
-  const engine = (asset.input_params as any)?.engine as string | undefined
+  const provider = typeof assetInputParams.provider === 'string' ? assetInputParams.provider : undefined
+  const engine = typeof assetInputParams.engine === 'string' ? assetInputParams.engine : undefined
   
   if (asset.type === 'video' && (provider === 'google' || engine === 'veo')) {
     const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
@@ -77,7 +89,7 @@ export async function POST(
       )
       if (!opRes.ok) {
         const errMsg = 'Veo3: operação não encontrada no Google ou job bloqueado. Tente gerar novamente.'
-        await admin.from('studio_assets').update({ status: 'error', error_msg: errMsg }).eq('id', id)
+        await markStudioAssetFailed({ admin, assetId: id, errorMsg: errMsg, refundReason: 'sync:veo-operation-missing' })
         return NextResponse.json({ status: 'error', error: errMsg })
       }
 
@@ -88,7 +100,7 @@ export async function POST(
 
       if (op.error) {
         const errMsg = op.error.message ?? 'Falha na geração do Veo3'
-        await admin.from('studio_assets').update({ status: 'error', error_msg: errMsg }).eq('id', id)
+        await markStudioAssetFailed({ admin, assetId: id, errorMsg: errMsg, refundReason: 'sync:veo-provider-error' })
         return NextResponse.json({ status: 'error', error: errMsg })
       }
 
@@ -106,7 +118,7 @@ export async function POST(
       if (raiFiltered) {
         const reason = op.response?.generateVideoResponse?.raiMediaFilteredReasons?.[0] || 'Bloqueado pelos filtros de segurança do Google'
         console.warn(`[sync] Veo3 RAI Blocked: ${reason}`)
-        await admin.from('studio_assets').update({ status: 'error', error_msg: `Segurança Google: ${reason}` }).eq('id', id)
+        await markStudioAssetFailed({ admin, assetId: id, errorMsg: `Segurança Google: ${reason}`, refundReason: 'sync:veo-safety-filter' })
         return NextResponse.json({ status: 'error', error: reason })
       }
 
@@ -152,9 +164,10 @@ export async function POST(
 
       return NextResponse.json({ status: 'done', result_url: finalUrl })
 
-    } catch (err: any) {
-      console.error(`[sync] Google Veo3 check failed for ${id}:`, err.message)
-      return NextResponse.json({ status: 'error', error: err.message }, { status: 500 })
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err)
+      console.error(`[sync] Google Veo3 check failed for ${id}:`, errorMessage)
+      return NextResponse.json({ status: 'error', error: errorMessage }, { status: 500 })
     }
   }
 
@@ -165,12 +178,12 @@ export async function POST(
 
     let modelPath: string
     if (asset.type === 'video') {
-      const savedPath = (asset.input_params as any)?.fal_model_path as string | undefined
-      const engine    = (asset.input_params as any)?.engine
+      const savedPath = typeof assetInputParams.fal_model_path === 'string' ? assetInputParams.fal_model_path : undefined
+      const engine = assetInputParams.engine
       modelPath = savedPath
         ?? (engine === 'veo' ? 'fal-ai/veo3.1/image-to-video' : 'fal-ai/kling-video/v1.5/pro/image-to-video')
     } else if (asset.type === 'animate') {
-      const savedPath = (asset.input_params as any)?.fal_model_path as string | undefined
+      const savedPath = typeof assetInputParams.fal_model_path === 'string' ? assetInputParams.fal_model_path : undefined
       modelPath = savedPath ?? 'fal-ai/wan-motion'
     } else {
       modelPath = 'fal-ai/latentsync'
@@ -200,7 +213,7 @@ export async function POST(
       }
       if (!statusJson) {
         const errMsg = 'Job expirado ou não encontrado. Clique em "Tentar novamente" para gerar novamente.'
-        await admin.from('studio_assets').update({ status: 'error', error_msg: errMsg }).eq('id', id)
+        await markStudioAssetFailed({ admin, assetId: id, errorMsg: errMsg, refundReason: 'sync:fal-job-missing' })
         return NextResponse.json({ status: 'error', error: errMsg })
       }
 
@@ -256,15 +269,16 @@ export async function POST(
 
       if (statusJson.status === 'ERROR' || statusJson.status === 'FAILED') {
         const errorMsg = statusJson.error ? String(statusJson.error) : 'Geração falhou no Fal AI'
-        await admin.from('studio_assets').update({ status: 'error', error_msg: errorMsg }).eq('id', id)
+        await markStudioAssetFailed({ admin, assetId: id, errorMsg, refundReason: `sync:fal-${String(statusJson.status).toLowerCase()}` })
         return NextResponse.json({ status: 'error', error: errorMsg })
       }
 
       return NextResponse.json({ status: statusJson.status ?? 'processing' })
 
-    } catch (err: any) {
-      console.error(`[sync] Fal AI check failed for ${id}:`, err.message)
-      return NextResponse.json({ status: 'error', error: err.message }, { status: 500 })
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err)
+      console.error(`[sync] Fal AI check failed for ${id}:`, errorMessage)
+      return NextResponse.json({ status: 'error', error: errorMessage }, { status: 500 })
     }
   }
 
@@ -281,13 +295,14 @@ export async function POST(
 
     if (prediction.status === 'failed' || prediction.status === 'canceled') {
       const errorMsg = prediction.error ? String(prediction.error) : 'Geração falhou no Replicate'
-      await admin.from('studio_assets').update({ status: 'error', error_msg: errorMsg }).eq('id', id)
+      await markStudioAssetFailed({ admin, assetId: id, errorMsg, refundReason: `sync:replicate-${prediction.status}` })
       return NextResponse.json({ status: 'error', error: errorMsg })
     }
 
     return NextResponse.json({ status: prediction.status })
-  } catch (err: any) {
-    console.error(`[sync] Replicate check failed for ${id}:`, err.message)
-    return NextResponse.json({ status: 'error', error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    const errorMessage = getErrorMessage(err)
+    console.error(`[sync] Replicate check failed for ${id}:`, errorMessage)
+    return NextResponse.json({ status: 'error', error: errorMessage }, { status: 500 })
   }
 }

@@ -39,11 +39,10 @@ interface PurchaseEmailProps {
   email: string
   planName: string
   credits: number
-  password: string
   loginUrl: string
 }
 
-export default function PurchaseEmail({ name, email, planName, credits, password, loginUrl }: PurchaseEmailProps) {
+export default function PurchaseEmail({ name, email, planName, credits, loginUrl }: PurchaseEmailProps) {
   const palette = PLAN_PALETTES[planName] ?? PLAN_PALETTES.Creator
   const firstName = name?.split(' ')[0] ?? 'criador'
   const images = Math.floor(credits / 8)
@@ -53,7 +52,7 @@ export default function PurchaseEmail({ name, email, planName, credits, password
   return (
     <Html lang="pt-BR">
       <Head />
-      <Preview>Sua conta RevivAI esta pronta. Acesse agora.</Preview>
+      <Preview>Sua conta RevivAI esta pronta. Entre com um clique.</Preview>
       <Body style={bodyStyle}>
         <Container style={containerStyle}>
           <Section style={shellFrameStyle}>
@@ -122,18 +121,11 @@ export default function PurchaseEmail({ name, email, planName, credits, password
               <Hr style={dividerStyle} />
               <Row style={{ padding: '16px 0' }}>
                 <Column style={{ width: '32%' }}>
-                  <Text style={dataKeyStyle}>Senha</Text>
+                  <Text style={dataKeyStyle}>Acesso</Text>
                 </Column>
                 <Column>
-                  <Text
-                    style={{
-                      ...dataValueStyle,
-                      color: palette.accentSoft,
-                      fontFamily: '"IBM Plex Mono", "Courier New", monospace',
-                      letterSpacing: 2.6,
-                    }}
-                  >
-                    {password}
+                  <Text style={{ ...dataValueStyle, color: palette.accentSoft }}>
+                    Use o botao abaixo para entrar automaticamente com este e-mail. Nenhuma senha temporaria foi criada.
                   </Text>
                 </Column>
               </Row>

@@ -493,10 +493,111 @@ export interface CompositionQuality {
   weakest_dimension?: string
 }
 
+export interface CompositionQualityOptions {
+  variant?: 'product' | 'fitting'
+  fittingCategory?: string
+}
+
+function getFittingCategoryQualityRule(category?: string): string {
+  switch (category) {
+    case 'tops':
+      return 'Focus on neckline, shoulders, sleeves, hem, chest fit, and natural fabric drape on the torso.'
+    case 'bottoms':
+      return 'Focus on waist placement, hip and leg silhouette, inseam logic, and natural lower-body drape.'
+    case 'one-pieces':
+      return 'Focus on full-body silhouette, straps, length, seams, and uninterrupted garment structure.'
+    case 'outerwear':
+      return 'Focus on shoulder fit, sleeve length, lapel/opening logic, and clean layering over the base outfit.'
+    case 'bags':
+      return 'Focus on bag shape, strap logic, arm/shoulder attachment, and realistic scale against the body.'
+    case 'glasses':
+      return 'Focus on frame alignment, lens symmetry, temple placement, and natural fit on the face.'
+    case 'jewelry':
+      return 'Focus on attachment, scale, clean placement, and preventing fusion into skin or hair.'
+    case 'shoes':
+      return 'Focus on pair consistency, ankle and foot angle, floor contact, and realistic shoe perspective.'
+    default:
+      return 'Focus on clean fashion integration, believable placement, and a wearable final look.'
+  }
+}
+
+function buildFittingQualityPrompt(profile: ProductProfile | undefined, featuresLine: string, fittingCategory?: string): string {
+  return `EXTREMELY STRICT QUALITY ANALYST FOR FASHION FITTING COMPOSITIONS
+
+You receive:
+- IMAGE 1 = original clothing or accessory reference
+- IMAGE 2 = composed fashion photo with model wearing or using the item
+- Composition mode: FASHION_FITTING
+- Fitting category: ${fittingCategory ?? 'unspecified'}
+- Reference profile category: ${profile?.category ?? 'unknown'}
+- Key visible features to verify: ${featuresLine || 'none specified'}
+
+Category-specific review rule:
+${getFittingCategoryQualityRule(fittingCategory)}
+
+## ZERO-TOLERANCE RULES - AUTO-REJECT regardless of score:
+- Extra hands, arms, legs, feet, or impossible anatomy
+- Collage, split image, side-by-side result, or obvious pasted composite
+- Face identity clearly changed
+- Clothing or accessory fused unnaturally into skin, hair, or body
+
+Evaluate FIVE dimensions. Score each 0-100. APPROVED ONLY IF ALL dimensions are >= 70.
+
+## DIMENSION 1 - FASHION INTEGRATION UNITY
+Reject if ANY of the following is true:
+- The fashion item looks pasted, floating, or detached from the body
+- Visible seams, cutout edges, masking errors, or warped blending appear
+- The item does not belong naturally to the same photo as the model
+- There are duplicate accessories or duplicated item fragments
+
+## DIMENSION 2 - ITEM FIDELITY
+Reject if ANY of the following is true:
+- The silhouette, shape, pattern, or material changed materially from IMAGE 1
+- Hardware, trims, straps, seams, or distinctive details are missing or altered
+- The item became a different garment or accessory than IMAGE 1
+- Key visible features from the reference were lost or distorted
+
+## DIMENSION 3 - FIT AND PLACEMENT
+Reject if ANY of the following is true:
+- Garment drape is physically wrong
+- Sleeves, collar, waist, hem, straps, bag handles, glasses arms, jewelry placement, or shoes perspective are clearly incorrect for the category
+- The item scale is unrealistic for the model body
+- The item is hidden too much to judge the look correctly
+
+## DIMENSION 4 - ANATOMY AND WARDROBE COHERENCE
+Reject if ANY of the following is true:
+- Clothing melts into skin or body contours unnaturally
+- Arms, hands, shoulders, torso, hips, legs, feet, or neck look broken or impossible
+- Unrelated base outfit areas were corrupted without reason
+- The final look does not feel physically wearable in one coherent photo
+
+## DIMENSION 5 - MODEL IDENTITY
+Reject if ANY of the following is true:
+- Face, skin tone, hair identity, or body proportions changed noticeably
+- Expression changed so much that the model feels like another person
+- The model no longer matches the base photo identity
+
+Be extremely strict. When in doubt, reject.
+
+## APPROVAL RULE
+- If ANY dimension is below 70, REJECT
+- Only APPROVE if all dimensions are 70 or higher
+
+## OUTPUT
+Respond with valid JSON only:
+{
+  "score": 0-100,
+  "approved": true|false,
+  "issues": ["issue 1", "issue 2"],
+  "weakest_dimension": "DIMENSION_NAME"
+}`
+}
+
 export async function assessCompositionQuality(
   productUrl: string,
   composedImageBase64: string,
   profile?: ProductProfile,
+  options?: CompositionQualityOptions,
 ): Promise<CompositionQuality> {
   const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
   if (!apiKey) return { approved: true, score: 80, issues: [] }
@@ -504,22 +605,26 @@ export async function assessCompositionQuality(
   const featuresLine = profile?.key_features?.length
     ? `Product key features to verify: ${profile.key_features.join(', ')}.`
     : ''
+  const isProductShowcase = options?.variant === 'product'
   const textLogoRule = profile?.has_text_logo === false
     ? '- (Surface/text check skipped — product has no visible text or logo)'
     : '- Any text or logo is blurred, missing, distorted, or altered\n- Label colors or layout changed'
 
-  const prompt = `EXTREMELY STRICT QUALITY ANALYST FOR UGC AD COMPOSITIONS
+  const legacyPrompt = `EXTREMELY STRICT QUALITY ANALYST FOR UGC AD COMPOSITIONS
 
 You receive:
 - IMAGE 1 = original product
 - IMAGE 2 = composed photo with model + product
+- Composition mode: ${isProductShowcase ? 'PRODUCT_SHOWCASE' : 'GENERAL_COMPOSE'}
 - Product category: ${profile?.category ?? 'unknown'}
 - Product key features to verify: ${featuresLine || 'none specified'}
+- Surface/text fidelity rule: ${textLogoRule}
 
 ## ZERO-TOLERANCE RULES — AUTO-REJECT regardless of any other score:
 - Extra or duplicate hands/arms visible — physically count every wrist, palm, and set of fingers in IMAGE 2. A human body has EXACTLY 2 hands. If you count 3 or more distinct hands/wrists, REJECT immediately.
 - Disembodied hands that do not belong to the model's connected arms
 - Collage, side-by-side layout, or split image
+${isProductShowcase ? '- Background is not pure white or includes obvious room/scenario elements\n- Product is hidden, cropped awkwardly, or too small to be the hero subject' : ''}
 
 Evaluate FIVE dimensions. Score each 0-100. APPROVED ONLY IF ALL dimensions are >= 70.
 
@@ -549,6 +654,10 @@ Reject if:
 
 ## DIMENSION 4 — CONTEXT COHERENCE
 Reject if ANY of the following is true:
+- The product is not clearly the main subject of IMAGE 2
+- The product is partially hidden, too small, or not intentionally presented to camera
+- The product is not being naturally held or displayed by the model
+${isProductShowcase ? '- The background is not pure white (#FFFFFF)\n- Decorative props, furniture, or environmental storytelling appear\n- The image feels like an editorial/lifestyle scene instead of clean e-commerce presentation' : ''}
 - The product makes no physical sense in the scene
 - The angle is impossible
 - The scale is wrong
@@ -576,6 +685,10 @@ Respond with valid JSON only:
   "issues": ["issue 1", "issue 2"],
   "weakest_dimension": "DIMENSION_NAME"
 }`
+
+  const prompt = isProductShowcase
+    ? legacyPrompt
+    : buildFittingQualityPrompt(profile, featuresLine, options?.fittingCategory)
 
   try {
     const res = await fetch(

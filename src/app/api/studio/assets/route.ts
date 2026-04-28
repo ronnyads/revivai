@@ -5,12 +5,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos, generateAngles, generateMusic, generateUGCPositions, generateScene } from '@/lib/studio'
+import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
 
 type StudioAssetRecord = {
   id: string
   [key: string]: unknown
+}
+
+type ExistingAssetOwnership = {
+  id: string
+  project_id: string
+  user_id: string
+  type: AssetType
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -36,6 +44,53 @@ export async function POST(req: NextRequest) {
     frontend_id?: string
   }
 
+  if (!project_id || !type) return NextResponse.json({ error: 'project_id e type obrigatÃ³rios' }, { status: 400 })
+
+  if (existing_id && frontend_id && existing_id !== frontend_id) {
+    return NextResponse.json({ error: 'existing_id e frontend_id conflitam' }, { status: 400 })
+  }
+
+  const admin = createAdminClient()
+
+  // Confirma posse do projeto antes de qualquer write com service-role.
+  const { data: project, error: projectErr } = await admin
+    .from('studio_projects')
+    .select('id, user_id')
+    .eq('id', project_id)
+    .maybeSingle()
+
+  if (projectErr) {
+    return NextResponse.json({ error: 'Falha ao validar projeto' }, { status: 500 })
+  }
+  if (!project || project.user_id !== user.id) {
+    return NextResponse.json({ error: 'Projeto nÃ£o encontrado' }, { status: 403 })
+  }
+
+  const requestedAssetId = frontend_id || existing_id
+  if (requestedAssetId) {
+    const { data: existingAsset, error: existingAssetErr } = await admin
+      .from('studio_assets')
+      .select('id, project_id, user_id, type')
+      .eq('id', requestedAssetId)
+      .maybeSingle()
+
+    if (existingAssetErr) {
+      return NextResponse.json({ error: 'Falha ao validar asset' }, { status: 500 })
+    }
+
+    if (existingAsset) {
+      const ownedAsset = existingAsset as ExistingAssetOwnership
+      if (ownedAsset.user_id !== user.id || ownedAsset.project_id !== project_id) {
+        return NextResponse.json({ error: 'Asset nÃ£o pertence a este projeto' }, { status: 403 })
+      }
+      if (ownedAsset.type !== type) {
+        return NextResponse.json({ error: 'Tipo do asset nÃ£o pode ser alterado' }, { status: 409 })
+      }
+    } else if (existing_id) {
+      return NextResponse.json({ error: 'Asset para regenerar nÃ£o encontrado' }, { status: 404 })
+    }
+  }
+
   if (!project_id || !type) return NextResponse.json({ error: 'project_id e type obrigatórios' }, { status: 400 })
 
   // 1. Cálculo de Custo e Verificação de Saldo
@@ -50,7 +105,6 @@ export async function POST(req: NextRequest) {
   }
 
   const isDraft = body.status === 'idle'
-  const admin = createAdminClient()
   const { data: profile } = await admin.from('users').select('credits, plan').eq('id', user.id).single()
 
   // Bloqueia vídeo/animação/lipsync para plano Explorador (free)
@@ -75,7 +129,7 @@ export async function POST(req: NextRequest) {
     credits_cost: isDraft ? 0 : effectiveCost,
     board_order: 0
   }
-  if (frontend_id || existing_id) insertData.id = frontend_id || existing_id
+  if (requestedAssetId) insertData.id = requestedAssetId
 
   const { data: inserted, error: dbErr } = await admin
     .from('studio_assets')
@@ -264,9 +318,14 @@ export async function POST(req: NextRequest) {
         portrait_url:  String(input_params.portrait_url   ?? ''),
         product_url:   String(input_params.product_url    ?? ''),
         compose_mode:  String(input_params.compose_mode   ?? 'try-on'),
+        compose_variant: String(input_params.compose_variant ?? 'fitting'),
         position:      input_params.position ? String(input_params.position) : 'southeast',
         product_scale: input_params.product_scale ? Number(input_params.product_scale) : 0.35,
         vton_category: String(input_params.vton_category  ?? 'tops'),
+        fitting_category: input_params.fitting_category ? String(input_params.fitting_category) : undefined,
+        fitting_style_preset: input_params.fitting_style_preset ? String(input_params.fitting_style_preset) : undefined,
+        fitting_pose_preset: input_params.fitting_pose_preset ? String(input_params.fitting_pose_preset) : undefined,
+        fitting_energy_preset: input_params.fitting_energy_preset ? String(input_params.fitting_energy_preset) : undefined,
         costume_prompt: input_params.costume_prompt ? String(input_params.costume_prompt) : undefined,
         smart_prompt:  input_params.smart_prompt ? String(input_params.smart_prompt) : undefined,
         assetId: asset.id,
@@ -365,10 +424,12 @@ export async function POST(req: NextRequest) {
     })
 
     if (asset?.id) {
-      await admin.from('studio_assets').update({ 
-        status: 'error', 
-        error_msg: errorMsg.slice(0, 500) 
-      }).eq('id', asset.id)
+      await markStudioAssetFailed({
+        admin,
+        assetId: asset.id,
+        errorMsg,
+        refundReason: `sync-post:${type}`,
+      })
     }
     
     return NextResponse.json({ 

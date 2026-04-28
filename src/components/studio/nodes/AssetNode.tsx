@@ -35,7 +35,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   caption: { icon: <Captions size={14} />, label: 'Legenda',     color: 'text-cyan-400',   bg: 'bg-cyan-500/10 border-cyan-500/30',    hint: '← Conecte o Áudio aqui', output: 'Legendas →' },
   render:  { icon: <Film size={14} />,     label: 'Vídeo Final', color: 'text-rose-400',   bg: 'bg-rose-500/10 border-rose-500/30',    hint: '← Conecte Vídeo + Voz → resultado final', output: '🎬 Vídeo com voz →' },
   animate: { icon: <Sparkles size={14} />, label: 'Imitar Movimentos', color: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10 border-fuchsia-500/30', hint: '← Envie foto do modelo + vídeo de referência', output: 'Vídeo animado →' },
-  compose: { icon: <Layers size={14} />,   label: 'Provador',   color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',   hint: 'Conecte modelo + produto para montar a cena', output: 'Cena gerada ->' },
+  compose: { icon: <Layers size={14} />,   label: 'Provador',   color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30',   hint: 'Vista a modelo com roupa e acessorios no Gemini', output: 'Cena gerada ->' },
   lipsync: { icon: <Wand2 size={14} />,    label: 'Lip Sync',    color: 'text-cyan-400',    bg: 'bg-cyan-500/10 border-cyan-500/30',        hint: '← Conecte Vídeo + Voz', output: 'Vídeo sincronizado →' },
   angles:  { icon: <Camera size={14} />,   label: 'Ângulos (Trocar Posição)', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', hint: '← Conecte a Modelo ou Fusão', output: 'Novo Ângulo →' },
   music:   { icon: <Music size={14} />,    label: 'Trilha Sonora AI', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30', hint: 'Gera música com Lyria 3', output: 'Áudio MP3 →' },
@@ -107,10 +107,10 @@ function AssetNode({ data }: NodeProps) {
   const displayMeta = asset.type === 'compose'
     ? {
         ...meta,
-        label: composeVariant === 'product' ? 'Produto + Modelo' : 'Provador',
+        label: composeVariant === 'product' ? 'Modelo + Produto' : 'Provador',
         hint: composeVariant === 'product'
-          ? 'Monte uma cena comercial com produto em destaque'
-          : 'Use a modelo com look, roupa ou encaixe de produto',
+          ? 'Produto hero na mao, fundo branco e pose clean'
+          : 'Look guiado por categoria, pose e energia',
       }
     : meta
   const inputHandles = INPUT_HANDLES[asset.type] ?? []
