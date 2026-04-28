@@ -32,6 +32,10 @@ import {
 const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
 
+function areNodeSelectionsEqual(previous: string[], next: string[]) {
+  return previous.length === next.length && previous.every((id, index) => id === next[index])
+}
+
 const CREDIT_COST: Record<AssetType, number> = {
   image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12,
 }
@@ -154,6 +158,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [showGallery, setShowGallery] = useState(initialAssets.length === 0)
   const [chatOpen,    setChatOpen]    = useState(false)
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
+  const handleSelectionChange = useCallback(({ nodes: selectedNodes }: { nodes: Node[] }) => {
+    const nextSelection = selectedNodes.map((node) => node.id)
+    setSelectedNodeIds((previous) => (areNodeSelectionsEqual(previous, nextSelection) ? previous : nextSelection))
+  }, [])
   const pollingRef        = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
   const startPollingRef   = useRef<(id: string) => void>(() => {})
   
@@ -1338,7 +1346,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           translateExtent={[[-5000, -5000], [5000, 5000]]}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onSelectionChange={({ nodes: selectedNodes }) => setSelectedNodeIds(selectedNodes.map((node) => node.id))}
+          onSelectionChange={handleSelectionChange}
           onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           onEdgesDelete={onEdgesDelete}
