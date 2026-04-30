@@ -28,7 +28,7 @@ create table if not exists public.studio_assets (
   project_id    uuid references public.studio_projects(id) on delete cascade not null,
   user_id       uuid references public.users(id) on delete cascade not null,
   type          text not null
-                  check (type in ('image','video','voice','upscale','script','caption','model','animate','compose','render')),
+                  check (type in ('image','video','voice','upscale','script','caption','model','animate','compose','render','face','join','lipsync','angles','music','ugc_bundle','scene','look_split')),
   status        text not null default 'idle'
                   check (status in ('idle','processing','done','error')),
   input_params  jsonb not null default '{}',
