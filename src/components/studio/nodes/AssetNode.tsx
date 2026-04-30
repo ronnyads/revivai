@@ -19,6 +19,7 @@ import {
   Mic,
   Music,
   RotateCcw,
+  Scissors,
   Sparkles,
   Trash2,
   User,
@@ -44,6 +45,7 @@ import AngleGenerator from '../AngleGenerator'
 import MusicGenerator from '../MusicGenerator'
 import SceneGenerator from '../SceneGenerator'
 import UGCBundleGenerator from '../UGCBundleGenerator'
+import LookSplitGenerator from '../LookSplitGenerator'
 import { getStudioNodeCardWidth, getStudioNodeVisualState } from '../node-layout'
 
 const TYPE_META: Record<
@@ -143,7 +145,7 @@ const TYPE_META: Record<
     label: 'Provador',
     color: 'text-orange-100',
     chip: 'border-orange-500/20 bg-orange-500/10 text-orange-100',
-    hint: 'Fusao comercial entre modelo e produto.',
+    hint: 'Vista a modelo com a peca exata do cliente.',
     output: 'Composicao pronta',
   },
   lipsync: {
@@ -186,6 +188,14 @@ const TYPE_META: Record<
     hint: 'Move a modelo para uma cena guiada por prompt.',
     output: 'Cena pronta',
   },
+  look_split: {
+    icon: <Scissors size={14} />,
+    label: 'Separar Look',
+    color: 'text-cyan-100',
+    chip: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-100',
+    hint: 'Divide 1 foto em ate 3 referencias fieis para o Provador.',
+    output: 'Refs prontas',
+  },
 }
 
 const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string }>>> = {
@@ -210,7 +220,10 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
     { id: 'portrait_image_url', label: 'Retrato' },
     { id: 'driving_video_url', label: 'Movimento' },
   ],
-  compose: [{ id: 'portrait_url', label: 'Modelo' }],
+  compose: [
+    { id: 'portrait_url', label: 'Modelo' },
+    { id: 'product_bundle', label: 'Look/Refs' },
+  ],
   lipsync: [
     { id: 'face_url', label: 'Video/Rosto' },
     { id: 'audio_url', label: 'Audio' },
@@ -227,6 +240,7 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
   music: [{ id: 'source_image_url', label: 'Imagem/Mood' }],
   ugc_bundle: [{ id: 'source_url', label: 'Imagem/Modelo' }],
   scene: [{ id: 'source_url', label: 'Modelo/Fusao' }],
+  look_split: [{ id: 'source_url', label: 'Look/Colecao' }],
 }
 
 const PAID_PLANS = ['subscription', 'package', 'starter', 'popular', 'pro', 'agency']
@@ -266,6 +280,7 @@ const FIELD_SUMMARIES: Partial<Record<AssetType, Array<{ field: string; label: s
   ],
   scene: [{ field: 'scene_prompt', label: 'Cena' }],
   music: [{ field: 'prompt', label: 'Mood' }],
+  look_split: [{ field: 'smart_prompt', label: 'Observacao' }],
 }
 
 const NEXT_STEPS: Partial<Record<AssetType, { text: string; chip: string }>> = {
@@ -274,6 +289,7 @@ const NEXT_STEPS: Partial<Record<AssetType, { text: string; chip: string }>> = {
   video: { text: 'Conecte voz ou renderize o ad final', chip: 'border-blue-500/18 bg-blue-500/10 text-blue-100' },
   script: { text: 'Envie este texto para Voz', chip: 'border-pink-500/18 bg-pink-500/10 text-pink-100' },
   voice: { text: 'Combine com video no render final', chip: 'border-emerald-500/18 bg-emerald-500/10 text-emerald-100' },
+  look_split: { text: 'Conecte direto no Provador', chip: 'border-cyan-500/18 bg-cyan-500/10 text-cyan-100' },
 }
 
 const ESTIMATED: Partial<Record<AssetType, number>> = {
@@ -291,6 +307,7 @@ const ESTIMATED: Partial<Record<AssetType, number>> = {
   music: 45,
   ugc_bundle: 110,
   scene: 25,
+  look_split: 22,
 }
 
 const PROCESSING_LABELS: Partial<Record<AssetType, string>> = {
@@ -308,6 +325,7 @@ const PROCESSING_LABELS: Partial<Record<AssetType, string>> = {
   music: 'Compondo trilha original...',
   ugc_bundle: 'Gerando o pacote de poses em paralelo...',
   scene: 'Posicionando modelo na nova cena...',
+  look_split: 'Separando o look em referencias fieis...',
 }
 
 export interface AssetNodeData {
@@ -334,6 +352,13 @@ function getHandleValue(inputParams: Record<string, unknown>, handleId: string) 
     const index = Number(handleId.split('_')[1])
     const values = Array.isArray(inputParams.video_urls) ? inputParams.video_urls : []
     return values[index]
+  }
+
+  if (handleId === 'product_bundle') {
+    const productUrls = Array.isArray(inputParams.product_urls)
+      ? inputParams.product_urls.filter((value) => typeof value === 'string' && value.trim().length > 0)
+      : []
+    return productUrls.length > 0 ? productUrls : inputParams.product_url
   }
 
   return inputParams[handleId]
@@ -383,7 +408,7 @@ function AssetNode({ data, selected }: NodeProps) {
           hint:
             composeVariant === 'product'
               ? 'Hero product em fundo branco com pose clean.'
-              : 'Look guiado por categoria, pose e energia.',
+              : 'Peca fiel com pose e energia leves.',
         }
       : meta
 
@@ -414,8 +439,6 @@ function AssetNode({ data, selected }: NodeProps) {
     collapsed,
     selected,
   })
-  const isSelectionMuted = !!selectionActive && !selected
-
   return (
     <div
       className={`group/node overflow-visible rounded-[26px] border transition-[width,box-shadow,opacity,transform,border-color,background-color] duration-200 ${
@@ -424,7 +447,7 @@ function AssetNode({ data, selected }: NodeProps) {
           : asset.isNew
             ? 'border-orange-400/35 bg-[#111111]/96 shadow-[0_22px_70px_rgba(249,115,22,0.18)]'
             : 'border-white/8 bg-[#101112]/94 shadow-[0_18px_52px_rgba(0,0,0,0.34)]'
-      } ${isSelectionMuted ? 'opacity-55 saturate-[0.82]' : 'opacity-100'} ${
+      } opacity-100 ${
         selected ? 'translate-y-[-2px]' : ''
       }`}
       style={{ width: cardWidth }}
@@ -768,6 +791,40 @@ function ResultPreview({
     )
   }
 
+  if (type === 'look_split') {
+    const references = Array.isArray(params.split_references)
+      ? (params.split_references as Array<{ category?: string; url?: string; rank?: number }>)
+        .filter((item) => typeof item?.url === 'string' && item.url.trim().length > 0)
+        .slice(0, 3)
+      : []
+
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-3 gap-2 rounded-[22px] border border-white/8 bg-black/10 p-2">
+          {references.map((reference, index) => (
+            <div key={`${reference.url}-${index}`} className="overflow-hidden rounded-[16px] border border-white/8 bg-black/20">
+              <div className="aspect-[4/5] overflow-hidden">
+                <img src={reference.url} alt={`Referencia ${index + 1}`} className="h-full w-full object-contain" />
+              </div>
+              <div className="border-t border-white/8 px-2 py-1.5">
+                <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold ${index === 0 ? 'border-cyan-500/20 bg-cyan-500/10 text-cyan-200' : 'border-white/10 bg-white/[0.05] text-white/58'}`}>
+                  {index === 0 ? 'Principal' : `Ref ${index + 1}`}
+                </span>
+                <p className="mt-1 truncate text-[10px] text-white/52">{String(reference.category ?? 'Referencia')}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-[18px] border border-cyan-500/12 bg-cyan-500/8 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200">bundle pronto</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/58">
+            Uma unica conexao deste card para o Provador preenche automaticamente a referencia principal e as referencias extras.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   if (type === 'video' || type === 'render' || type === 'animate' || type === 'lipsync' || type === 'join') {
     return (
       <div className="overflow-hidden rounded-[22px] border border-white/8 bg-black/20">
@@ -945,6 +1002,7 @@ function FormForType({
   if (type === 'music') return <MusicGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'scene') return <SceneGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'ugc_bundle') return <UGCBundleGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'look_split') return <LookSplitGenerator initial={initialParams} onGenerate={onGenerate} />
   return null
 }
 

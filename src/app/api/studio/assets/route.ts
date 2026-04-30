@@ -4,7 +4,7 @@ export const maxDuration = 300
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos, generateAngles, generateMusic, generateUGCPositions, generateScene } from '@/lib/studio'
+import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos, generateAngles, generateMusic, generateUGCPositions, generateScene, splitLookReferences } from '@/lib/studio'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
@@ -19,6 +19,109 @@ type ExistingAssetOwnership = {
   project_id: string
   user_id: string
   type: AssetType
+}
+
+type ConnectionRecoveryRow = {
+  source_id: string
+  created_at: string
+}
+
+type RecoverySourceAssetRow = {
+  id: string
+  result_url: string | null
+  project_id: string
+  user_id: string
+}
+
+function normalizeOptionalUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function createComposeInputError(code: string, message: string) {
+  return NextResponse.json({
+    error: 'invalid_compose_input',
+    code,
+    message,
+  }, { status: 400 })
+}
+
+function createAssetInputError(code: string, message: string) {
+  return NextResponse.json({
+    error: 'invalid_asset_input',
+    code,
+    message,
+  }, { status: 400 })
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+}
+
+async function recoverPortraitUrlFromConnections(params: {
+  admin: ReturnType<typeof createAdminClient>
+  projectId: string
+  userId: string
+  targetAssetId?: string
+}): Promise<{ portraitUrl?: string; sourceAssetId?: string }> {
+  if (!params.targetAssetId) return {}
+
+  const { data: connectionRows, error: connectionError } = await params.admin
+    .from('studio_connections')
+    .select('source_id, created_at')
+    .eq('project_id', params.projectId)
+    .eq('target_id', params.targetAssetId)
+    .eq('target_handle', 'portrait_url')
+    .order('created_at', { ascending: false })
+    .limit(8)
+
+  if (connectionError) {
+    console.warn('[studio] compose-input-recovery skipped | reason=connection-query-failed', connectionError.message)
+    return {}
+  }
+
+  const connections = (connectionRows ?? []) as ConnectionRecoveryRow[]
+  if (connections.length === 0) return {}
+
+  const sourceIds = Array.from(new Set(connections.map((connection) => connection.source_id).filter(Boolean)))
+  if (sourceIds.length === 0) return {}
+
+  const { data: sourceRows, error: sourceError } = await params.admin
+    .from('studio_assets')
+    .select('id, result_url, project_id, user_id')
+    .in('id', sourceIds)
+
+  if (sourceError) {
+    console.warn('[studio] compose-input-recovery skipped | reason=source-query-failed', sourceError.message)
+    return {}
+  }
+
+  const sourceById = new Map(
+    ((sourceRows ?? []) as RecoverySourceAssetRow[]).map((row) => [row.id, row]),
+  )
+
+  for (const connection of connections) {
+    const sourceAsset = sourceById.get(connection.source_id)
+    const candidateUrl = normalizeOptionalUrl(sourceAsset?.result_url)
+    if (!sourceAsset || !candidateUrl) continue
+    if (sourceAsset.project_id !== params.projectId || sourceAsset.user_id !== params.userId) continue
+    if (!isValidHttpUrl(candidateUrl)) continue
+    return { portraitUrl: candidateUrl, sourceAssetId: sourceAsset.id }
+  }
+
+  return {}
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -43,6 +146,7 @@ export async function POST(req: NextRequest) {
     existing_id?: string
     frontend_id?: string
   }
+  const isDraft = body.status === 'idle'
 
   if (!project_id || !type) return NextResponse.json({ error: 'project_id e type obrigatÃ³rios' }, { status: 400 })
 
@@ -93,18 +197,124 @@ export async function POST(req: NextRequest) {
 
   if (!project_id || !type) return NextResponse.json({ error: 'project_id e type obrigatórios' }, { status: 400 })
 
+  let normalizedInputParams: Record<string, unknown> = { ...(input_params ?? {}) }
+  if (type === 'compose') {
+    const composeVariant = String(normalizedInputParams.compose_variant ?? 'fitting')
+    const composeMode = String(normalizedInputParams.compose_mode ?? 'try-on')
+    const rawProductUrl = normalizeOptionalUrl(normalizedInputParams.product_url)
+    const normalizedProductUrls = Array.isArray(normalizedInputParams.product_urls)
+      ? normalizedInputParams.product_urls
+        .filter((value): value is string => typeof value === 'string')
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0 && isValidHttpUrl(value))
+      : []
+    const resolvedProductUrl = rawProductUrl && isValidHttpUrl(rawProductUrl)
+      ? rawProductUrl
+      : normalizedProductUrls[0]
+
+    normalizedInputParams = {
+      ...normalizedInputParams,
+      compose_variant: composeVariant,
+      compose_mode: composeMode,
+      product_url: resolvedProductUrl ?? '',
+      product_urls: normalizedProductUrls,
+      portrait_url: normalizeOptionalUrl(normalizedInputParams.portrait_url) ?? '',
+    }
+
+    if (!isDraft) {
+      if (!resolvedProductUrl) {
+        console.warn('[studio] compose-input-invalid | field=product_url reason=missing')
+        return createComposeInputError(
+          'product_url_required',
+          'Envie pelo menos uma referencia valida da peca antes de gerar a composicao.',
+        )
+      }
+
+      if (composeVariant === 'fitting') {
+        let portraitUrl = normalizeOptionalUrl(normalizedInputParams.portrait_url)
+        if (!portraitUrl) {
+          const recovered = await recoverPortraitUrlFromConnections({
+            admin,
+            projectId: project_id,
+            userId: user.id,
+            targetAssetId: requestedAssetId,
+          })
+
+          if (recovered.portraitUrl) {
+            const inputRecovery = asRecord(normalizedInputParams.input_recovery)
+            portraitUrl = recovered.portraitUrl
+            normalizedInputParams = {
+              ...normalizedInputParams,
+              portrait_url: portraitUrl,
+              input_recovery: {
+                ...inputRecovery,
+                portrait_url: 'connection:auto',
+              },
+            }
+            console.log(`[studio] compose-input-recovered | field=portrait_url source_asset=${recovered.sourceAssetId}`)
+          }
+        }
+
+        if (!portraitUrl) {
+          console.warn('[studio] compose-input-invalid | field=portrait_url reason=missing')
+          return createComposeInputError(
+            'portrait_url_required',
+            'Conecte uma imagem/modelo ao campo Modelo antes de gerar o Provador.',
+          )
+        }
+
+        if (!isValidHttpUrl(portraitUrl)) {
+          console.warn('[studio] compose-input-invalid | field=portrait_url reason=invalid')
+          return createComposeInputError(
+            'portrait_url_invalid',
+            'A imagem da modelo esta invalida. Atualize o card e tente novamente.',
+          )
+        }
+      }
+    }
+  }
+
   // 1. Cálculo de Custo e Verificação de Saldo
+  if (type === 'look_split') {
+    const sourceUrl = normalizeOptionalUrl(normalizedInputParams.source_url)
+    const smartPrompt = typeof normalizedInputParams.smart_prompt === 'string'
+      ? normalizedInputParams.smart_prompt.trim()
+      : ''
+
+    normalizedInputParams = {
+      ...normalizedInputParams,
+      source_url: sourceUrl ?? '',
+      smart_prompt: smartPrompt,
+    }
+
+    if (!isDraft) {
+      if (!sourceUrl) {
+        console.warn('[studio] look-split invalid | field=source_url reason=missing')
+        return createAssetInputError(
+          'source_url_required',
+          'Envie uma foto de look/catalogo antes de separar as referencias.',
+        )
+      }
+
+      if (!isValidHttpUrl(sourceUrl)) {
+        console.warn('[studio] look-split invalid | field=source_url reason=invalid')
+        return createAssetInputError(
+          'source_url_invalid',
+          'A imagem de origem esta invalida. Atualize o card e tente novamente.',
+        )
+      }
+    }
+  }
+
   const baseCost = CREDIT_COST[type] ?? 1
   let effectiveCost = baseCost
-  if (type === 'video' && String(input_params?.engine ?? '') === 'veo') {
+  if (type === 'video' && String(normalizedInputParams?.engine ?? '') === 'veo') {
     effectiveCost = CREDIT_COST['video_veo'] ?? 50
   }
   // Dobra o custo se a qualidade for 1080p HQ
-  if (String(input_params?.quality ?? '') === '1080p') {
+  if (String(normalizedInputParams?.quality ?? '') === '1080p') {
     effectiveCost *= 2
   }
-
-  const isDraft = body.status === 'idle'
   const { data: profile } = await admin.from('users').select('credits, plan').eq('id', user.id).single()
 
   // Bloqueia vídeo/animação/lipsync para plano Explorador (free)
@@ -125,7 +335,7 @@ export async function POST(req: NextRequest) {
     user_id: user.id, 
     type, 
     status, 
-    input_params, 
+    input_params: normalizedInputParams, 
     credits_cost: isDraft ? 0 : effectiveCost,
     board_order: 0
   }
@@ -314,23 +524,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
 
     } else if (type === 'compose') {
-      resultUrl = await composeProductScene({
-        portrait_url:  String(input_params.portrait_url   ?? ''),
-        product_url:   String(input_params.product_url    ?? ''),
-        compose_mode:  String(input_params.compose_mode   ?? 'try-on'),
-        compose_variant: String(input_params.compose_variant ?? 'fitting'),
-        position:      input_params.position ? String(input_params.position) : 'southeast',
-        product_scale: input_params.product_scale ? Number(input_params.product_scale) : 0.35,
-        vton_category: String(input_params.vton_category  ?? 'tops'),
-        fitting_category: input_params.fitting_category ? String(input_params.fitting_category) : undefined,
-        fitting_style_preset: input_params.fitting_style_preset ? String(input_params.fitting_style_preset) : undefined,
-        fitting_pose_preset: input_params.fitting_pose_preset ? String(input_params.fitting_pose_preset) : undefined,
-        fitting_energy_preset: input_params.fitting_energy_preset ? String(input_params.fitting_energy_preset) : undefined,
-        costume_prompt: input_params.costume_prompt ? String(input_params.costume_prompt) : undefined,
-        smart_prompt:  input_params.smart_prompt ? String(input_params.smart_prompt) : undefined,
+      const composeVariant = String(normalizedInputParams.compose_variant ?? 'fitting')
+      const composeMode = String(normalizedInputParams.compose_mode ?? 'try-on')
+      const composeResult = await composeProductScene({
+        portrait_url:  String(normalizedInputParams.portrait_url   ?? ''),
+        product_url:   String(normalizedInputParams.product_url    ?? ''),
+        product_urls:  Array.isArray(normalizedInputParams.product_urls)
+          ? normalizedInputParams.product_urls.filter((value): value is string => typeof value === 'string')
+          : undefined,
+        compose_mode:  composeVariant === 'fitting' ? 'vertex-vto' : composeMode,
+        compose_variant: composeVariant,
+        position:      normalizedInputParams.position ? String(normalizedInputParams.position) : 'southeast',
+        product_scale: normalizedInputParams.product_scale ? Number(normalizedInputParams.product_scale) : 0.35,
+        aspect_ratio: normalizedInputParams.aspect_ratio ? String(normalizedInputParams.aspect_ratio) : '9:16',
+        vton_category: normalizedInputParams.vton_category ? String(normalizedInputParams.vton_category) : undefined,
+        fitting_category: normalizedInputParams.fitting_category ? String(normalizedInputParams.fitting_category) : undefined,
+        fitting_pose_preset: normalizedInputParams.fitting_pose_preset ? String(normalizedInputParams.fitting_pose_preset) : undefined,
+        fitting_energy_preset: normalizedInputParams.fitting_energy_preset ? String(normalizedInputParams.fitting_energy_preset) : undefined,
+        costume_prompt: normalizedInputParams.costume_prompt ? String(normalizedInputParams.costume_prompt) : undefined,
+        smart_prompt:  normalizedInputParams.smart_prompt ? String(normalizedInputParams.smart_prompt) : undefined,
         assetId: asset.id,
         userId:  user.id,
       })
+      resultUrl = composeResult.url
+      extraData = { ...extraData, ...(composeResult.extraData ?? {}) }
     } else if (type === 'music') {
       resultUrl = await generateMusic({
         prompt: String(input_params.prompt ?? ''),
@@ -360,6 +577,15 @@ export async function POST(req: NextRequest) {
         console.error('[studio] Erro específico no bundle:', bundleErr)
         throw new Error(`Falha no Bundle UGC: ${bundleMessage}`)
       }
+    } else if (type === 'look_split') {
+      const splitResult = await splitLookReferences({
+        source_url: String(normalizedInputParams.source_url ?? ''),
+        smart_prompt: typeof normalizedInputParams.smart_prompt === 'string' ? normalizedInputParams.smart_prompt : undefined,
+        assetId: asset.id,
+        userId: user.id,
+      })
+      resultUrl = splitResult.url
+      extraData = { ...extraData, ...(splitResult.extraData ?? {}) }
     } else if (type === 'scene') {
       const extraUrls = Array.isArray(input_params.extra_source_urls)
         ? (input_params.extra_source_urls as string[]).filter(u => typeof u === 'string' && u.startsWith('http'))
@@ -400,7 +626,7 @@ export async function POST(req: NextRequest) {
     await admin.from('studio_assets').update({
       status: 'done',
       result_url: resultUrl,
-      input_params: { ...input_params, ...extraData },
+      input_params: { ...normalizedInputParams, ...extraData },
     }).eq('id', asset.id)
 
     return NextResponse.json({
@@ -408,19 +634,26 @@ export async function POST(req: NextRequest) {
         ...asset,
         status: 'done',
         result_url: resultUrl,
-        input_params: { ...input_params, ...extraData },
+        input_params: { ...normalizedInputParams, ...extraData },
       }
     }, { status: 201 })
 
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err)
     const errorStack = err instanceof Error ? err.stack : ''
+    const failureMetadata =
+      err && typeof err === 'object'
+        ? err as {
+            studioFailureData?: Record<string, unknown>
+            studioRefundReason?: string
+          }
+        : {}
     
     console.error(`[studio] CRITICAL ERROR [Asset ${asset?.id}]:`, {
       message: errorMsg,
       stack: errorStack,
       type,
-      input_params
+      input_params: normalizedInputParams
     })
 
     if (asset?.id) {
@@ -428,7 +661,8 @@ export async function POST(req: NextRequest) {
         admin,
         assetId: asset.id,
         errorMsg,
-        refundReason: `sync-post:${type}`,
+        refundReason: failureMetadata.studioRefundReason ?? `sync-post:${type}`,
+        extraInputParams: failureMetadata.studioFailureData,
       })
     }
     

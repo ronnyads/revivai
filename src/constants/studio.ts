@@ -20,4 +20,5 @@ export const CREDIT_COST: Record<string, number> = {
   music: 10,    // Trilha Sonora (Google Lyria 3)
   ugc_bundle: 60, // 8 variações cinematográficas (Imagen 3.0 Parallel)
   scene: 12,      // Cena Livre — modelo em qualquer ambiente (Gemini)
+  look_split: 6,  // Separar Look - divide 1 foto em ate 3 referencias fieis
 }

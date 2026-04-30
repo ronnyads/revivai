@@ -5,6 +5,7 @@ type StudioAssetFailureOptions = {
   assetId: string
   errorMsg: string
   refundReason?: string
+  extraInputParams?: Record<string, unknown>
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -18,6 +19,7 @@ export async function markStudioAssetFailed({
   assetId,
   errorMsg,
   refundReason,
+  extraInputParams,
 }: StudioAssetFailureOptions) {
   const safeErrorMsg = errorMsg.slice(0, 500)
 
@@ -36,7 +38,10 @@ export async function markStudioAssetFailed({
 
   const currentInputParams = asRecord(asset.input_params)
   let refunded = false
-  let nextInputParams = currentInputParams
+  let nextInputParams = {
+    ...currentInputParams,
+    ...(extraInputParams ?? {}),
+  }
 
   const alreadyRefundedAt =
     typeof currentInputParams.credit_refunded_at === 'string'
@@ -56,7 +61,7 @@ export async function markStudioAssetFailed({
       } else {
         refunded = true
         nextInputParams = {
-          ...currentInputParams,
+          ...nextInputParams,
           credit_refunded_at: new Date().toISOString(),
           credit_refunded_amount: creditCost,
           credit_refund_reason: refundReason ?? safeErrorMsg,

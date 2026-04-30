@@ -45,6 +45,7 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
       { type: 'angles', icon: <Camera size={20} />, label: 'Dir. de Cena', desc: 'Trocar perspectiva', gradient: 'from-teal-400 to-emerald-600' },
       { type: 'ugc_bundle', icon: <Sparkles size={20} />, label: 'Pacote 8 UGC', desc: 'Poses automaticas', gradient: 'from-cyan-400 to-teal-500' },
       { type: 'scene', icon: <Camera size={20} />, label: 'Cena Livre', desc: 'Modelo em qualquer lugar', gradient: 'from-blue-500 to-indigo-500' },
+      { type: 'look_split', icon: <Scissors size={20} />, label: 'Separar Look', desc: 'Divide 1 look em ate 3 refs', gradient: 'from-teal-400 to-cyan-500' },
     ],
   },
   {
@@ -58,7 +59,7 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
   {
     label: 'Estudio de Entrega',
     items: [
-      { type: 'compose', icon: <Layers size={20} />, label: 'Provador', desc: 'Roupa e acessorios com look guiado', gradient: 'from-amber-400 to-yellow-500', presetParams: { compose_variant: 'fitting' } },
+      { type: 'compose', icon: <Layers size={20} />, label: 'Provador', desc: 'Peca fiel do cliente com pose guiada', gradient: 'from-amber-400 to-yellow-500', presetParams: { compose_variant: 'fitting' } },
       { type: 'compose', icon: <Layers size={20} />, label: 'Modelo + Produto', desc: 'Fundo branco e produto hero na mao', gradient: 'from-orange-500 to-amber-500', presetParams: { compose_variant: 'product' } },
       { type: 'upscale', icon: <ZoomIn size={20} />, label: 'Upscale 4K', desc: 'Nitidez extrema', gradient: 'from-emerald-400 to-cyan-500' },
       { type: 'caption', icon: <Captions size={20} />, label: 'Legendas', desc: 'Dinamicas e cores', gradient: 'from-violet-500 to-indigo-500' },

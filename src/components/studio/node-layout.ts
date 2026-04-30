@@ -8,7 +8,7 @@ type StudioNodeLayoutOptions = {
   selected?: boolean
 }
 
-const EXPANDED_NODE_TYPES = new Set<AssetType>(['compose', 'video', 'image', 'animate', 'ugc_bundle'])
+const EXPANDED_NODE_TYPES = new Set<AssetType>(['compose', 'video', 'image', 'animate', 'ugc_bundle', 'look_split'])
 const ACTIVE_NODE_TYPES = new Set<AssetType>(['join', 'render', 'scene', 'angles', 'lipsync'])
 
 export const STUDIO_NODE_GRID_SPACING_X = 580
@@ -45,14 +45,19 @@ export function getStudioNodeCardWidth(
 ) {
   const visualState = getStudioNodeVisualState(type, options)
 
-  if (visualState === 'expanded') return 560
+  if (visualState === 'expanded') {
+    if (type === 'compose') return 620
+    return 560
+  }
 
   if (visualState === 'active') {
+    if (type === 'compose') return 580
     if (EXPANDED_NODE_TYPES.has(type)) return 520
     if (ACTIVE_NODE_TYPES.has(type)) return 480
     return 460
   }
 
+  if (type === 'compose') return 390
   if (EXPANDED_NODE_TYPES.has(type) || ACTIVE_NODE_TYPES.has(type)) return 380
 
   return 352

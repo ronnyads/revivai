@@ -4,7 +4,7 @@ import { GoogleAuth } from 'google-auth-library'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AssetType } from '@/types'
 import { extractLastFrame as extractVideoFrame } from './videoUtils'
-import { assessCompositionQuality, ProductProfile } from '@/lib/openai'
+import { assessCompositionQuality, CompositionQuality, ProductProfile } from '@/lib/openai'
 
 export { CREDIT_COST } from '@/constants/studio'
 
@@ -1055,6 +1055,7 @@ const FITTING_PROMPT_BLOCKLIST: { pattern: RegExp; label: string }[] = [
   { pattern: /(praia|beach|floresta|forest|espaco|space|sci-fi|ficcao cientifica|cyberpunk|cidade futurista|battle|explosion|action scene|luta|correndo|jumping|voando)/i, label: 'extreme scenario' },
   { pattern: /(duas roupas|dois looks|multiple looks|multiple outfits|trocar de roupa no meio|antes e depois|split screen|side by side|colagem)/i, label: 'multiple looks' },
   { pattern: /(quatro bracos|four arms|extra arms|extra hands|six fingers|corpo impossivel|anatomia impossivel|levitando sem apoio|pose impossivel)/i, label: 'impossible anatomy' },
+  { pattern: /(fashion clean|premium|street|casual|minimalista|elegante|luxury|luxo|sofisticad|editorial|runway|passarela|high fashion)/i, label: 'style override' },
 ]
 
 function normalizeFittingCategory(input?: string): string {
@@ -1091,9 +1092,44 @@ function normalizeFittingCategory(input?: string): string {
     case 'shoe':
     case 'sapato':
       return 'shoes'
+    case 'headwear':
+    case 'hat':
+    case 'hats':
+    case 'cap':
+    case 'caps':
+    case 'beanie':
+    case 'headpiece':
+    case 'bone':
+    case 'chapeu':
+    case 'chapéu':
+      return 'headwear'
     default:
       return 'tops'
   }
+}
+
+function inferFittingCategoryFromReference(profile: ProductProfile, explicitCategory?: string): string {
+  if (explicitCategory?.trim()) {
+    return normalizeFittingCategory(explicitCategory)
+  }
+
+  const haystack = [
+    profile.category,
+    profile.placement_suggestion,
+    ...profile.key_features,
+  ]
+    .join(' ')
+    .toLowerCase()
+
+  if (/(bag|bolsa|purse|handbag|tote|strap)/i.test(haystack)) return 'bags'
+  if (/(glasses|sunglasses|oculos|eyewear|frame|lens)/i.test(haystack)) return 'glasses'
+  if (/(jewelry|jewellery|joia|earring|necklace|bracelet|ring|watch|pendant)/i.test(haystack)) return 'jewelry'
+  if (/(shoe|shoes|sapato|sandalia|sandal|heel|boot|tenis|sneaker)/i.test(haystack)) return 'shoes'
+  if (/(hat|hats|cap|caps|beanie|headwear|headpiece|bone|chapeu|chap[eé]u|bucket hat)/i.test(haystack)) return 'headwear'
+  if (/(dress|dresses|vestido|macacao|jumpsuit|romper|one-piece|one piece)/i.test(haystack)) return 'one-pieces'
+  if (/(pants|trousers|jeans|shorts|saia|skirt|bottom|calca)/i.test(haystack)) return 'bottoms'
+  if (/(jacket|coat|blazer|outerwear|casaco|jaqueta|cardigan)/i.test(haystack)) return 'outerwear'
+  return 'tops'
 }
 
 function normalizeFittingPrompt(userPrompt?: string): { intent: string; removedDirectives: string[] } {
@@ -1127,139 +1163,841 @@ function getFittingCategoryPreset(category: string): { name: string; instruction
   switch (category) {
     case 'tops':
       return {
-        name: 'tops-wardrobe-swap',
-        instruction: 'Replace only the upper-body garment with the reference piece, keeping neckline, shoulders, sleeves, hem, fabric behavior, and fit coherent while preserving lower-body clothing from the base photo.',
+        name: 'tops-exact-application',
+        instruction: 'Apply the reference exactly to the upper-body garment zone only. Preserve neckline, straps, sleeves, cutouts, hem, closures, print scale, and every structural detail exactly as shown in the reference while keeping lower-body clothing untouched.',
       }
     case 'bottoms':
       return {
-        name: 'bottoms-wardrobe-swap',
-        instruction: 'Replace only the lower-body garment with the reference piece, preserving waist placement, leg silhouette, and natural drape while keeping the top from the base photo unchanged.',
+        name: 'bottoms-exact-application',
+        instruction: 'Apply the reference exactly to the lower-body garment zone only. Preserve waist placement, rise, length, leg shape, seams, pattern placement, and every visible detail while keeping the upper-body garment untouched.',
       }
     case 'one-pieces':
       return {
-        name: 'one-piece-full-look',
-        instruction: 'Dress the model in the full one-piece outfit from the reference, preserving silhouette, seams, straps, length, and fabric drape with a clean full-look presentation.',
+        name: 'one-piece-exact-application',
+        instruction: 'Apply the reference as one single uninterrupted garment. Preserve full silhouette, cutouts, straps, seams, length, print placement, and every visible structural detail. Do not split it into a top, body, or separate pieces.',
       }
     case 'outerwear':
       return {
-        name: 'outerwear-layered-look',
-        instruction: 'Apply the outerwear piece as a realistic top layer with natural opening, sleeve length, and shoulder fit, keeping the rest of the look coherent underneath.',
+        name: 'outerwear-exact-application',
+        instruction: 'Apply the reference as a top layer only. Preserve opening logic, shoulder fit, sleeve length, lapels, closures, trim, and every visible detail exactly as shown, without redesigning the layer.',
       }
     case 'bags':
       return {
-        name: 'bag-accessory-look',
-        instruction: 'Keep the base outfit intact and integrate the bag naturally on shoulder, arm, or hand with believable strap behavior, scale, and visibility.',
+        name: 'bag-exact-application',
+        instruction: 'Keep the base outfit intact and integrate the exact bag naturally on shoulder, arm, or hand. Preserve bag shape, strap length, hardware, compartments, print, and scale exactly as shown.',
       }
     case 'glasses':
       return {
-        name: 'glasses-accessory-look',
-        instruction: 'Keep the base outfit intact and fit the glasses naturally to the face with correct frame alignment, temple placement, and lens perspective.',
+        name: 'glasses-exact-application',
+        instruction: 'Keep the base outfit intact and fit the exact glasses naturally to the face. Preserve frame shape, lens tint, bridge, temples, and proportions exactly as shown.',
       }
     case 'jewelry':
       return {
-        name: 'jewelry-accessory-look',
-        instruction: 'Keep the base outfit intact and place the jewelry cleanly with believable scale, attachment, and shine, without fusing it into skin or hair.',
+        name: 'jewelry-exact-application',
+        instruction: 'Keep the base outfit intact and place the exact jewelry cleanly with believable scale and attachment. Preserve shape, links, stones, metal details, closures, and proportions exactly as shown.',
       }
     case 'shoes':
       return {
-        name: 'shoes-accessory-look',
-        instruction: 'Keep the base outfit intact and replace only the shoes with a stance that shows them clearly, preserving realistic foot angle, pair symmetry, and floor contact.',
+        name: 'shoes-exact-application',
+        instruction: 'Keep the base outfit intact and replace only the shoes with the exact reference pair. Preserve toe shape, heel height, sole thickness, closures, color blocking, and pair symmetry exactly as shown.',
+      }
+    case 'headwear':
+      return {
+        name: 'headwear-exact-application',
+        instruction: 'Keep the base outfit intact and place the exact headwear naturally on the head. Preserve crown height, brim or visor shape, closures, trim, pattern placement, and proportions exactly as shown.',
       }
     default:
       return {
         name: 'fashion-default',
-        instruction: 'Integrate the reference fashion item naturally into the model look while preserving identity, anatomy, and a premium fashion-photo finish.',
+        instruction: 'Integrate the exact reference item into the model without redesigning it. Preserve all visible structure, details, proportions, and material cues.',
       }
-  }
-}
-
-function getFittingStyleInstruction(stylePreset?: string): string {
-  switch (stylePreset) {
-    case 'casual':
-      return 'Use a relaxed everyday fashion mood with believable styling and easy body language.'
-    case 'premium':
-      return 'Use a polished premium fashion direction with elevated taste, crisp styling, and refined visual balance.'
-    case 'elegante':
-      return 'Use a sophisticated elegant styling direction with clean lines and composed posture.'
-    case 'street':
-      return 'Use a confident streetwear-inspired fashion attitude while keeping the image commercially clean and photorealistic.'
-    case 'minimalista':
-      return 'Use a minimal clean styling direction with low clutter and restrained visual energy.'
-    default:
-      return 'Use a fashion-clean commercial direction that feels premium, modern, and wearable.'
   }
 }
 
 function getFittingPoseInstruction(posePreset?: string): string {
   switch (posePreset) {
     case 'frontal':
-      return 'Use a front-facing pose that clearly shows the look with balanced shoulders and stable anatomy.'
+      return 'Prefer a front-facing pose only if it helps show the exact item clearly. Keep shoulders balanced and anatomy stable.'
     case 'three-quarter':
-      return 'Use a three-quarter fashion pose that flatters the garment or accessory while keeping visibility clear.'
+      return 'Prefer a three-quarter pose only if it keeps the full item readable and does not hide structural details.'
     case 'full-body':
-      return 'Use a full-body framing that shows the complete silhouette and keeps posture natural.'
+      return 'Prefer a full-body framing when needed to show the complete item length or silhouette while keeping posture natural.'
     case 'seated':
-      return 'Use a seated pose only if the garment or accessory remains clearly visible and anatomy stays natural.'
+      return 'Use a seated pose only if the exact item remains clearly visible and no structural detail is hidden or distorted.'
     case 'standing':
-      return 'Use a clean standing pose with natural weight distribution and clear fashion presentation.'
+      return 'Prefer a standing pose with natural weight distribution if it helps preserve accurate item visibility.'
     case 'hand-in-pocket':
-      return 'Use a relaxed fashion pose with one hand in pocket only if it does not hide the key piece.'
+      return 'Use one hand in pocket only if it does not hide or distort the exact item.'
     case 'showing-bag':
-      return 'Use a pose that intentionally presents the bag with clear strap logic and comfortable arm placement.'
+      return 'Use a pose that makes the exact bag easy to inspect while keeping strap logic and arm placement natural.'
     case 'adjusting-glasses':
-      return 'Use a subtle gesture of adjusting the glasses while keeping hands, face, and frame alignment natural.'
+      return 'Use a subtle glasses-adjusting gesture only if frame alignment and item visibility stay accurate.'
     default:
-      return 'Use a commercially clean fashion pose with clear visibility of the key item.'
+      return 'Use a simple pose that keeps the exact item easy to inspect without hiding any important structural detail.'
   }
 }
 
 function getFittingEnergyInstruction(energyPreset?: string): string {
   switch (energyPreset) {
     case 'confiante':
-      return 'Give the model a confident fashion presence without changing her identity.'
+      return 'Use a confident expression and body language only. Do not let that change the item design or fit.'
     case 'sorriso-suave':
-      return 'Use a soft approachable smile and relaxed facial energy.'
+      return 'Use a soft approachable smile only if it does not alter the item visibility or identity.'
     case 'editorial-leve':
-      return 'Use a lightly editorial expression and posture, but keep the final image realistic and commercially usable.'
+      return 'Use slightly stronger expression or posture only as a subtle mood cue. Do not restyle, redesign, or beautify the item.'
     default:
-      return 'Use natural believable energy with a subtle fashion attitude.'
+      return 'Use natural believable facial energy only. Keep the item itself unchanged.'
   }
+}
+
+function getComposeAspectRatioInstruction(aspectRatio?: string): string {
+  const aspectLabel: Record<string, string> = {
+    '9:16': 'vertical 9:16 portrait',
+    '4:5': 'vertical 4:5 portrait',
+    '1:1': 'square 1:1',
+    '16:9': 'horizontal 16:9 landscape',
+    '3:4': 'vertical 3:4 portrait',
+  }
+
+  const selected = aspectLabel[aspectRatio ?? '9:16'] ?? 'vertical 9:16 portrait'
+  return `Compose the output in ${selected} format. Ensure the full person fits in frame and the key item remains clearly visible without awkward cropping.`
+}
+
+type FittingRoute = 'vertex-vto-wear' | 'vertex-vto-look' | 'gemini-hold'
+type FittingReferenceMode = 'single-look-photo' | 'separate-references'
+type FittingZone = 'body-main' | 'feet' | 'face' | 'head' | 'hands-shoulder' | 'body-jewelry'
+type FittingGenerationStrategy =
+  | 'single-photo-whole-look'
+  | 'single-photo-hold-item'
+  | 'multi-ref-sequential'
+  | 'multi-ref-hold-item'
+  | 'guided-fail-before-generation'
+  | 'guided-fail-after-qc'
+
+type ReferencePaddingMode = 'standard' | 'full-length-vertical'
+
+type SinglePhotoRescuePolicy = {
+  policy: 'selective-long-look'
+  referencePaddingMode: ReferencePaddingMode
+  rescueEligible: boolean
+  rescueTrigger: string
+}
+
+type ComposeSceneResult = {
+  url: string
+  extraData?: Record<string, unknown>
+}
+
+type LookSplitReference = {
+  category: string
+  url: string
+  rank: number
+  zone: FittingZone
+  description: string
+}
+
+type LookSplitResult = {
+  url: string
+  extraData?: Record<string, unknown>
+}
+
+type NormalizedImageAsset = {
+  buffer: Buffer
+  mimeType: 'image/png' | 'image/jpeg'
+}
+
+type VertexProjectConfig = {
+  projectId: string
+  location: string
+  token: string
+}
+
+type BoundingBox = {
+  left: number
+  top: number
+  width: number
+  height: number
+  area: number
+}
+
+type SegmentedFittingItem = {
+  imageBuffer: Buffer
+  mimeType: string
+  bbox: BoundingBox
+  profile: ProductProfile
+  category: string
+  description: string
+  priority: number
+  sourceIndex?: number
+}
+
+type SegmentedReferenceSet = {
+  items: SegmentedFittingItem[]
+  totalDetected: number
+  omittedCount: number
+}
+
+type StudioFailureContext = {
+  studioFailureData?: Record<string, unknown>
+  studioRefundReason?: string
+}
+
+function isWearableFittingCategory(category: string): boolean {
+  return ['tops', 'bottoms', 'one-pieces', 'outerwear', 'shoes', 'headwear'].includes(category)
+}
+
+function isBodyAccessoryFittingCategory(category: string): boolean {
+  return ['bags', 'glasses', 'jewelry'].includes(category)
+}
+
+function getFittingRoutePriority(category: string): number {
+  switch (category) {
+    case 'one-pieces':
+      return 100
+    case 'outerwear':
+      return 95
+    case 'tops':
+      return 90
+    case 'bottoms':
+      return 88
+    case 'shoes':
+      return 72
+    case 'headwear':
+      return 64
+    case 'bags':
+      return 58
+    case 'glasses':
+      return 44
+    case 'jewelry':
+      return 42
+    default:
+      return 20
+  }
+}
+
+function buildSegmentedItemDescription(profile: ProductProfile, category: string): string {
+  const keyFeatures = profile.key_features.filter(Boolean).slice(0, 6).join(', ')
+  const featureBlock = keyFeatures ? ` Key details: ${keyFeatures}.` : ''
+  return `Exact ${category} reference item. Preserve literal category, shape, proportions, print, trims, closures, and visible construction exactly as supplied.${featureBlock}`
+}
+
+function getSinglePhotoReferenceSignalText(profile: ProductProfile, category: string): string {
+  return [
+    category,
+    profile.category,
+    profile.placement_suggestion,
+    ...profile.key_features,
+  ]
+    .join(' ')
+    .toLowerCase()
+}
+
+function isLongLookRiskCategory(profile: ProductProfile, category: string): boolean {
+  if (category === 'outerwear' || category === 'one-pieces') return true
+  if (category !== 'tops') return false
+
+  const haystack = getSinglePhotoReferenceSignalText(profile, category)
+  return /(coat|casaco|trench|blazer|cardigan|lapel|lapels|double-breasted|double breasted|buttons|closures|closure|long\b|below-knee|below knee|full-length|full length|sleeves|sleeve length)/i.test(haystack)
+}
+
+function getSinglePhotoRescuePolicy(
+  profile: ProductProfile,
+  category: string,
+  qc?: CompositionQuality,
+): SinglePhotoRescuePolicy {
+  const highRiskLongLook = isLongLookRiskCategory(profile, category)
+  const referencePaddingMode: ReferencePaddingMode = highRiskLongLook ? 'full-length-vertical' : 'standard'
+  if (!qc) {
+    return {
+      policy: 'selective-long-look',
+      referencePaddingMode,
+      rescueEligible: false,
+      rescueTrigger: highRiskLongLook ? 'awaiting-qc-long-look' : 'awaiting-qc-standard-look',
+    }
+  }
+
+  const weakest = (qc.weakest_dimension ?? '').toUpperCase()
+  const issueText = (qc.issues ?? []).join(' ').toLowerCase()
+  const dimensionEligible =
+    /ITEM[_\s-]*FIDELITY/.test(weakest)
+    || /FIT AND PLACEMENT/.test(weakest)
+    || (/MODEL IDENTITY/.test(weakest) && /(crop|cropped|hidden|length|long|buttons|closures|closure|sleeves|silhouette|coat|lapel)/i.test(issueText))
+  const issueEligible =
+    /(crop|cropped|extreme crop|hidden|length|long|hem|buttons|hardware|closures|closure|sleeves|sleeve length|simplified silhouette|silhouette|category|different kind of product|lapel|lapels|double-breasted|double breasted|coat|outerwear)/i.test(issueText)
+
+  return {
+    policy: 'selective-long-look',
+    referencePaddingMode,
+    rescueEligible: highRiskLongLook && dimensionEligible && issueEligible,
+    rescueTrigger: `${qc.weakest_dimension ?? 'unknown'} | ${qc.issues?.slice(0, 2).join(' | ') || 'no-issues'}`,
+  }
+}
+
+function getExplicitFittingCategoryHint(input?: string): string | undefined {
+  if (!input?.trim()) return undefined
+  return normalizeFittingCategory(input)
+}
+
+function inferFittingCategoryWithHint(profile: ProductProfile, explicitCategory?: string): string {
+  const inferredCategory = inferFittingCategoryFromReference(profile)
+  const normalizedHint = getExplicitFittingCategoryHint(explicitCategory)
+  if (!normalizedHint) return inferredCategory
+  return inferredCategory === normalizedHint ? normalizedHint : inferredCategory
+}
+
+function attachStudioFailureContext(
+  error: Error,
+  failureData: Record<string, unknown>,
+  refundReason = 'guided-fail',
+): Error & StudioFailureContext {
+  const enrichedError = error as Error & StudioFailureContext
+  enrichedError.studioFailureData = failureData
+  enrichedError.studioRefundReason = refundReason
+  return enrichedError
+}
+
+function failGuidedFitting(
+  message: string,
+  failureData: Record<string, unknown>,
+  refundReason: string,
+): never {
+  throw attachStudioFailureContext(new Error(message), failureData, refundReason)
+}
+
+function getFittingZone(category: string): FittingZone {
+  switch (category) {
+    case 'shoes':
+      return 'feet'
+    case 'glasses':
+      return 'face'
+    case 'headwear':
+      return 'head'
+    case 'bags':
+      return 'hands-shoulder'
+    case 'jewelry':
+      return 'body-jewelry'
+    default:
+      return 'body-main'
+  }
+}
+
+function isStructuralBodyCategory(category: string): boolean {
+  return ['tops', 'bottoms', 'one-pieces', 'outerwear'].includes(category)
+}
+
+function canCombineBodyCategories(selectedCategories: string[], candidateCategory: string): boolean {
+  if (selectedCategories.includes(candidateCategory)) return false
+
+  if (candidateCategory === 'one-pieces') {
+    return !selectedCategories.some((category) => category === 'one-pieces' || category === 'tops' || category === 'bottoms')
+  }
+
+  if (candidateCategory === 'tops' || candidateCategory === 'bottoms') {
+    return !selectedCategories.includes('one-pieces')
+  }
+
+  return true
+}
+
+function selectFittingItemsForLook(
+  items: SegmentedFittingItem[],
+  maxItems = 3,
+): {
+  items: SegmentedFittingItem[]
+  omittedCount: number
+  selectedZones: FittingZone[]
+} {
+  const selected: SegmentedFittingItem[] = []
+  const bodyCategories: string[] = []
+
+  for (const item of items) {
+    if (!isStructuralBodyCategory(item.category)) continue
+    if (selected.length >= maxItems) break
+    if (!canCombineBodyCategories(bodyCategories, item.category)) continue
+
+    selected.push(item)
+    bodyCategories.push(item.category)
+
+    if (bodyCategories.length >= 2) break
+  }
+
+  const zoneOrder: FittingZone[] = ['feet', 'face', 'head', 'hands-shoulder', 'body-jewelry']
+  for (const zone of zoneOrder) {
+    if (selected.length >= maxItems) break
+    const candidate = items.find((item) => {
+      if (selected.includes(item)) return false
+      return getFittingZone(item.category) === zone
+    })
+    if (candidate) selected.push(candidate)
+  }
+
+  if (selected.length === 0) {
+    const fallback = items.slice(0, maxItems)
+    return {
+      items: fallback,
+      omittedCount: Math.max(0, items.length - fallback.length),
+      selectedZones: fallback.map((item) => getFittingZone(item.category)),
+    }
+  }
+
+  return {
+    items: selected,
+    omittedCount: Math.max(0, items.length - selected.length),
+    selectedZones: selected.map((item) => getFittingZone(item.category)),
+  }
+}
+
+function validateSeparateReferenceItems(items: SegmentedFittingItem[]): string | null {
+  const bodyCategories: string[] = []
+  const accessoryZones = new Map<FittingZone, string>()
+
+  for (const item of items) {
+    if (isStructuralBodyCategory(item.category)) {
+      if (!canCombineBodyCategories(bodyCategories, item.category)) {
+        return 'As referencias enviadas entram em conflito para o mesmo look. Envie 2-3 referencias separadas sem repetir a mesma peca principal.'
+      }
+      bodyCategories.push(item.category)
+      continue
+    }
+
+    const zone = getFittingZone(item.category)
+    if (accessoryZones.has(zone)) {
+      return 'As referencias extras repetem a mesma zona do corpo. Envie uma referencia por acessorio ou peca para cada area.'
+    }
+    accessoryZones.set(zone, item.category)
+  }
+
+  return null
+}
+
+async function resolveVertexProjectConfig(): Promise<VertexProjectConfig> {
+  const vertexKey = process.env.GOOGLE_VERTEX_KEY
+  if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY nao configurada para o Provador')
+
+  let projectId = process.env.VERTEX_PROJECT_ID
+  if (!projectId) {
+    try {
+      const parsed = JSON.parse(vertexKey.startsWith('"') ? JSON.parse(vertexKey) : vertexKey)
+      projectId = parsed.project_id
+    } catch (error) {
+      console.warn('[studio] Nao foi possivel extrair VERTEX_PROJECT_ID da chave JSON:', error)
+    }
+  }
+
+  if (!projectId) throw new Error('VERTEX_PROJECT_ID nao configurado e nao foi possivel detectar pela chave JSON.')
+
+  const location = process.env.VERTEX_LOCATION || 'us-central1'
+  const token = await getVertexAccessToken(vertexKey)
+  return { projectId, location, token }
+}
+
+async function normalizeImageToPng(buffer: Buffer): Promise<Buffer> {
+  const sharp = (await import('sharp')).default
+  return sharp(buffer).ensureAlpha().png().toBuffer()
+}
+
+async function normalizeImageForVertex(buffer: Buffer, prefer: 'png' | 'jpeg' = 'png'): Promise<NormalizedImageAsset> {
+  const sharp = (await import('sharp')).default
+
+  if (prefer === 'jpeg') {
+    return {
+      buffer: await sharp(buffer).flatten({ background: '#ffffff' }).jpeg({ quality: 95 }).toBuffer(),
+      mimeType: 'image/jpeg',
+    }
+  }
+
+  return {
+    buffer: await sharp(buffer).ensureAlpha().png().toBuffer(),
+    mimeType: 'image/png',
+  }
+}
+
+function isNearWhitePixel(r: number, g: number, b: number): boolean {
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const brightness = r + g + b
+  return brightness >= 730 && (max - min) <= 18
+}
+
+async function buildForegroundMaskArtifacts(sourceBuffer: Buffer): Promise<{
+  normalizedBuffer: Buffer
+  maskRaw: Uint8Array
+  width: number
+  height: number
+}> {
+  const sharp = (await import('sharp')).default
+  const normalizedBuffer = await sharp(sourceBuffer).ensureAlpha().png().toBuffer()
+  const { data, info } = await sharp(normalizedBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const maskRaw = new Uint8Array(info.width * info.height)
+
+  for (let index = 0; index < info.width * info.height; index += 1) {
+    const offset = index * 4
+    const alpha = data[offset + 3] ?? 0
+    const r = data[offset] ?? 255
+    const g = data[offset + 1] ?? 255
+    const b = data[offset + 2] ?? 255
+    const foreground = alpha > 24 && !isNearWhitePixel(r, g, b)
+    maskRaw[index] = foreground ? 255 : 0
+  }
+
+  return {
+    normalizedBuffer,
+    maskRaw,
+    width: info.width,
+    height: info.height,
+  }
+}
+
+function computeBoundingBoxFromMask(maskRaw: Uint8Array, width: number, height: number): BoundingBox | null {
+  let minX = width
+  let minY = height
+  let maxX = -1
+  let maxY = -1
+  let area = 0
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (maskRaw[y * width + x] === 0) continue
+      area += 1
+      if (x < minX) minX = x
+      if (y < minY) minY = y
+      if (x > maxX) maxX = x
+      if (y > maxY) maxY = y
+    }
+  }
+
+  if (area === 0 || maxX < minX || maxY < minY) return null
+
+  return {
+    left: minX,
+    top: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+    area,
+  }
+}
+
+function findConnectedMaskComponents(maskRaw: Uint8Array, width: number, height: number): BoundingBox[] {
+  const visited = new Uint8Array(maskRaw.length)
+  const boxes: BoundingBox[] = []
+  const minArea = Math.max(900, Math.round(width * height * 0.004))
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x
+      if (visited[index] === 1 || maskRaw[index] === 0) continue
+
+      const stack = [index]
+      visited[index] = 1
+      let minX = x
+      let minY = y
+      let maxX = x
+      let maxY = y
+      let area = 0
+
+      while (stack.length > 0) {
+        const current = stack.pop() as number
+        const cx = current % width
+        const cy = Math.floor(current / width)
+        area += 1
+        if (cx < minX) minX = cx
+        if (cy < minY) minY = cy
+        if (cx > maxX) maxX = cx
+        if (cy > maxY) maxY = cy
+
+        const neighbors = [
+          current - 1,
+          current + 1,
+          current - width,
+          current + width,
+        ]
+
+        for (const neighbor of neighbors) {
+          if (neighbor < 0 || neighbor >= maskRaw.length) continue
+          const nx = neighbor % width
+          const ny = Math.floor(neighbor / width)
+          if (Math.abs(nx - cx) + Math.abs(ny - cy) !== 1) continue
+          if (visited[neighbor] === 1 || maskRaw[neighbor] === 0) continue
+          visited[neighbor] = 1
+          stack.push(neighbor)
+        }
+      }
+
+      if (area < minArea) continue
+      boxes.push({
+        left: minX,
+        top: minY,
+        width: maxX - minX + 1,
+        height: maxY - minY + 1,
+        area,
+      })
+    }
+  }
+
+  return boxes.sort((a, b) => b.area - a.area)
+}
+
+function expandBoundingBox(box: BoundingBox, width: number, height: number): BoundingBox {
+  const padX = Math.max(12, Math.round(box.width * 0.08))
+  const padY = Math.max(12, Math.round(box.height * 0.08))
+  const left = Math.max(0, box.left - padX)
+  const top = Math.max(0, box.top - padY)
+  const right = Math.min(width, box.left + box.width + padX)
+  const bottom = Math.min(height, box.top + box.height + padY)
+  return {
+    left,
+    top,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top),
+    area: box.area,
+  }
+}
+
+async function cropSegmentedItem(
+  normalizedBuffer: Buffer,
+  maskRaw: Uint8Array,
+  width: number,
+  height: number,
+  box: BoundingBox,
+): Promise<{ imageBuffer: Buffer }> {
+  const sharp = (await import('sharp')).default
+  const expanded = expandBoundingBox(box, width, height)
+  const imageBuffer = await sharp(normalizedBuffer)
+    .extract({
+      left: expanded.left,
+      top: expanded.top,
+      width: expanded.width,
+      height: expanded.height,
+    })
+    .png()
+    .toBuffer()
+
+  return { imageBuffer }
+}
+
+async function cropTransparentSegmentedItem(
+  normalizedBuffer: Buffer,
+  maskRaw: Uint8Array,
+  width: number,
+  height: number,
+  box: BoundingBox,
+): Promise<{ imageBuffer: Buffer }> {
+  const sharp = (await import('sharp')).default
+  const expanded = expandBoundingBox(box, width, height)
+  const { data } = await sharp(normalizedBuffer).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const cropped = Buffer.alloc(expanded.width * expanded.height * 4)
+
+  for (let y = 0; y < expanded.height; y += 1) {
+    for (let x = 0; x < expanded.width; x += 1) {
+      const sourceX = expanded.left + x
+      const sourceY = expanded.top + y
+      const sourceIndex = (sourceY * width + sourceX) * 4
+      const targetIndex = (y * expanded.width + x) * 4
+      const visible = maskRaw[sourceY * width + sourceX] > 0
+
+      cropped[targetIndex] = data[sourceIndex] ?? 0
+      cropped[targetIndex + 1] = data[sourceIndex + 1] ?? 0
+      cropped[targetIndex + 2] = data[sourceIndex + 2] ?? 0
+      cropped[targetIndex + 3] = visible ? (data[sourceIndex + 3] ?? 255) : 0
+    }
+  }
+
+  return {
+    imageBuffer: await sharp(cropped, {
+      raw: {
+        width: expanded.width,
+        height: expanded.height,
+        channels: 4,
+      },
+    }).png().toBuffer(),
+  }
+}
+
+async function segmentProductReference(
+  sourceBuffer: Buffer,
+  apiKey: string,
+  explicitCategory?: string,
+): Promise<SegmentedReferenceSet> {
+  const { normalizedBuffer, maskRaw, width, height } = await buildForegroundMaskArtifacts(sourceBuffer)
+  const allComponents = findConnectedMaskComponents(maskRaw, width, height)
+  const fallbackBox = computeBoundingBoxFromMask(maskRaw, width, height)
+  const candidateBoxes = (allComponents.length > 0 ? allComponents : fallbackBox ? [fallbackBox] : []).slice(0, 6)
+
+  if (candidateBoxes.length === 0) {
+    const normalized = await normalizeImageForVertex(sourceBuffer, 'png')
+    const profile = await classifyProduct(normalized.buffer, apiKey)
+    const category = inferFittingCategoryWithHint(profile, explicitCategory)
+    return {
+      items: [{
+        imageBuffer: normalized.buffer,
+        mimeType: normalized.mimeType,
+        bbox: { left: 0, top: 0, width, height, area: width * height },
+        profile,
+        category,
+        description: buildSegmentedItemDescription(profile, category),
+        priority: getFittingRoutePriority(category),
+      }],
+      totalDetected: 1,
+      omittedCount: 0,
+    }
+  }
+
+  const items: SegmentedFittingItem[] = []
+  for (const candidateBox of candidateBoxes) {
+    const { imageBuffer } = await cropSegmentedItem(normalizedBuffer, maskRaw, width, height, candidateBox)
+    const normalizedImage = await normalizeImageForVertex(imageBuffer, 'png')
+    const profile = await classifyProduct(normalizedImage.buffer, apiKey)
+    const category = inferFittingCategoryWithHint(profile, candidateBoxes.length === 1 ? explicitCategory : undefined)
+
+    items.push({
+      imageBuffer: normalizedImage.buffer,
+      mimeType: normalizedImage.mimeType,
+      bbox: candidateBox,
+      profile,
+      category,
+      description: buildSegmentedItemDescription(profile, category),
+      priority: getFittingRoutePriority(category),
+    })
+  }
+
+  items.sort((a, b) => {
+    if (b.priority !== a.priority) return b.priority - a.priority
+    return b.bbox.area - a.bbox.area
+  })
+
+  return {
+    items,
+    totalDetected: items.length,
+    omittedCount: 0,
+  }
+}
+
+async function buildWholeReferenceItem(
+  sourceBuffer: Buffer,
+  apiKey: string,
+  explicitCategory?: string,
+  sourceIndex = 0,
+): Promise<SegmentedFittingItem> {
+  const sharp = (await import('sharp')).default
+  const normalized = await normalizeImageForVertex(sourceBuffer, 'png')
+  const metadata = await sharp(normalized.buffer).metadata()
+  const width = metadata.width ?? 1
+  const height = metadata.height ?? 1
+  const profile = await classifyProduct(normalized.buffer, apiKey)
+  const category = inferFittingCategoryWithHint(profile, explicitCategory)
+
+  return {
+    imageBuffer: normalized.buffer,
+    mimeType: normalized.mimeType,
+    bbox: { left: 0, top: 0, width, height, area: width * height },
+    profile,
+    category,
+    description: buildSegmentedItemDescription(profile, category),
+    priority: getFittingRoutePriority(category),
+    sourceIndex,
+  }
+}
+
+async function prepareSingleLookReferenceForGeneration(
+  sourceBuffer: Buffer,
+  category: string,
+  profile: ProductProfile,
+): Promise<{ image: NormalizedImageAsset; paddingMode: ReferencePaddingMode }> {
+  const sharp = (await import('sharp')).default
+  const normalized = await normalizeImageForVertex(sourceBuffer, 'png')
+  const metadata = await sharp(normalized.buffer).metadata()
+  const width = Math.max(1, metadata.width ?? 1)
+  const height = Math.max(1, metadata.height ?? 1)
+  const paddingMode: ReferencePaddingMode = isLongLookRiskCategory(profile, category) ? 'full-length-vertical' : 'standard'
+
+  const targetWidth = paddingMode === 'full-length-vertical'
+    ? Math.max(width + Math.round(width * 0.18), Math.round(width * 1.18))
+    : Math.max(width + Math.round(width * 0.08), Math.round(width * 1.08))
+  const targetHeight = paddingMode === 'full-length-vertical'
+    ? Math.max(height + Math.round(height * 0.42), Math.round(height * 1.42))
+    : Math.max(height + Math.round(height * 0.16), Math.round(height * 1.16))
+
+  const left = Math.max(0, Math.round((targetWidth - width) / 2))
+  const top = paddingMode === 'full-length-vertical'
+    ? Math.max(0, Math.round((targetHeight - height) * 0.18))
+    : Math.max(0, Math.round((targetHeight - height) / 2))
+
+  return {
+    image: {
+      buffer: await sharp({
+        create: {
+          width: targetWidth,
+          height: targetHeight,
+          channels: 4,
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+        },
+      })
+        .composite([{ input: normalized.buffer, left, top }])
+        .png()
+        .toBuffer(),
+      mimeType: 'image/png',
+    },
+    paddingMode,
+  }
+}
+
+function decideFittingRoute(items: SegmentedFittingItem[]): FittingRoute {
+  const wearableCount = items.filter((item) => isWearableFittingCategory(item.category)).length
+  if (wearableCount > 1) return 'vertex-vto-look'
+  if (wearableCount === 1) return 'vertex-vto-wear'
+  return 'gemini-hold'
 }
 
 function buildFittingPrompt(params: {
   category: string
   categoryPreset: string
-  styleInstruction: string
+  ratioInstruction: string
   poseInstruction: string
   energyInstruction: string
   userIntent: string
+  route: FittingRoute
+  itemDescriptions: string[]
 }): string {
-  return `You are a world-class fashion photographer and identity-preserving stylist compositor. Produce ONE single unified fashion photograph.
+  const routeGoal = params.route === 'vertex-vto-look'
+    ? 'Reconstruct one coherent coordinated look using the supplied client items only.'
+    : params.route === 'vertex-vto-wear'
+      ? 'Replace the relevant base garment entirely with the supplied client garment.'
+      : 'Keep the base outfit intact unless the reference is wearable, and make the client item worn or held with clear physical contact.'
+
+  return `You are a world-class fashion compositor focused on exact wardrobe fidelity. Produce ONE single unified fashion photograph.
 
 You receive two images:
 [BASE PHOTO]: the exact model identity, body proportions, hair, and base scene reference.
-[FASHION ITEM]: the exact clothing piece or accessory to integrate into the look.
+[FASHION ITEM]: an exclusive client clothing piece or accessory that must be reproduced with literal fidelity.
 
+ROUTE: ${params.route}
 FASHION CATEGORY: ${params.category}
-CATEGORY PRESET: ${params.categoryPreset}
-STYLE PRESET: ${params.styleInstruction}
+TECHNICAL APPLICATION RULE: ${params.categoryPreset}
+FRAME RULE: ${params.ratioInstruction}
 POSE PRESET: ${params.poseInstruction}
 ENERGY PRESET: ${params.energyInstruction}
 USER REFINEMENT: ${params.userIntent}
+ITEM DESCRIPTION(S): ${params.itemDescriptions.join(' | ')}
 
 GOAL:
-- Create a strong, photorealistic fashion image where the model is wearing or naturally using the reference item.
-- Keep the result commercially beautiful, coherent, and wearable.
+- ${routeGoal}
+- Create a photorealistic image where the model is wearing or naturally using the exact client item.
+- Treat the client item as the sovereign source of the look. The item is not inspiration and must not be reimagined.
 
 RULES - non-negotiable:
-1. FACE AND IDENTITY LOCK: Preserve the model exact face, facial structure, skin tone, hair identity, and body proportions from [BASE PHOTO].
-2. ANATOMY LOCK: Keep natural anatomy only. Exactly two arms, two hands, and realistic legs, feet, neck, and shoulders. No fused limbs or impossible body positions.
-3. FASHION ITEM FIDELITY: Preserve the reference item exact silhouette, color, pattern, texture, material, trim, hardware, seams, proportions, and visible details. Do not redesign it.
-4. CATEGORY APPLICATION: Follow the CATEGORY PRESET as the structural wardrobe rule. Replace only the relevant garment area or integrate the accessory naturally without corrupting unrelated parts of the outfit.
-5. STYLING DIRECTION: Follow the STYLE PRESET, POSE PRESET, and ENERGY PRESET as the primary direction. Apply the USER REFINEMENT only as a light adjustment.
-6. SCENE DISCIPLINE: Preserve the base photo camera logic and keep the environment commercially clean. Light editorial polish is allowed, but do not invent extreme scenarios, action scenes, sci-fi worlds, or multi-look collages.
-7. GARMENT AND ACCESSORY COHERENCE: Fabric must drape naturally, accessories must attach or sit correctly, and the look must feel physically wearable in one believable photo.
-8. OUTPUT: Photorealistic high-end fashion photography, no collage, no split image, no extra props unless implied by the base photo, no text or watermark.`
+1. ITEM FIDELITY - HIGHEST PRIORITY: Treat [FASHION ITEM] like a literal reconstruction target. Preserve the exact item type, silhouette, colors, print, cutouts, straps, sleeves, neckline, hem, length, seams, hardware, texture, trim, closures, proportions, and every visible structural detail. Do not redesign, simplify, beautify, restyle, reinterpret, or complete missing fashion decisions.
+2. FACE AND IDENTITY LOCK: Preserve the model exact face, facial structure, skin tone, hair identity, and body proportions from [BASE PHOTO].
+3. ANATOMY LOCK: Keep natural anatomy only. Exactly two arms, two hands, and realistic legs, feet, neck, and shoulders. No fused limbs or impossible body positions.
+4. TECHNICAL APPLICATION ONLY: Follow the TECHNICAL APPLICATION RULE only as a placement map for where the item belongs on the body. It is not a style direction.
+5. FRAMING RULE: Follow the FRAME RULE for the final composition. The aspect ratio should change the final crop and camera framing, but never the client item design.
+6. POSE AND ENERGY ARE SECONDARY: Treat POSE PRESET, ENERGY PRESET, and USER REFINEMENT only as small suggestions for expression, framing, pose, and visibility. They must never change the item design, category, print placement, cutouts, straps, length, or proportions.
+7. USER REFINEMENT DISCIPLINE: Ignore any request that tries to make the item more premium, cleaner, more stylish, more editorial, or visually different from the reference.
+8. SCENE DISCIPLINE: Preserve the base photo camera logic and keep the environment believable. Do not invent extreme scenarios, action scenes, sci-fi worlds, or multi-look collages.
+ 9. REPLACEMENT RULE: Replace the relevant base garment entirely where the new garment belongs. No original blouse, undershirt, straps, sleeves, hems, or fabric from the base outfit may remain visible in the same replaced zone.
+ 10. NO LAYERING ERROR: Do not stack the client garment on top of unrelated base clothing unless the reference itself is outerwear. Do not let the old top leak through beneath the new garment.
+ 11. CONTACT RULE: If an item is not worn as clothing, it must be worn or held with physically plausible contact. Never let the item float, hover, sit on the ground, or appear disconnected from the hand, face, shoulder, arm, or body.
+ 12. WEARABILITY: The final result must look physically wearable in one coherent photo, with natural drape and correct accessory placement.
+ 13. OUTPUT: Photorealistic photography, no collage, no split image, no text or watermark. Preserve the exclusive client item with maximum fidelity.`
 }
 
 function buildRetryPrompt(
@@ -1267,6 +2005,7 @@ function buildRetryPrompt(
   issues: string[],
   weakestDimension?: string,
   composeVariant: 'product' | 'fitting' = 'fitting',
+  fittingRoute?: FittingRoute,
 ): string {
   const issueBlock = issues.length > 0
     ? `\n\nPREVIOUS ATTEMPT FAILED. Issues detected: ${issues.join('; ')}. You MUST fix ALL of these.`
@@ -1276,39 +2015,675 @@ function buildRetryPrompt(
     : ''
   const modeLockBlock = composeVariant === 'product'
     ? '\nMODE LOCK: PRODUCT SHOWCASE ONLY. Keep pure white background, no scenario, no props, no outfit changes, product fully visible and dominant, and hands anatomically correct.'
-    : '\nMODE LOCK: FASHION FITTING ONLY. Preserve identity, fix garment drape, correct accessory placement, clean anatomy, and keep the outfit physically wearable in one coherent photo.'
+    : `\nMODE LOCK: FASHION FITTING ONLY. Preserve the exact client item with literal fidelity. Do not redesign, restyle, simplify, beautify, reinterpret, or complete missing fashion decisions. Keep the exact item type, print, cutouts, straps, length, hardware, and proportions while fixing anatomy, drape, and placement.${
+      fittingRoute === 'gemini-hold'
+        ? ' The item must be worn or held with believable hand or body contact. Never let it float, hover, sit on the floor, or detach from the model.'
+        : ' Replace the relevant base garment entirely and remove every trace of the old base garment from the replaced zone.'
+    }`
   return basePrompt + issueBlock + focusBlock + modeLockBlock
 }
 
-function decideRoute(profile: ProductProfile): string {
-  if (profile.deformation_risk === 'high') return 'GEMINI_HIGH_RISK'
-  if (profile.deformation_risk === 'medium') return 'GEMINI_MEDIUM_RISK'
-  return 'GEMINI_LOW_RISK'
+function buildSinglePhotoRescuePrompt(
+  basePrompt: string,
+  profile: ProductProfile,
+  category: string,
+): string {
+  const featureLine = profile.key_features.length > 0
+    ? `Keep these visible features intact: ${profile.key_features.join(', ')}.`
+    : 'Keep the full visible garment structure intact, including length, closures, sleeves, silhouette, and distinguishing construction details.'
+  const fullLengthLock = isLongLookRiskCategory(profile, category)
+    ? 'FULL-LENGTH VISIBILITY LOCK: keep the entire garment silhouette visible and structurally intact. Do not crop away hem, sleeve length, lapels, closures, buttons, or vertical proportion. Never compress a long coat or long garment into a cropped top, vest, or upper-body fragment.'
+    : 'VISIBILITY LOCK: keep the exact item fully readable and do not hide or crop away the main structural details.'
+
+  return `${basePrompt}
+
+RESCUE MODE: SINGLE LOOK PHOTO.
+Treat the fashion reference as one complete client garment captured in a single photo, not as inspiration and not as separated fragments.
+${featureLine}
+${fullLengthLock}
+If the base image framing is tight, preserve the exact garment structure first and adjust the camera framing to keep the key item readable without changing the item design.`
+}
+
+async function callVertexVirtualTryOn(params: {
+  portraitBuffer: Buffer
+  portraitMimeType: string
+  items: SegmentedFittingItem[]
+  fittingRoute: FittingRoute
+}): Promise<string | null> {
+  if (params.items.length === 0) return null
+
+  const vertexItems = params.items.slice(0, 1)
+  if (params.items.length > 1) {
+    console.warn(
+      `[studio] vertex-vto guardrail | route=${params.fittingRoute} requested_items=${params.items.length} sent_items=${vertexItems.length}`,
+    )
+  }
+
+  const vertex = await resolveVertexProjectConfig()
+  const url = `https://${vertex.location}-aiplatform.googleapis.com/v1/projects/${vertex.projectId}/locations/${vertex.location}/publishers/google/models/virtual-try-on-001:predict`
+
+  const payloadMode = 'minimal'
+  const payload = {
+    instances: [{
+      personImage: {
+        image: {
+          mimeType: params.portraitMimeType,
+          bytesBase64Encoded: params.portraitBuffer.toString('base64'),
+        },
+      },
+      productImages: vertexItems.map((item) => ({
+        image: {
+          mimeType: item.mimeType,
+          bytesBase64Encoded: item.imageBuffer.toString('base64'),
+        },
+      })),
+    }],
+    parameters: {
+      sampleCount: 1,
+      personGeneration: 'allow_adult',
+      safetySetting: 'block_medium_and_above',
+      addWatermark: false,
+      enhancePrompt: false,
+      outputOptions: {
+        mimeType: 'image/png',
+      },
+    },
+  }
+
+  console.log(`[studio] vertex-vto request | payload_mode=${payloadMode} route=${params.fittingRoute} product_count=${vertexItems.length} input_mime_types=${[params.portraitMimeType, ...vertexItems.map((item) => item.mimeType)].join(',')} normalized_output_mime=image/png`)
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${vertex.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error(`[studio] vertex-vto error | payload_mode=${payloadMode} route=${params.fittingRoute} product_count=${vertexItems.length} input_mime_types=${[params.portraitMimeType, ...vertexItems.map((item) => item.mimeType)].join(',')} normalized_output_mime=image/png`)
+    throw new Error(`Vertex VTO falhou (${response.status}): ${errorText.slice(0, 400)}`)
+  }
+
+  const data = await response.json()
+  return (data as any).predictions?.[0]?.bytesBase64Encoded ?? null
+}
+
+async function callGeminiSinglePhotoFittingRescue(params: {
+  apiKey: string
+  portraitImage: NormalizedImageAsset
+  referenceItem: SegmentedFittingItem
+  promptText: string
+}): Promise<string | null> {
+  const rescueModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview']
+  const body = JSON.stringify({
+    contents: [{
+      role: 'user',
+      parts: [
+        { text: '[BASE PHOTO] — preserve this person exactly:' },
+        {
+          inlineData: {
+            mimeType: params.portraitImage.mimeType,
+            data: params.portraitImage.buffer.toString('base64'),
+          },
+        },
+        { text: '[FASHION ITEM] — preserve this exact single-photo look reference with literal fidelity:' },
+        {
+          inlineData: {
+            mimeType: params.referenceItem.mimeType,
+            data: params.referenceItem.imageBuffer.toString('base64'),
+          },
+        },
+        { text: params.promptText },
+      ],
+    }],
+    generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+  })
+
+  for (const model of rescueModels) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${params.apiKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body },
+    )
+    if (!res.ok) {
+      console.warn(`[studio] single-photo-rescue model failed | model=${model} status=${res.status}`)
+      continue
+    }
+
+    const json = await res.json()
+    const parts = json.candidates?.[0]?.content?.parts ?? []
+    const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
+    if (imgPart?.inlineData?.data) return imgPart.inlineData.data as string
+  }
+
+  return null
+}
+
+function buildHoldPrompt(params: {
+  category: string
+  ratioInstruction: string
+  poseInstruction: string
+  energyInstruction: string
+  userIntent: string
+  referenceDescription: string
+  placementSuggestion: string
+}): string {
+  return `You are a world-class commercial compositor for accessories and props. Produce ONE single unified photograph.
+
+You receive:
+[BASE PHOTO]: the exact model identity and scene reference.
+[CLIENT ITEM]: the exclusive client item that must be worn, used, or held naturally.
+
+ITEM CATEGORY: ${params.category}
+REFERENCE DESCRIPTION: ${params.referenceDescription}
+PLACEMENT SUGGESTION: ${params.placementSuggestion}
+FRAME RULE: ${params.ratioInstruction}
+POSE PRESET: ${params.poseInstruction}
+ENERGY PRESET: ${params.energyInstruction}
+USER REFINEMENT: ${params.userIntent}
+
+RULES - non-negotiable:
+1. Preserve the exact client item with literal fidelity: keep shape, proportions, colors, print, hardware, trim, closures, and every visible structural detail exactly as supplied.
+2. Preserve the exact model identity from the base photo.
+3. The client item must be worn or held with physically plausible contact. It must touch the relevant hand, face, shoulder, arm, torso, or foot naturally.
+4. Never let the client item float, hover, sit on the ground, rest disconnected in the scene, or appear as a detached prop with a fake shadow.
+5. Never invent extra accessories, duplicate the item, or leave unrelated props in the composition.
+6. Pose, energy, and user refinement are only light suggestions for framing, visibility, gesture, and expression. They must never redesign the item.
+7. Keep anatomy natural with exactly two arms and two hands.
+8. Output one photorealistic image only, with believable scale and natural perspective.
+9. If the item cannot be worn as clothing, the model must visibly hold it or use it naturally instead of leaving it elsewhere in the frame.`
 }
 
 // ── Compose — Virtual Try-On ou Colar Produto ─────────
+async function composeDedicatedFittingScene(params: {
+  portrait_url: string
+  product_url: string
+  product_urls?: string[]
+  aspect_ratio?: string
+  fitting_category?: string
+  vton_category?: string
+  fitting_pose_preset?: string
+  fitting_energy_preset?: string
+  smart_prompt?: string
+  assetId: string
+  userId: string
+}): Promise<ComposeSceneResult> {
+  const admin = createAdminClient()
+  const apiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
+  if (!apiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada')
+
+  const falKey = process.env.FAL_KEY
+  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada')
+
+  const rawReferenceUrls = Array.isArray(params.product_urls)
+    ? params.product_urls.filter((url): url is string => typeof url === 'string' && url.startsWith('http'))
+    : []
+  const referenceUrls = (rawReferenceUrls.length > 0 ? rawReferenceUrls : [params.product_url])
+    .filter((url): url is string => typeof url === 'string' && url.startsWith('http'))
+    .slice(0, 3)
+  if (referenceUrls.length === 0) throw new Error('Nenhuma referencia valida foi enviada para o Provador')
+
+  const referenceMode: FittingReferenceMode = referenceUrls.length > 1 ? 'separate-references' : 'single-look-photo'
+  const explicitCategoryHint = getExplicitFittingCategoryHint(params.fitting_category ?? params.vton_category)
+
+  const [portraitRes, ...referenceResponses] = await Promise.all([
+    fetch(params.portrait_url),
+    ...referenceUrls.map((url) => fetch(url)),
+  ])
+  if (!portraitRes.ok || referenceResponses.some((response) => !response.ok)) {
+    throw new Error('Falha ao baixar imagens para o Provador')
+  }
+
+  const portraitBuf = Buffer.from(await portraitRes.arrayBuffer())
+  const referenceBuffers = await Promise.all(
+    referenceResponses.map((response) => response.arrayBuffer().then((buffer) => Buffer.from(buffer))),
+  )
+
+  const finalReferenceBuffers = await Promise.all(referenceUrls.map(async (url, index) => {
+    let cleanedBuffer = referenceBuffers[index]
+    try {
+      const bgRes = await fetch('https://fal.run/fal-ai/bria/background-removal', {
+        method: 'POST',
+        headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_url: url }),
+      })
+      if (bgRes.ok) {
+        const bgData = await bgRes.json()
+        const cleanUrl = bgData.image?.url as string | undefined
+        if (cleanUrl) {
+          const cleanRes = await fetch(cleanUrl)
+          if (cleanRes.ok) {
+            cleanedBuffer = Buffer.from(await cleanRes.arrayBuffer())
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`[studio] Bria falhou no Provador dedicado para referencia ${index + 1}:`, error)
+    }
+    return cleanedBuffer
+  }))
+
+  const normalizedPrompt = normalizeFittingPrompt(params.smart_prompt)
+  if (normalizedPrompt.removedDirectives.length > 0) {
+    console.log(`[studio] fitting prompt normalized | removed=${normalizedPrompt.removedDirectives.join(', ')}`)
+  }
+
+  const detectedItems = referenceMode === 'single-look-photo'
+    ? (await segmentProductReference(
+      finalReferenceBuffers[0],
+      apiKey,
+      explicitCategoryHint,
+    )).items
+    : await Promise.all(finalReferenceBuffers.map((buffer, index) => (
+      buildWholeReferenceItem(
+        buffer,
+        apiKey,
+        index === 0 ? explicitCategoryHint : undefined,
+        index,
+      )
+    )))
+
+  detectedItems.sort((a, b) => {
+    if (b.priority !== a.priority) return b.priority - a.priority
+    return b.bbox.area - a.bbox.area
+  })
+
+  let selectedItems: SegmentedFittingItem[] = []
+  let selectedZones: FittingZone[] = []
+  let omittedItemCount = 0
+  let fittingRoute: FittingRoute
+  let routedFittingCategory: string
+  let singlePhotoPaddingMode: ReferencePaddingMode | undefined
+
+  if (referenceMode === 'single-look-photo') {
+    const initialWholeLookItem = await buildWholeReferenceItem(finalReferenceBuffers[0], apiKey, explicitCategoryHint, 0)
+    const preparedReference = await prepareSingleLookReferenceForGeneration(
+      finalReferenceBuffers[0],
+      initialWholeLookItem.category,
+      initialWholeLookItem.profile,
+    )
+    const sharp = (await import('sharp')).default
+    const preparedMetadata = await sharp(preparedReference.image.buffer).metadata()
+    const wholeLookItem: SegmentedFittingItem = {
+      ...initialWholeLookItem,
+      imageBuffer: preparedReference.image.buffer,
+      mimeType: preparedReference.image.mimeType,
+      bbox: {
+        left: 0,
+        top: 0,
+        width: Math.max(1, preparedMetadata.width ?? 1),
+        height: Math.max(1, preparedMetadata.height ?? 1),
+        area: Math.max(1, (preparedMetadata.width ?? 1) * (preparedMetadata.height ?? 1)),
+      },
+    }
+    selectedItems = [wholeLookItem]
+    selectedZones = [getFittingZone(wholeLookItem.category)]
+    omittedItemCount = Math.max(0, detectedItems.length - 1)
+    fittingRoute = isWearableFittingCategory(wholeLookItem.category) ? 'vertex-vto-wear' : 'gemini-hold'
+    routedFittingCategory = wholeLookItem.category
+    singlePhotoPaddingMode = preparedReference.paddingMode
+    console.log(`[studio] single-photo-whole-look | detected_categories=${detectedItems.map((item) => item.category).join(',') || wholeLookItem.category} routed_category=${wholeLookItem.category}`)
+  } else {
+    const conflictMessage = validateSeparateReferenceItems(detectedItems)
+    if (conflictMessage) {
+      const failureData = {
+        fitting_reference_mode: referenceMode,
+        fitting_generation_strategy: 'guided-fail-before-generation' satisfies FittingGenerationStrategy,
+        qc_failure_kind: 'preflight-reference-conflict',
+        detected_categories: detectedItems.map((item) => item.category),
+        selected_item_categories: [],
+        selected_item_zones: [],
+      }
+      console.warn(`[studio] fitting preflight conflict | categories=${detectedItems.map((item) => item.category).join(',')}`)
+      failGuidedFitting(conflictMessage, failureData, 'guided:compose-reference-conflict')
+    }
+
+    const selectedLook = selectFittingItemsForLook(detectedItems, 3)
+    selectedItems = selectedLook.items
+    selectedZones = selectedLook.selectedZones
+    omittedItemCount = selectedLook.omittedCount
+    fittingRoute = decideFittingRoute(selectedItems)
+    const primaryItem = selectedItems[0]
+    routedFittingCategory = primaryItem?.category
+      ?? inferFittingCategoryWithHint(
+        primaryItem?.profile ?? await classifyProduct(finalReferenceBuffers[0], apiKey),
+        explicitCategoryHint,
+      )
+  }
+
+  const primaryItem = selectedItems[0]
+  const routedCategoryPreset = getFittingCategoryPreset(routedFittingCategory)
+  const routedPoseInstruction = getFittingPoseInstruction(params.fitting_pose_preset)
+  const routedEnergyInstruction = getFittingEnergyInstruction(params.fitting_energy_preset)
+  const ratioInstruction = getComposeAspectRatioInstruction(params.aspect_ratio)
+  const userIntent = normalizedPrompt.intent || 'No extra refinement. Keep the exact client item fully faithful, clearly visible, and naturally fitted on the model.'
+  const portraitVertexImage = await normalizeImageForVertex(portraitBuf, 'png')
+  const portraitGeminiImage = await normalizeImageForVertex(portraitBuf, 'jpeg')
+
+  const extraData: Record<string, unknown> = {
+    fitting_reference_mode: referenceMode,
+    fitting_input_mode: referenceMode,
+    fitting_route: fittingRoute,
+    segmented_items_count: detectedItems.length,
+    omitted_item_count: omittedItemCount,
+    detected_categories: detectedItems.map((item) => item.category),
+    selected_item_categories: selectedItems.map((item) => item.category),
+    selected_item_zones: selectedZones,
+    candidate_attempts: [],
+  }
+  if (referenceMode === 'single-look-photo') {
+    extraData.reference_padding_mode = singlePhotoPaddingMode ?? 'standard'
+    extraData.fitting_rescue_policy = 'selective-long-look'
+    extraData.fitting_rescue_engine = 'none'
+    extraData.fitting_rescue_trigger = 'pending-qc'
+  }
+
+  if (!primaryItem) throw new Error('Nenhum item valido encontrado para o Provador.')
+
+  let resultBuffer: Buffer
+
+  if (fittingRoute === 'gemini-hold') {
+    const holdPrompt = buildHoldPrompt({
+      category: primaryItem.category,
+      ratioInstruction,
+      poseInstruction: routedPoseInstruction,
+      energyInstruction: routedEnergyInstruction,
+      userIntent,
+      referenceDescription: selectedItems.map((item) => item.description).join(' | '),
+      placementSuggestion: selectedItems.map((item) => item.profile.placement_suggestion).filter(Boolean).join(' | '),
+    })
+    extraData.fitting_generation_strategy = (
+      referenceMode === 'single-look-photo' ? 'single-photo-hold-item' : 'multi-ref-hold-item'
+    ) satisfies FittingGenerationStrategy
+
+    const holdModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview']
+    async function callGeminiHold(promptText: string): Promise<string | null> {
+      const body = JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [
+            { text: '[BASE PHOTO] â€” preserve this person exactly:' },
+            { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
+            { text: '[CLIENT ITEM] â€” integrate naturally into the base photo:' },
+            { inlineData: { mimeType: primaryItem.mimeType, data: primaryItem.imageBuffer.toString('base64') } },
+            { text: promptText },
+          ],
+        }],
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+      })
+
+      for (const model of holdModels) {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body },
+        )
+        if (!res.ok) continue
+        const json = await res.json()
+        const parts = json.candidates?.[0]?.content?.parts ?? []
+        const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
+        if (imgPart?.inlineData?.data) return imgPart.inlineData.data as string
+      }
+
+      return null
+    }
+
+    let approvedBase64 = await callGeminiHold(holdPrompt)
+    if (!approvedBase64) throw new Error('Todos os modelos Gemini falharam no ramo de uso/segurar do Provador')
+
+    const qc1 = await assessCompositionQuality(referenceUrls[0], approvedBase64, primaryItem.profile, {
+      variant: 'fitting',
+      fittingCategory: primaryItem.category,
+      fittingRoute,
+    })
+    if (!qc1.approved) {
+      extraData.retry_reason = qc1.weakest_dimension ?? qc1.issues[0] ?? 'initial-reject'
+      extraData.qc_failure_kind = 'initial-reject'
+      const retryBase64 = await callGeminiHold(
+        buildRetryPrompt(holdPrompt, qc1.issues, qc1.weakest_dimension, 'fitting', fittingRoute),
+      )
+      if (!retryBase64) {
+        throw new Error(`Provador rejeitado no QC (${qc1.issues.join(', ') || 'retry sem imagem'})`)
+      }
+
+      const qc2 = await assessCompositionQuality(referenceUrls[0], retryBase64, primaryItem.profile, {
+        variant: 'fitting',
+        fittingCategory: primaryItem.category,
+        fittingRoute,
+      })
+      if (!qc2.approved) {
+        extraData.qc_failure_kind = 'guided-fail-after-qc'
+        if (referenceMode === 'single-look-photo') {
+          failGuidedFitting(
+            'Nao conseguimos preservar o look completo com fidelidade a partir de uma unica foto. Envie 2-3 referencias separadas da roupa, calcado e acessorios.',
+            extraData,
+            'guided:compose-single-look-qc',
+          )
+        }
+        throw new Error(`Provador rejeitado apos retry: ${(qc2.issues ?? qc1.issues).join(', ')}`)
+      }
+      approvedBase64 = retryBase64
+    }
+
+    resultBuffer = Buffer.from(approvedBase64, 'base64')
+  } else {
+    const vertexSequenceItems = selectedItems.filter((item) => isWearableFittingCategory(item.category))
+    if (vertexSequenceItems.length === 0) {
+      throw new Error('Nenhum item vestivel valido foi encontrado para o fluxo Vertex VTO.')
+    }
+
+    extraData.fitting_generation_strategy = (
+      referenceMode === 'single-look-photo' ? 'single-photo-whole-look' : 'multi-ref-sequential'
+    ) satisfies FittingGenerationStrategy
+    extraData.vertex_sequence_mode = referenceMode === 'single-look-photo' ? 'single-photo-whole-look' : 'single-item-steps'
+    extraData.vertex_sequence_categories = vertexSequenceItems.map((item) => item.category)
+    extraData.vertex_sequence_steps = vertexSequenceItems.length
+    if (referenceMode === 'separate-references') {
+      console.warn(
+        `[studio] multi-ref-sequential | route=${fittingRoute} steps=${vertexSequenceItems.length} categories=${vertexSequenceItems.map((item) => item.category).join(',')}`,
+      )
+    }
+
+    const fittingPrompt = buildFittingPrompt({
+      category: routedFittingCategory,
+      categoryPreset: routedCategoryPreset.instruction,
+      ratioInstruction,
+      poseInstruction: routedPoseInstruction,
+      energyInstruction: routedEnergyInstruction,
+      userIntent,
+      route: fittingRoute,
+      itemDescriptions: selectedItems.map((item) => item.description),
+    })
+
+    async function runVertexTryOnSequence(): Promise<string | null> {
+      let currentPersonImage = portraitVertexImage
+      let latestBase64: string | null = null
+
+      for (const item of vertexSequenceItems) {
+        latestBase64 = await callVertexVirtualTryOn({
+          portraitBuffer: currentPersonImage.buffer,
+          portraitMimeType: currentPersonImage.mimeType,
+          items: [item],
+          fittingRoute,
+        })
+        if (!latestBase64) return null
+        currentPersonImage = await normalizeImageForVertex(Buffer.from(latestBase64, 'base64'), 'png')
+      }
+
+      return latestBase64
+    }
+
+    let approvedBase64 = await runVertexTryOnSequence()
+    if (!approvedBase64) throw new Error('Vertex VTO nao retornou imagem para o Provador')
+    ;(extraData.candidate_attempts as string[]).push(`${fittingRoute}:attempt-1:generated`)
+
+    const qc1 = await assessCompositionQuality(referenceUrls[0], approvedBase64, primaryItem.profile, {
+      variant: 'fitting',
+      fittingCategory: routedFittingCategory,
+      fittingRoute,
+    })
+    if (qc1.approved) {
+      ;(extraData.candidate_attempts as string[]).push(`${fittingRoute}:attempt-1:approved`)
+    } else {
+      extraData.retry_reason = qc1.weakest_dimension ?? qc1.issues[0] ?? 'initial-reject'
+      extraData.qc_failure_kind = 'initial-reject'
+      ;(extraData.candidate_attempts as string[]).push(`${fittingRoute}:attempt-1:qc-rejected`)
+      if (referenceMode === 'single-look-photo') {
+        const rescuePolicy = getSinglePhotoRescuePolicy(primaryItem.profile, routedFittingCategory, qc1)
+        extraData.fitting_rescue_policy = rescuePolicy.policy
+        extraData.fitting_rescue_trigger = rescuePolicy.rescueTrigger
+        extraData.reference_padding_mode = rescuePolicy.referencePaddingMode
+
+        if (rescuePolicy.rescueEligible) {
+          console.warn(`[studio] single-photo-rescue-eligible | category=${routedFittingCategory} trigger=${rescuePolicy.rescueTrigger}`)
+          extraData.fitting_rescue_engine = 'gemini-single-photo'
+          console.warn(`[studio] single-photo-rescue-start | engine=gemini-single-photo category=${routedFittingCategory}`)
+
+          const rescuePrompt = buildSinglePhotoRescuePrompt(fittingPrompt, primaryItem.profile, routedFittingCategory)
+          let rescueBase64 = await callGeminiSinglePhotoFittingRescue({
+            apiKey,
+            portraitImage: portraitGeminiImage,
+            referenceItem: primaryItem,
+            promptText: rescuePrompt,
+          })
+          ;(extraData.candidate_attempts as string[]).push('gemini-single-photo:attempt-1:generated')
+
+          if (rescueBase64) {
+            const rescueQc1 = await assessCompositionQuality(referenceUrls[0], rescueBase64, primaryItem.profile, {
+              variant: 'fitting',
+              fittingCategory: routedFittingCategory,
+              fittingRoute,
+            })
+            if (rescueQc1.approved) {
+              console.log('[studio] single-photo-rescue-approved | engine=gemini-single-photo attempt=1')
+              ;(extraData.candidate_attempts as string[]).push('gemini-single-photo:attempt-1:approved')
+              approvedBase64 = rescueBase64
+            } else {
+              ;(extraData.candidate_attempts as string[]).push('gemini-single-photo:attempt-1:qc-rejected')
+              const rescueRetryBase64 = await callGeminiSinglePhotoFittingRescue({
+                apiKey,
+                portraitImage: portraitGeminiImage,
+                referenceItem: primaryItem,
+                promptText: buildRetryPrompt(
+                  rescuePrompt,
+                  rescueQc1.issues,
+                  rescueQc1.weakest_dimension,
+                  'fitting',
+                  fittingRoute,
+                ),
+              })
+
+              if (rescueRetryBase64) {
+                ;(extraData.candidate_attempts as string[]).push('gemini-single-photo:attempt-2:generated')
+                const rescueQc2 = await assessCompositionQuality(referenceUrls[0], rescueRetryBase64, primaryItem.profile, {
+                  variant: 'fitting',
+                  fittingCategory: routedFittingCategory,
+                  fittingRoute,
+                })
+                if (rescueQc2.approved) {
+                  console.log('[studio] single-photo-rescue-approved | engine=gemini-single-photo attempt=2')
+                  ;(extraData.candidate_attempts as string[]).push('gemini-single-photo:attempt-2:approved')
+                  approvedBase64 = rescueRetryBase64
+                } else {
+                  ;(extraData.candidate_attempts as string[]).push('gemini-single-photo:attempt-2:qc-rejected')
+                  extraData.qc_failure_kind = 'guided-fail-after-qc'
+                  console.error(`[studio] single-photo-rescue-failed | engine=gemini-single-photo weakest=${rescueQc2.weakest_dimension}`)
+                  failGuidedFitting(
+                    'Nao conseguimos preservar o look completo com fidelidade a partir de uma unica foto. Envie 2-3 referencias separadas da roupa, calcado e acessorios.',
+                    extraData,
+                    'guided:compose-single-look-qc',
+                  )
+                }
+              } else {
+                ;(extraData.candidate_attempts as string[]).push('gemini-single-photo:attempt-2:no-image')
+                extraData.qc_failure_kind = 'guided-fail-after-qc'
+                console.error('[studio] single-photo-rescue-failed | engine=gemini-single-photo reason=no-image-attempt-2')
+                failGuidedFitting(
+                  'Nao conseguimos preservar o look completo com fidelidade a partir de uma unica foto. Envie 2-3 referencias separadas da roupa, calcado e acessorios.',
+                  extraData,
+                  'guided:compose-single-look-qc',
+                )
+              }
+            }
+          } else {
+            ;(extraData.candidate_attempts as string[]).push('gemini-single-photo:attempt-1:no-image')
+            extraData.qc_failure_kind = 'guided-fail-after-qc'
+            console.error('[studio] single-photo-rescue-failed | engine=gemini-single-photo reason=no-image-attempt-1')
+            failGuidedFitting(
+              'Nao conseguimos preservar o look completo com fidelidade a partir de uma unica foto. Envie 2-3 referencias separadas da roupa, calcado e acessorios.',
+              extraData,
+              'guided:compose-single-look-qc',
+            )
+          }
+        } else {
+          console.warn(`[studio] single-photo-rescue-failed | engine=none trigger=${rescuePolicy.rescueTrigger}`)
+          extraData.qc_failure_kind = 'guided-fail-after-qc'
+          failGuidedFitting(
+            'Nao conseguimos preservar o look completo com fidelidade a partir de uma unica foto. Envie 2-3 referencias separadas da roupa, calcado e acessorios.',
+            extraData,
+            'guided:compose-single-look-qc',
+          )
+        }
+      } else {
+        const retryBase64 = await runVertexTryOnSequence()
+        if (!retryBase64) {
+          throw new Error(`Vertex VTO rejeitado no QC (${qc1.issues.join(', ') || 'retry sem imagem'})`)
+        }
+        ;(extraData.candidate_attempts as string[]).push(`${fittingRoute}:attempt-2:generated`)
+
+        const qc2 = await assessCompositionQuality(referenceUrls[0], retryBase64, primaryItem.profile, {
+          variant: 'fitting',
+          fittingCategory: routedFittingCategory,
+          fittingRoute,
+        })
+        if (!qc2.approved) {
+          ;(extraData.candidate_attempts as string[]).push(`${fittingRoute}:attempt-2:qc-rejected`)
+          extraData.qc_failure_kind = 'guided-fail-after-qc'
+          throw new Error(`Provador rejeitado apos retry: ${(qc2.issues ?? qc1.issues).join(', ')}`)
+        }
+        ;(extraData.candidate_attempts as string[]).push(`${fittingRoute}:attempt-2:approved`)
+        approvedBase64 = retryBase64
+      }
+    }
+
+    resultBuffer = Buffer.from(approvedBase64, 'base64')
+  }
+
+  const path = `${params.userId}/compose-${params.assetId}.jpg`
+  const { error: uploadErr } = await admin.storage
+    .from('studio')
+    .upload(path, resultBuffer, { contentType: 'image/jpeg', upsert: true })
+  if (uploadErr) throw new Error(`Upload falhou: ${uploadErr.message}`)
+
+  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return { url: publicUrl, extraData }
+}
+
 export async function composeProductScene(params: {
   portrait_url:   string
   product_url:    string
+  product_urls?:  string[]
   compose_mode?:  string   // 'try-on' (default), 'overlay', 'prompt'
   compose_variant?: string
   position?:      string
   product_scale?: number
+  aspect_ratio?:  string
   vton_category?: string
   fitting_category?: string
-  fitting_style_preset?: string
   fitting_pose_preset?: string
   fitting_energy_preset?: string
   costume_prompt?: string
   smart_prompt?:  string
   assetId:        string
   userId:         string
-}): Promise<string> {
+}): Promise<ComposeSceneResult> {
   const admin  = createAdminClient()
   const falKey = process.env.FAL_KEY
   if (!falKey) throw new Error('FAL_KEY não configurada')
 
   let resultBuffer: Buffer
+  const extraData: Record<string, unknown> = {}
 
   if (params.compose_mode === 'prompt') {
     // ---- MODO VESTIR VIA PROMPT (FLUX-PULID) ----
@@ -1453,39 +2828,33 @@ export async function composeProductScene(params: {
       productRes.arrayBuffer().then(b => Buffer.from(b)),
     ])
 
-    // Classificar produto e decidir rota
     const profile = await classifyProduct(productBuf, apiKey)
     const composeVariant = params.compose_variant === 'product' ? 'product' : 'fitting'
-    const route = decideRoute(profile)
-    console.log(`[studio] product-profile | category=${profile.category} has_text=${profile.has_text_logo} risk=${profile.deformation_risk} complexity=${profile.shape_complexity} route=${route}`)
+    console.log(`[studio] product-profile | category=${profile.category} has_text=${profile.has_text_logo} risk=${profile.deformation_risk} complexity=${profile.shape_complexity} variant=${composeVariant}`)
     console.log(`[studio] key_features: ${profile.key_features.join(', ')}`)
 
     if (composeVariant === 'product' && profile.category === 'wearable') {
       throw new Error('Esse card Modelo + Produto e para produtos de demonstracao na mao. Para roupas ou itens de vestir, use o card Provador.')
     }
 
+    if (composeVariant !== 'product') {
+      throw new Error('compose_mode=gemini nao e mais suportado para o Provador. Use o fluxo dedicado de virtual try-on.')
+    }
+
     const posePreset = composeVariant === 'product'
       ? getProductShowcasePosePreset(profile)
       : null
-    const fittingCategory = normalizeFittingCategory(params.fitting_category ?? params.vton_category)
-    const fittingCategoryPreset = composeVariant === 'fitting'
-      ? getFittingCategoryPreset(fittingCategory)
-      : null
-    const fittingStyleInstruction = composeVariant === 'fitting'
-      ? getFittingStyleInstruction(params.fitting_style_preset)
-      : null
-    const fittingPoseInstruction = composeVariant === 'fitting'
-      ? getFittingPoseInstruction(params.fitting_pose_preset)
-      : null
-    const fittingEnergyInstruction = composeVariant === 'fitting'
-      ? getFittingEnergyInstruction(params.fitting_energy_preset)
-      : null
+    const fittingCategory = inferFittingCategoryFromReference(
+      profile,
+      params.fitting_category ?? params.vton_category,
+    )
+    const fittingCategoryPreset = null
+    const fittingPoseInstruction = null
+    const fittingEnergyInstruction = null
+    const ratioInstruction = getComposeAspectRatioInstruction(params.aspect_ratio)
 
     if (posePreset) {
       console.log(`[studio] product-showcase preset=${posePreset.name}`)
-    }
-    if (fittingCategoryPreset) {
-      console.log(`[studio] fitting preset=${fittingCategoryPreset.name} category=${fittingCategory}`)
     }
 
     // Auto-remove product background via Fal AI Bria
@@ -1526,25 +2895,26 @@ export async function composeProductScene(params: {
 
     const userIntent = composeVariant === 'product'
       ? normalizedPrompt.intent || PRODUCT_SHOWCASE_FALLBACK_INTENT
-      : normalizedPrompt.intent || 'No extra refinement. Stay close to the selected fashion presets and keep the look coherent.'
+      : normalizedPrompt.intent || 'No extra refinement. Keep the exact client item fully faithful, clearly visible, and naturally fitted on the model.'
 
-    const finalPrompt = composeVariant === 'product'
-      ? buildProductShowcasePrompt(profile, posePreset?.instruction ?? PRODUCT_SHOWCASE_FALLBACK_INTENT, userIntent)
-      : buildFittingPrompt({
-          category: fittingCategory,
-          categoryPreset: fittingCategoryPreset?.instruction ?? 'Integrate the item naturally into the look.',
-          styleInstruction: fittingStyleInstruction ?? getFittingStyleInstruction('fashion-clean'),
-          poseInstruction: fittingPoseInstruction ?? getFittingPoseInstruction('three-quarter'),
-          energyInstruction: fittingEnergyInstruction ?? getFittingEnergyInstruction('natural'),
-          userIntent,
-        })
+    const finalPrompt = buildProductShowcasePrompt(
+      profile,
+      posePreset?.instruction ?? PRODUCT_SHOWCASE_FALLBACK_INTENT,
+      userIntent,
+    )
 
     const COMPOSE_MODELS = [
       'gemini-2.5-flash-image',
       'gemini-3.1-flash-image-preview',
     ]
 
-    async function callGeminiCompose(promptText: string): Promise<string | null> {
+    const portraitPng = await normalizeImageToPng(portraitBuf)
+
+    async function callGeminiCompose(
+      promptText: string,
+      referenceBuffer: Buffer,
+      referenceMimeType: string,
+    ): Promise<string | null> {
       const body = JSON.stringify({
         contents: [{
           role: 'user',
@@ -1552,7 +2922,7 @@ export async function composeProductScene(params: {
             { text: '[BASE PHOTO] — preserve this person exactly:' },
             { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
             { text: '[PRODUCT] — place this into the base photo:' },
-            { inlineData: { mimeType: productMime, data: finalProductBuf.toString('base64') } },
+            { inlineData: { mimeType: referenceMimeType, data: referenceBuffer.toString('base64') } },
             { text: promptText },
           ],
         }],
@@ -1578,24 +2948,26 @@ export async function composeProductScene(params: {
     }
 
     // Gemini para todos os produtos — 1 retry com prompt adaptado se QC reprovar
-    const initialBase64 = await callGeminiCompose(finalPrompt)
+    const initialBase64 = await callGeminiCompose(finalPrompt, finalProductBuf, productMime)
     if (!initialBase64) throw new Error('Todos os modelos Gemini falharam na composição')
 
     let currentBase64 = initialBase64
     resultBuffer = Buffer.from(currentBase64, 'base64')
 
     const qc1 = await assessCompositionQuality(params.product_url, currentBase64, profile, {
-      variant: composeVariant,
-      fittingCategory,
+      variant: 'product',
     })
-    console.log(`[compose-qc] route=${route} attempt=1 | approved=${qc1.approved} score=${qc1.score}`)
+    console.log(`[compose-qc] route=gemini-product attempt=1 | approved=${qc1.approved} score=${qc1.score}`)
     if (!qc1.approved) {
       console.warn(`[compose-qc] REPROVADO | weakest=${qc1.weakest_dimension} | issues: ${qc1.issues.join(', ')}`)
-      const retryBase64 = await callGeminiCompose(buildRetryPrompt(finalPrompt, qc1.issues, qc1.weakest_dimension, composeVariant))
+      const retryBase64 = await callGeminiCompose(
+        buildRetryPrompt(finalPrompt, qc1.issues, qc1.weakest_dimension, 'product'),
+        finalProductBuf,
+        productMime,
+      )
       if (retryBase64) {
         const qc2 = await assessCompositionQuality(params.product_url, retryBase64, profile, {
-          variant: composeVariant,
-          fittingCategory,
+          variant: 'product',
         })
         console.log(`[compose-qc] attempt=2 | approved=${qc2.approved} score=${qc2.score}`)
         if (qc2.approved) {
@@ -1610,6 +2982,20 @@ export async function composeProductScene(params: {
     }
 
   } else {
+    return await composeDedicatedFittingScene({
+      portrait_url: params.portrait_url,
+      product_url: params.product_url,
+      product_urls: params.product_urls,
+      aspect_ratio: params.aspect_ratio,
+      fitting_category: params.fitting_category,
+      vton_category: params.vton_category,
+      fitting_pose_preset: params.fitting_pose_preset,
+      fitting_energy_preset: params.fitting_energy_preset,
+      smart_prompt: params.smart_prompt,
+      assetId: params.assetId,
+      userId: params.userId,
+    })
+
     // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON (Native Fetch) ----
     
     // Mapeamos para 'dresses' quando é Corpo Inteiro para garantir calça e blusa
@@ -1664,7 +3050,7 @@ export async function composeProductScene(params: {
   if (uploadErr) throw new Error(`Upload falhou: ${uploadErr.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
-  return publicUrl
+  return { url: publicUrl, extraData }
 }
 
 // ── Lip Sync — Fal AI SyncLabs 2.0 Pro (assíncrono via webhook) ────────────────────────
@@ -2266,6 +3652,105 @@ export const UGC_POSITIONS = {
   detalhe_expressao: {
     prompt: `Three-quarter shot, hands gently touching face or hair in natural casual gesture, genuine expressive smile, soft bokeh background, cinematic natural lighting. Exactly 2 hands, no floating limbs, no invented objects.`,
     description: 'Expressão natural - autenticidade'
+  }
+}
+
+export async function splitLookReferences(params: {
+  source_url: string
+  smart_prompt?: string
+  assetId: string
+  userId: string
+}): Promise<LookSplitResult> {
+  const admin = createAdminClient()
+  const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
+  if (!apiKey) throw new Error('GOOGLE_API_KEY nao configurada para Separar Look')
+  if (!params.source_url?.startsWith('http')) throw new Error('URL da imagem de origem invalida para Separar Look')
+
+  console.log(`[studio] look-split request | source_url=provided note=${params.smart_prompt?.trim() ? 'yes' : 'no'}`)
+
+  const sourceRes = await fetch(params.source_url)
+  if (!sourceRes.ok) throw new Error('Nao foi possivel baixar a foto enviada para Separar Look')
+  const sourceBuffer = Buffer.from(await sourceRes.arrayBuffer())
+
+  let cleanedBuffer = sourceBuffer
+  const falKey = process.env.FAL_KEY
+  if (falKey) {
+    try {
+      const bgRes = await fetch('https://fal.run/fal-ai/bria/background-removal', {
+        method: 'POST',
+        headers: {
+          Authorization: `Key ${falKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image_url: params.source_url }),
+      })
+      if (bgRes.ok) {
+        const bgData = await bgRes.json()
+        const cleanUrl = bgData.image?.url as string | undefined
+        if (cleanUrl) {
+          const cleanRes = await fetch(cleanUrl)
+          if (cleanRes.ok) {
+            cleanedBuffer = Buffer.from(await cleanRes.arrayBuffer())
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('[studio] look-split background removal fallback | reason=bria-failed', error)
+    }
+  }
+
+  const segmented = await segmentProductReference(cleanedBuffer, apiKey)
+  const selectedLook = selectFittingItemsForLook(segmented.items, 3)
+  const selectedItems = selectedLook.items
+
+  if (selectedItems.length === 0) {
+    throw new Error('Nao conseguimos separar o look com seguranca a partir desta foto. Envie uma imagem mais limpa ou referencias individuais.')
+  }
+
+  console.log(`[studio] look-split detected | count=${segmented.items.length} categories=${segmented.items.map((item) => item.category).join(',')}`)
+  console.log(`[studio] look-split selected | count=${selectedItems.length} categories=${selectedItems.map((item) => item.category).join(',')}`)
+
+  const { normalizedBuffer, maskRaw, width, height } = await buildForegroundMaskArtifacts(cleanedBuffer)
+  const uploadedReferences: LookSplitReference[] = []
+
+  for (let index = 0; index < selectedItems.length; index += 1) {
+    const item = selectedItems[index]
+    const transparentCrop = await cropTransparentSegmentedItem(normalizedBuffer, maskRaw, width, height, item.bbox)
+    const path = `${params.userId}/${params.assetId}-look-split-${index + 1}.png`
+    const { error: uploadError } = await admin.storage
+      .from('studio')
+      .upload(path, transparentCrop.imageBuffer, { contentType: 'image/png', upsert: true })
+
+    if (uploadError) {
+      throw new Error(`Falha ao salvar referencia separada ${index + 1}: ${uploadError.message}`)
+    }
+
+    const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+    uploadedReferences.push({
+      category: item.category,
+      url: publicUrl,
+      rank: index + 1,
+      zone: getFittingZone(item.category),
+      description: item.description,
+    })
+  }
+
+  if (uploadedReferences.length === 0) {
+    throw new Error('Nao conseguimos separar o look com seguranca a partir desta foto. Envie uma imagem mais limpa ou referencias individuais.')
+  }
+
+  return {
+    url: uploadedReferences[0].url,
+    extraData: {
+      split_references: uploadedReferences,
+      detected_categories: segmented.items.map((item) => item.category),
+      selected_categories: uploadedReferences.map((reference) => reference.category),
+      selected_item_zones: uploadedReferences.map((reference) => reference.zone),
+      omitted_item_count: selectedLook.omittedCount,
+      split_reference_count: uploadedReferences.length,
+      split_strategy: 'faithful-segmentation-priority',
+      split_note_mode: params.smart_prompt?.trim() ? 'metadata-only' : 'none',
+    },
   }
 }
 

@@ -133,33 +133,37 @@ export async function POST(req: NextRequest) {
     let resultUrl = ''
 
     if (template.generationMode === 'product_model') {
-      resultUrl = await composeProductScene({
+      const composeResult = await composeProductScene({
         portrait_url: uploadedUrls[0] ?? '',
         product_url: uploadedUrls[1] ?? '',
+        product_urls: uploadedUrls.slice(1, 4),
         compose_mode: 'gemini',
         compose_variant: 'product',
         position: 'southeast',
         product_scale: 0.35,
+        aspect_ratio: '9:16',
         smart_prompt: template.prompt,
         assetId: generationAssetId,
         userId: user.id,
       })
+      resultUrl = composeResult.url
     } else if (template.generationMode === 'virtual_tryon') {
-      resultUrl = await composeProductScene({
+      const composeResult = await composeProductScene({
         portrait_url: uploadedUrls[0] ?? '',
         product_url: uploadedUrls[1] ?? '',
-        compose_mode: 'gemini',
+        product_urls: uploadedUrls.slice(1, 4),
+        compose_mode: 'vertex-vto',
         compose_variant: 'fitting',
         position: 'southeast',
         product_scale: 0.35,
-        fitting_category: 'tops',
-        fitting_style_preset: 'fashion-clean',
+        aspect_ratio: '9:16',
         fitting_pose_preset: 'three-quarter',
         fitting_energy_preset: 'natural',
         smart_prompt: template.prompt,
         assetId: generationAssetId,
         userId: user.id,
       })
+      resultUrl = composeResult.url
     } else {
       const templateSceneUrl = template.coverImageUrl || template.exampleImages[0]
 

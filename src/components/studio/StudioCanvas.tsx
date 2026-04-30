@@ -37,7 +37,7 @@ function areNodeSelectionsEqual(previous: string[], next: string[]) {
 }
 
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12,
+  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12, look_split: 6,
 }
 
 const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
@@ -53,12 +53,12 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   compose: {
     portrait_url: '',
     product_url: '',
+    product_urls: [],
     position: 'southeast',
     product_scale: 0.35,
+    aspect_ratio: '9:16',
     compose_variant: 'fitting',
     compose_mode: 'gemini',
-    fitting_category: 'tops',
-    fitting_style_preset: 'fashion-clean',
     fitting_pose_preset: 'three-quarter',
     fitting_energy_preset: 'natural',
   },
@@ -69,6 +69,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   music:   { prompt: '', style: 'lofi' },
   ugc_bundle: { source_url: '' },
   scene:   { source_url: '', scene_prompt: '', aspect_ratio: '9:16' },
+  look_split: { source_url: '', smart_prompt: '' },
 }
 
 // Mapeamento: targetHandle → campo a preencher no nó destino
@@ -81,6 +82,7 @@ const HANDLE_TO_FIELD: Record<string, string> = {
   continuation_frame:  'continuation_frame',
   portrait_image_url:  'portrait_image_url',
   portrait_url:        'portrait_url',
+  product_bundle:      'product_bundle',
   face_url:            'face_url',
   video_0:             'video_urls',
   video_1:             'video_urls',
@@ -88,6 +90,39 @@ const HANDLE_TO_FIELD: Record<string, string> = {
   video_3:             'video_urls',
   video_4:             'video_urls',
   video_5:             'video_urls',
+}
+
+type LookSplitReference = {
+  url?: string
+  category?: string
+  rank?: number
+  zone?: string
+}
+
+function getLookSplitReferences(asset?: StudioAsset | null): LookSplitReference[] {
+  if (!asset) return []
+  const references = Array.isArray(asset.input_params.split_references)
+    ? asset.input_params.split_references
+    : []
+
+  return references
+    .filter((item): item is LookSplitReference => !!item && typeof item === 'object')
+    .filter((item) => typeof item.url === 'string' && item.url.trim().length > 0)
+    .sort((left, right) => Number(left.rank ?? 99) - Number(right.rank ?? 99))
+    .slice(0, 3)
+}
+
+function buildLookSplitComposeParams(sourceAsset: StudioAsset): Record<string, unknown> | null {
+  const references = getLookSplitReferences(sourceAsset)
+  if (references.length === 0) return null
+
+  return {
+    product_url: references[0]?.url ?? '',
+    product_urls: references
+      .map((reference) => reference.url)
+      .filter((url): url is string => typeof url === 'string' && url.trim().length > 0),
+    reference_source_mode: 'split-look-card',
+  }
 }
 
 const AUTOSAVE_DELAY_MS = 900
@@ -377,7 +412,50 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
     // Mescla params do form com campos já preenchidos por conexões (ex: model_prompt, source_image_url)
     // Os params do form têm prioridade sobre os defaults, mas campos de conexão são preservados
-    const mergedParams = { ...(currentAsset?.input_params ?? {}), ...params }
+    let mergedParams = { ...(currentAsset?.input_params ?? {}), ...params }
+
+    if (type === 'compose') {
+      const composeVariant = String(mergedParams.compose_variant ?? 'fitting')
+      const portraitUrl = typeof mergedParams.portrait_url === 'string' ? mergedParams.portrait_url.trim() : ''
+
+      if (composeVariant === 'fitting' && portraitUrl.length === 0) {
+        const recoveryConnections = [...connections]
+          .filter((connection) => connection.target_id === existingId && connection.target_handle === 'portrait_url')
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
+        const recoveredSource = recoveryConnections
+          .map((connection) => assets.find((asset) => asset.id === connection.source_id))
+          .find((asset) => typeof asset?.result_url === 'string' && asset.result_url.trim().length > 0)
+
+        if (recoveredSource?.result_url) {
+          const currentRecovery = mergedParams.input_recovery && typeof mergedParams.input_recovery === 'object' && !Array.isArray(mergedParams.input_recovery)
+            ? mergedParams.input_recovery as Record<string, unknown>
+            : {}
+          mergedParams = {
+            ...mergedParams,
+            portrait_url: recoveredSource.result_url,
+            input_recovery: {
+              ...currentRecovery,
+              portrait_url: 'connection:auto:canvas',
+            },
+          }
+          setAssets(prev => prev.map((asset) => (
+            asset.id === existingId
+              ? { ...asset, input_params: { ...asset.input_params, ...mergedParams }, error_msg: null }
+              : asset
+          )))
+        } else {
+          const message = 'Conecte uma imagem/modelo ao campo Modelo antes de gerar o Provador.'
+          alert(message)
+          setAssets(prev => prev.map((asset) => (
+            asset.id === existingId
+              ? { ...asset, status: 'error', error_msg: message }
+              : asset
+          )))
+          return
+        }
+      }
+    }
 
     // Mostra spinner no card existente enquanto a API processa
     setAssets(prev => prev.map(a =>
@@ -400,10 +478,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       if (!res.ok) {
         // Se a API falhou gravemente (ex: timeout), tenta ler JSON se tiver
         const text = await res.text()
-        let errData = { error: 'Falha na comunicação com o servidor' }
+        let errData: { error?: string; message?: string } = { error: 'Falha na comunicação com o servidor' }
         try { errData = JSON.parse(text) } catch { errData.error = text.slice(0, 400) }
         
-        throw new Error(errData.error || `Erro HTTP ${res.status}`)
+        throw new Error(errData.message || errData.error || `Erro HTTP ${res.status}`)
       }
 
       const { asset, error } = await res.json()
@@ -429,12 +507,12 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       setCredits(c => c - asset.credits_cost)
       if (asset.status === 'processing') startPolling(asset.id)
     } catch (err: any) {
-      alert(`Servidor (500): ${err.message}`)
+      alert(err.message)
       setAssets(prev => prev.map(a =>
         a.id === existingId ? { ...a, status: 'error', error_msg: err.message ?? 'Erro na geração' } : a
       ))
     }
-  }, [assets, project.id, startPolling])
+  }, [assets, connections, project.id, startPolling])
 
   const handleDuplicate = useCallback(async (id: string) => {
     const original = assets.find(a => a.id === id)
@@ -601,18 +679,28 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       if (!edge.targetHandle) return
       const src = assets.find(a => a.id === edge.source)
       const tgt = assets.find(a => a.id === edge.target)
-      if (!src?.result_url || !tgt) return
+      if ((!src?.result_url && src?.type !== 'look_split') || !tgt) return
 
-      const fillValue = edge.targetHandle === 'continuation_frame'
+      const fillValue = (edge.targetHandle === 'continuation_frame'
         ? (src.last_frame_url ?? src.result_url)
-        : src.result_url
+        : src.result_url) ?? ''
 
       const cacheKey = `${edge.id}:${edge.targetHandle}`
       
       let finalParams: Record<string, unknown> | null = null
       let isDifferent = false
 
-      if (edge.targetHandle.startsWith('video_')) {
+      if (edge.targetHandle === 'product_bundle' && src.type === 'look_split') {
+        const bundleParams = buildLookSplitComposeParams(src)
+        const currentPrimary = typeof tgt.input_params.product_url === 'string' ? tgt.input_params.product_url : ''
+        const currentReferences = Array.isArray(tgt.input_params.product_urls) ? JSON.stringify(tgt.input_params.product_urls) : '[]'
+        const nextPrimary = typeof bundleParams?.product_url === 'string' ? bundleParams.product_url : ''
+        const nextReferences = Array.isArray(bundleParams?.product_urls) ? JSON.stringify(bundleParams.product_urls) : '[]'
+        if (bundleParams && (currentPrimary !== nextPrimary || currentReferences !== nextReferences)) {
+          isDifferent = true
+          finalParams = bundleParams
+        }
+      } else if (edge.targetHandle.startsWith('video_')) {
         const idx = parseInt(edge.targetHandle.split('_')[1])
         const currentArray = [...(tgt.input_params.video_urls as string[] ?? [])]
         if (currentArray[idx] !== fillValue) {
@@ -629,9 +717,13 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         }
       }
 
-      if (isDifferent && finalParams && lastPropagated.current.get(cacheKey) !== fillValue) {
+      const cacheValue = edge.targetHandle === 'product_bundle'
+        ? JSON.stringify(finalParams ?? {})
+        : fillValue
+
+      if (isDifferent && finalParams && lastPropagated.current.get(cacheKey) !== cacheValue) {
         updates.push({ tgtId: tgt.id, params: finalParams })
-        lastPropagated.current.set(cacheKey, fillValue)
+        lastPropagated.current.set(cacheKey, cacheValue)
       }
     })
 
@@ -763,6 +855,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           break
 
         case 'compose':
+          if (s === 'look_split') return 'product_bundle'
           if (isImage(s))        return 'portrait_url'
           break
 
@@ -780,6 +873,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           break
 
         case 'ugc_bundle':
+          if (isImage(s))        return 'source_url'
+          break
+
+        case 'look_split':
           if (isImage(s))        return 'source_url'
           break
 
@@ -839,14 +936,16 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
     // Auto-preenche o campo no nó destino com a URL do nó fonte (sempre)
     const sourceAsset = assets.find(a => a.id === source)
-    if (sourceAsset?.result_url) {
-      const fillValue = targetHandle === 'continuation_frame'
+    if (sourceAsset && (sourceAsset.result_url || sourceAsset.type === 'look_split')) {
+      const fillValue = (targetHandle === 'continuation_frame'
         ? (sourceAsset.last_frame_url ?? sourceAsset.result_url)
-        : sourceAsset.result_url
+        : sourceAsset.result_url) ?? ''
       const targetAsset = assets.find(a => a.id === target)
       let finalParams: Record<string, unknown> = {}
 
-      if (targetHandle.startsWith('video_') && targetAsset) {
+      if (targetHandle === 'product_bundle' && sourceAsset.type === 'look_split') {
+        finalParams = buildLookSplitComposeParams(sourceAsset) ?? {}
+      } else if (targetHandle.startsWith('video_') && targetAsset) {
         // Trata a injeção em arrays (ex: video_0 -> video_urls[0])
         const idx = parseInt(targetHandle.split('_')[1])
         const currentArray = [...(targetAsset.input_params.video_urls as string[] ?? [])]
@@ -857,7 +956,12 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         finalParams = { [field]: fillValue }
       }
 
+      if (Object.keys(finalParams).length === 0) return
+
       handleUpdateParams(target, finalParams)
+      if (targetHandle === 'product_bundle') {
+        console.log(`[studio] look-split connected-to-fitting | source_asset=${sourceAsset.id} target_asset=${target}`)
+      }
       if (!isTargetTemp) {
         await fetch(`/api/studio/assets/${target}`, {
           method: 'PATCH',
@@ -885,7 +989,13 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         const targetAsset = assets.find(a => a.id === e.target)
         if (targetAsset) {
           let finalParams: Record<string, unknown> = {}
-          if (e.targetHandle.startsWith('video_')) {
+          if (e.targetHandle === 'product_bundle') {
+            finalParams = {
+              product_url: '',
+              product_urls: [],
+              reference_source_mode: '',
+            }
+          } else if (e.targetHandle.startsWith('video_')) {
             const idx = parseInt(e.targetHandle.split('_')[1])
             const currentArray = [...(targetAsset.input_params.video_urls as string[] ?? [])]
             currentArray[idx] = ''
@@ -1008,6 +1118,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         void addCard('compose', {
           portrait_url: pending.uploadedUrls[0] ?? '',
           product_url: pending.uploadedUrls[1] ?? '',
+          product_urls: pending.uploadedUrls.slice(1, 4),
           compose_variant: 'product',
           smart_prompt: pending.prompt,
           preset_title: pending.title,
@@ -1019,6 +1130,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         void addCard('compose', {
           portrait_url: pending.uploadedUrls[0] ?? '',
           product_url: pending.uploadedUrls[1] ?? '',
+          product_urls: pending.uploadedUrls.slice(1, 4),
           compose_variant: 'fitting',
           smart_prompt: pending.prompt,
           preset_title: pending.title,

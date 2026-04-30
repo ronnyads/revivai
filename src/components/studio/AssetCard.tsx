@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, Music, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2, User, Film, Camera } from 'lucide-react'
+import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, Music, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2, User, Film, Camera, Scissors } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import ImageGenerator from './ImageGenerator'
 import ScriptGenerator from './ScriptGenerator'
@@ -14,6 +14,7 @@ import JoinGenerator from './JoinGenerator'
 import AngleGenerator from './AngleGenerator'
 import MusicGenerator from './MusicGenerator'
 import AnimateGenerator from './AnimateGenerator'
+import LookSplitGenerator from './LookSplitGenerator'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string }> = {
   face:    { icon: <User size={15} />,     label: 'Rosto Real',  color: 'text-indigo-400' },
@@ -33,6 +34,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   music:   { icon: <Music size={15} />,    label: 'Trilha Sonora', color: 'text-amber-400' },
   ugc_bundle: { icon: <Sparkles size={15} />, label: 'Pacote 8 Poses UGC', color: 'text-indigo-400' },
   scene:      { icon: <Camera size={15} />,   label: 'Cena Livre',         color: 'text-violet-400' },
+  look_split: { icon: <Scissors size={15} />, label: 'Separar Look',       color: 'text-cyan-400' },
 }
 
 // Mapeamento: tipo de origem → ações "Usar em..."
@@ -225,6 +227,20 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
       </div>
     )
   }
+  if (type === 'look_split') {
+    const references = Array.isArray(params.split_references)
+      ? (params.split_references as Array<{ url?: string; category?: string }>).filter((item) => typeof item?.url === 'string' && item.url)
+      : []
+    return (
+      <div className="grid grid-cols-3 gap-2">
+        {references.slice(0, 3).map((item, i) => (
+          <div key={`${item.url}-${i}`} className="overflow-hidden rounded-lg border border-zinc-800 bg-black/20">
+            <img src={item.url} alt={item.category ?? `Referencia ${i + 1}`} className="aspect-[4/5] w-full object-contain" />
+          </div>
+        ))}
+      </div>
+    )
+  }
   return null
 }
 
@@ -295,5 +311,6 @@ function FormForType({ type, initialParams, onGenerate }: {
   if (type === 'angles')  return <AngleGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'music')   return <MusicGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'animate') return <AnimateGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'look_split') return <LookSplitGenerator initial={initialParams} onGenerate={onGenerate} />
   return null
 }

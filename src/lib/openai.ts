@@ -496,32 +496,40 @@ export interface CompositionQuality {
 export interface CompositionQualityOptions {
   variant?: 'product' | 'fitting'
   fittingCategory?: string
+  fittingRoute?: string
 }
 
 function getFittingCategoryQualityRule(category?: string): string {
   switch (category) {
     case 'tops':
-      return 'Focus on neckline, shoulders, sleeves, hem, chest fit, and natural fabric drape on the torso.'
+      return 'Focus on neckline, straps, sleeves, cutouts, hem, chest fit, and preserving all upper-body structural details exactly.'
     case 'bottoms':
-      return 'Focus on waist placement, hip and leg silhouette, inseam logic, and natural lower-body drape.'
+      return 'Focus on waist placement, rise, hip and leg silhouette, inseam logic, length, and preserving all lower-body structural details exactly.'
     case 'one-pieces':
-      return 'Focus on full-body silhouette, straps, length, seams, and uninterrupted garment structure.'
+      return 'Focus on uninterrupted one-piece structure, cutouts, straps, seams, length, print placement, and preventing conversion into separate garments.'
     case 'outerwear':
-      return 'Focus on shoulder fit, sleeve length, lapel/opening logic, and clean layering over the base outfit.'
+      return 'Focus on shoulder fit, sleeve length, opening logic, closures, trim, and exact layer behavior without redesign.'
     case 'bags':
-      return 'Focus on bag shape, strap logic, arm/shoulder attachment, and realistic scale against the body.'
+      return 'Focus on bag shape, strap logic, hardware, pocket/compartment details, attachment, and realistic scale against the body.'
     case 'glasses':
-      return 'Focus on frame alignment, lens symmetry, temple placement, and natural fit on the face.'
+      return 'Focus on frame alignment, lens symmetry, bridge shape, temple placement, and exact proportions on the face.'
     case 'jewelry':
-      return 'Focus on attachment, scale, clean placement, and preventing fusion into skin or hair.'
+      return 'Focus on attachment, scale, metal/stone detail, closures, clean placement, and preventing fusion into skin or hair.'
     case 'shoes':
-      return 'Focus on pair consistency, ankle and foot angle, floor contact, and realistic shoe perspective.'
+      return 'Focus on pair consistency, toe shape, heel/sole proportions, ankle and foot angle, floor contact, and realistic shoe perspective.'
+    case 'headwear':
+      return 'Focus on crown fit, brim or visor shape, forehead placement, hair interaction, scale on the head, and preventing floating or warped headwear.'
     default:
-      return 'Focus on clean fashion integration, believable placement, and a wearable final look.'
+      return 'Focus on preserving the exact item category, structure, visible details, and believable placement without redesign.'
   }
 }
 
-function buildFittingQualityPrompt(profile: ProductProfile | undefined, featuresLine: string, fittingCategory?: string): string {
+function buildFittingQualityPrompt(
+  profile: ProductProfile | undefined,
+  featuresLine: string,
+  fittingCategory?: string,
+  fittingRoute?: string,
+): string {
   return `EXTREMELY STRICT QUALITY ANALYST FOR FASHION FITTING COMPOSITIONS
 
 You receive:
@@ -529,6 +537,7 @@ You receive:
 - IMAGE 2 = composed fashion photo with model wearing or using the item
 - Composition mode: FASHION_FITTING
 - Fitting category: ${fittingCategory ?? 'unspecified'}
+- Fitting route: ${fittingRoute ?? 'unspecified'}
 - Reference profile category: ${profile?.category ?? 'unknown'}
 - Key visible features to verify: ${featuresLine || 'none specified'}
 
@@ -540,12 +549,18 @@ ${getFittingCategoryQualityRule(fittingCategory)}
 - Collage, split image, side-by-side result, or obvious pasted composite
 - Face identity clearly changed
 - Clothing or accessory fused unnaturally into skin, hair, or body
+- The item changed category or became a different kind of product than IMAGE 1
+- A one-piece garment was turned into a top, body, or separated look
+- The print, cutouts, straps, length, hardware, or silhouette were materially simplified or redesigned
+- The original base blouse, undershirt, straps, sleeves, hems, or fabric still leak through in the same zone that should have been replaced
+- The client item is floating, sitting on the floor, detached from the body, or lacks believable hand/body contact
 
 Evaluate FIVE dimensions. Score each 0-100. APPROVED ONLY IF ALL dimensions are >= 70.
 
 ## DIMENSION 1 - FASHION INTEGRATION UNITY
 Reject if ANY of the following is true:
 - The fashion item looks pasted, floating, or detached from the body
+- The fashion item is resting on the ground or hanging in the air with no physical support
 - Visible seams, cutout edges, masking errors, or warped blending appear
 - The item does not belong naturally to the same photo as the model
 - There are duplicate accessories or duplicated item fragments
@@ -553,9 +568,12 @@ Reject if ANY of the following is true:
 ## DIMENSION 2 - ITEM FIDELITY
 Reject if ANY of the following is true:
 - The silhouette, shape, pattern, or material changed materially from IMAGE 1
-- Hardware, trims, straps, seams, or distinctive details are missing or altered
+- Hardware, trims, straps, seams, cutouts, hems, or distinctive details are missing or altered
 - The item became a different garment or accessory than IMAGE 1
+- The item was restyled, beautified, cleaned up, simplified, or reinterpreted instead of preserved literally
+- The print scale, color blocking, or placement changed materially from IMAGE 1
 - Key visible features from the reference were lost or distorted
+- A dress or coordinated look lost exclusive details and turned into a more generic garment
 
 ## DIMENSION 3 - FIT AND PLACEMENT
 Reject if ANY of the following is true:
@@ -563,13 +581,17 @@ Reject if ANY of the following is true:
 - Sleeves, collar, waist, hem, straps, bag handles, glasses arms, jewelry placement, or shoes perspective are clearly incorrect for the category
 - The item scale is unrealistic for the model body
 - The item is hidden too much to judge the look correctly
+- The image only preserves part of the reference item when the whole item should remain visible or structurally intact
+- The replaced garment zone still shows the old base garment under or around the client item
 
 ## DIMENSION 4 - ANATOMY AND WARDROBE COHERENCE
 Reject if ANY of the following is true:
 - Clothing melts into skin or body contours unnaturally
 - Arms, hands, shoulders, torso, hips, legs, feet, or neck look broken or impossible
 - Unrelated base outfit areas were corrupted without reason
+- The reference item lost its original category logic, such as a dress becoming a top or a bag becoming a generic prop
 - The final look does not feel physically wearable in one coherent photo
+- Accessories or props that should be worn or held are disconnected from the hand, arm, shoulder, face, or body
 
 ## DIMENSION 5 - MODEL IDENTITY
 Reject if ANY of the following is true:
@@ -688,7 +710,7 @@ Respond with valid JSON only:
 
   const prompt = isProductShowcase
     ? legacyPrompt
-    : buildFittingQualityPrompt(profile, featuresLine, options?.fittingCategory)
+    : buildFittingQualityPrompt(profile, featuresLine, options?.fittingCategory, options?.fittingRoute)
 
   try {
     const res = await fetch(

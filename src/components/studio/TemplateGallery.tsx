@@ -106,7 +106,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { type: 'script', x: 460, y: 60, params: { product: '', audience: '', format: 'reels', hook_style: 'beneficio', _placeholder: 'Descreva seu produto...' } },
       { type: 'image', x: 460, y: 520, params: { prompt: '', style: 'ugc', aspect_ratio: '9:16', _placeholder: 'Modelo segurando o produto com sorriso natural...' } },
       { type: 'voice', x: 860, y: 60, params: { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 } },
-      { type: 'compose', x: 860, y: 520, params: { portrait_url: '', product_url: '', position: 'southeast', product_scale: 0.35 } },
+      { type: 'compose', x: 860, y: 520, params: { portrait_url: '', product_url: '', product_urls: [], position: 'southeast', product_scale: 0.35, aspect_ratio: '9:16' } },
       { type: 'video', x: 1260, y: 280, params: { source_image_url: '', motion_prompt: 'movimento suave, exibe produto com confianca', duration: 5 } },
       { type: 'render', x: 1660, y: 280, params: { source_image_url: '', audio_url: '' } },
     ],
