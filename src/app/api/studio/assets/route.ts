@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, preflightProvadorPricing, startLipsyncGeneration, joinVideos, generateAngles, generateMusic, generateUGCPositions, generateScene, splitLookReferences, prepareLockedVideoMotionPrompt, prepareTalkingVideoPrompt, estimateTalkingSpeechDurationSeconds, measureAudioDurationSeconds, incrementTalkingPipelineAttempts } from '@/lib/studio'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
+import { resolveStudioPublicError, type StudioPublicErrorEnvelope } from '@/lib/studioPublicErrors'
 import { getLogicalStudioAssetType, getPersistedStudioAssetType, mapStudioAssetType } from '@/lib/studioAssetType'
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
@@ -83,6 +84,53 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {}
+}
+
+function buildStudioPublicErrorEnvelope(params: {
+  type?: AssetType
+  inputParams?: Record<string, unknown>
+  errorMsg: string
+  supportDebugId: string
+}): StudioPublicErrorEnvelope {
+  const inputParams = params.inputParams ?? {}
+  const composeVariant = typeof inputParams.compose_variant === 'string' ? inputParams.compose_variant : ''
+  const failureState = typeof inputParams.failure_state === 'string' ? inputParams.failure_state : ''
+  const technicalMessage = params.errorMsg.toLowerCase()
+
+  if (params.type === 'compose' && composeVariant === 'fitting') {
+    if (failureState === 'split_required_after_outerwear_failure' || failureState === 'split_required_after_garment_priority') {
+      return resolveStudioPublicError({
+        code: 'resultado_pronto_para_revisao',
+        message: 'Separamos as pecas principais e deixamos um caminho mais estavel pronto para voce seguir.',
+        supportDebugId: params.supportDebugId,
+      })
+    }
+
+    if (failureState === 'manual_split_required') {
+      return resolveStudioPublicError({
+        code: 'precisamos_de_uma_foto_mais_limpa',
+        supportDebugId: params.supportDebugId,
+      })
+    }
+
+    if (/timeout|timed out|503|502|500|429|network|fetch failed|econnreset|not found|provider|vertex|google/i.test(technicalMessage)) {
+      return resolveStudioPublicError({
+        code: 'nao_conseguimos_vestir_esse_look',
+        message: 'Tivemos uma falha temporaria ao montar esse look. Tente de novo e seguiremos da forma mais estavel.',
+        supportDebugId: params.supportDebugId,
+      })
+    }
+
+    return resolveStudioPublicError({
+      code: 'nao_conseguimos_vestir_esse_look',
+      supportDebugId: params.supportDebugId,
+    })
+  }
+
+  return resolveStudioPublicError({
+    code: 'falha_na_geracao',
+    supportDebugId: params.supportDebugId,
+  })
 }
 
 function resolveAppUrl(req: NextRequest) {
@@ -1244,9 +1292,25 @@ export async function POST(req: NextRequest) {
             studioRefundReason?: string
           }
         : {}
-    const failureInputParams = {
+    const supportDebugId = typeof normalizedInputParams.support_debug_id === 'string' && normalizedInputParams.support_debug_id.trim().length > 0
+      ? normalizedInputParams.support_debug_id
+      : `studio_${crypto.randomUUID().slice(0, 8)}`
+    const publicError = buildStudioPublicErrorEnvelope({
+      type,
+      inputParams: {
+        ...normalizedInputParams,
+        ...(failureMetadata.studioFailureData ?? {}),
+      },
+      errorMsg,
+      supportDebugId,
+    })
+    const failureInputParams: Record<string, unknown> = {
       ...normalizedInputParams,
       ...(failureMetadata.studioFailureData ?? {}),
+      public_error_code: publicError.code,
+      public_error_title: publicError.title,
+      public_error_message: publicError.message,
+      support_debug_id: publicError.supportDebugId,
     }
     
     console.error(`[studio] CRITICAL ERROR [Asset ${asset?.id}]:`, {
@@ -1263,6 +1327,10 @@ export async function POST(req: NextRequest) {
         errorMsg,
         refundReason: failureMetadata.studioRefundReason ?? `sync-post:${type}`,
         extraInputParams: failureInputParams,
+        publicErrorCode: publicError.code,
+        publicErrorTitle: publicError.title,
+        publicErrorMessage: publicError.message,
+        supportDebugId: publicError.supportDebugId,
       })
     }
 
@@ -1282,7 +1350,12 @@ export async function POST(req: NextRequest) {
     }
     
     return NextResponse.json({ 
-      error: errorMsg,
+      error: publicError.code,
+      message: publicError.message,
+      public_error_code: publicError.code,
+      public_error_title: publicError.title,
+      public_error_message: publicError.message,
+      support_debug_id: publicError.supportDebugId,
       code: 'INTERNAL_SERVER_ERROR',
       asset_id: asset?.id 
     }, { status: 500 })

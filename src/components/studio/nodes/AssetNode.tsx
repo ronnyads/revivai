@@ -50,6 +50,7 @@ import UGCBundleGenerator from '../UGCBundleGenerator'
 import LookSplitGenerator from '../LookSplitGenerator'
 import { getStudioNodeCardWidth } from '../node-layout'
 import { buildTalkingVideoIdeaFromParts } from '@/lib/talkingVideoIdea'
+import { resolveStudioPublicError } from '@/lib/studioPublicErrors'
 
 const TYPE_META: Record<
   AssetType,
@@ -1162,6 +1163,13 @@ function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: (par
   const hasPrediction = !!(asset.input_params as { prediction_id?: unknown }).prediction_id
   const canSync = SYNC_TYPES.includes(asset.type) && hasPrediction
   const failureState = typeof asset.input_params.failure_state === 'string' ? asset.input_params.failure_state : ''
+  const publicError = resolveStudioPublicError({
+    code: asset.input_params.public_error_code,
+    title: asset.input_params.public_error_title,
+    message: asset.input_params.public_error_message,
+    supportDebugId: asset.input_params.support_debug_id,
+    fallbackCode: asset.type === 'compose' ? 'nao_conseguimos_vestir_esse_look' : 'falha_na_geracao',
+  })
   const garmentPriorityApplied = Boolean(asset.input_params.single_photo_garment_priority_applied)
   const primaryProductType = typeof asset.input_params.single_photo_primary_product_type === 'string'
     ? asset.input_params.single_photo_primary_product_type
@@ -1215,20 +1223,20 @@ function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: (par
   return (
     <div className="space-y-3 rounded-[22px] border border-red-500/18 bg-red-500/8 p-4">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-red-200">falha na geracao</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-red-100/88">{asset.error_msg || 'Erro ao gerar este card.'}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-red-200">{publicError.title}</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-red-100/92">{publicError.message}</p>
       </div>
       {failureState === 'split_required_after_outerwear_failure' || failureState === 'split_required_after_garment_priority' ? (
         <div className="rounded-[18px] border border-cyan-500/18 bg-cyan-500/8 p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100">look separado automaticamente</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-white/68">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100">look preparado automaticamente</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/86">
             {failureState === 'split_required_after_garment_priority'
-              ? 'Detectamos um look de roupa com acessorios misturados. Para preservar o conjunto principal com fidelidade, o sistema separou as pecas principais para uma nova geracao.'
-              : 'Detectamos um look completo com casaco/outerwear dominante. Para preservar o casaco com fidelidade, o sistema separou as pecas principais para uma nova geracao.'}
+              ? 'Separamos a roupa principal do restante para seguir por um caminho mais estavel, sem voce precisar remontar tudo.'
+              : 'Preparamos as pecas principais do look para seguir com mais fidelidade e menos risco de falha.'}
           </p>
           {preparedCoreReferences.length > 0 ? (
             <div className="mt-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/46">pecas preparadas</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/72">pecas preparadas</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {preparedCoreReferences.map((reference, index) => (
                   <span key={`${reference.category ?? 'core'}-${index}`} className="rounded-full border border-cyan-500/20 bg-[#0D171B] px-2.5 py-1 text-[10px] font-medium text-cyan-100">
@@ -1239,24 +1247,24 @@ function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: (par
             </div>
           ) : null}
           {preparedOverlayReferences.length > 0 || overlayOnlyCategories.length > 0 ? (
-            <p className="mt-3 text-[11px] leading-relaxed text-white/56">
+            <p className="mt-3 text-[11px] leading-relaxed text-white/76">
               {failureState === 'split_required_after_garment_priority'
-                ? `Acessorios${overlayOnlyCategories.length > 0 ? ` como ${overlayOnlyCategories.join(', ')}` : ''} vao entrar depois como overlay/editorial, nao no Vertex principal.`
-                : 'Acessorios como chapeu, bolsa, joias e oculos vao entrar depois como overlay/editorial, nao no Vertex principal.'}
+                ? `Os detalhes extras${overlayOnlyCategories.length > 0 ? ` como ${overlayOnlyCategories.join(', ')}` : ''} entram depois sem atrapalhar a roupa principal.`
+                : 'Os acessorios entram depois como refinamento, sem bloquear a roupa principal.'}
             </p>
           ) : null}
           {garmentPriorityApplied && primaryProductType === 'matching_set' ? (
-            <p className="mt-2 text-[11px] leading-relaxed text-white/56">
-              O sistema tratou esta referencia como conjunto de roupa principal, nao como acessorio.
+            <p className="mt-2 text-[11px] leading-relaxed text-white/76">
+              Tratamos esta referencia como roupa principal, nao como detalhe secundario.
             </p>
           ) : null}
         </div>
       ) : null}
       {failureState === 'manual_split_required' ? (
         <div className="rounded-[18px] border border-amber-500/18 bg-amber-500/8 p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-100">separacao manual recomendada</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-white/68">
-            Nao conseguimos isolar as pecas principais com seguranca. Envie imagens separadas do casaco, blusa e calca para garantir fidelidade.
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-100">foto mais limpa ajuda</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/86">
+            Nao conseguimos separar o look com seguranca nessa imagem. Uma foto mais limpa ou referencias separadas das pecas principais ajudam bastante.
           </p>
         </div>
       ) : null}
@@ -1279,7 +1287,7 @@ function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: (par
             className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/24 bg-cyan-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100 transition-colors hover:border-cyan-400/40 hover:text-white"
           >
             <RotateCcw size={12} />
-            {nextAction?.label || 'Regenerar com look separado'}
+            Usar look preparado
           </button>
         ) : (
           <button
@@ -1288,11 +1296,11 @@ function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: (par
             className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/78 transition-colors hover:border-white/18 hover:text-white"
           >
             <RotateCcw size={12} />
-            Tentar novamente
+            {publicError.code === 'precisamos_de_uma_foto_mais_limpa' ? 'Tentar com outra foto' : 'Tentar de novo'}
           </button>
         )}
       </div>
-      {message ? <p className="text-[11px] text-white/56">{message}</p> : null}
+      {message ? <p className="text-[11px] text-white/76">{message}</p> : null}
     </div>
   )
 }

@@ -16,6 +16,7 @@ import AngleGenerator from './AngleGenerator'
 import MusicGenerator from './MusicGenerator'
 import AnimateGenerator from './AnimateGenerator'
 import LookSplitGenerator from './LookSplitGenerator'
+import { resolveStudioPublicError } from '@/lib/studioPublicErrors'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string }> = {
   face:    { icon: <User size={15} />,     label: 'Rosto Real',  color: 'text-indigo-400' },
@@ -76,6 +77,12 @@ export default function AssetCard({ asset, stepNumber, onDelete, onRetry, onGene
   const meta = TYPE_META[asset.type] || { icon: <Wand2 size={15} />, label: 'Desconhecido', color: 'text-zinc-400' }
   const [collapsed, setCollapsed] = useState(asset.status === 'done')
   const useAsActions = USE_AS_ACTIONS[asset.type] ?? []
+  const publicError = resolveStudioPublicError({
+    code: asset.input_params.public_error_code,
+    title: asset.input_params.public_error_title,
+    message: asset.input_params.public_error_message,
+    fallbackCode: asset.type === 'compose' ? 'nao_conseguimos_vestir_esse_look' : 'falha_na_geracao',
+  })
 
   function handleDownload() {
     if (!asset.result_url) return
@@ -132,7 +139,7 @@ export default function AssetCard({ asset, stepNumber, onDelete, onRetry, onGene
         {/* Error */}
         {asset.status === 'error' && (
           <div className="flex flex-col items-center justify-center py-6 gap-3">
-            <p className="text-sm text-red-400 text-center">{asset.error_msg || 'Erro ao gerar'}</p>
+            <p className="text-sm text-red-200 text-center">{publicError.message}</p>
             <button
               onClick={() => onRetry(asset.id, asset.type, asset.input_params)}
               className="flex items-center gap-2 text-xs text-zinc-400 hover:text-white border border-zinc-700 px-3 py-1.5 rounded-lg transition-colors"

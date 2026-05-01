@@ -6,6 +6,10 @@ type StudioAssetFailureOptions = {
   errorMsg: string
   refundReason?: string
   extraInputParams?: Record<string, unknown>
+  publicErrorCode?: string
+  publicErrorTitle?: string
+  publicErrorMessage?: string
+  supportDebugId?: string
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -20,6 +24,10 @@ export async function markStudioAssetFailed({
   errorMsg,
   refundReason,
   extraInputParams,
+  publicErrorCode,
+  publicErrorTitle,
+  publicErrorMessage,
+  supportDebugId,
 }: StudioAssetFailureOptions) {
   const safeErrorMsg = errorMsg.slice(0, 500)
 
@@ -41,6 +49,16 @@ export async function markStudioAssetFailed({
   let nextInputParams = {
     ...currentInputParams,
     ...(extraInputParams ?? {}),
+  }
+
+  if (publicErrorCode || publicErrorTitle || publicErrorMessage || supportDebugId) {
+    nextInputParams = {
+      ...nextInputParams,
+      ...(publicErrorCode ? { public_error_code: publicErrorCode } : {}),
+      ...(publicErrorTitle ? { public_error_title: publicErrorTitle } : {}),
+      ...(publicErrorMessage ? { public_error_message: publicErrorMessage } : {}),
+      ...(supportDebugId ? { support_debug_id: supportDebugId } : {}),
+    }
   }
 
   const alreadyRefundedAt =

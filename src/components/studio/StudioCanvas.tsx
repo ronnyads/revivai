@@ -28,12 +28,32 @@ import {
   PENDING_GENERATION_STORAGE_KEY,
   type PendingPromptGenerationSession,
 } from '@/lib/prompt-gallery'
+import { resolveStudioPublicError } from '@/lib/studioPublicErrors'
 
 const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
 
 function areNodeSelectionsEqual(previous: string[], next: string[]) {
   return previous.length === next.length && previous.every((id, index) => id === next[index])
+}
+
+function buildClientAssetError(input: {
+  code?: unknown
+  title?: unknown
+  message?: unknown
+  supportDebugId?: unknown
+  fallbackCode?: Parameters<typeof resolveStudioPublicError>[0]['fallbackCode']
+}) {
+  const publicError = resolveStudioPublicError(input)
+  return {
+    errorMsg: publicError.message,
+    inputParams: {
+      public_error_code: publicError.code,
+      public_error_title: publicError.title,
+      public_error_message: publicError.message,
+      ...(publicError.supportDebugId ? { support_debug_id: publicError.supportDebugId } : {}),
+    },
+  }
 }
 
 const CREDIT_COST: Record<AssetType, number> = {
@@ -457,9 +477,14 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           )))
         } else {
           const message = 'Conecte uma imagem/modelo ao campo Modelo antes de gerar o Provador.'
+          const clientError = buildClientAssetError({
+            code: 'precisamos_de_uma_foto_mais_limpa',
+            title: 'Modelo necessario',
+            message,
+          })
           setAssets(prev => prev.map((asset) => (
             asset.id === existingId
-              ? { ...asset, status: 'error', error_msg: message }
+              ? { ...asset, status: 'error', error_msg: clientError.errorMsg, input_params: { ...asset.input_params, ...clientError.inputParams } }
               : asset
           )))
           return

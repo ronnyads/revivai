@@ -2168,6 +2168,8 @@ type FittingGenerationStrategy =
   | 'guided-fail-before-generation'
   | 'guided-fail-after-qc'
 
+type ProvadorMode = 'single_anchor' | 'dual_garment' | 'accessory_only'
+
 type ReferencePaddingMode = 'standard' | 'full-length-vertical'
 
 type SinglePhotoRescuePolicy = {
@@ -2928,6 +2930,92 @@ function canCombineBodyCategories(selectedCategories: string[], candidateCategor
   }
 
   return true
+}
+
+function sortProvadorStructuralItems(items: SegmentedFittingItem[]): SegmentedFittingItem[] {
+  return [...items].sort((a, b) => {
+    const rankDelta = rankGuidedSplitCoreCategory(b.category) - rankGuidedSplitCoreCategory(a.category)
+    if (rankDelta !== 0) return rankDelta
+    if (b.priority !== a.priority) return b.priority - a.priority
+    return b.bbox.area - a.bbox.area
+  })
+}
+
+function classifyProvadorSelection(params: {
+  selectedItems: SegmentedFittingItem[]
+  selectedAccessoryDetailItems: SegmentedFittingItem[]
+  referenceMode: FittingReferenceMode
+}): {
+  mode: ProvadorMode
+  dominantCategory: string
+  blockingStructuralItems: SegmentedFittingItem[]
+  optionalOverlayItems: SegmentedFittingItem[]
+  structuralCategories: string[]
+  accessoryCategories: string[]
+  blockingItemCount: number
+  autoSplitConfidence: number
+  recoveryPlan: string
+} {
+  const structuralItems = sortProvadorStructuralItems(
+    params.selectedItems.filter((item) => isStructuralBodyCategory(item.category)),
+  )
+  const structuralCategories = Array.from(new Set(structuralItems.map((item) => item.category)))
+  const accessoryItems = params.selectedAccessoryDetailItems.filter((item) => isAccessoryCompatibleFittingCategory(item.category))
+  const accessoryCategories = Array.from(new Set(accessoryItems.map((item) => item.category)))
+
+  let blockingStructuralItems: SegmentedFittingItem[] = []
+
+  const onePiece = structuralItems.find((item) => item.category === 'one-pieces')
+  const outerwear = structuralItems.find((item) => item.category === 'outerwear')
+  const top = structuralItems.find((item) => item.category === 'tops')
+  const bottom = structuralItems.find((item) => item.category === 'bottoms')
+
+  if (onePiece) {
+    blockingStructuralItems = [onePiece]
+  } else if (outerwear) {
+    blockingStructuralItems = [outerwear]
+    if (bottom) {
+      blockingStructuralItems.push(bottom)
+    } else if (top) {
+      blockingStructuralItems.push(top)
+    } else {
+      const fallbackSecond = structuralItems.find((item) => item !== outerwear)
+      if (fallbackSecond) blockingStructuralItems.push(fallbackSecond)
+    }
+  } else if (top && bottom) {
+    blockingStructuralItems = [top, bottom]
+  } else {
+    blockingStructuralItems = structuralItems.slice(0, 2)
+  }
+
+  const optionalOverlayItems = accessoryItems.filter((item, index, array) => (
+    array.findIndex((candidate) => (
+      candidate.category === item.category
+      && candidate.sourceIndex === item.sourceIndex
+    )) === index
+  ))
+  const blockingItemCount = blockingStructuralItems.length
+  const dominantCategory = blockingStructuralItems[0]?.category ?? accessoryCategories[0] ?? params.selectedItems[0]?.category ?? 'unknown'
+  const mode: ProvadorMode =
+    blockingItemCount >= 2 ? 'dual_garment'
+      : blockingItemCount === 1 ? 'single_anchor'
+        : 'accessory_only'
+
+  return {
+    mode,
+    dominantCategory,
+    blockingStructuralItems,
+    optionalOverlayItems,
+    structuralCategories,
+    accessoryCategories,
+    blockingItemCount,
+    autoSplitConfidence: params.referenceMode === 'single-look-photo'
+      ? (blockingItemCount > 0 ? 0.84 : 0.52)
+      : 0.92,
+    recoveryPlan: params.referenceMode === 'single-look-photo'
+      ? 'auto_split_internal_first'
+      : 'bounded_retry_then_finish',
+  }
 }
 
 function extractLookSplitRequestedCategories(note?: string): string[] {
@@ -4954,6 +5042,13 @@ async function composeDedicatedFittingScene(params: {
   }
 
   const primaryItem = selectedItems[0]
+  const provadorSelection = classifyProvadorSelection({
+    selectedItems,
+    selectedAccessoryDetailItems,
+    referenceMode,
+  })
+  const blockingWearableItems = provadorSelection.blockingStructuralItems
+  const provadorOptionalOverlayItems = provadorSelection.optionalOverlayItems
   const routedCategoryPreset = getFittingCategoryPreset(routedFittingCategory)
   const routedPoseInstruction = getFittingPoseInstruction(params.fitting_pose_preset)
   const routedEnergyInstruction = getFittingEnergyInstruction(params.fitting_energy_preset)
@@ -5015,6 +5110,15 @@ async function composeDedicatedFittingScene(params: {
   })
 
   const extraData: Record<string, unknown> = {
+    provador_strategy_version: 'v2_simplified',
+    provador_mode: provadorSelection.mode,
+    dominant_category: provadorSelection.dominantCategory,
+    blocking_item_count: provadorSelection.blockingItemCount,
+    optional_overlay_categories: provadorSelection.accessoryCategories,
+    auto_recovery_attempted: false,
+    auto_recovery_succeeded: false,
+    auto_split_confidence: provadorSelection.autoSplitConfidence,
+    recovery_plan: provadorSelection.recoveryPlan,
     fitting_group: fittingGroup,
     fitting_group_request_mode: fittingGroupRequestMode,
     fitting_strategy: fittingStrategy,
@@ -5028,6 +5132,9 @@ async function composeDedicatedFittingScene(params: {
     detected_categories: detectedItems.map((item) => item.category),
     selected_item_categories: selectedItems.map((item) => item.category),
     selected_item_zones: selectedZones,
+    structural_categories: provadorSelection.structuralCategories,
+    blocking_structural_categories: blockingWearableItems.map((item) => item.category),
+    optional_overlay_item_categories: provadorOptionalOverlayItems.map((item) => item.category),
     candidate_attempts: [],
     ignored_prop_types: ignoredPropTypes,
     auto_split_attempted: singlePhotoUsesSegmentedWearables,
@@ -5413,7 +5520,9 @@ async function composeDedicatedFittingScene(params: {
 
   if (!primaryItem) throw new Error('Nenhum item valido encontrado para o Provador.')
 
-  const wearableQcItems = selectedItems.filter((item) => isWearableFittingCategory(item.category))
+  const wearableQcItems = blockingWearableItems.length > 0
+    ? blockingWearableItems
+    : selectedItems.filter((item) => isWearableFittingCategory(item.category))
   async function runWearableQualityCheck(candidateBase64: string, qcRoute: FittingRoute) {
     if (wearableQcItems.length > 1) {
       return assessWearableBatchQuality({
@@ -5451,7 +5560,7 @@ async function composeDedicatedFittingScene(params: {
     return 'Nao conseguimos preservar o look completo com fidelidade a partir de uma unica foto no Vertex. Envie 2-3 referencias separadas da roupa, calcado e acessorios ou ajuste a foto de origem.'
   }
 
-  const requiresOuterwearGuidedSplit = (
+  const requiresOuterwearGuidedSplit = false && (
     referenceMode === 'single-look-photo'
     && fittingGroup === 'wearables'
     && shouldRequireOuterwearSplit({
@@ -5465,7 +5574,7 @@ async function composeDedicatedFittingScene(params: {
     await createGuidedOuterwearSplitFailover()
   }
 
-  const requiresGarmentGuidedSplit = (
+  const requiresGarmentGuidedSplit = false && (
     referenceMode === 'single-look-photo'
     && fittingGroup === 'wearables'
     && singlePhotoGarmentPriorityApplied
@@ -5755,7 +5864,9 @@ async function composeDedicatedFittingScene(params: {
     finalizeProvadorAudit()
     resultBuffer = Buffer.from(approvedBase64, 'base64')
   } else {
-    const vertexWearableItems = selectedItems.filter((item) => isWearableFittingCategory(item.category))
+    const vertexWearableItems = blockingWearableItems.length > 0
+      ? blockingWearableItems
+      : selectedItems.filter((item) => isWearableFittingCategory(item.category))
     if (vertexWearableItems.length === 0) {
       throw new Error('Nenhum item vestivel valido foi encontrado para o fluxo Vertex VTO.')
     }
@@ -6033,6 +6144,8 @@ async function composeDedicatedFittingScene(params: {
 
         return {
           approved: garmentQc.approved && accessoryQc.approved,
+          garmentApproved: garmentQc.approved,
+          accessoryApproved: accessoryQc.approved,
           garmentScore: getWearableQcScore(garmentQc),
           accessoryScore: getLowestQcScore(accessoryQc.results),
           weakestDimension: getQcWeakestDimension(garmentQc) ?? accessoryQc.weakestDimension,
@@ -6042,7 +6155,9 @@ async function composeDedicatedFittingScene(params: {
 
       const firstAttempt = await callGeminiHybridAccessoryOverlay(hybridPrompt, basePhoto)
       if (!firstAttempt.imageBase64) {
-        throw new Error('Gemini nao retornou imagem no passe hibrido de acessorios')
+        extraData.accessory_overlay_skipped_reason = 'no-image_kept_base'
+        extraData.accessory_qc_status = 'no-image_kept_base'
+        return base64
       }
       extraData.stage2_engine = firstAttempt.modelUsed ? `gemini:${firstAttempt.modelUsed}` : 'gemini:unknown'
       const firstQc = await evaluateHybridResult(firstAttempt.imageBase64, 'hybrid-accessories:attempt-1')
@@ -6075,14 +6190,18 @@ async function composeDedicatedFittingScene(params: {
         basePhoto,
       )
       if (!retryAttempt.imageBase64) {
-        throw new Error(`Passe hibrido de acessorios falhou no retry: ${firstQc.issues.join(', ') || 'sem imagem'}`)
+        extraData.accessory_overlay_skipped_reason = 'retry_no_image_kept_base'
+        extraData.accessory_qc_status = firstQc.garmentApproved ? 'soft_reject_kept_base' : 'retry_no_image_kept_base'
+        return base64
       }
       if (retryAttempt.modelUsed) {
         extraData.stage2_engine = `gemini:${retryAttempt.modelUsed}`
       }
       const retryQc = await evaluateHybridResult(retryAttempt.imageBase64, 'hybrid-accessories:attempt-2')
       if (!retryQc.approved) {
-        throw new Error(`Passe hibrido de acessorios reprovado: ${retryQc.issues.join(', ') || retryQc.weakestDimension || 'QC reprovado'}`)
+        extraData.accessory_overlay_skipped_reason = retryQc.garmentApproved ? 'soft_reject_kept_base' : 'hard_reject_kept_base'
+        extraData.accessory_qc_status = retryQc.garmentApproved ? 'soft_reject_kept_base' : 'hard_reject_kept_base'
+        return base64
       }
 
       if (shouldSkipEditorialFinisherAfterStrongHybridApproval({
@@ -6257,6 +6376,7 @@ async function composeDedicatedFittingScene(params: {
       extraData.vertex_execution_path = singlePhotoSequentialEligible
         ? 'auto-split-sequential'
         : 'vertex-single-photo-direct'
+      extraData.auto_recovery_attempted = singlePhotoSequentialEligible
       extraData.auto_split_attempted = singlePhotoSequentialEligible
       extraData.auto_split_reference_count = singlePhotoSequentialEligible ? vertexWearableItems.length : 0
       extraData.auto_split_selected_categories = singlePhotoSequentialEligible
@@ -6304,6 +6424,8 @@ async function composeDedicatedFittingScene(params: {
             criticalCategory: primaryItem.category,
           })
         }
+        extraData.auto_recovery_attempted = true
+        extraData.auto_recovery_succeeded = true
         approvedBase64 = geminiFallbackResult
       }
 
@@ -6351,9 +6473,14 @@ async function composeDedicatedFittingScene(params: {
               criticalCategory: qcFailureDetails.category,
             })
           }
+          extraData.auto_recovery_attempted = true
+          extraData.auto_recovery_succeeded = true
           approvedBase64 = geminiFallbackResult
         } else {
           candidateAttempts.push(`${singlePhotoAttemptLabel}:approved`)
+          if (singlePhotoSequentialEligible) {
+            extraData.auto_recovery_succeeded = true
+          }
           approvedBase64 = singlePhotoResult.imageBase64
         }
       }
@@ -6362,6 +6489,7 @@ async function composeDedicatedFittingScene(params: {
 
       if (multiRefBatchEligible) {
         batchAttempted = true
+        extraData.auto_recovery_attempted = true
         extraData.fitting_generation_strategy = 'multi-ref-batch' satisfies FittingGenerationStrategy
         extraData.vertex_execution_path = 'multi-ref-batch'
 
@@ -6462,6 +6590,9 @@ async function composeDedicatedFittingScene(params: {
         }
 
         candidateAttempts.push(`${fittingRoute}:sequential:approved`)
+        if (batchAttempted) {
+          extraData.auto_recovery_succeeded = true
+        }
         approvedBase64 = sequentialResult.imageBase64
       }
     }
@@ -6476,8 +6607,13 @@ async function composeDedicatedFittingScene(params: {
       candidateAttempts.push(`${fittingRoute}:post-processing:skipped-after-gemini-fallback`)
     }
     if (!skipPostVertexPasses && fittingStrategy === 'hybrid_vertex_gemini' && selectedAccessoryDetailItems.length > 0) {
-      approvedBase64 = await runHybridAccessoryOverlay(approvedBase64)
-      candidateAttempts.push('accessory-overlay:approved')
+      const hybridOverlayBase64 = await runHybridAccessoryOverlay(approvedBase64)
+      if (hybridOverlayBase64 !== approvedBase64) {
+        candidateAttempts.push('accessory-overlay:approved')
+      } else if (selectedAccessoryAnalyses.length > 0) {
+        candidateAttempts.push('accessory-overlay:kept-base')
+      }
+      approvedBase64 = hybridOverlayBase64
     }
     if (!skipPostVertexPasses && shouldShortCircuitEditorialFinisher) {
       candidateAttempts.push('editorial-finisher:skipped-strong-hybrid-approval')

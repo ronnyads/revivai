@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { StudioAsset, StudioProject, AssetType } from '@/types'
 import AssetCard from './AssetCard'
 import AddCardMenu from './AddCardMenu'
+import { resolveStudioPublicError } from '@/lib/studioPublicErrors'
 
 interface Props {
   project: StudioProject
@@ -127,7 +128,7 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
     addIdleCard(type, prefillParams)
   }
 
-  // ── "Usar em..." — cria card pré-preenchido ──────────────────────────────
+  // ── Usar em... — cria card pré-preenchido ──────────────────────────────
   function handleUseAs(targetType: AssetType, prefillParams: Record<string, unknown>) {
     // Se já existe um card idle desse tipo, atualiza ele em vez de criar novo
     const existingIdle = assets.find(a => a.type === targetType && a.status === 'idle')
@@ -201,12 +202,28 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
 
     if (!res.ok || error || !asset) {
       // Falhou — restaura o card para idle com mensagem de erro visível
+      const publicError = resolveStudioPublicError({
+        code: body?.public_error_code,
+        title: body?.public_error_title,
+        message: body?.public_error_message ?? body?.message ?? error,
+        fallbackCode: type === 'compose' ? 'nao_conseguimos_vestir_esse_look' : 'falha_na_geracao',
+      })
       setAssets(prev => prev.map(a =>
         a.id === existingId
-          ? { ...a, status: 'idle' as const, error_msg: error ?? `Erro ${res.status}` }
+          ? {
+              ...a,
+              status: 'idle' as const,
+              error_msg: publicError.message,
+              input_params: {
+                ...a.input_params,
+                public_error_code: publicError.code,
+                public_error_title: publicError.title,
+                public_error_message: publicError.message,
+              },
+            }
           : a
       ))
-      alert(`Erro ao gerar: ${error ?? `HTTP ${res.status}`}`)
+      alert(publicError.message)
       return
     }
 
@@ -312,7 +329,7 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
           <Zap size={15} className="text-accent shrink-0" />
           <p className="text-xs text-zinc-300">
             <span className="text-accent font-medium">Modo guiado ativo</span> — siga a numeração nos cards.
-            Quando um card ficar pronto, use o botão <span className="text-white font-medium">"Usar em..."</span> para passar o resultado automaticamente para o próximo.
+            Quando um card ficar pronto, use o botão <span className="text-white font-medium">Usar em...</span> para passar o resultado automaticamente para o próximo.
           </p>
           <button onClick={() => setGuidedMode(false)} className="text-zinc-600 hover:text-white text-xs shrink-0">Fechar</button>
         </div>
@@ -378,3 +395,4 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
     </div>
   )
 }
+
