@@ -7151,41 +7151,70 @@ export async function startVeo3DirectGoogle(params: {
       motionPrompt: params.motion_prompt || defaultMotionPrompt,
       modelPrompt: params.model_prompt,
     }).finalPrompt
-  const durationSeconds = 8
-  const resolution = params.quality === '1080p' ? '1080p' : '720p'
+  function resolveVeoResolution(model: string) {
+    const requested = params.quality === '1080p' ? '1080p' : '720p'
+    if (/^veo-3\.0/i.test(model) && requested === '1080p') return '720p'
+    return requested
+  }
 
-  // Tentativa final com Gemini API + AdsLiberty Key (Org Policy Fixed)
-  const model = 'veo-3.1-generate-preview';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`;
-  
-  const res = await fetch(url, {
+  const durationSeconds = 8
+
+  const wantsAudio = params.generate_audio ?? false
+  const primaryModel = wantsAudio
+    ? (process.env.GOOGLE_VEO_AUDIO_MODEL ?? 'veo-3.0-generate-preview')
+    : (process.env.GOOGLE_VEO_SILENT_MODEL ?? 'veo-3.1-generate-preview')
+
+  async function requestVeoOperation(model: string, generateAudio: boolean) {
+    const resolution = resolveVeoResolution(model)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         instances: [{
           prompt: finalMotion,
           referenceImages: [{
-            image: { bytesBase64Encoded: base64Image, mimeType }
+            image: { bytesBase64Encoded: base64Image, mimeType },
           }],
         }],
         parameters: {
           aspectRatio: '9:16',
           durationSeconds,
-          generateAudio: params.generate_audio ?? false,
+          generateAudio,
           resolution,
         },
       }),
-    }
-  )
+    })
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    console.error(`[Google AI Error] ${res.status}:`, errText);
-    throw new Error(`Erro na API do Google (${res.status}): ${errText.slice(0, 300)}`);
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '')
+      return { ok: false as const, status: res.status, errText }
+    }
+
+    const body = await res.json()
+    return { ok: true as const, body }
   }
 
-  const body = await res.json()
+  let usedModel = primaryModel
+  let operationResponse = await requestVeoOperation(primaryModel, wantsAudio)
+
+  if (!operationResponse.ok && wantsAudio && /generateAudio.+isn'?t supported by this model/i.test(operationResponse.errText)) {
+    const fallbackAudioModel = process.env.GOOGLE_VEO_AUDIO_FALLBACK_MODEL ?? 'veo-3.0-fast-generate-preview'
+    console.warn(
+      `[studio] veo audio fallback | primary_model=${primaryModel} fallback_model=${fallbackAudioModel} reason=generateAudio_unsupported`,
+    )
+    usedModel = fallbackAudioModel
+    operationResponse = await requestVeoOperation(fallbackAudioModel, true)
+  }
+
+  if (!operationResponse.ok) {
+    console.error(`[Google AI Error] ${operationResponse.status}:`, operationResponse.errText)
+    throw new Error(`Erro na API do Google (${operationResponse.status}): ${operationResponse.errText.slice(0, 300)}`)
+  }
+
+  const body = operationResponse.body
   const operationName = body.name
+  const usedResolution = resolveVeoResolution(usedModel)
   if (!operationName) throw new Error('Google não retornou o nome da operação de vídeo')
 
   await mergeAssetInputParams(admin, params.assetId, {
@@ -7200,8 +7229,10 @@ export async function startVeo3DirectGoogle(params: {
     scene_change_requested: params.scene_change_requested ?? false,
     scene_change_blocked: params.scene_change_blocked ?? false,
     removed_directives: params.removed_directives ?? [],
-    quality: params.quality,
-    generate_audio: params.generate_audio ?? false,
+    quality: usedResolution,
+    quality_requested: params.quality,
+    generate_audio: wantsAudio,
+    veo_model: usedModel,
     duration: durationSeconds,
     ...(params.inputParamsPatch ?? {}),
   })
