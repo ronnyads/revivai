@@ -15,6 +15,12 @@ const TYPE_COLORS: Record<string, string> = {
   ugc_bundle: 'bg-rose-500/20 text-rose-400',
 }
 
+function formatUsd(value: unknown) {
+  const numeric = typeof value === 'number' ? value : Number(value ?? 0)
+  if (!Number.isFinite(numeric) || numeric <= 0) return '—'
+  return `$${numeric.toFixed(2)}`
+}
+
 export default async function AdminStudioDebug() {
   const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY
   const supabase = createAdminClient()
@@ -77,9 +83,12 @@ export default async function AdminStudioDebug() {
               <th className="text-left px-4 py-4">Cliente</th>
               <th className="text-left px-4 py-4">Tipo</th>
               <th className="text-left px-4 py-4">Modo</th>
+              <th className="text-left px-4 py-4">Provador</th>
               <th className="text-left px-4 py-4">Status</th>
               <th className="text-left px-4 py-4">Erro / Prompt</th>
               <th className="text-left px-4 py-4">Créditos</th>
+              <th className="text-left px-4 py-4">Custo Est.</th>
+              <th className="text-left px-4 py-4">Margem</th>
               <th className="text-left px-4 py-4">Data</th>
             </tr>
           </thead>
@@ -88,6 +97,19 @@ export default async function AdminStudioDebug() {
               const params = (a.input_params ?? {}) as Record<string, any>
               const mode   = params.compose_mode ?? params.engine ?? '—'
               const prompt = params.smart_prompt ?? params.prompt ?? params.costume_prompt ?? ''
+              const isFittingCompose = a.type === 'compose' && String(params.compose_variant ?? 'fitting') === 'fitting'
+              const estimatedProviderCost = Number(params.estimated_provider_cost_usd ?? 0)
+              const creditCost = Number(a.credits_cost ?? 0)
+              const marginIndex = estimatedProviderCost > 0 ? `${(creditCost / estimatedProviderCost).toFixed(1)}x` : 'â€”'
+              const provadorSummary = isFittingCompose
+                ? {
+                  tier: String(params.pricing_tier ?? 'â€”'),
+                  strategy: String(params.fitting_strategy ?? 'â€”'),
+                  stage1: String(params.stage1_engine ?? 'â€”'),
+                  stage2: String(params.stage2_engine ?? 'â€”'),
+                  editorial: String(params.editorial_finisher_model ?? 'none'),
+                }
+                : null
 
               return (
                 <tr key={a.id} className="hover:bg-white/[0.04] transition-colors align-top">
@@ -121,6 +143,21 @@ export default async function AdminStudioDebug() {
 
                   {/* Modo */}
                   <td className="px-4 py-3 text-white/40 text-[11px] font-mono">{mode}</td>
+
+                  {/* Provador */}
+                  <td className="px-4 py-3 max-w-[220px]">
+                    {provadorSummary ? (
+                      <div className="space-y-1 text-[10px] leading-snug text-white/45">
+                        <p><span className="text-white/25">tier:</span> <span className="font-mono text-white/70">{provadorSummary.tier}</span></p>
+                        <p><span className="text-white/25">estrategia:</span> <span className="font-mono text-white/70">{provadorSummary.strategy}</span></p>
+                        <p><span className="text-white/25">stage1:</span> <span className="font-mono text-white/60">{provadorSummary.stage1}</span></p>
+                        <p><span className="text-white/25">stage2:</span> <span className="font-mono text-white/60">{provadorSummary.stage2}</span></p>
+                        <p><span className="text-white/25">editorial:</span> <span className="font-mono text-white/60">{provadorSummary.editorial}</span></p>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-white/20">â€”</span>
+                    )}
+                  </td>
 
                   {/* Status */}
                   <td className="px-4 py-3">
@@ -162,13 +199,28 @@ export default async function AdminStudioDebug() {
                   {/* Créditos */}
                   <td className="px-4 py-3 text-white/30 text-xs">{a.credits_cost ?? 0} cr</td>
 
+                  {/* Custo Est. */}
+                  <td className="px-4 py-3 text-white/30 text-xs">{formatUsd(params.estimated_provider_cost_usd)}</td>
+
+                  {/* Margem */}
+                  <td className="px-4 py-3 text-xs">
+                    {provadorSummary ? (
+                      <div className="space-y-1">
+                        <p className="text-white/55">{creditCost} cr / {formatUsd(estimatedProviderCost)}</p>
+                        <p className="font-mono text-emerald-400/80">{marginIndex}</p>
+                      </div>
+                    ) : (
+                      <span className="text-white/20">—</span>
+                    )}
+                  </td>
+
                   {/* Data */}
                   <td className="px-4 py-3 text-white/30 text-xs whitespace-nowrap">{formatDate(a.created_at)}</td>
                 </tr>
               )
             })}
             {(!assets || assets.length === 0) && (
-              <tr><td colSpan={8} className="text-center py-16 text-white/20">Nenhum asset ainda</td></tr>
+              <tr><td colSpan={11} className="text-center py-16 text-white/20">Nenhum asset ainda</td></tr>
             )}
           </tbody>
         </table>

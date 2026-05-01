@@ -1,8 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Layers, ShieldCheck, Sparkles } from 'lucide-react'
+import { useState } from 'react'
+import { Layers, Sparkles } from 'lucide-react'
 import ImageUpload from './ImageUpload'
+import {
+  StudioFieldLabel,
+  StudioFormShell,
+  StudioHint,
+  StudioPanel,
+  StudioPrimaryButton,
+} from './StudioFormShell'
 import { CREDIT_COST } from '@/constants/studio'
 
 interface Props {
@@ -10,14 +17,8 @@ interface Props {
   onGenerate: (params: Record<string, unknown>) => void
 }
 
-const POSITIONS = [
-  { value: 'southeast', label: 'Direita baixo' },
-  { value: 'south', label: 'Centro baixo' },
-  { value: 'southwest', label: 'Esquerda baixo' },
-  { value: 'east', label: 'Lado direito' },
-  { value: 'west', label: 'Lado esquerdo' },
-  { value: 'center', label: 'Centro' },
-]
+const DEFAULT_POSITION = 'southeast'
+const DEFAULT_SCALE = 0.35
 
 const PRODUCT_PROMPT_CHIPS = [
   { label: 'Perto do rosto', value: 'produto perto do rosto, rotulo visivel' },
@@ -35,7 +36,7 @@ const FITTING_POSE_PRESETS = [
   { value: 'seated', label: 'Sentada' },
   { value: 'standing', label: 'Em pe' },
   { value: 'hand-in-pocket', label: 'Mao no bolso' },
-  { value: 'showing-bag', label: 'Mostrando a bolsa' },
+  { value: 'showing-bag', label: 'Mostrando bolsa' },
   { value: 'adjusting-glasses', label: 'Ajustando oculos' },
 ]
 
@@ -74,7 +75,88 @@ function getDefaultFittingPose(category: string): string {
   }
 }
 
+function SelectionGrid({
+  options,
+  selectedValue,
+  onSelect,
+  columns = 'grid-cols-2',
+}: {
+  options: { value: string; label: string; hint?: string }[]
+  selectedValue: string
+  onSelect: (value: string) => void
+  columns?: string
+}) {
+  return (
+    <div className={`grid gap-2 ${columns}`}>
+      {options.map((option) => {
+        const selected = selectedValue === option.value
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onSelect(option.value)}
+            className={`rounded-[16px] border px-3 py-2 text-left transition-all ${
+              selected
+                ? 'border-orange-400/40 bg-orange-500/12 text-white shadow-[0_0_0_1px_rgba(251,146,60,0.12)]'
+                : 'border-white/8 bg-[#0C0E10] text-white/66 hover:border-white/14 hover:text-white'
+            }`}
+          >
+            <span className="block text-[10px] font-semibold">{option.label}</span>
+            {option.hint ? <span className="mt-0.5 block text-[9px] text-white/38">{option.hint}</span> : null}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function PillGroup({
+  options,
+  selectedValue,
+  onSelect,
+}: {
+  options: { value: string; label: string }[]
+  selectedValue: string
+  onSelect: (value: string) => void
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((option) => {
+        const selected = selectedValue === option.value
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onSelect(option.value)}
+            className={`rounded-full border px-3 py-1.5 text-[9px] font-medium transition-all ${
+              selected
+                ? 'border-orange-400/40 bg-orange-500/14 text-white'
+                : 'border-white/8 bg-white/[0.03] text-white/62 hover:border-white/16 hover:text-white'
+            }`}
+          >
+            {option.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function ComposeCard({ initial, onGenerate }: Props) {
+  const syncKey = JSON.stringify({
+    portrait_url: initial.portrait_url ?? '',
+    product_url: initial.product_url ?? '',
+    product_urls: Array.isArray(initial.product_urls) ? initial.product_urls : [],
+    aspect_ratio: initial.aspect_ratio ?? '9:16',
+    fitting_pose_preset: initial.fitting_pose_preset ?? '',
+    fitting_energy_preset: initial.fitting_energy_preset ?? '',
+    smart_prompt: initial.smart_prompt ?? '',
+  })
+
+  return <ComposeCardBody key={syncKey} initial={initial} onGenerate={onGenerate} />
+}
+
+function ComposeCardBody({ initial, onGenerate }: Props) {
   const variant = String(initial.compose_variant ?? 'fitting')
   const initialFittingCategory =
     typeof initial.fitting_category === 'string'
@@ -96,90 +178,24 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
       ? initialReferenceUrls
       : [String(initial.product_url ?? ''), '', ''],
   )
-  const [position, setPosition] = useState(String(initial.position ?? 'southeast'))
-  const [scale, setScale] = useState(Number(initial.product_scale ?? 0.35))
   const [aspectRatio, setAspectRatio] = useState(String(initial.aspect_ratio ?? '9:16'))
   const [fittingPosePreset, setFittingPosePreset] = useState(String(initial.fitting_pose_preset ?? getDefaultFittingPose(initialFittingCategory || 'tops')))
   const [fittingEnergyPreset, setFittingEnergyPreset] = useState(String(initial.fitting_energy_preset ?? 'natural'))
   const [smartPrompt, setSmartPrompt] = useState(String(initial.smart_prompt ?? ''))
-
-  useEffect(() => {
-    setPortraitUrl(String(initial.portrait_url ?? ''))
-  }, [initial.portrait_url])
-
-  useEffect(() => {
-    setProductUrl(String(initial.product_url ?? ''))
-  }, [initial.product_url])
-
-  useEffect(() => {
-    const nextReferenceUrls = Array.isArray(initial.product_urls)
-      ? initial.product_urls
-        .filter((value): value is string => typeof value === 'string')
-        .slice(0, 3)
-      : []
-    while (nextReferenceUrls.length < 3) nextReferenceUrls.push('')
-
-    setReferenceUrls(
-      nextReferenceUrls.some((url) => url.trim().length > 0)
-        ? nextReferenceUrls
-        : [String(initial.product_url ?? ''), '', ''],
-    )
-  }, [initial.product_url, initial.product_urls])
-
-  useEffect(() => {
-    setAspectRatio(String(initial.aspect_ratio ?? '9:16'))
-  }, [initial.aspect_ratio])
-
-  useEffect(() => {
-    setFittingPosePreset(String(initial.fitting_pose_preset ?? getDefaultFittingPose(initialFittingCategory || 'tops')))
-  }, [initial.fitting_pose_preset, initialFittingCategory])
-
-  useEffect(() => {
-    setFittingEnergyPreset(String(initial.fitting_energy_preset ?? 'natural'))
-  }, [initial.fitting_energy_preset])
-
-  useEffect(() => {
-    setSmartPrompt(String(initial.smart_prompt ?? ''))
-  }, [initial.smart_prompt])
 
   const hasPortrait = !!portraitUrl.trim()
   const isProductVariant = variant === 'product'
   const fittingReferenceUrls = referenceUrls.map((url) => url.trim())
   const activeFittingReferenceUrls = fittingReferenceUrls.filter(Boolean)
   const hasProduct = isProductVariant ? !!productUrl.trim() : activeFittingReferenceUrls.length > 0
-  const cost = CREDIT_COST.compose
+  const cost = isProductVariant ? CREDIT_COST.compose : 24
   const title = isProductVariant ? 'Modelo + Produto' : 'Provador'
-  const subtitle = isProductVariant
-    ? 'Foto comercial clean em fundo branco, com a modelo exibindo o produto sem cenario.'
-    : 'Monte a modelo com a peca exata do cliente. Use 1 foto de colecao/look ou ate 3 referencias separadas para roupa, calcado e acessorios.'
-  const baseLabel = 'Modelo base'
-  const productLabel = isProductVariant ? 'Produto' : 'Colecao / Referencias'
-  const promptLabel = isProductVariant
-    ? 'Direcao leve da pose e exibicao'
-    : 'Ajuste leve de pose e exibicao'
-  const promptPlaceholder = isProductVariant
-    ? "Ex: 'Sorrindo de leve, segurando o serum perto do rosto com o rotulo visivel'; 'Pose comercial clean, produto na altura do peito, olhar confiante'..."
-    : "Ex: 'pose frontal com a peca bem visivel', 'sorriso suave', 'mostrar melhor a bolsa sem esconder a alca'..."
-  const buttonLabel = isProductVariant ? 'INICIAR PRODUCT ONE' : 'INICIAR PROVADOR ONE'
-  const engineName = isProductVariant ? 'Product One' : 'Provador One'
+  const selectedAspect = ASPECT_RATIO_PRESETS.find((item) => item.value === aspectRatio)
+  const selectedPoseLabel = FITTING_POSE_PRESETS.find((item) => item.value === fittingPosePreset)?.label ?? 'Pose'
 
   function setReferenceAt(index: number, url: string) {
-    setReferenceUrls((current) => current.map((value, itemIndex) => itemIndex === index ? url : value))
+    setReferenceUrls((current) => current.map((value, itemIndex) => (itemIndex === index ? url : value)))
   }
-  const cardEngineBlock = (
-    <div className={`rounded-2xl border border-zinc-800 bg-zinc-900/40 ${isProductVariant ? 'p-2.5' : 'p-2'}`}>
-      <label className="mb-1 block px-1 text-[9px] font-bold uppercase tracking-widest text-zinc-400">Motor</label>
-      <div className={`flex w-full items-center justify-between rounded-xl border border-orange-500/30 bg-zinc-800 text-white ${isProductVariant ? 'px-3 py-2 text-[12px]' : 'px-2.5 py-2 text-[11px]'}`}>
-        <div className="flex items-center gap-2">
-          <span className="text-[13px]">Studio</span>
-          <span>{engineName}</span>
-        </div>
-        <span className="rounded-full border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-orange-300">
-          unico
-        </span>
-      </div>
-    </div>
-  )
 
   function applyProductPromptChip(value: string) {
     setSmartPrompt((current) => {
@@ -189,320 +205,290 @@ export default function ComposeCard({ initial, onGenerate }: Props) {
     })
   }
 
-  function renderFittingPresetGroup(
-    titleText: string,
-    options: { value: string; label: string }[],
-    selectedValue: string,
-    onSelect: (value: string) => void,
-  ) {
-    return (
-      <div className="space-y-2">
-        <span className="block px-1 text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-400">{titleText}</span>
-        <div className="flex flex-wrap gap-2">
-          {options.map((option) => {
-            const selected = selectedValue === option.value
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => onSelect(option.value)}
-                className={`rounded-full border px-2.5 py-1 text-[10px] font-medium transition-all ${
-                  selected
-                    ? 'border-orange-400/50 bg-orange-500/20 text-white'
-                    : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-orange-400/30 hover:text-white'
-                }`}
-              >
-                {option.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
+  const summaryChips = isProductVariant
+    ? [
+      { label: 'Produto', tone: 'orange' as const },
+      { label: 'Fundo branco', tone: 'neutral' as const },
+    ]
+    : [
+      { label: selectedAspect?.label ?? aspectRatio, tone: 'neutral' as const },
+      { label: selectedPoseLabel, tone: 'orange' as const },
+    ]
 
   return (
-    <div className={`flex flex-col ${isProductVariant ? 'gap-4' : 'gap-3'}`}>
-      {isProductVariant ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
-          <div className="rounded-xl bg-orange-500/10 p-2">
-            <Layers size={16} className="text-orange-400" />
-          </div>
-          <div className="flex-1">
-            <h4 className="text-[12px] font-bold leading-tight text-white">{title}</h4>
-            <p className="text-[10px] leading-tight text-zinc-400">{subtitle}</p>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/35 px-3 py-2">
-          <p className="text-[10px] leading-relaxed text-zinc-400">{subtitle}</p>
-        </div>
-      )}
-
-      {isProductVariant && cardEngineBlock}
-
-      <div className={`grid gap-3 ${isProductVariant ? 'md:grid-cols-[220px_minmax(0,1fr)]' : 'xl:grid-cols-[200px_minmax(0,1fr)]'}`}>
-        <div className="space-y-3">
-          <div className={`flex flex-col items-center gap-2 rounded-2xl border transition-all ${hasPortrait ? 'border-orange-500/20 bg-orange-500/5' : 'border-zinc-800 bg-zinc-900'} ${isProductVariant ? 'p-2' : 'p-1.5'}`}>
-            <span className="text-[9px] font-bold uppercase tracking-tighter text-zinc-400">{baseLabel}</span>
-            {hasPortrait ? (
-              <div className="group relative aspect-[4/5] w-full overflow-hidden rounded-lg border border-zinc-800">
-                <img src={portraitUrl} alt="Modelo base" className="h-full w-full object-cover" />
-                <button
-                  onClick={() => setPortraitUrl('')}
-                  className="absolute inset-0 flex items-center justify-center bg-black/60 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100"
-                >
-                  Trocar
-                </button>
-              </div>
-            ) : (
-              <ImageUpload value={portraitUrl} onChange={setPortraitUrl} label="Subir" accept="image/*" />
-            )}
-          </div>
-
+    <StudioFormShell
+      accent="orange"
+      icon={<Layers size={18} />}
+      title={title}
+      chips={summaryChips}
+      hideHeader
+      layout="split"
+      mediaColumnClassName="space-y-0"
+      controlsColumnClassName="grid grid-cols-2 items-start gap-3 space-y-0"
+      action={
+        <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/72">
+          {cost} CR
+        </span>
+      }
+      media={
+        <StudioPanel title={isProductVariant ? 'Modelo + produto' : 'Modelo + refs'}>
           {isProductVariant ? (
-            <div className={`flex flex-col items-center gap-2 rounded-2xl border transition-all ${hasProduct ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-900'} p-2`}>
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] font-bold uppercase tracking-tighter text-zinc-400">{productLabel}</span>
-                <ShieldCheck size={10} className="text-emerald-500" />
+            <div className="grid gap-3 grid-cols-2">
+              <div>
+                {hasPortrait ? (
+                  <div className="group relative overflow-hidden rounded-[16px] border border-white/8 bg-black/20">
+                    <img src={portraitUrl} alt="Modelo base" className="aspect-[4/5] w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setPortraitUrl('')}
+                      className="absolute inset-x-0 bottom-0 flex h-12 items-end justify-between bg-gradient-to-t from-black/80 via-black/30 to-transparent px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/80 opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      <span>Modelo pronto</span>
+                      <span className="text-white/58">Trocar</span>
+                    </button>
+                  </div>
+                ) : (
+                  <ImageUpload
+                    value={portraitUrl}
+                    onChange={setPortraitUrl}
+                    label="Modelo"
+                    accept="image/*"
+                    compact
+                    frameClassName="aspect-[4/5] min-h-[220px]"
+                  />
+                )}
               </div>
-              {hasProduct ? (
-                <div className="group relative aspect-square w-full overflow-hidden rounded-lg border border-zinc-800">
-                  <img src={productUrl} alt={productLabel} className="h-full w-full object-cover" />
-                  <button
-                    onClick={() => setProductUrl('')}
-                    className="absolute inset-0 flex items-center justify-center bg-black/60 text-[10px] font-bold text-white opacity-0 transition-opacity group-hover:opacity-100"
-                  >
-                    Trocar
-                  </button>
-                </div>
-              ) : (
-                <ImageUpload value={productUrl} onChange={setProductUrl} label="Subir" accept="image/*" />
-              )}
+              <div>
+                {hasProduct ? (
+                  <div className="group relative overflow-hidden rounded-[16px] border border-white/8 bg-black/20">
+                    <img src={productUrl} alt="Produto" className="aspect-[4/5] w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setProductUrl('')}
+                      className="absolute inset-x-0 bottom-0 flex h-12 items-end justify-between bg-gradient-to-t from-black/80 via-black/30 to-transparent px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/80 opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      <span>Produto pronto</span>
+                      <span className="text-white/58">Trocar</span>
+                    </button>
+                  </div>
+                ) : (
+                  <ImageUpload
+                    value={productUrl}
+                    onChange={setProductUrl}
+                    label="Produto"
+                    accept="image/*"
+                    compact
+                    frameClassName="aspect-[4/5] min-h-[220px]"
+                  />
+                )}
+              </div>
             </div>
           ) : (
-            <div className={`rounded-2xl border transition-all ${hasProduct ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-zinc-800 bg-zinc-900'} p-1.5`}>
-              <div className="mb-2 flex items-center gap-1 px-1">
-                <span className="text-[9px] font-bold uppercase tracking-tighter text-zinc-400">{productLabel}</span>
-                <ShieldCheck size={10} className="text-emerald-500" />
+            <div className="grid gap-3 grid-cols-[190px_minmax(0,1fr)]">
+              <div>
+                {hasPortrait ? (
+                  <div className="group relative overflow-hidden rounded-[16px] border border-white/8 bg-black/20">
+                    <img src={portraitUrl} alt="Modelo base" className="aspect-[4/5] w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setPortraitUrl('')}
+                      className="absolute inset-x-0 bottom-0 flex h-12 items-end justify-between bg-gradient-to-t from-black/80 via-black/30 to-transparent px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/80 opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      <span>Modelo pronto</span>
+                      <span className="text-white/58">Trocar</span>
+                    </button>
+                  </div>
+                ) : (
+                  <ImageUpload
+                    value={portraitUrl}
+                    onChange={setPortraitUrl}
+                    label="Modelo"
+                    accept="image/*"
+                    compact
+                    frameClassName="aspect-[4/5] min-h-[220px]"
+                  />
+                )}
               </div>
+
               <div className="space-y-2">
-                <div className="rounded-xl border border-zinc-800/80 bg-zinc-950/40 p-1.5">
-                  <ImageUpload value={referenceUrls[0]} onChange={(url) => setReferenceAt(0, url)} label="Referencia principal ou foto da colecao" accept="image/*" />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/30 p-1.5">
-                    <ImageUpload value={referenceUrls[1]} onChange={(url) => setReferenceAt(1, url)} label="Referencia extra 2" accept="image/*" />
-                  </div>
-                  <div className="rounded-xl border border-zinc-800/70 bg-zinc-950/30 p-1.5">
-                    <ImageUpload value={referenceUrls[2]} onChange={(url) => setReferenceAt(2, url)} label="Referencia extra 3" accept="image/*" />
-                  </div>
-                </div>
-                <p className="px-1 text-[9px] leading-relaxed text-zinc-500">
-                  Melhor resultado: envie ate 3 referencias separadas. Se tiver so 1 imagem de colecao/look, o Provador identifica automaticamente se deve tratar como look completo ou referencias separadas.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className={`${isProductVariant ? 'space-y-3' : 'space-y-2.5'}`}>
-          {!isProductVariant && cardEngineBlock}
-
-          <div className={`rounded-2xl border border-zinc-800 bg-zinc-900/40 ${isProductVariant ? 'space-y-3 p-3' : 'space-y-2.5 p-2.5'}`}>
-            <div className={`grid gap-3 ${isProductVariant ? 'grid-cols-2' : 'sm:grid-cols-2'}`}>
-              <div className="space-y-2">
-                <label className="block px-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Posicao</label>
-                <select
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-2 text-[11px] text-white transition-all focus:border-orange-500/50 focus:outline-none"
-                >
-                  {POSITIONS.map((item) => (
-                    <option key={item.value} value={item.value}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {isProductVariant ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between px-1">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Tamanho</label>
-                    <span className="text-[10px] font-bold text-orange-400">{Math.round(scale * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="20"
-                    max="55"
-                    step="1"
-                    value={Math.round(scale * 100)}
-                    onChange={(e) => setScale(Number(e.target.value) / 100)}
-                    className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-orange-500"
+                <div className="rounded-[16px] border border-white/8 bg-black/10 p-2">
+                  <ImageUpload
+                    value={referenceUrls[0]}
+                    onChange={(url) => setReferenceAt(0, url)}
+                    label="Look principal"
+                    accept="image/*"
+                    compact
+                    frameClassName="aspect-[16/9] min-h-[132px]"
                   />
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <label className="block px-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Formato final</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {ASPECT_RATIO_PRESETS.map((preset) => {
-                      const selected = aspectRatio === preset.value
-                      return (
-                        <button
-                          key={preset.value}
-                          type="button"
-                          onClick={() => setAspectRatio(preset.value)}
-                          className={`rounded-xl border px-3 py-2 text-left transition-all ${
-                            selected
-                              ? 'border-orange-400/50 bg-orange-500/15 text-white'
-                              : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-orange-400/30 hover:text-white'
-                          }`}
-                        >
-                          <span className="block text-[10px] font-semibold">{preset.label}</span>
-                          <span className="block text-[9px] text-zinc-400">{preset.hint}</span>
-                        </button>
-                      )
-                    })}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-[16px] border border-white/8 bg-black/10 p-2">
+                    <ImageUpload
+                      value={referenceUrls[1]}
+                      onChange={(url) => setReferenceAt(1, url)}
+                      label="Ref 2"
+                      accept="image/*"
+                      compact
+                      frameClassName="aspect-[4/5] min-h-[138px]"
+                    />
+                  </div>
+                  <div className="rounded-[16px] border border-white/8 bg-black/10 p-2">
+                    <ImageUpload
+                      value={referenceUrls[2]}
+                      onChange={(url) => setReferenceAt(2, url)}
+                      label="Ref 3"
+                      accept="image/*"
+                      compact
+                      frameClassName="aspect-[4/5] min-h-[138px]"
+                    />
                   </div>
                 </div>
-              )}
-            </div>
-
-            {!isProductVariant && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between px-1">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Tamanho</label>
-                  <span className="text-[10px] font-bold text-orange-400">{Math.round(scale * 100)}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="20"
-                  max="55"
-                  step="1"
-                  value={Math.round(scale * 100)}
-                  onChange={(e) => setScale(Number(e.target.value) / 100)}
-                  className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-orange-500"
-                />
-                <p className="px-1 text-[9px] leading-relaxed text-zinc-500">
-                  O formato escolhido muda o enquadramento real da imagem. O tamanho controla a proximidade da peca no frame.
-                </p>
+                <StudioHint>1 look ou ate 3 referencias.</StudioHint>
               </div>
-            )}
-          </div>
-
-          {!isProductVariant && (
-            <div className="space-y-2.5 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2.5">
-              {renderFittingPresetGroup('Pose', FITTING_POSE_PRESETS, fittingPosePreset, setFittingPosePreset)}
-              {renderFittingPresetGroup('Energia', FITTING_ENERGY_PRESETS, fittingEnergyPreset, setFittingEnergyPreset)}
             </div>
           )}
-
-          <div className={`${isProductVariant ? 'space-y-2' : 'space-y-1.5'}`}>
-            <label className="block px-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-              {promptLabel}
-            </label>
-            {isProductVariant ? (
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-400">Presets rapidos</span>
-                  <button
-                    type="button"
-                    onClick={() => setSmartPrompt('')}
-                    className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500 transition-colors hover:text-white"
-                  >
-                    Limpar
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {PRODUCT_PROMPT_CHIPS.map((chip) => (
-                    <button
-                      key={chip.label}
-                      type="button"
-                      onClick={() => applyProductPromptChip(chip.value)}
-                      className="rounded-full border border-orange-500/20 bg-orange-500/10 px-2.5 py-1 text-[10px] font-medium text-orange-200 transition-all hover:border-orange-400/40 hover:bg-orange-500/20 hover:text-white"
-                    >
-                      {chip.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-2 text-[9px] leading-relaxed text-zinc-500">
-                  Os chips so ajustam pose, exibicao e expressao. O fundo branco continua fixo.
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-2.5">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-400">Refinamento leve</span>
-                  <button
-                    type="button"
-                    onClick={() => setSmartPrompt('')}
-                    className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500 transition-colors hover:text-white"
-                  >
-                    Limpar
-                  </button>
-                </div>
-                <p className="text-[9px] leading-relaxed text-zinc-500">
-                  A peca enviada manda no look. Use o campo abaixo apenas para pequenos ajustes de pose, expressao, enquadramento e visibilidade.
-                </p>
-              </div>
-            )}
-            <textarea
-              value={smartPrompt}
-              onChange={(e) => setSmartPrompt(e.target.value)}
-              placeholder={promptPlaceholder}
-              rows={isProductVariant ? 6 : 4}
-              className="w-full resize-none rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3 text-[12px] leading-relaxed text-white placeholder-zinc-700 transition-all focus:border-orange-500/50 focus:outline-none"
-            />
-            <p className="px-1 text-[9px] italic leading-relaxed text-orange-400/80">
-              {isProductVariant
-                ? 'Esse card ignora cenario, fundo e styling editorial. Use Cena Livre para ambientes personalizados.'
-                : 'Pose, energia e formato nunca podem mudar modelagem, estampa, recortes, alcas, comprimento, ferragens ou proporcoes da peca enviada.'}
-            </p>
+        </StudioPanel>
+      }
+      controls={
+        <>
+          <div className="col-span-2">
+            <StudioPanel title="Quadro">
+              <StudioFieldLabel>Formato</StudioFieldLabel>
+              <SelectionGrid
+                options={ASPECT_RATIO_PRESETS}
+                selectedValue={aspectRatio}
+                onSelect={setAspectRatio}
+                columns="grid-cols-4"
+              />
+            </StudioPanel>
           </div>
-        </div>
-      </div>
 
-      <button
-        onClick={() =>
-          onGenerate(
-            isProductVariant
-              ? {
-                portrait_url: portraitUrl,
-                product_url: productUrl,
-                compose_mode: 'gemini',
-                compose_variant: variant,
-                position,
-                product_scale: scale,
-                aspect_ratio: aspectRatio,
-                fitting_pose_preset: fittingPosePreset,
-                fitting_energy_preset: fittingEnergyPreset,
-                costume_prompt: '',
-                smart_prompt: smartPrompt,
+          {!isProductVariant ? (
+            <div className="col-span-1">
+              <StudioPanel title="Look">
+                <div className="space-y-3">
+                  <div>
+                    <StudioFieldLabel>Pose</StudioFieldLabel>
+                    <PillGroup
+                      options={FITTING_POSE_PRESETS}
+                      selectedValue={fittingPosePreset}
+                      onSelect={setFittingPosePreset}
+                    />
+                  </div>
+                  <div>
+                    <StudioFieldLabel>Energia</StudioFieldLabel>
+                    <PillGroup
+                      options={FITTING_ENERGY_PRESETS}
+                      selectedValue={fittingEnergyPreset}
+                      onSelect={setFittingEnergyPreset}
+                    />
+                  </div>
+                </div>
+              </StudioPanel>
+            </div>
+          ) : null}
+
+          <div className="col-span-1">
+            <StudioPanel title={isProductVariant ? 'Direcao' : 'Ajuste'}>
+              <div className="space-y-3">
+                {isProductVariant ? (
+                  <div>
+                    <StudioFieldLabel
+                      trailing={
+                        <button
+                          type="button"
+                          onClick={() => setSmartPrompt('')}
+                          className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/40 transition-colors hover:text-white"
+                        >
+                          Limpar
+                        </button>
+                      }
+                    >
+                      Presets
+                    </StudioFieldLabel>
+                    <PillGroup
+                      options={PRODUCT_PROMPT_CHIPS}
+                      selectedValue=""
+                      onSelect={(value) => applyProductPromptChip(value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setSmartPrompt('')}
+                      className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/40 transition-colors hover:text-white"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                )}
+
+                <textarea
+                  value={smartPrompt}
+                  onChange={(event) => setSmartPrompt(event.target.value)}
+                  placeholder={
+                    isProductVariant
+                      ? 'Ex: sorriso leve, produto na altura do peito, rotulo visivel.'
+                      : 'Ex: pose frontal, mostrar melhor bolsa e oculos.'
+                  }
+                  rows={isProductVariant ? 5 : 8}
+                  className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-orange-400/30"
+                />
+                <StudioHint tone="warning">
+                  {isProductVariant
+                    ? 'Para ambiente custom, use Cena Livre.'
+                    : 'Nao muda modelagem, estampa ou ferragens das referencias.'}
+                </StudioHint>
+              </div>
+            </StudioPanel>
+          </div>
+
+          <div className="col-span-2">
+            <StudioPrimaryButton
+              accent="orange"
+              className="max-w-none"
+              disabled={!hasPortrait || !hasProduct}
+              onClick={() =>
+                onGenerate(
+                  isProductVariant
+                    ? {
+                      portrait_url: portraitUrl,
+                      product_url: productUrl,
+                      compose_mode: 'gemini',
+                      compose_variant: variant,
+                      position: DEFAULT_POSITION,
+                      product_scale: DEFAULT_SCALE,
+                      aspect_ratio: aspectRatio,
+                      fitting_pose_preset: fittingPosePreset,
+                      fitting_energy_preset: fittingEnergyPreset,
+                      costume_prompt: '',
+                      smart_prompt: smartPrompt,
+                    }
+                    : {
+                      portrait_url: portraitUrl,
+                      product_url: activeFittingReferenceUrls[0] ?? '',
+                      product_urls: activeFittingReferenceUrls,
+                      fitting_group: '',
+                      compose_mode: 'vertex-vto',
+                      compose_variant: variant,
+                      position: DEFAULT_POSITION,
+                      product_scale: DEFAULT_SCALE,
+                      aspect_ratio: aspectRatio,
+                      fitting_pose_preset: fittingPosePreset,
+                      fitting_energy_preset: fittingEnergyPreset,
+                      costume_prompt: '',
+                      smart_prompt: smartPrompt,
+                    },
+                )
               }
-              : {
-                portrait_url: portraitUrl,
-                product_url: activeFittingReferenceUrls[0] ?? '',
-                product_urls: activeFittingReferenceUrls,
-                compose_mode: 'vertex-vto',
-                compose_variant: variant,
-                position,
-                product_scale: scale,
-                aspect_ratio: aspectRatio,
-                fitting_pose_preset: fittingPosePreset,
-                fitting_energy_preset: fittingEnergyPreset,
-                costume_prompt: '',
-                smart_prompt: smartPrompt,
-              }
-          )
-        }
-        disabled={!hasPortrait || !hasProduct}
-        className={`group relative ${isProductVariant ? 'mt-2 py-4 text-[13px]' : 'py-3.5 text-[12px]'} flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-600 to-amber-600 font-bold text-white shadow-[0_10px_30px_-10px_rgba(234,88,12,0.5)] transition-all active:scale-[0.98] disabled:opacity-40`}
-      >
-        <div className="absolute inset-0 bg-white/10 opacity-0 transition-opacity group-hover:opacity-100" />
-        <Sparkles size={18} className="transition-transform group-hover:rotate-12" />
-        {buttonLabel} - {cost} CREDITOS
-      </button>
-    </div>
+            >
+              <Sparkles size={16} />
+              {isProductVariant ? `Gerar modelo + produto - ${cost} CR` : `Gerar provador - ${cost} CR`}
+            </StudioPrimaryButton>
+          </div>
+        </>
+      }
+    />
   )
 }

@@ -4,6 +4,7 @@ import { redirect, notFound } from 'next/navigation'
 import StudioCanvas from '@/components/studio/StudioCanvas'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { mapStudioAssetType } from '@/lib/studioAssetType'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
 import { StudioAsset, StudioConnection, StudioProject } from '@/types'
 
@@ -76,7 +77,7 @@ export default async function BoardPage({ params }: Props) {
   return (
     <StudioCanvas
       project={project as StudioProject}
-      initialAssets={(assets ?? []) as StudioAsset[]}
+      initialAssets={(assets ?? []).map((asset) => mapStudioAssetType(asset)) as StudioAsset[]}
       initialConnections={(connections ?? []) as StudioConnection[]}
       userCredits={profile?.credits ?? 0}
       userPlan={profile?.plan ?? 'free'}

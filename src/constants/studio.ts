@@ -16,6 +16,7 @@ export const CREDIT_COST: Record<string, number> = {
   lipsync: 20,  // SyncLabs Pro
   video:   15,  // Motor Padrão (Kling/Fal)
   video_veo: 50,  // Motor Premium (Google Veo 3.1) - Ajustado para 50 para incentivar volume de uso
+  talking_video: 50, // Card base de avatar falante; modo frase exata soma voz + lipsync no backend
   angles: 12,   // Direção de Cena (Flux i2i / Google Subject)
   music: 10,    // Trilha Sonora (Google Lyria 3)
   ugc_bundle: 60, // 8 variações cinematográficas (Imagen 3.0 Parallel)

@@ -41,7 +41,7 @@ export interface Order {
 // ── Ad Studio ──────────────────────────────────────────────────────────────
 
 export type StudioTemplate = 'blank' | 'before_after' | 'testimonial' | 'product_showcase'
-export type AssetType = 'image' | 'video' | 'voice' | 'upscale' | 'script' | 'caption' | 'model' | 'render' | 'animate' | 'compose' | 'lipsync' | 'face' | 'join' | 'angles' | 'music' | 'ugc_bundle' | 'scene' | 'look_split'
+export type AssetType = 'image' | 'video' | 'talking_video' | 'voice' | 'upscale' | 'script' | 'caption' | 'model' | 'render' | 'animate' | 'compose' | 'lipsync' | 'face' | 'join' | 'angles' | 'music' | 'ugc_bundle' | 'scene' | 'look_split'
 export type AssetStatus = 'idle' | 'processing' | 'done' | 'error'
 
 export interface StudioProject {

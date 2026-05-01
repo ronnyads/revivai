@@ -8,11 +8,11 @@ type StudioNodeLayoutOptions = {
   selected?: boolean
 }
 
-const EXPANDED_NODE_TYPES = new Set<AssetType>(['compose', 'video', 'image', 'animate', 'ugc_bundle', 'look_split'])
-const ACTIVE_NODE_TYPES = new Set<AssetType>(['join', 'render', 'scene', 'angles', 'lipsync'])
+const EXPANDED_NODE_TYPES = new Set<AssetType>(['compose', 'video', 'talking_video', 'image', 'animate', 'ugc_bundle', 'look_split', 'scene', 'model'])
+const ACTIVE_NODE_TYPES = new Set<AssetType>(['join', 'render', 'angles', 'lipsync'])
 
-export const STUDIO_NODE_GRID_SPACING_X = 580
-export const STUDIO_NODE_GRID_SPACING_Y = 380
+export const STUDIO_NODE_GRID_SPACING_X = 960
+export const STUDIO_NODE_GRID_SPACING_Y = 420
 
 export function getStudioNodeVisualState(
   type: AssetType,
@@ -46,19 +46,25 @@ export function getStudioNodeCardWidth(
   const visualState = getStudioNodeVisualState(type, options)
 
   if (visualState === 'expanded') {
-    if (type === 'compose') return 620
+    if (type === 'compose') return 1040
+    if (type === 'video' || type === 'talking_video' || type === 'scene') return 920
+    if (type === 'image' || type === 'look_split') return 900
+    if (type === 'model') return 610
     return 560
   }
 
   if (visualState === 'active') {
-    if (type === 'compose') return 580
+    if (type === 'compose') return 940
+    if (type === 'scene' || type === 'video' || type === 'talking_video') return 760
+    if (type === 'image' || type === 'look_split') return 740
+    if (type === 'model') return 550
     if (EXPANDED_NODE_TYPES.has(type)) return 520
     if (ACTIVE_NODE_TYPES.has(type)) return 480
-    return 460
+    return 430
   }
 
   if (type === 'compose') return 390
-  if (EXPANDED_NODE_TYPES.has(type) || ACTIVE_NODE_TYPES.has(type)) return 380
+  if (EXPANDED_NODE_TYPES.has(type) || ACTIVE_NODE_TYPES.has(type)) return 360
 
-  return 352
+  return 336
 }

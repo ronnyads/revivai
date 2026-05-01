@@ -2,6 +2,12 @@
 
 import { useState } from 'react'
 import { Sparkles, User, ChevronDown, Fingerprint, Check, Image as ImageIcon } from 'lucide-react'
+import {
+  StudioFieldLabel,
+  StudioFormShell,
+  StudioPanel,
+  StudioPrimaryButton,
+} from './StudioFormShell'
 import { CREDIT_COST } from '@/constants/studio'
 
 interface Props {
@@ -36,6 +42,8 @@ export default function ImageGenerator({ initial, onGenerate }: Props) {
 
   const selected = PRESETS.find((item) => item.value === preset) ?? PRESETS[0]
   const cost = CREDIT_COST.image
+  const hasModel = !!initial.model_prompt
+  const hasFace = !!initial.source_face_url
 
   function handlePreset(nextPreset: (typeof PRESETS)[number]) {
     setPreset(nextPreset.value)
@@ -43,135 +51,124 @@ export default function ImageGenerator({ initial, onGenerate }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
-        <div className="rounded-xl bg-violet-500/10 p-2">
-          <Sparkles size={16} className="text-violet-400" />
-        </div>
-        <div className="flex-1">
-          <h4 className="text-[12px] font-bold leading-tight text-white">Diretor de Cena & Fotografia</h4>
-          <p className="text-[10px] leading-tight text-zinc-400">Defina estilo, acao, contexto e proporcao da imagem em um fluxo mais rapido.</p>
-        </div>
-      </div>
-
-      <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="space-y-3">
-          <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-3">
-            <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-violet-300">
-              <ImageIcon size={12} /> Contexto
+    <StudioFormShell
+      accent="violet"
+      icon={<ImageIcon size={18} />}
+      title="Imagem IA"
+      hideHeader
+      layout="split"
+      chips={[
+        { label: selected.label, tone: 'violet' },
+        { label: aspect, tone: 'neutral' },
+      ]}
+      media={
+        <>
+          <StudioPanel title="Identidade">
+            <div className="space-y-2">
+              {hasModel ? (
+                <div className="flex items-center gap-2 rounded-[16px] border border-indigo-500/20 bg-indigo-500/10 px-3 py-2.5 text-[10px] font-semibold text-indigo-200">
+                  <User size={14} /> Modelo conectado
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-[16px] border border-white/8 bg-black/10 px-3 py-2.5 text-[10px] font-semibold text-white/46">
+                  <Fingerprint size={14} /> Sem modelo
+                </div>
+              )}
+              {hasFace ? (
+                <div className="flex items-center gap-2 rounded-[16px] border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-[10px] font-semibold text-emerald-200">
+                  <Check size={14} /> Rosto real
+                </div>
+              ) : null}
             </div>
-            <p className="text-[11px] leading-relaxed text-zinc-300">
-              Aqui voce escolhe o tipo de imagem e descreve a cena. O board fica mais compacto, mas o controle continua completo.
-            </p>
-          </div>
+          </StudioPanel>
 
-          <div className="space-y-2 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-3">
-            <label className="block px-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Conexoes</label>
-            {!!initial.model_prompt ? (
-              <div className="flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-indigo-400">
-                <User size={12} strokeWidth={3} /> Modelo conectado
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 rounded-xl border border-zinc-700/50 bg-zinc-800/50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                <Fingerprint size={12} /> Sem modelo conectado
-              </div>
-            )}
-            {!!initial.source_face_url ? (
-              <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                <Check size={12} strokeWidth={3} /> Rosto real ativo
-              </div>
-            ) : null}
-          </div>
-
-          <div className="space-y-2 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-3">
-            <label className="block px-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Preset</label>
-            <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 px-3 py-3">
-              <p className="text-[11px] font-bold text-white">{selected.label}</p>
-              <p className="mt-1 text-[10px] leading-relaxed text-zinc-400">{selected.hint}</p>
+          <StudioPanel title="Preset">
+            <div className="rounded-[16px] border border-violet-500/14 bg-violet-500/[0.06] px-3 py-2.5">
+              <p className="text-[11px] font-semibold text-white">{selected.label}</p>
+              <p className="mt-1 text-[10px] leading-relaxed text-white/44">{selected.hint}</p>
             </div>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <label className="block px-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">O que voce quer gerar?</label>
+          </StudioPanel>
+        </>
+      }
+      controls={
+        <>
+          <StudioPanel title="Tipo">
+            <StudioFieldLabel>Preset</StudioFieldLabel>
             <div className="relative">
               <button
+                type="button"
                 onClick={() => setOpen((value) => !value)}
-                className="flex w-full items-center justify-between rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm font-medium text-white transition-all hover:border-zinc-500 focus:outline-none"
+                className="flex w-full items-center justify-between rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-left text-[11px] text-white transition-colors hover:border-white/14"
               >
-                <span className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
-                  {selected.label}
-                </span>
-                <ChevronDown size={16} className={`text-zinc-500 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+                <span>{selected.label}</span>
+                <ChevronDown size={16} className={`text-white/42 transition-transform ${open ? 'rotate-180' : ''}`} />
               </button>
               {open ? (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-                  <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                  <div className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-[18px] border border-white/8 bg-[#101214] shadow-2xl">
                     {PRESETS.map((item) => (
                       <button
                         key={item.value}
+                        type="button"
                         onClick={() => handlePreset(item)}
-                        className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-zinc-800 ${
-                          preset === item.value ? 'bg-violet-500/10 font-bold text-violet-400' : 'text-zinc-400'
+                        className={`flex w-full items-start gap-3 border-b border-white/5 px-3.5 py-3 text-left transition-colors last:border-b-0 ${
+                          preset === item.value ? 'bg-violet-500/10 text-violet-200' : 'text-white/64 hover:bg-white/[0.03] hover:text-white'
                         }`}
                       >
-                        <div className={`h-1.5 w-1.5 rounded-full ${preset === item.value ? 'bg-violet-400' : 'bg-transparent'}`} />
-                        {item.label}
+                        <div className={`mt-1 h-2 w-2 rounded-full ${preset === item.value ? 'bg-violet-300' : 'bg-white/18'}`} />
+                        <div>
+                          <p className="text-[10px] font-semibold">{item.label}</p>
+                          <p className="mt-0.5 text-[9px] text-white/42">{item.hint}</p>
+                        </div>
                       </button>
                     ))}
                   </div>
                 </>
               ) : null}
             </div>
-          </div>
+          </StudioPanel>
 
-          <div className="space-y-2">
-            <label className="block px-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Descricao da cena & acao</label>
+          <StudioPanel title="Prompt">
+            <StudioFieldLabel>Direcao</StudioFieldLabel>
             <textarea
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
-              placeholder="Ex: influencer segurando o produto, luz entrando pela janela, cozinha minimalista ao fundo, expressao de surpresa..."
-              rows={6}
-              className="w-full resize-none rounded-2xl border border-zinc-700/60 bg-zinc-900/80 px-4 py-3.5 text-[13px] leading-relaxed text-white placeholder-zinc-700 shadow-inner transition-all focus:border-violet-500/50 focus:outline-none"
+              placeholder="Ex: influencer segurando o produto, luz de janela, cozinha clean ao fundo."
+              rows={5}
+              className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-violet-400/30"
             />
-            <p className="px-1 text-[9px] italic leading-relaxed text-zinc-600">
-              Descreva acao, ambiente, luz e enquadramento. Quanto mais clara a direcao, melhor a imagem.
-            </p>
-          </div>
+          </StudioPanel>
 
-          <div className="space-y-2 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-3">
-            <label className="block px-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Proporcao</label>
-            <div className="grid grid-cols-5 gap-1.5">
+          <StudioPanel title="Formato">
+            <div className="grid grid-cols-5 gap-2">
               {RATIOS.map((ratio) => (
                 <button
                   key={ratio.value}
+                  type="button"
                   onClick={() => setAspect(ratio.value)}
-                  className={`rounded-xl border py-2 text-[10px] font-medium transition-all ${
+                  className={`rounded-[14px] border py-2.5 text-[10px] font-semibold transition-all ${
                     aspect === ratio.value
-                      ? 'border-violet-500/50 bg-violet-500/15 text-violet-400'
-                      : 'border-zinc-700 text-zinc-500 hover:border-zinc-600'
+                      ? 'border-violet-400/30 bg-violet-500/12 text-white'
+                      : 'border-white/8 bg-[#0B0D0F] text-white/46 hover:border-white/14 hover:text-white'
                   }`}
                 >
                   {ratio.label}
                 </button>
               ))}
             </div>
-          </div>
+          </StudioPanel>
 
-          <button
-            onClick={() => onGenerate({ prompt, style: selected.style, aspect_ratio: aspect })}
+          <StudioPrimaryButton
+            accent="violet"
             disabled={!prompt.trim()}
-            className="group/btn relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-violet-600 py-4 text-xs font-bold text-white transition-all hover:bg-violet-500 active:scale-95 disabled:opacity-40"
+            onClick={() => onGenerate({ prompt, style: selected.style, aspect_ratio: aspect })}
           >
-            <Sparkles size={14} />
-            GERAR IMAGEM - {cost} CREDITOS
-            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent group-hover/btn:animate-shimmer" />
-          </button>
-        </div>
-      </div>
-    </div>
+            <Sparkles size={16} />
+            Gerar imagem - {cost} CR
+          </StudioPrimaryButton>
+        </>
+      }
+    />
   )
 }

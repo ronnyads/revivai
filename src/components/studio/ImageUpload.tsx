@@ -9,9 +9,19 @@ interface Props {
   label?: string
   accept?: string
   preview?: boolean
+  frameClassName?: string
+  compact?: boolean
 }
 
-export default function ImageUpload({ value, onChange, label = 'Imagem', accept = 'image/*', preview = true }: Props) {
+export default function ImageUpload({
+  value,
+  onChange,
+  label = 'Imagem',
+  accept = 'image/*',
+  preview = true,
+  frameClassName,
+  compact = false,
+}: Props) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -105,8 +115,8 @@ export default function ImageUpload({ value, onChange, label = 'Imagem', accept 
   // Se já tem URL e é imagem com preview
   if (value && preview && accept.startsWith('image')) {
     return (
-      <div className="relative rounded-xl overflow-hidden group shadow-md border border-zinc-800/50">
-        <img src={value} alt="Preview" className="w-full h-auto rounded-xl" />
+      <div className={`relative overflow-hidden rounded-xl group shadow-md border border-zinc-800/50 ${frameClassName ?? ''}`}>
+        <img src={value} alt="Preview" className="h-full w-full rounded-xl object-cover" />
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-start justify-end p-2 pointer-events-none">
           {/* Fundo escuro sutil on hover */}
         </div>
@@ -122,25 +132,25 @@ export default function ImageUpload({ value, onChange, label = 'Imagem', accept 
 
   return (
     <div>
-      <label className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1 block">{label}</label>
+      <label className="mb-2 block px-1 font-label text-[10px] uppercase tracking-[0.2em] text-white/40">{label}</label>
       <div
         onDrop={handleDrop}
         onDragOver={e => e.preventDefault()}
         onClick={() => inputRef.current?.click()}
-        className="w-full border-2 border-dashed border-zinc-700 hover:border-accent/50 rounded-xl p-5 flex flex-col items-center gap-2 cursor-pointer transition-colors group"
+        className={`flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-[18px] border border-dashed border-white/10 bg-[#0B0D0F] transition-colors group hover:border-white/16 ${compact ? 'p-3' : 'p-5'} ${frameClassName ?? ''}`}
       >
         {uploading ? (
           <>
-            <Loader2 size={22} className="animate-spin text-accent" />
-            <p className="text-xs text-zinc-400">Enviando...</p>
+            <Loader2 size={22} className="animate-spin text-[#54D6F6]" />
+            <p className="text-xs text-white/56">Enviando...</p>
           </>
         ) : (
           <>
-            <ImageIcon size={22} className="text-zinc-600 group-hover:text-accent transition-colors" />
-            <p className="text-xs text-zinc-400 text-center">
-              <span className="text-accent font-medium">Clique para escolher</span> ou arraste aqui
+            <ImageIcon size={22} className="text-white/24 transition-colors group-hover:text-[#54D6F6]" />
+            <p className={`text-center text-white/48 ${compact ? 'text-[11px]' : 'text-xs'}`}>
+              <span className="font-medium text-[#8EDDED]">Clique para escolher</span> ou arraste aqui
             </p>
-            <p className="text-[10px] text-zinc-600">Da galeria ou do computador</p>
+            <p className={`${compact ? 'text-[9px]' : 'text-[10px]'} text-white/28`}>Da galeria ou do computador</p>
           </>
         )}
       </div>
@@ -151,7 +161,7 @@ export default function ImageUpload({ value, onChange, label = 'Imagem', accept 
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder="Ou cole uma URL..."
-          className="w-full mt-2 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-400 placeholder-zinc-600 focus:outline-none focus:border-accent"
+          className="mt-2 w-full rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 text-xs text-white/62 outline-none transition-colors placeholder:text-white/22 focus:border-[#54D6F6]/30"
         />
       )}
       <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={handleChange} />

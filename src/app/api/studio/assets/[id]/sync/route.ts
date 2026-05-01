@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Replicate from 'replicate'
+import { startLipsyncGeneration, incrementTalkingPipelineAttempts } from '@/lib/studio'
+import { getLogicalStudioAssetType, mapStudioAssetType } from '@/lib/studioAssetType'
 import { saveLastFrame } from '@/lib/videoUtils'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
 
@@ -17,18 +19,19 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   POST /api/studio/assets/[id]/sync
-   Consulta o provedor (Fal AI ou Replicate) pelo prediction_id salvo no asset
-   e sincroniza o status — fallback manual quando webhook falha ou polling expira
-───────────────────────────────────────────────────────────────────────────── */
+function resolveAppUrl(req: NextRequest) {
+  const origin = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
+  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
+  return origin
+    ? (origin.startsWith('http') ? origin : `https://${origin}`)
+    : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
+}
 
-// Baixa URL temporária do provedor e re-sobe no Supabase Storage
 async function persistToStorage(
   admin: ReturnType<typeof createAdminClient>,
   url: string,
   userId: string,
-  assetId: string
+  assetId: string,
 ): Promise<string> {
   try {
     const res = await fetch(url)
@@ -46,7 +49,7 @@ async function persistToStorage(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -55,7 +58,6 @@ export async function POST(
   const { id } = await params
   const admin = createAdminClient()
 
-  // Busca o asset
   const { data: asset } = await admin
     .from('studio_assets')
     .select('id, status, input_params, credits_cost, type')
@@ -63,32 +65,28 @@ export async function POST(
     .eq('user_id', user.id)
     .single()
 
-  if (!asset) return NextResponse.json({ error: 'Asset não encontrado' }, { status: 404 })
-  if (asset.status === 'done') return NextResponse.json({ status: 'done', asset })
-
+  if (!asset) return NextResponse.json({ error: 'Asset nÃ£o encontrado' }, { status: 404 })
   const assetInputParams = asRecord(asset.input_params)
+  const logicalType = getLogicalStudioAssetType(asset.type, assetInputParams)
+  if (asset.status === 'done') return NextResponse.json({ status: 'done', asset: mapStudioAssetType(asset) })
   const predictionId = typeof assetInputParams.prediction_id === 'string' ? assetInputParams.prediction_id : undefined
-
   if (!predictionId) {
-    return NextResponse.json({ status: asset.status, message: 'prediction_id não encontrado' })
+    return NextResponse.json({ status: asset.status, message: 'prediction_id nÃ£o encontrado' })
   }
 
-  // ── Google Veo3 direto (provider === 'google')
   const provider = typeof assetInputParams.provider === 'string' ? assetInputParams.provider : undefined
   const engine = typeof assetInputParams.engine === 'string' ? assetInputParams.engine : undefined
-  
-  if (asset.type === 'video' && (provider === 'google' || engine === 'veo')) {
+
+  if ((logicalType === 'video' || logicalType === 'talking_video') && (provider === 'google' || engine === 'veo')) {
     const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
     if (!apiKey) {
-      return NextResponse.json({ status: 'error', error: 'GOOGLE_API_KEY / GEMINI_API_KEY não configurada no servidor (Veo3)' }, { status: 500 })
+      return NextResponse.json({ status: 'error', error: 'GOOGLE_API_KEY / GEMINI_API_KEY nÃ£o configurada no servidor (Veo3)' }, { status: 500 })
     }
 
     try {
-      const opRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/${predictionId}?key=${apiKey}`
-      )
+      const opRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${predictionId}?key=${apiKey}`)
       if (!opRes.ok) {
-        const errMsg = 'Veo3: operação não encontrada no Google ou job bloqueado. Tente gerar novamente.'
+        const errMsg = 'Veo3: operaÃ§Ã£o nÃ£o encontrada no Google ou job bloqueado. Tente gerar novamente.'
         await markStudioAssetFailed({ admin, assetId: id, errorMsg: errMsg, refundReason: 'sync:veo-operation-missing' })
         return NextResponse.json({ status: 'error', error: errMsg })
       }
@@ -99,35 +97,29 @@ export async function POST(
       if (!op.done) return NextResponse.json({ status: 'processing', message: 'Google Veo3 ainda processando...' })
 
       if (op.error) {
-        const errMsg = op.error.message ?? 'Falha na geração do Veo3'
+        const errMsg = op.error.message ?? 'Falha na geraÃ§Ã£o do Veo3'
         await markStudioAssetFailed({ admin, assetId: id, errorMsg: errMsg, refundReason: 'sync:veo-provider-error' })
         return NextResponse.json({ status: 'error', error: errMsg })
       }
 
-      // Extrai URL do vídeo gerado na nova estrutura do Veo 3.1
       const sample = op.response?.generateVideoResponse?.generatedSamples?.[0]
       let finalUrl: string | null = sample?.video?.uri ?? null
 
       if (!finalUrl && op.response?.generatedVideos?.[0]?.video) {
-        // Fallback p/ GenAI struct if happens
         finalUrl = op.response.generatedVideos[0].video.uri || op.response.generatedVideos[0].video
       }
 
-      // Detecta bloqueio por Filtro de Segurança (RAI)
       const raiFiltered = op.response?.generateVideoResponse?.raiMediaFilteredCount > 0
       if (raiFiltered) {
-        const reason = op.response?.generateVideoResponse?.raiMediaFilteredReasons?.[0] || 'Bloqueado pelos filtros de segurança do Google'
-        console.warn(`[sync] Veo3 RAI Blocked: ${reason}`)
-        await markStudioAssetFailed({ admin, assetId: id, errorMsg: `Segurança Google: ${reason}`, refundReason: 'sync:veo-safety-filter' })
+        const reason = op.response?.generateVideoResponse?.raiMediaFilteredReasons?.[0] || 'Bloqueado pelos filtros de seguranÃ§a do Google'
+        await markStudioAssetFailed({ admin, assetId: id, errorMsg: `SeguranÃ§a Google: ${reason}`, refundReason: 'sync:veo-safety-filter' })
         return NextResponse.json({ status: 'error', error: reason })
       }
 
       if (!finalUrl) {
-        console.log(`[sync] Veo3 Operation ${predictionId} is done but no video URL found yet.`)
-        return NextResponse.json({ status: 'processing', message: 'Finalizando vídeo Veo3 (URL em processamento)...' })
+        return NextResponse.json({ status: 'processing', message: 'Finalizando vÃ­deo Veo3 (URL em processamento)...' })
       }
 
-      // Baixa o vídeo da API do Google e re-sobe no Storage para perenidade
       try {
         const vidReq = await fetch(finalUrl, { headers: { 'x-goog-api-key': apiKey } })
         if (vidReq.ok) {
@@ -139,80 +131,124 @@ export async function POST(
             finalUrl = publicUrl
           }
         }
-      } catch (e) {
-        console.error("[sync] Falha ao transpor vídeo Veo3 p/ Storage:", e)
+      } catch (error) {
+        console.error('[sync] Falha ao transpor vÃ­deo Veo3 p/ Storage:', error)
       }
-      
-      // Primeiro marcamos como done p/ liberar o vídeo no Board
-      await admin.from('studio_assets').update({ 
-        status: 'done', 
-        result_url: finalUrl, 
-        error_msg: null 
+
+      const currentInputParams = asRecord(asset.input_params)
+      const talkingMode = typeof currentInputParams.talking_video_mode === 'string' ? currentInputParams.talking_video_mode : 'exact_speech'
+
+      if (logicalType === 'talking_video' && talkingMode === 'exact_speech' && currentInputParams.pipeline_stage === 'veo_generating') {
+        const generatedVoiceUrl = typeof currentInputParams.generated_voice_url === 'string'
+          ? currentInputParams.generated_voice_url
+          : ''
+
+        if (!generatedVoiceUrl) {
+          await markStudioAssetFailed({
+            admin,
+            assetId: id,
+            errorMsg: 'Audio interno nao encontrado para iniciar o lipsync do talking video.',
+            refundReason: 'sync:talking-video-missing-audio',
+          })
+          return NextResponse.json({ status: 'error', error: 'Audio interno nao encontrado para o talking video.' })
+        }
+
+        await admin.from('studio_assets').update({
+          status: 'processing',
+          result_url: finalUrl,
+          error_msg: null,
+          input_params: {
+            ...currentInputParams,
+            intermediate_video_url: finalUrl,
+            pipeline_stage: 'lipsyncing',
+            pipeline_attempts: incrementTalkingPipelineAttempts(currentInputParams.pipeline_attempts, 'lipsyncing'),
+          },
+        }).eq('id', id)
+
+        await startLipsyncGeneration({
+          face_url: finalUrl,
+          audio_url: generatedVoiceUrl,
+          assetId: id,
+          userId: user.id,
+          appUrl: resolveAppUrl(req),
+          inputParamsPatch: {
+            intermediate_video_url: finalUrl,
+            pipeline_stage: 'lipsyncing',
+            pipeline_attempts: incrementTalkingPipelineAttempts(currentInputParams.pipeline_attempts, 'lipsyncing'),
+          },
+        })
+
+        return NextResponse.json({ status: 'processing', message: 'Veo pronto. Iniciando lipsync...' })
+      }
+
+      await admin.from('studio_assets').update({
+        status: 'done',
+        result_url: finalUrl,
+        error_msg: null,
+        input_params: logicalType === 'talking_video'
+          ? {
+                ...currentInputParams,
+                pipeline_stage: 'completed',
+            }
+          : currentInputParams,
       }).eq('id', id)
 
-      console.log(`[sync] Veo3 Success for ${id}. URL: ${finalUrl}`)
-
-      // Frame extraction em segundo plano (dentro do fluxo do sync)
       try {
-        const lastFrameUrl = await saveLastFrame(finalUrl!, user.id, id)
-        if (lastFrameUrl) {
-          await admin.from('studio_assets').update({ last_frame_url: lastFrameUrl }).eq('id', id)
-        }
-      } catch (e) {
-        console.error("[sync] Erro ao extrair frame (opcional):", e)
+        const lastFrameUrl = await saveLastFrame(finalUrl, user.id, id)
+        await admin.from('studio_assets').update({ last_frame_url: lastFrameUrl || finalUrl }).eq('id', id)
+      } catch (error) {
+        console.error('[sync] Erro ao extrair frame (opcional):', error)
       }
 
       return NextResponse.json({ status: 'done', result_url: finalUrl })
-
-    } catch (err: unknown) {
-      const errorMessage = getErrorMessage(err)
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error)
       console.error(`[sync] Google Veo3 check failed for ${id}:`, errorMessage)
       return NextResponse.json({ status: 'error', error: errorMessage }, { status: 500 })
     }
   }
 
-  // ── Fal AI: video (Kling/Veo), animate (Wan Motion), lipsync (SyncLabs/LatentSync)
-  if (asset.type === 'video' || asset.type === 'animate' || asset.type === 'lipsync') {
+  if (logicalType === 'video' || logicalType === 'talking_video' || logicalType === 'animate' || logicalType === 'lipsync') {
     const falKey = process.env.FAL_KEY
-    if (!falKey) return NextResponse.json({ status: 'error', error: 'FAL_KEY não configurada' }, { status: 500 })
+    if (!falKey) return NextResponse.json({ status: 'error', error: 'FAL_KEY nÃ£o configurada' }, { status: 500 })
 
     let modelPath: string
-    if (asset.type === 'video') {
+    if (logicalType === 'video') {
       const savedPath = typeof assetInputParams.fal_model_path === 'string' ? assetInputParams.fal_model_path : undefined
-      const engine = assetInputParams.engine
-      modelPath = savedPath
-        ?? (engine === 'veo' ? 'fal-ai/veo3.1/image-to-video' : 'fal-ai/kling-video/v1.5/pro/image-to-video')
-    } else if (asset.type === 'animate') {
+      modelPath = savedPath ?? (engine === 'veo' ? 'fal-ai/veo3.1/image-to-video' : 'fal-ai/kling-video/v1.5/pro/image-to-video')
+    } else if (logicalType === 'talking_video') {
+      const savedPath = typeof assetInputParams.fal_model_path === 'string' ? assetInputParams.fal_model_path : undefined
+      modelPath = savedPath ?? 'fal-ai/sync-lipsync/v2/pro'
+    } else if (logicalType === 'animate') {
       const savedPath = typeof assetInputParams.fal_model_path === 'string' ? assetInputParams.fal_model_path : undefined
       modelPath = savedPath ?? 'fal-ai/wan-motion'
     } else {
-      modelPath = 'fal-ai/latentsync'
+      const savedPath = typeof assetInputParams.fal_model_path === 'string' ? assetInputParams.fal_model_path : undefined
+      modelPath = savedPath ?? 'fal-ai/latentsync'
     }
 
-    // Para jobs antigos sem engine salvo, tenta endpoints alternativos.
-    const altModelPath = asset.type === 'video'
+    const altModelPath = logicalType === 'video'
       ? (modelPath.includes('veo') ? 'fal-ai/kling-video/v1.5/pro/image-to-video' : 'fal-ai/veo3.1/image-to-video')
-      : asset.type === 'animate'
+      : logicalType === 'animate'
         ? (modelPath.includes('wan-motion') ? 'fal-ai/live-portrait' : 'fal-ai/wan-motion')
-      : null
+        : null
 
     async function fetchFalStatus(path: string) {
-      const r = await fetch(`https://queue.fal.run/${path}/requests/${predictionId}/status`, {
-        headers: { 'Authorization': `Key ${falKey}` }
+      const response = await fetch(`https://queue.fal.run/${path}/requests/${predictionId}/status`, {
+        headers: { Authorization: `Key ${falKey}` },
       })
-      if (!r.ok) return null
-      return r.json()
+      if (!response.ok) return null
+      return response.json()
     }
 
     try {
-      // 1. Checa status (tenta path principal, depois alternativo se disponível)
       let statusJson = await fetchFalStatus(modelPath)
       if (!statusJson && altModelPath) {
         statusJson = await fetchFalStatus(altModelPath)
-        if (statusJson) modelPath = altModelPath // usa o path que funcionou
+        if (statusJson) modelPath = altModelPath
       }
       if (!statusJson) {
-        const errMsg = 'Job expirado ou não encontrado. Clique em "Tentar novamente" para gerar novamente.'
+        const errMsg = 'Job expirado ou nÃ£o encontrado. Clique em "Tentar novamente" para gerar novamente.'
         await markStudioAssetFailed({ admin, assetId: id, errorMsg: errMsg, refundReason: 'sync:fal-job-missing' })
         return NextResponse.json({ status: 'error', error: errMsg })
       }
@@ -220,69 +256,64 @@ export async function POST(
       if (statusJson.status === 'COMPLETED' || statusJson.status === 'OK') {
         let videoUrl: string | null = null
 
-        // 2. Busca resultado completo
-        const outRes = await fetch(
-          `https://queue.fal.run/${modelPath}/requests/${predictionId}`,
-          { headers: { 'Authorization': `Key ${falKey}` } }
-        )
+        const outRes = await fetch(`https://queue.fal.run/${modelPath}/requests/${predictionId}`, {
+          headers: { Authorization: `Key ${falKey}` },
+        })
         if (outRes.ok) {
           const out = await outRes.json()
-          const v = out.video
-          videoUrl = (Array.isArray(v) ? v[0]?.url : v?.url)
+          const value = out.video
+          videoUrl = (Array.isArray(value) ? value[0]?.url : value?.url)
             ?? out.video_url ?? out.url ?? out.output?.[0] ?? null
         }
 
-        // 3. Fallback via response_url
         if (!videoUrl && statusJson.response_url) {
-          const rRes = await fetch(statusJson.response_url, { headers: { 'Authorization': `Key ${falKey}` } })
-          if (rRes.ok) {
-            const rPayload = await rRes.json()
-            const v = rPayload.video
-            videoUrl = (Array.isArray(v) ? v[0]?.url : v?.url)
-              ?? rPayload.video_url ?? rPayload.url ?? rPayload.output?.[0] ?? null
+          const response = await fetch(statusJson.response_url, { headers: { Authorization: `Key ${falKey}` } })
+          if (response.ok) {
+            const payload = await response.json()
+            const value = payload.video
+            videoUrl = (Array.isArray(value) ? value[0]?.url : value?.url)
+              ?? payload.video_url ?? payload.url ?? payload.output?.[0] ?? null
           }
         }
 
         if (!videoUrl) {
-          return NextResponse.json({ status: 'processing', message: 'Resultado ainda não disponível no payload' })
+          return NextResponse.json({ status: 'processing', message: 'Resultado ainda nÃ£o disponÃ­vel no payload' })
         }
 
-        // Salva URL temporária imediatamente — vídeo fica visível antes do upload pro Storage
+        const currentInputParams = asRecord(asset.input_params)
+        const permanentUrl = await persistToStorage(admin, videoUrl, user.id, id)
+        const lastFrameUrl = await saveLastFrame(permanentUrl, user.id, id).catch(() => null)
+
         await admin.from('studio_assets').update({
           status: 'done',
-          result_url: videoUrl,
-          last_frame_url: videoUrl,
+          result_url: permanentUrl,
+          last_frame_url: lastFrameUrl || permanentUrl,
           error_msg: null,
+          input_params: logicalType === 'talking_video'
+            ? {
+                ...currentInputParams,
+                pipeline_stage: 'completed',
+              }
+            : currentInputParams,
         }).eq('id', id)
 
-        // Persiste pro Supabase Storage + extrai frame em segundo plano
-        persistToStorage(admin, videoUrl, user.id, id).then(async permanentUrl => {
-          const lastFrameUrl = await saveLastFrame(permanentUrl, user.id, id).catch(() => null)
-          await admin.from('studio_assets').update({
-            result_url: permanentUrl,
-            last_frame_url: lastFrameUrl || permanentUrl,
-          }).eq('id', id)
-        }).catch(e => console.warn(`[sync] persistToStorage falhou (não crítico):`, e))
-
-        return NextResponse.json({ status: 'done', result_url: videoUrl })
+        return NextResponse.json({ status: 'done', result_url: permanentUrl })
       }
 
       if (statusJson.status === 'ERROR' || statusJson.status === 'FAILED') {
-        const errorMsg = statusJson.error ? String(statusJson.error) : 'Geração falhou no Fal AI'
+        const errorMsg = statusJson.error ? String(statusJson.error) : 'GeraÃ§Ã£o falhou no Fal AI'
         await markStudioAssetFailed({ admin, assetId: id, errorMsg, refundReason: `sync:fal-${String(statusJson.status).toLowerCase()}` })
         return NextResponse.json({ status: 'error', error: errorMsg })
       }
 
       return NextResponse.json({ status: statusJson.status ?? 'processing' })
-
-    } catch (err: unknown) {
-      const errorMessage = getErrorMessage(err)
+    } catch (error: unknown) {
+      const errorMessage = getErrorMessage(error)
       console.error(`[sync] Fal AI check failed for ${id}:`, errorMessage)
       return NextResponse.json({ status: 'error', error: errorMessage }, { status: 500 })
     }
   }
 
-  // ── Replicate fallback (outros tipos futuros)
   try {
     const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN! })
     const prediction = await replicate.predictions.get(predictionId)
@@ -294,14 +325,14 @@ export async function POST(
     }
 
     if (prediction.status === 'failed' || prediction.status === 'canceled') {
-      const errorMsg = prediction.error ? String(prediction.error) : 'Geração falhou no Replicate'
+      const errorMsg = prediction.error ? String(prediction.error) : 'GeraÃ§Ã£o falhou no Replicate'
       await markStudioAssetFailed({ admin, assetId: id, errorMsg, refundReason: `sync:replicate-${prediction.status}` })
       return NextResponse.json({ status: 'error', error: errorMsg })
     }
 
     return NextResponse.json({ status: prediction.status })
-  } catch (err: unknown) {
-    const errorMessage = getErrorMessage(err)
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error)
     console.error(`[sync] Replicate check failed for ${id}:`, errorMessage)
     return NextResponse.json({ status: 'error', error: errorMessage }, { status: 500 })
   }

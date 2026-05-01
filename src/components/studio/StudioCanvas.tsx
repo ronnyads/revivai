@@ -37,7 +37,7 @@ function areNodeSelectionsEqual(previous: string[], next: string[]) {
 }
 
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12, look_split: 6,
+  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, talking_video: 50, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12, look_split: 6,
 }
 
 const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
@@ -46,6 +46,17 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   image:   { prompt: '', style: 'ugc', aspect_ratio: '9:16' },
   voice:   { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 },
   video:   { source_image_url: '', motion_prompt: '', duration: 5 },
+  talking_video: {
+    source_image_url: '',
+    talking_video_mode: 'exact_speech',
+    idea_prompt: '',
+    speech_text: '',
+    expression_direction: '',
+    visual_prompt: '',
+    voice_id: 'EXAVITQu4vr4xnSDxMaL',
+    speed: 1.0,
+    quality: '720p',
+  },
   caption: { audio_url: '' },
   upscale: { source_url: '', scale: 4 },
   render:  { source_image_url: '', audio_url: '' },
@@ -446,7 +457,6 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           )))
         } else {
           const message = 'Conecte uma imagem/modelo ao campo Modelo antes de gerar o Provador.'
-          alert(message)
           setAssets(prev => prev.map((asset) => (
             asset.id === existingId
               ? { ...asset, status: 'error', error_msg: message }
@@ -504,10 +514,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           : a
       ))
 
-      setCredits(c => c - asset.credits_cost)
+      if (asset.status !== 'error') {
+        setCredits(c => c - asset.credits_cost)
+      }
       if (asset.status === 'processing') startPolling(asset.id)
     } catch (err: any) {
-      alert(err.message)
       setAssets(prev => prev.map(a =>
         a.id === existingId ? { ...a, status: 'error', error_msg: err.message ?? 'Erro na geração' } : a
       ))
@@ -814,7 +825,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
       // Categorias de saída por tipo
       const isImage = (x: AssetType) => ['model', 'image', 'compose', 'upscale', 'angles', 'face', 'ugc_bundle', 'scene'].includes(x)
-      const isVideo = (x: AssetType) => ['video', 'animate', 'lipsync', 'render', 'join'].includes(x)
+      const isVideo = (x: AssetType) => ['video', 'talking_video', 'animate', 'lipsync', 'render', 'join'].includes(x)
       const isAudio = (x: AssetType) => ['voice', 'music'].includes(x)
       const isText  = (x: AssetType) => x === 'script'
 
@@ -830,6 +841,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           if (isImage(s))        return 'source_image_url'
           if (isVideo(s))        return 'continuation_frame'
           if (isAudio(s))        return 'audio_url'
+          break
+
+        case 'talking_video':
+          if (isImage(s))        return 'source_image_url'
           break
 
         case 'voice':
@@ -1469,8 +1484,9 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           }}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.12 }}
+          fitView={assets.length === 0}
+          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+          fitViewOptions={{ padding: 0.08 }}
           minZoom={0.32}
           maxZoom={1.35}
           connectionMode={ConnectionMode.Loose}

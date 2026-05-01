@@ -7,6 +7,7 @@ import ImageGenerator from './ImageGenerator'
 import ScriptGenerator from './ScriptGenerator'
 import VoiceGenerator from './VoiceGenerator'
 import VideoGenerator from './VideoGenerator'
+import TalkingVideoGenerator from './TalkingVideoGenerator'
 import CaptionGenerator from './CaptionGenerator'
 import UpscaleCard from './UpscaleCard'
 import FaceGenerator from './FaceGenerator'
@@ -23,6 +24,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   render:  { icon: <Video size={15} />,    label: 'Vídeo Final', color: 'text-rose-400'   },
   image:   { icon: <Image size={15} />,    label: 'Imagem',      color: 'text-violet-400' },
   video:   { icon: <Video size={15} />,    label: 'Vídeo',      color: 'text-blue-400' },
+  talking_video: { icon: <Mic size={15} />, label: 'VÃ­deo com Fala', color: 'text-cyan-400' },
   voice:   { icon: <Mic size={15} />,      label: 'Voz',        color: 'text-emerald-400' },
   upscale: { icon: <ZoomIn size={15} />,   label: 'Upscale',    color: 'text-amber-400' },
   script:  { icon: <FileText size={15} />, label: 'Script',     color: 'text-pink-400' },
@@ -44,11 +46,13 @@ const USE_AS_ACTIONS: Partial<Record<AssetType, Array<{ targetType: AssetType; l
     { targetType: 'ugc_bundle', label: 'Gerar 8 Poses UGC', getParams: a => ({ source_url: a.result_url }) },
   ],
   image: [
+    { targetType: 'talking_video', label: 'Usar no Video com Fala', getParams: a => ({ source_image_url: a.result_url, talking_video_mode: 'exact_speech', idea_prompt: '', speech_text: '', expression_direction: '', visual_prompt: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0, quality: '720p' }) },
     { targetType: 'video',   label: 'Usar no Vídeo',   getParams: a => ({ source_image_url: a.result_url, motion_prompt: '', duration: 5 }) },
     { targetType: 'upscale', label: 'Fazer Upscale',   getParams: a => ({ source_url: a.result_url, scale: 4 }) },
     { targetType: 'ugc_bundle', label: 'Gerar 8 Poses UGC', getParams: a => ({ source_url: a.result_url }) },
   ],
   upscale: [
+    { targetType: 'talking_video', label: 'Usar no Video com Fala', getParams: a => ({ source_image_url: a.result_url, talking_video_mode: 'exact_speech', idea_prompt: '', speech_text: '', expression_direction: '', visual_prompt: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0, quality: '720p' }) },
     { targetType: 'video',   label: 'Usar no Vídeo',   getParams: a => ({ source_image_url: a.result_url, motion_prompt: '', duration: 5 }) },
   ],
   script: [
@@ -200,7 +204,7 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
   if (type === 'image' || type === 'upscale' || type === 'face') {
     return <img src={url} alt="Resultado" className="w-full rounded-xl object-cover max-h-64" />
   }
-  if (type === 'video' || type === 'join') {
+  if (type === 'video' || type === 'talking_video' || type === 'join') {
     return <video src={url} controls className="w-full rounded-xl max-h-64" playsInline />
   }
   if (type === 'voice' || type === 'music') {
@@ -306,6 +310,7 @@ function FormForType({ type, initialParams, onGenerate }: {
   if (type === 'script')  return <ScriptGenerator  initial={initialParams} onGenerate={onGenerate} />
   if (type === 'voice')   return <VoiceGenerator   initial={initialParams} onGenerate={onGenerate} />
   if (type === 'video')   return <VideoGenerator   initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'talking_video') return <TalkingVideoGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'caption') return <CaptionGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'upscale') return <UpscaleCard      initial={initialParams} onGenerate={onGenerate} />
   if (type === 'angles')  return <AngleGenerator   initial={initialParams} onGenerate={onGenerate} />

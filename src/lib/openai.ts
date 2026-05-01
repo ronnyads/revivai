@@ -497,6 +497,10 @@ export interface CompositionQualityOptions {
   variant?: 'product' | 'fitting'
   fittingCategory?: string
   fittingRoute?: string
+  referenceImage?: {
+    mimeType: string
+    dataBase64: string
+  }
 }
 
 function getFittingCategoryQualityRule(category?: string): string {
@@ -624,6 +628,8 @@ export async function assessCompositionQuality(
   const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
   if (!apiKey) return { approved: true, score: 80, issues: [] }
 
+  const referenceImage = options?.referenceImage ?? await urlToInlineData(productUrl)
+
   const featuresLine = profile?.key_features?.length
     ? `Product key features to verify: ${profile.key_features.join(', ')}.`
     : ''
@@ -724,7 +730,7 @@ Respond with valid JSON only:
             parts: [
               { text: prompt },
               { text: 'FIRST IMAGE — original product:' },
-              { inlineData: { mimeType: 'image/jpeg', data: await urlToBase64(productUrl) } },
+              { inlineData: { mimeType: referenceImage.mimeType, data: referenceImage.dataBase64 } },
               { text: 'SECOND IMAGE — composed photo:' },
               { inlineData: { mimeType: 'image/jpeg', data: composedImageBase64 } },
             ],
@@ -751,8 +757,12 @@ Respond with valid JSON only:
   }
 }
 
-async function urlToBase64(url: string): Promise<string> {
+async function urlToInlineData(url: string): Promise<{ mimeType: string; dataBase64: string }> {
   const res = await fetch(url)
+  const mimeType = res.headers.get('content-type') || 'image/jpeg'
   const buf = await res.arrayBuffer()
-  return Buffer.from(buf).toString('base64')
+  return {
+    mimeType,
+    dataBase64: Buffer.from(buf).toString('base64'),
+  }
 }

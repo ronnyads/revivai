@@ -4,8 +4,9 @@ export const maxDuration = 300
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos, generateAngles, generateMusic, generateUGCPositions, generateScene, splitLookReferences } from '@/lib/studio'
+import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, preflightProvadorPricing, startLipsyncGeneration, joinVideos, generateAngles, generateMusic, generateUGCPositions, generateScene, splitLookReferences, prepareLockedVideoMotionPrompt, prepareTalkingVideoPrompt, estimateTalkingSpeechDurationSeconds, measureAudioDurationSeconds, incrementTalkingPipelineAttempts } from '@/lib/studio'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
+import { getLogicalStudioAssetType, getPersistedStudioAssetType, mapStudioAssetType } from '@/lib/studioAssetType'
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
 
@@ -19,6 +20,7 @@ type ExistingAssetOwnership = {
   project_id: string
   user_id: string
   type: AssetType
+  input_params?: Record<string, unknown>
 }
 
 type ConnectionRecoveryRow = {
@@ -68,6 +70,148 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {}
+}
+
+function resolveAppUrl(req: NextRequest) {
+  const origin = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
+  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
+  return origin
+    ? (origin.startsWith('http') ? origin : `https://${origin}`)
+    : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
+}
+
+async function withStageRetry<T>(
+  task: () => Promise<T>,
+  options: {
+    attempts: number
+    isRetryable?: (error: unknown) => boolean
+  },
+) {
+  let lastError: unknown
+  for (let attempt = 0; attempt < options.attempts; attempt += 1) {
+    try {
+      return await task()
+    } catch (error) {
+      lastError = error
+      const retryable = options.isRetryable
+        ? options.isRetryable(error)
+        : (error instanceof Error
+          ? /timeout|timed out|429|rate limit|ECONNRESET|fetch failed|network/i.test(error.message)
+          : false)
+      if (!retryable || attempt === options.attempts - 1) break
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
+
+const COMPOSE_RUNTIME_INPUT_KEYS = new Set([
+  'engine_trace',
+  'retry_reason',
+  'fitting_route',
+  'stage1_engine',
+  'stage2_engine',
+  'final_qc_status',
+  'qc_failure_kind',
+  'vertex_call_count',
+  'candidate_attempts',
+  'ignored_prop_types',
+  'omitted_item_count',
+  'accessory_set_count',
+  'detected_categories',
+  'editorial_qc_status',
+  'gemini_models_tried',
+  'selected_item_zones',
+  'accessory_qc_results',
+  'fallback_branch_used',
+  'accessory_total_count',
+  'fitting_primary_route',
+  'fitting_rescue_engine',
+  'fitting_rescue_policy',
+  'segmented_items_count',
+  'vertex_execution_path',
+  'reference_padding_mode',
+  'editorial_finisher_used',
+  'editorial_props_applied',
+  'vertex_prediction_count',
+  'accessory_detected_count',
+  'accessory_detected_types',
+  'accessory_detected_zones',
+  'accessory_reference_kind',
+  'accessory_reference_mode',
+  'editorial_finisher_model',
+  'estimated_cost_breakdown',
+  'selected_item_categories',
+  'vertex_validation_target',
+  'editorial_prop_candidates',
+  'primary_wearable_category',
+  'vertex_product_count_sent',
+  'gemini_image_attempt_count',
+  'editorial_finisher_eligible',
+  'estimated_provider_cost_usd',
+  'fitting_generation_strategy',
+  'vertex_candidate_categories',
+  'editorial_finisher_attempted',
+  'preflight_ignored_prop_types',
+  'vertex_multi_product_candidate',
+  'vertex_product_count_requested',
+  'vertex_requested_product_count',
+  'accessory_overlay_skipped_reason',
+  'editorial_finisher_attempt_count',
+  'single_photo_segmented_item_count',
+  'vertex_single_photo_fallback_used',
+  'preflight_accessory_detected_types',
+  'single_photo_group_decision_source',
+  'preflight_primary_wearable_category',
+  'vertex_single_photo_fallback_trigger',
+  'single_photo_primary_wearable_category',
+  'vertex_single_photo_fallback_attempted',
+  'fitting_reference_mode_internal',
+  'auto_split_attempted',
+  'auto_split_selected_categories',
+  'auto_split_reference_count',
+  'qc_failure_category',
+  'auto_split_failed_stage',
+  'vertex_batch_sent_all_items',
+  'vertex_batch_qc_weakest',
+  'vertex_batch_qc_issues',
+  'vertex_batch_error',
+  'vertex_sequence_categories',
+  'vertex_sequence_steps',
+  'accessory_reference_count',
+  'failure_state',
+  'next_action',
+  'guided_split_generated',
+  'guided_split_reference_count',
+  'guided_split_categories',
+  'guided_split_status',
+  'guided_split_references',
+  'outerwear_failure_policy',
+  'accessory_core_policy',
+  'outerwear_policy',
+  'accessories_overlay_only',
+  'structural_categories_detected',
+  'accessory_categories_detected',
+  'escalation_reason',
+  'credit_protected',
+  'duplicate_charge_blocked',
+  'billing_reason',
+  'single_photo_primary_product_type',
+  'single_photo_garment_priority_applied',
+  'single_photo_overlay_only_categories',
+  'single_photo_ignored_props',
+])
+
+function sanitizeComposeInputParams(input: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(input).filter(([key]) => {
+      if (COMPOSE_RUNTIME_INPUT_KEYS.has(key)) return false
+      if (
+        key.startsWith('credit_refund')
+        || key.startsWith('credit_refunded')
+      ) return false
+      return true
+    }),
+  )
 }
 
 async function recoverPortraitUrlFromConnections(params: {
@@ -147,6 +291,7 @@ export async function POST(req: NextRequest) {
     frontend_id?: string
   }
   const isDraft = body.status === 'idle'
+  const persistedType = getPersistedStudioAssetType(type)
 
   if (!project_id || !type) return NextResponse.json({ error: 'project_id e type obrigatÃ³rios' }, { status: 400 })
 
@@ -174,7 +319,7 @@ export async function POST(req: NextRequest) {
   if (requestedAssetId) {
     const { data: existingAsset, error: existingAssetErr } = await admin
       .from('studio_assets')
-      .select('id, project_id, user_id, type')
+      .select('id, project_id, user_id, type, input_params')
       .eq('id', requestedAssetId)
       .maybeSingle()
 
@@ -187,7 +332,7 @@ export async function POST(req: NextRequest) {
       if (ownedAsset.user_id !== user.id || ownedAsset.project_id !== project_id) {
         return NextResponse.json({ error: 'Asset nÃ£o pertence a este projeto' }, { status: 403 })
       }
-      if (ownedAsset.type !== type) {
+      if (getLogicalStudioAssetType(ownedAsset.type, ownedAsset.input_params) !== type) {
         return NextResponse.json({ error: 'Tipo do asset nÃ£o pode ser alterado' }, { status: 409 })
       }
     } else if (existing_id) {
@@ -199,8 +344,17 @@ export async function POST(req: NextRequest) {
 
   let normalizedInputParams: Record<string, unknown> = { ...(input_params ?? {}) }
   if (type === 'compose') {
+    normalizedInputParams = sanitizeComposeInputParams(normalizedInputParams)
+    const composeRestInputParams = { ...normalizedInputParams }
+    delete composeRestInputParams.fitting_group
     const composeVariant = String(normalizedInputParams.compose_variant ?? 'fitting')
     const composeMode = String(normalizedInputParams.compose_mode ?? 'try-on')
+    const fittingGroup =
+      normalizedInputParams.fitting_group === 'fashion_accessories'
+        ? 'fashion_accessories'
+        : normalizedInputParams.fitting_group === 'wearables'
+          ? 'wearables'
+          : undefined
     const rawProductUrl = normalizeOptionalUrl(normalizedInputParams.product_url)
     const normalizedProductUrls = Array.isArray(normalizedInputParams.product_urls)
       ? normalizedInputParams.product_urls
@@ -213,9 +367,10 @@ export async function POST(req: NextRequest) {
       : normalizedProductUrls[0]
 
     normalizedInputParams = {
-      ...normalizedInputParams,
+      ...composeRestInputParams,
       compose_variant: composeVariant,
       compose_mode: composeMode,
+      ...(fittingGroup ? { fitting_group: fittingGroup } : {}),
       product_url: resolvedProductUrl ?? '',
       product_urls: normalizedProductUrls,
       portrait_url: normalizeOptionalUrl(normalizedInputParams.portrait_url) ?? '',
@@ -306,20 +461,260 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (type === 'video') {
+    const sourceImageUrl = normalizeOptionalUrl(normalizedInputParams.source_image_url)
+    const continuationFrame = normalizeOptionalUrl(normalizedInputParams.continuation_frame)
+    const motionPromptRaw = typeof normalizedInputParams.motion_prompt === 'string'
+      ? normalizedInputParams.motion_prompt.trim()
+      : ''
+    const modelPrompt = typeof normalizedInputParams.model_prompt === 'string'
+      ? normalizedInputParams.model_prompt.trim()
+      : ''
+    const videoPromptPolicy = prepareLockedVideoMotionPrompt({
+      motionPrompt: motionPromptRaw,
+      modelPrompt: modelPrompt || undefined,
+    })
+
+    normalizedInputParams = {
+      ...normalizedInputParams,
+      source_image_url: sourceImageUrl ?? '',
+      continuation_frame: continuationFrame ?? '',
+      motion_prompt: motionPromptRaw,
+      motion_prompt_raw: videoPromptPolicy.rawPrompt,
+      motion_prompt_normalized: videoPromptPolicy.normalizedPrompt,
+      video_lock_policy: videoPromptPolicy.videoLockPolicy,
+      scene_change_requested: videoPromptPolicy.sceneChangeRequested,
+      scene_change_blocked: false,
+      removed_directives: videoPromptPolicy.removedDirectives,
+    }
+
+    if (!isDraft) {
+      if (!sourceImageUrl && !continuationFrame) {
+        return createAssetInputError(
+          'source_image_url_required',
+          'Conecte uma imagem base ou uma continuacao antes de gerar o video.',
+        )
+      }
+
+      if (videoPromptPolicy.sceneChangeRequested) {
+        console.warn('[studio] video-input-invalid | field=motion_prompt reason=scene-change-requested')
+        return createAssetInputError(
+          'video_scene_change_requires_scene_card',
+          'Esse card de video so anima o frame atual. Para trocar cenario ou ambiente, gere a cena correta em Cena Livre e depois volte para Video.',
+        )
+      }
+    }
+  }
+
+  if (type === 'talking_video') {
+    const sourceImageUrl = normalizeOptionalUrl(normalizedInputParams.source_image_url)
+    const talkingVideoMode = String(normalizedInputParams.talking_video_mode ?? 'exact_speech') === 'veo_natural'
+      ? 'veo_natural'
+      : 'exact_speech'
+    const ideaPromptInputRaw = typeof normalizedInputParams.idea_prompt === 'string'
+      ? normalizedInputParams.idea_prompt.trim()
+      : ''
+    const speechTextInputRaw = typeof normalizedInputParams.speech_text === 'string'
+      ? normalizedInputParams.speech_text.trim()
+      : ''
+    const expressionDirectionInputRaw = typeof normalizedInputParams.expression_direction === 'string'
+      ? normalizedInputParams.expression_direction.trim()
+      : ''
+    const visualPromptInputRaw = typeof normalizedInputParams.visual_prompt === 'string'
+      ? normalizedInputParams.visual_prompt.trim()
+      : ''
+    const voiceId = typeof normalizedInputParams.voice_id === 'string' && normalizedInputParams.voice_id.trim()
+      ? normalizedInputParams.voice_id.trim()
+      : 'EXAVITQu4vr4xnSDxMaL'
+    const speed = Number(normalizedInputParams.speed ?? 1.0)
+    const quality = String(normalizedInputParams.quality ?? '720p') === '1080p' ? '1080p' : '720p'
+    const speechFieldLooksComposite =
+      !ideaPromptInputRaw
+      && !expressionDirectionInputRaw
+      && !visualPromptInputRaw
+      && /[\r\n#]/.test(speechTextInputRaw)
+      && /\b(expressao|performance|tom|camera|cena|visual|emoc|luz|ambiente)\b/i.test(speechTextInputRaw)
+    const ideaPromptForPolicy = ideaPromptInputRaw || (speechFieldLooksComposite ? speechTextInputRaw : '')
+    const speechTextForPolicy = speechFieldLooksComposite ? '' : speechTextInputRaw
+
+    let sourceAssetForPolicy: { type?: string; input_params?: Record<string, unknown> } | undefined
+    if (sourceImageUrl) {
+      let { data: sourceAssetRow } = await admin
+        .from('studio_assets')
+        .select('type, input_params')
+        .eq('project_id', project_id)
+        .eq('user_id', user.id)
+        .eq('result_url', sourceImageUrl)
+        .maybeSingle()
+
+      if (!sourceAssetRow) {
+        const fallbackQuery = await admin
+          .from('studio_assets')
+          .select('type, input_params')
+          .eq('project_id', project_id)
+          .eq('user_id', user.id)
+          .eq('last_frame_url', sourceImageUrl)
+          .maybeSingle()
+
+        sourceAssetRow = fallbackQuery.data ?? null
+      }
+
+      sourceAssetForPolicy = sourceAssetRow
+        ? {
+            type: String(sourceAssetRow.type ?? ''),
+            input_params: asRecord(sourceAssetRow.input_params),
+          }
+        : undefined
+    }
+
+    const talkingPolicy = prepareTalkingVideoPrompt({
+      mode: talkingVideoMode,
+      ideaPrompt: ideaPromptForPolicy,
+      speechText: speechTextForPolicy,
+      expressionDirection: expressionDirectionInputRaw,
+      visualPrompt: visualPromptInputRaw,
+      sourceAsset: sourceAssetForPolicy,
+    })
+
+    normalizedInputParams = {
+      ...normalizedInputParams,
+      asset_variant: 'talking_video',
+      source_image_url: sourceImageUrl ?? '',
+      talking_video_mode: talkingVideoMode,
+      idea_prompt: talkingPolicy.ideaPrompt,
+      idea_prompt_raw: ideaPromptForPolicy,
+      composite_input_detected: speechFieldLooksComposite,
+      speech_detection_source: talkingPolicy.speechSource,
+      speech_text: talkingPolicy.speechTextRaw,
+      speech_text_input_raw: speechTextInputRaw,
+      speech_text_raw: talkingPolicy.speechTextRaw,
+      speech_text_normalized: talkingPolicy.speechTextNormalized,
+      expression_direction: talkingPolicy.expressionDirection,
+      expression_direction_input_raw: expressionDirectionInputRaw,
+      visual_prompt: talkingPolicy.visualPromptRaw,
+      visual_prompt_input_raw: visualPromptInputRaw,
+      visual_prompt_raw: talkingPolicy.visualPromptRaw,
+      visual_prompt_normalized: talkingPolicy.visualPromptNormalized,
+      talking_video_prompt_final: talkingPolicy.finalPrompt,
+      voice_id: voiceId,
+      speed,
+      quality,
+      estimated_speech_seconds: talkingPolicy.estimatedSpeechSeconds,
+      actual_speech_seconds: null,
+      generated_voice_asset_id: String(normalizedInputParams.generated_voice_asset_id ?? ''),
+      generated_voice_url: String(normalizedInputParams.generated_voice_url ?? ''),
+      talking_video_policy: talkingPolicy.talkingVideoPolicy,
+      model_identity_lock: true,
+      product_lock_mode: talkingPolicy.productLockMode,
+      product_visibility_confidence: talkingPolicy.productVisibilityConfidence,
+      scene_freedom_level: talkingPolicy.sceneFreedomLevel,
+      camera_motion_policy: talkingPolicy.cameraMotionPolicy,
+      removed_directives: talkingPolicy.removedDirectives,
+      pipeline_stage: 'validating',
+      pipeline_attempts: incrementTalkingPipelineAttempts(normalizedInputParams.pipeline_attempts, 'validating'),
+      idempotency_key: String(normalizedInputParams.idempotency_key ?? crypto.randomUUID()),
+    }
+
+    if (!isDraft) {
+      if (!sourceImageUrl) {
+        return createAssetInputError(
+          'talking_video_source_required',
+          'Conecte uma imagem base antes de gerar o Video com Fala.',
+        )
+      }
+
+      if (talkingVideoMode === 'exact_speech' && !talkingPolicy.speechTextRaw) {
+        return createAssetInputError(
+          'talking_video_speech_required',
+          ideaPromptForPolicy || speechFieldLooksComposite
+            ? 'Nao consegui detectar a fala exata com seguranca. Coloque a frase entre aspas ou comece pela fala na primeira linha.'
+            : 'Escreva a frase que a modelo deve falar no modo Frase exata.',
+        )
+      }
+
+      if (talkingVideoMode === 'veo_natural' && !talkingPolicy.speechTextRaw && !talkingPolicy.visualPromptRaw) {
+        return createAssetInputError(
+          'talking_video_prompt_required',
+          'Descreva a ideia do video ou cole a fala com a cena desejada antes de gerar.',
+        )
+      }
+
+      const backendSpeechEstimate = estimateTalkingSpeechDurationSeconds({
+        text: talkingPolicy.speechTextNormalized,
+        speed,
+      })
+      normalizedInputParams.estimated_speech_seconds = backendSpeechEstimate
+
+      if (talkingVideoMode === 'exact_speech' && backendSpeechEstimate > 8.05) {
+        return createAssetInputError(
+          'talking_video_speech_too_long',
+          'A fala detectada ultrapassa o limite seguro de 8 segundos. Encurte a frase principal antes de gerar.',
+        )
+      }
+    }
+  }
+
   const baseCost = CREDIT_COST[type] ?? 1
   let effectiveCost = baseCost
+  let composePricingPreflight:
+    | Awaited<ReturnType<typeof preflightProvadorPricing>>
+    | undefined
+  if (
+    type === 'compose'
+    && !isDraft
+    && String(normalizedInputParams.compose_variant ?? 'fitting') === 'fitting'
+  ) {
+    composePricingPreflight = await preflightProvadorPricing({
+      product_url: String(normalizedInputParams.product_url ?? ''),
+      product_urls: Array.isArray(normalizedInputParams.product_urls)
+        ? normalizedInputParams.product_urls.filter((value): value is string => typeof value === 'string')
+        : undefined,
+      fitting_group: normalizedInputParams.fitting_group ? String(normalizedInputParams.fitting_group) : undefined,
+      fitting_category: normalizedInputParams.fitting_category ? String(normalizedInputParams.fitting_category) : undefined,
+      vton_category: normalizedInputParams.vton_category ? String(normalizedInputParams.vton_category) : undefined,
+    })
+    normalizedInputParams = {
+      ...normalizedInputParams,
+      pricing_strategy: composePricingPreflight.pricingStrategy,
+      pricing_tier: composePricingPreflight.pricingTier,
+      estimated_provider_cost_usd: composePricingPreflight.estimatedProviderCostUsd,
+      estimated_cost_breakdown: composePricingPreflight.estimatedCostBreakdown,
+      fitting_strategy: composePricingPreflight.fittingStrategy,
+      fitting_group_request_mode: composePricingPreflight.fittingGroupRequestMode,
+      fitting_reference_mode: composePricingPreflight.referenceMode,
+      fitting_reference_mix_mode: composePricingPreflight.referenceMixMode,
+      editorial_finisher_eligible: composePricingPreflight.editorialFinisherEligible,
+      preflight_primary_wearable_category: composePricingPreflight.primaryWearableCategory ?? '',
+      single_photo_primary_product_type: composePricingPreflight.singlePhotoPrimaryProductType ?? '',
+      single_photo_garment_priority_applied: composePricingPreflight.singlePhotoGarmentPriorityApplied ?? false,
+      preflight_accessory_detected_types: composePricingPreflight.accessoryDetectedTypes,
+      preflight_ignored_prop_types: composePricingPreflight.ignoredPropTypes,
+    }
+    effectiveCost = composePricingPreflight.creditsCost
+  }
   if (type === 'video' && String(normalizedInputParams?.engine ?? '') === 'veo') {
     effectiveCost = CREDIT_COST['video_veo'] ?? 50
   }
+  if (type === 'talking_video') {
+    const videoCost = CREDIT_COST['video_veo'] ?? 50
+    const exactSpeech = String(normalizedInputParams.talking_video_mode ?? 'exact_speech') === 'exact_speech'
+    effectiveCost = exactSpeech
+      ? videoCost + (CREDIT_COST.voice ?? 8) + (CREDIT_COST.lipsync ?? 20)
+      : videoCost
+  }
   // Dobra o custo se a qualidade for 1080p HQ
   if (String(normalizedInputParams?.quality ?? '') === '1080p') {
-    effectiveCost *= 2
+    if (type === 'talking_video') {
+      effectiveCost += CREDIT_COST['video_veo'] ?? 50
+    } else {
+      effectiveCost *= 2
+    }
   }
   const { data: profile } = await admin.from('users').select('credits, plan').eq('id', user.id).single()
 
   // Bloqueia vídeo/animação/lipsync para plano Explorador (free)
   const PAID_PLANS = ['subscription', 'package', 'starter', 'popular', 'pro', 'agency']
-  const VIDEO_TYPES = ['video', 'animate', 'lipsync']
+  const VIDEO_TYPES = ['video', 'talking_video', 'animate', 'lipsync']
   if (VIDEO_TYPES.includes(type) && !PAID_PLANS.includes(profile?.plan ?? '')) {
     return NextResponse.json({ error: 'Geração de vídeo disponível apenas nos planos pagos. Faça upgrade para continuar.' }, { status: 403 })
   }
@@ -333,7 +728,7 @@ export async function POST(req: NextRequest) {
   const insertData: Record<string, unknown> = {
     project_id, 
     user_id: user.id, 
-    type, 
+    type: persistedType,
     status, 
     input_params: normalizedInputParams, 
     credits_cost: isDraft ? 0 : effectiveCost,
@@ -351,6 +746,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: dbErr?.message ?? 'Erro ao criar registro' }, { status: 500 })
   }
   const asset = inserted as StudioAssetRecord
+  const responseAsset = mapStudioAssetType(asset as StudioAssetRecord & { type: AssetType; input_params?: Record<string, unknown> })
 
   await admin
     .from('studio_projects')
@@ -359,7 +755,7 @@ export async function POST(req: NextRequest) {
     .eq('user_id', user.id)
 
   // Se for rascunho, para aqui
-  if (isDraft) return NextResponse.json({ asset }, { status: 201 })
+  if (isDraft) return NextResponse.json({ asset: responseAsset }, { status: 201 })
 
   // 3. COBRANÇA IMEDIATA (Atomic Debit)
   // Debita antes de gastar com as APIs externas de IA.
@@ -471,8 +867,17 @@ export async function POST(req: NextRequest) {
 
       if (input_params.engine === 'veo') {
         await startVeo3DirectGoogle({
-          source_image_url: String(input_params.source_image_url ?? ''),
-          motion_prompt:    String(input_params.motion_prompt ?? ''),
+          source_image_url: sourceImageUrl,
+          motion_prompt:    String(normalizedInputParams.motion_prompt_normalized ?? normalizedInputParams.motion_prompt ?? ''),
+          model_prompt: normalizedInputParams.model_prompt ? String(normalizedInputParams.model_prompt) : undefined,
+          motion_prompt_raw: String(normalizedInputParams.motion_prompt_raw ?? normalizedInputParams.motion_prompt ?? ''),
+          motion_prompt_normalized: String(normalizedInputParams.motion_prompt_normalized ?? normalizedInputParams.motion_prompt ?? ''),
+          removed_directives: Array.isArray(normalizedInputParams.removed_directives)
+            ? normalizedInputParams.removed_directives.filter((value): value is string => typeof value === 'string')
+            : [],
+          video_lock_policy: String(normalizedInputParams.video_lock_policy ?? ''),
+          scene_change_requested: Boolean(normalizedInputParams.scene_change_requested),
+          scene_change_blocked: Boolean(normalizedInputParams.scene_change_blocked),
           duration:         Number(input_params.duration ?? 5),
           quality:          String(input_params.quality ?? '720p'),
           assetId:          asset.id,
@@ -481,22 +886,112 @@ export async function POST(req: NextRequest) {
       } else {
         await startVideoGeneration({
           source_image_url: sourceImageUrl,
-          motion_prompt: String(input_params.motion_prompt ?? ''),
+          motion_prompt: String(normalizedInputParams.motion_prompt_normalized ?? normalizedInputParams.motion_prompt ?? ''),
           duration: Number(input_params.duration ?? 5),
-          model_prompt: input_params.model_prompt ? String(input_params.model_prompt) : undefined,
+          model_prompt: normalizedInputParams.model_prompt ? String(normalizedInputParams.model_prompt) : undefined,
+          motion_prompt_raw: String(normalizedInputParams.motion_prompt_raw ?? normalizedInputParams.motion_prompt ?? ''),
+          motion_prompt_normalized: String(normalizedInputParams.motion_prompt_normalized ?? normalizedInputParams.motion_prompt ?? ''),
+          removed_directives: Array.isArray(normalizedInputParams.removed_directives)
+            ? normalizedInputParams.removed_directives.filter((value): value is string => typeof value === 'string')
+            : [],
+          video_lock_policy: String(normalizedInputParams.video_lock_policy ?? ''),
+          scene_change_requested: Boolean(normalizedInputParams.scene_change_requested),
+          scene_change_blocked: Boolean(normalizedInputParams.scene_change_blocked),
           assetId: asset.id,
           userId: user.id,
           appUrl,
         })
       }
-      return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
+      return NextResponse.json({ asset: { ...responseAsset, status: 'processing' } }, { status: 201 })
+
+    } else if (type === 'talking_video') {
+      const talkingMode = String(normalizedInputParams.talking_video_mode ?? 'exact_speech') === 'veo_natural'
+        ? 'veo_natural'
+        : 'exact_speech'
+      const sourceImageUrl = String(normalizedInputParams.source_image_url ?? '')
+      const voiceId = String(normalizedInputParams.voice_id ?? 'EXAVITQu4vr4xnSDxMaL')
+      const speed = Number(normalizedInputParams.speed ?? 1.0)
+      const quality = String(normalizedInputParams.quality ?? '720p')
+      const promptOverride = String(normalizedInputParams.talking_video_prompt_final ?? '')
+      let pipelineAttempts = asRecord(normalizedInputParams.pipeline_attempts)
+
+      if (talkingMode === 'exact_speech') {
+        pipelineAttempts = incrementTalkingPipelineAttempts(pipelineAttempts, 'voice_generating')
+        await admin.from('studio_assets').update({
+          input_params: {
+            ...normalizedInputParams,
+            pipeline_stage: 'voice_generating',
+            pipeline_attempts: pipelineAttempts,
+          },
+        }).eq('id', asset.id)
+
+        const generatedVoiceUrl = await withStageRetry(
+          () => generateVoice({
+            script: String(normalizedInputParams.speech_text_normalized ?? normalizedInputParams.speech_text ?? ''),
+            voice_id: voiceId,
+            speed,
+            assetId: `${asset.id}-voice`,
+            userId: user.id,
+          }),
+          { attempts: 2 },
+        )
+
+        pipelineAttempts = incrementTalkingPipelineAttempts(pipelineAttempts, 'voice_duration_check')
+        await admin.from('studio_assets').update({
+          input_params: {
+            ...normalizedInputParams,
+            generated_voice_asset_id: `${asset.id}-voice`,
+            generated_voice_url: generatedVoiceUrl,
+            pipeline_stage: 'voice_duration_check',
+            pipeline_attempts: pipelineAttempts,
+          },
+        }).eq('id', asset.id)
+
+        const actualSpeechSeconds = await measureAudioDurationSeconds(generatedVoiceUrl)
+        if (actualSpeechSeconds > 8) {
+          throw new Error(`A fala gerada ficou com ${actualSpeechSeconds.toFixed(1)}s e ultrapassou o limite de 8 segundos. Encurte o texto e tente novamente.`)
+        }
+
+        pipelineAttempts = incrementTalkingPipelineAttempts(pipelineAttempts, 'veo_generating')
+        await startVeo3DirectGoogle({
+          source_image_url: sourceImageUrl,
+          motion_prompt: String(normalizedInputParams.visual_prompt_normalized ?? normalizedInputParams.visual_prompt ?? ''),
+          prompt_override: promptOverride,
+          generate_audio: false,
+          duration: 8,
+          quality,
+          assetId: asset.id,
+          userId: user.id,
+          inputParamsPatch: {
+            generated_voice_asset_id: `${asset.id}-voice`,
+            generated_voice_url: generatedVoiceUrl,
+            actual_speech_seconds: actualSpeechSeconds,
+            pipeline_stage: 'veo_generating',
+            pipeline_attempts: pipelineAttempts,
+          },
+        })
+      } else {
+        pipelineAttempts = incrementTalkingPipelineAttempts(pipelineAttempts, 'veo_generating')
+        await startVeo3DirectGoogle({
+          source_image_url: sourceImageUrl,
+          motion_prompt: String(normalizedInputParams.visual_prompt_normalized ?? normalizedInputParams.visual_prompt ?? ''),
+          prompt_override: promptOverride,
+          generate_audio: true,
+          duration: 8,
+          quality,
+          assetId: asset.id,
+          userId: user.id,
+          inputParamsPatch: {
+            pipeline_stage: 'veo_generating',
+            pipeline_attempts: pipelineAttempts,
+          },
+        })
+      }
+
+      return NextResponse.json({ asset: { ...responseAsset, status: 'processing' } }, { status: 201 })
 
     } else if (type === 'animate') {
-      const origin    = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
-      const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
-      const appUrl    = origin
-        ? (origin.startsWith('http') ? origin : `https://${origin}`)
-        : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
+      const appUrl = resolveAppUrl(req)
       await startAnimateGeneration({
         portrait_image_url: String(input_params.portrait_image_url ?? ''),
         driving_video_url:  String(input_params.driving_video_url  ?? ''),
@@ -505,14 +1000,10 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         appUrl,
       })
-      return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
+      return NextResponse.json({ asset: { ...responseAsset, status: 'processing' } }, { status: 201 })
 
     } else if (type === 'lipsync') {
-      const origin    = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
-      const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
-      const appUrl    = origin
-        ? (origin.startsWith('http') ? origin : `https://${origin}`)
-        : (process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000')
+      const appUrl = resolveAppUrl(req)
 
       await startLipsyncGeneration({
         face_url:  String(input_params.face_url  ?? ''),
@@ -521,7 +1012,7 @@ export async function POST(req: NextRequest) {
         userId:  user.id,
         appUrl,
       })
-      return NextResponse.json({ asset: { ...asset, status: 'processing' } }, { status: 201 })
+      return NextResponse.json({ asset: { ...responseAsset, status: 'processing' } }, { status: 201 })
 
     } else if (type === 'compose') {
       const composeVariant = String(normalizedInputParams.compose_variant ?? 'fitting')
@@ -532,6 +1023,10 @@ export async function POST(req: NextRequest) {
         product_urls:  Array.isArray(normalizedInputParams.product_urls)
           ? normalizedInputParams.product_urls.filter((value): value is string => typeof value === 'string')
           : undefined,
+        guided_overlay_references: Array.isArray(normalizedInputParams.guided_overlay_references)
+          ? normalizedInputParams.guided_overlay_references
+              .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value))
+          : undefined,
         compose_mode:  composeVariant === 'fitting' ? 'vertex-vto' : composeMode,
         compose_variant: composeVariant,
         position:      normalizedInputParams.position ? String(normalizedInputParams.position) : 'southeast',
@@ -539,10 +1034,12 @@ export async function POST(req: NextRequest) {
         aspect_ratio: normalizedInputParams.aspect_ratio ? String(normalizedInputParams.aspect_ratio) : '9:16',
         vton_category: normalizedInputParams.vton_category ? String(normalizedInputParams.vton_category) : undefined,
         fitting_category: normalizedInputParams.fitting_category ? String(normalizedInputParams.fitting_category) : undefined,
+        fitting_group: normalizedInputParams.fitting_group ? String(normalizedInputParams.fitting_group) : undefined,
         fitting_pose_preset: normalizedInputParams.fitting_pose_preset ? String(normalizedInputParams.fitting_pose_preset) : undefined,
         fitting_energy_preset: normalizedInputParams.fitting_energy_preset ? String(normalizedInputParams.fitting_energy_preset) : undefined,
         costume_prompt: normalizedInputParams.costume_prompt ? String(normalizedInputParams.costume_prompt) : undefined,
         smart_prompt:  normalizedInputParams.smart_prompt ? String(normalizedInputParams.smart_prompt) : undefined,
+        pricing_preflight: composeVariant === 'fitting' ? composePricingPreflight : undefined,
         assetId: asset.id,
         userId:  user.id,
       })
@@ -631,7 +1128,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       asset: {
-        ...asset,
+        ...responseAsset,
         status: 'done',
         result_url: resultUrl,
         input_params: { ...normalizedInputParams, ...extraData },
@@ -648,12 +1145,16 @@ export async function POST(req: NextRequest) {
             studioRefundReason?: string
           }
         : {}
+    const failureInputParams = {
+      ...normalizedInputParams,
+      ...(failureMetadata.studioFailureData ?? {}),
+    }
     
     console.error(`[studio] CRITICAL ERROR [Asset ${asset?.id}]:`, {
       message: errorMsg,
       stack: errorStack,
       type,
-      input_params: normalizedInputParams
+      input_params: failureInputParams
     })
 
     if (asset?.id) {
@@ -662,8 +1163,23 @@ export async function POST(req: NextRequest) {
         assetId: asset.id,
         errorMsg,
         refundReason: failureMetadata.studioRefundReason ?? `sync-post:${type}`,
-        extraInputParams: failureMetadata.studioFailureData,
+        extraInputParams: failureInputParams,
       })
+    }
+
+    if (type === 'compose' && asset?.id && typeof failureInputParams.failure_state === 'string') {
+      const { data: updatedAsset, error: updatedAssetError } = await admin
+        .from('studio_assets')
+        .select('*')
+        .eq('id', asset.id)
+        .maybeSingle()
+
+      if (!updatedAssetError && updatedAsset) {
+        return NextResponse.json({
+          asset: mapStudioAssetType(updatedAsset),
+          guided: true,
+        }, { status: 201 })
+      }
     }
     
     return NextResponse.json({ 

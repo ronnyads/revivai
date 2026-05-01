@@ -22,6 +22,17 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   image:   { prompt: '', style: 'ugc', aspect_ratio: '9:16' },
   voice:   { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 },
   video:   { source_image_url: '', motion_prompt: '', duration: 5 },
+  talking_video: {
+    source_image_url: '',
+    talking_video_mode: 'exact_speech',
+    idea_prompt: '',
+    speech_text: '',
+    expression_direction: '',
+    visual_prompt: '',
+    voice_id: 'EXAVITQu4vr4xnSDxMaL',
+    speed: 1.0,
+    quality: '720p',
+  },
   caption: { audio_url: '' },
   upscale: { source_url: '', scale: 4 },
   render:  { source_image_url: '', audio_url: '' },
@@ -48,7 +59,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   look_split: { source_url: '', smart_prompt: '' },
 }
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12, look_split: 6,
+  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, talking_video: 50, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12, look_split: 6,
 }
 
 export default function BoardClient({ project, initialAssets, userCredits }: Props) {

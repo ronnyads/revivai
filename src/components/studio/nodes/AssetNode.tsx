@@ -34,6 +34,7 @@ import ImageGenerator from '../ImageGenerator'
 import ScriptGenerator from '../ScriptGenerator'
 import VoiceGenerator from '../VoiceGenerator'
 import VideoGenerator from '../VideoGenerator'
+import TalkingVideoGenerator from '../TalkingVideoGenerator'
 import CaptionGenerator from '../CaptionGenerator'
 import UpscaleCard from '../UpscaleCard'
 import ModelGenerator from '../ModelGenerator'
@@ -46,7 +47,7 @@ import MusicGenerator from '../MusicGenerator'
 import SceneGenerator from '../SceneGenerator'
 import UGCBundleGenerator from '../UGCBundleGenerator'
 import LookSplitGenerator from '../LookSplitGenerator'
-import { getStudioNodeCardWidth, getStudioNodeVisualState } from '../node-layout'
+import { getStudioNodeCardWidth } from '../node-layout'
 
 const TYPE_META: Record<
   AssetType,
@@ -91,6 +92,14 @@ const TYPE_META: Record<
     chip: 'border-blue-500/20 bg-blue-500/10 text-blue-100',
     hint: 'Transforma frame em take com movimento.',
     output: 'Take pronto',
+  },
+  talking_video: {
+    icon: <Mic size={14} />,
+    label: 'Video com Fala',
+    color: 'text-cyan-100',
+    chip: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-100',
+    hint: 'Gera uma performance falada preservando a identidade da modelo.',
+    output: 'Avatar pronto',
   },
   voice: {
     icon: <Mic size={14} />,
@@ -193,7 +202,7 @@ const TYPE_META: Record<
     label: 'Separar Look',
     color: 'text-cyan-100',
     chip: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-100',
-    hint: 'Divide 1 foto em ate 3 referencias fieis para o Provador.',
+    hint: 'Ferramenta manual para quebrar 1 look em ate 3 referencias fieis.',
     output: 'Refs prontas',
   },
 }
@@ -209,6 +218,7 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
     { id: 'model_prompt', label: 'Modelo' },
     { id: 'audio_url', label: 'Audio' },
   ],
+  talking_video: [{ id: 'source_image_url', label: 'Imagem' }],
   upscale: [{ id: 'source_url', label: 'Imagem' }],
   voice: [{ id: 'script', label: 'Script' }],
   caption: [{ id: 'audio_url', label: 'Audio' }],
@@ -244,8 +254,8 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
 }
 
 const PAID_PLANS = ['subscription', 'package', 'starter', 'popular', 'pro', 'agency']
-const VIDEO_LOCKED_TYPES: AssetType[] = ['video', 'animate', 'lipsync']
-const SYNC_TYPES: AssetType[] = ['video', 'animate', 'lipsync']
+const VIDEO_LOCKED_TYPES: AssetType[] = ['video', 'talking_video', 'animate', 'lipsync']
+const SYNC_TYPES: AssetType[] = ['video', 'talking_video', 'animate', 'lipsync']
 
 const STATUS_META = {
   idle: {
@@ -266,6 +276,8 @@ const STATUS_META = {
   },
 } as const
 
+const LATERAL_EDITOR_TYPES = new Set<AssetType>(['compose', 'scene', 'image', 'video', 'talking_video', 'look_split'])
+
 const FIELD_SUMMARIES: Partial<Record<AssetType, Array<{ field: string; label: string }>>> = {
   script: [
     { field: 'product', label: 'Produto' },
@@ -273,6 +285,7 @@ const FIELD_SUMMARIES: Partial<Record<AssetType, Array<{ field: string; label: s
   ],
   image: [{ field: 'prompt', label: 'Prompt' }],
   video: [{ field: 'motion_prompt', label: 'Movimento' }],
+  talking_video: [{ field: 'idea_prompt', label: 'Ideia' }],
   voice: [{ field: 'voice_id', label: 'Voz selecionada' }],
   compose: [
     { field: 'product_url', label: 'Produto' },
@@ -287,13 +300,15 @@ const NEXT_STEPS: Partial<Record<AssetType, { text: string; chip: string }>> = {
   model: { text: 'Use em Provador ou Cena Livre', chip: 'border-sky-500/18 bg-sky-500/10 text-sky-100' },
   compose: { text: 'Proximo passo: roteiro, voz ou video', chip: 'border-orange-500/18 bg-orange-500/10 text-orange-100' },
   video: { text: 'Conecte voz ou renderize o ad final', chip: 'border-blue-500/18 bg-blue-500/10 text-blue-100' },
+  talking_video: { text: 'Entrega um video final falado sem precisar montar Voice + Lipsync manualmente', chip: 'border-cyan-500/18 bg-cyan-500/10 text-cyan-100' },
   script: { text: 'Envie este texto para Voz', chip: 'border-pink-500/18 bg-pink-500/10 text-pink-100' },
   voice: { text: 'Combine com video no render final', chip: 'border-emerald-500/18 bg-emerald-500/10 text-emerald-100' },
-  look_split: { text: 'Conecte direto no Provador', chip: 'border-cyan-500/18 bg-cyan-500/10 text-cyan-100' },
+  look_split: { text: 'Opcional: conecte manualmente ao Provador', chip: 'border-cyan-500/18 bg-cyan-500/10 text-cyan-100' },
 }
 
 const ESTIMATED: Partial<Record<AssetType, number>> = {
   video: 300,
+  talking_video: 360,
   animate: 120,
   model: 35,
   image: 20,
@@ -312,6 +327,7 @@ const ESTIMATED: Partial<Record<AssetType, number>> = {
 
 const PROCESSING_LABELS: Partial<Record<AssetType, string>> = {
   video: 'Gerando movimento e camera comercial...',
+  talking_video: 'Montando a performance falada da modelo...',
   animate: 'Replicando movimento de referencia...',
   model: 'Criando modelo UGC premium...',
   image: 'Renderizando cena em alta definicao...',
@@ -390,7 +406,6 @@ function AssetNode({ data, selected }: NodeProps) {
   const {
     asset,
     userPlan,
-    selectionActive,
     onDelete,
     onGenerate,
     onUpdateParams,
@@ -408,37 +423,27 @@ function AssetNode({ data, selected }: NodeProps) {
           hint:
             composeVariant === 'product'
               ? 'Hero product em fundo branco com pose clean.'
-              : 'Peca fiel com pose e energia leves.',
+              : 'Auto-detecta roupa, calcado e acessorios com fidelidade de prova.',
         }
       : meta
 
   const inputHandles = INPUT_HANDLES[asset.type] ?? []
   const [collapsed, setCollapsed] = useState(() => asset.status === 'done' || (!asset.isLocal && asset.status === 'idle'))
-
-  useEffect(() => {
-    if (selected || asset.status === 'processing' || asset.status === 'error') {
-      setCollapsed(false)
-    }
-  }, [asset.status, selected])
-
-  useEffect(() => {
-    if (asset.status === 'done' && !selected) {
-      setCollapsed(true)
-    }
-  }, [asset.status, selected])
+  const effectiveCollapsed =
+    selected || asset.status === 'processing' || asset.status === 'error'
+      ? false
+      : asset.status === 'done' && !selected
+        ? true
+        : collapsed
 
   const connectedInputLabels = useMemo(() => getConnectedInputLabels(asset, inputHandles), [asset, inputHandles])
   const summaryTokens = useMemo(() => getSummaryTokens(asset, inputHandles), [asset, inputHandles])
-  const visualState = getStudioNodeVisualState(asset.type, {
-    status: asset.status,
-    collapsed,
-    selected,
-  })
   const cardWidth = getStudioNodeCardWidth(asset.type, {
     status: asset.status,
-    collapsed,
+    collapsed: effectiveCollapsed,
     selected,
   })
+  const showExpandedSummary = !LATERAL_EDITOR_TYPES.has(asset.type)
   return (
     <div
       className={`group/node overflow-visible rounded-[26px] border transition-[width,box-shadow,opacity,transform,border-color,background-color] duration-200 ${
@@ -477,20 +482,15 @@ function AssetNode({ data, selected }: NodeProps) {
           onClick={() => setCollapsed((value) => !value)}
           className="flex min-w-0 flex-1 items-start gap-3 text-left"
         >
-          <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border ${displayMeta.chip}`}>
+          <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border ${displayMeta.chip}`}>
             {displayMeta.icon}
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className={`truncate text-[13px] font-semibold tracking-tight ${displayMeta.color}`}>{displayMeta.label}</p>
+              <p className={`truncate text-[14px] font-semibold tracking-tight ${displayMeta.color}`}>{displayMeta.label}</p>
               <StatusPill status={asset.status} />
-              {visualState === 'expanded' ? (
-                <span className="rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.2em] text-white/35">
-                  amplo
-                </span>
-              ) : null}
             </div>
-            <p className="mt-1 line-clamp-1 text-[11px] leading-relaxed text-white/42">{displayMeta.hint}</p>
+            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-white/42">{displayMeta.hint}</p>
           </div>
         </button>
 
@@ -521,9 +521,14 @@ function AssetNode({ data, selected }: NodeProps) {
         {isVideoLocked ? (
           <LockedPlanState />
         ) : asset.status === 'processing' ? (
-          <ProcessingCard type={asset.type} createdAt={asset.created_at} assetId={asset.id} />
+          <ProcessingCard
+            type={asset.type}
+            createdAt={asset.created_at}
+            assetId={asset.id}
+            pipelineStage={typeof asset.input_params.pipeline_stage === 'string' ? asset.input_params.pipeline_stage : undefined}
+          />
         ) : asset.status === 'error' ? (
-          <ErrorCard asset={asset} onGenerate={() => onGenerate(asset.type, asset.input_params, asset.id)} />
+          <ErrorCard asset={asset} onGenerate={(paramsOverride) => onGenerate(asset.type, paramsOverride ?? asset.input_params, asset.id)} />
         ) : asset.status === 'done' && asset.result_url ? (
           <div className="space-y-3">
             <ResultPreview type={asset.type} url={asset.result_url} params={asset.input_params} />
@@ -549,14 +554,17 @@ function AssetNode({ data, selected }: NodeProps) {
             </div>
             {asset.type === 'model' ? <ModelDoneActions asset={asset} onRegenerate={() => onGenerate(asset.type, asset.input_params, asset.id)} /> : null}
           </div>
-        ) : collapsed ? (
+        ) : effectiveCollapsed ? (
           <CollapsedIdleShell
             summaryTokens={summaryTokens}
             connectedInputLabels={connectedInputLabels}
             onOpen={() => setCollapsed(false)}
           />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {showExpandedSummary ? (
+              <OpenCardSummary summaryTokens={summaryTokens} connectedInputLabels={connectedInputLabels} nextStep={NEXT_STEPS[asset.type]?.text} />
+            ) : null}
             <FormForType
               type={asset.type}
               initialParams={asset.input_params}
@@ -565,50 +573,23 @@ function AssetNode({ data, selected }: NodeProps) {
                 onGenerate(asset.type, params, asset.id)
               }}
             />
-            <div className="flex items-center justify-between rounded-[18px] border border-white/8 bg-white/[0.03] px-3 py-2.5">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/52">configuracao ativa</p>
-                <p className="mt-1 text-[11px] text-white/46">Ajuste os campos e use o CTA do card para gerar.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCollapsed(true)}
-                className="rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/62 transition-colors hover:border-white/16 hover:text-white"
-              >
-                Recolher
-              </button>
-            </div>
           </div>
         )}
       </div>
 
       <div className="border-t border-white/6 px-4 py-3">
-        <div className="flex flex-wrap gap-1.5">
-          {connectedInputLabels.length > 0 ? (
-            connectedInputLabels.map((label) => (
-              <span
-                key={label}
-                className="rounded-full border border-[#54D6F6]/16 bg-[#0D171B] px-2.5 py-1 text-[10px] font-medium text-[#8EDDED]"
-              >
-                {label}
-              </span>
-            ))
-          ) : (
-            <span className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] font-medium text-white/38">
-              Sem entradas conectadas
-            </span>
-          )}
-
-          {NEXT_STEPS[asset.type] ? (
-            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${NEXT_STEPS[asset.type]!.chip}`}>
-              {NEXT_STEPS[asset.type]!.text}
-            </span>
-          ) : null}
-        </div>
-
-        <div className="mt-3 flex items-center justify-center gap-2 text-white/24">
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            className="rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/62 transition-colors hover:border-white/16 hover:text-white"
+          >
+            Recolher
+          </button>
+          <div className="flex items-center justify-center gap-2 text-white/24">
           <GripHorizontal size={15} />
           <span className="text-[10px] uppercase tracking-[0.24em]">drag node</span>
+          </div>
         </div>
       </div>
     </div>
@@ -751,6 +732,49 @@ function CollapsedIdleShell({
   )
 }
 
+function OpenCardSummary({
+  summaryTokens,
+  connectedInputLabels,
+  nextStep,
+}: {
+  summaryTokens: string[]
+  connectedInputLabels: string[]
+  nextStep?: string
+}) {
+  const chips = summaryTokens.slice(0, 5)
+
+  return (
+    <div className="rounded-[22px] border border-white/8 bg-white/[0.03] px-3 py-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/42">configuracao ativa</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {chips.length > 0 ? (
+              chips.map((token) => (
+                <span key={token} className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium text-white/66">
+                  {token}
+                </span>
+              ))
+            ) : (
+              <span className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium text-white/34">
+                Campos principais ainda vazios
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="min-w-0 lg:max-w-[240px]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/36">entradas</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/46">
+            {connectedInputLabels.length > 0 ? connectedInputLabels.join(', ') : 'Sem entradas conectadas no momento.'}
+          </p>
+          {nextStep ? <p className="mt-2 text-[10px] leading-relaxed text-[#8EDDED]">{nextStep}</p> : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function NextStepHint({ type }: { type: AssetType }) {
   const hint = NEXT_STEPS[type]
   if (!hint) return null
@@ -825,7 +849,7 @@ function ResultPreview({
     )
   }
 
-  if (type === 'video' || type === 'render' || type === 'animate' || type === 'lipsync' || type === 'join') {
+  if (type === 'video' || type === 'talking_video' || type === 'render' || type === 'animate' || type === 'lipsync' || type === 'join') {
     return (
       <div className="overflow-hidden rounded-[22px] border border-white/8 bg-black/20">
         <video src={url} controls className="max-h-[360px] w-full object-contain" playsInline />
@@ -991,6 +1015,7 @@ function FormForType({
   if (type === 'script') return <ScriptGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'voice') return <VoiceGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'video') return <VideoGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'talking_video') return <TalkingVideoGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'caption') return <CaptionGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'upscale') return <UpscaleCard initial={initialParams} onGenerate={onGenerate} />
   if (type === 'model') return <ModelGenerator initial={initialParams} onGenerate={onGenerate} />
@@ -1006,11 +1031,51 @@ function FormForType({
   return null
 }
 
-function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: () => void }) {
+type GuidedSplitReferenceView = {
+  category?: string
+  role?: 'vertex-core' | 'overlay-only'
+  image_url?: string
+}
+
+type GuidedNextAction = {
+  type?: string
+  label?: string
+  references?: GuidedSplitReferenceView[]
+  regenerate_params?: Record<string, unknown>
+}
+
+function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: (paramsOverride?: Record<string, unknown>) => void }) {
   const [syncing, setSyncing] = useState(false)
   const [message, setMessage] = useState('')
   const hasPrediction = !!(asset.input_params as { prediction_id?: unknown }).prediction_id
   const canSync = SYNC_TYPES.includes(asset.type) && hasPrediction
+  const failureState = typeof asset.input_params.failure_state === 'string' ? asset.input_params.failure_state : ''
+  const garmentPriorityApplied = Boolean(asset.input_params.single_photo_garment_priority_applied)
+  const primaryProductType = typeof asset.input_params.single_photo_primary_product_type === 'string'
+    ? asset.input_params.single_photo_primary_product_type
+    : ''
+  const overlayOnlyCategories = Array.isArray(asset.input_params.single_photo_overlay_only_categories)
+    ? asset.input_params.single_photo_overlay_only_categories.filter((value): value is string => typeof value === 'string')
+    : []
+  const nextAction = (
+    asset.input_params.next_action
+    && typeof asset.input_params.next_action === 'object'
+    && !Array.isArray(asset.input_params.next_action)
+      ? asset.input_params.next_action as GuidedNextAction
+      : null
+  )
+  const guidedReferences = Array.isArray(nextAction?.references)
+    ? nextAction.references.filter((reference): reference is GuidedSplitReferenceView => Boolean(reference) && typeof reference === 'object')
+    : []
+  const preparedCoreReferences = guidedReferences.filter((reference) => reference.role === 'vertex-core')
+  const preparedOverlayReferences = guidedReferences.filter((reference) => reference.role === 'overlay-only')
+  const canRunGuidedSplitRetry = (
+    (failureState === 'split_required_after_outerwear_failure' || failureState === 'split_required_after_garment_priority')
+    && nextAction?.type === 'regenerate_with_guided_split'
+    && nextAction.regenerate_params
+    && typeof nextAction.regenerate_params === 'object'
+    && !Array.isArray(nextAction.regenerate_params)
+  )
 
   async function handleSync() {
     setSyncing(true)
@@ -1041,6 +1106,48 @@ function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: () =
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-red-200">falha na geracao</p>
         <p className="mt-1 text-[12px] leading-relaxed text-red-100/88">{asset.error_msg || 'Erro ao gerar este card.'}</p>
       </div>
+      {failureState === 'split_required_after_outerwear_failure' || failureState === 'split_required_after_garment_priority' ? (
+        <div className="rounded-[18px] border border-cyan-500/18 bg-cyan-500/8 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100">look separado automaticamente</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/68">
+            {failureState === 'split_required_after_garment_priority'
+              ? 'Detectamos um look de roupa com acessorios misturados. Para preservar o conjunto principal com fidelidade, o sistema separou as pecas principais para uma nova geracao.'
+              : 'Detectamos um look completo com casaco/outerwear dominante. Para preservar o casaco com fidelidade, o sistema separou as pecas principais para uma nova geracao.'}
+          </p>
+          {preparedCoreReferences.length > 0 ? (
+            <div className="mt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/46">pecas preparadas</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {preparedCoreReferences.map((reference, index) => (
+                  <span key={`${reference.category ?? 'core'}-${index}`} className="rounded-full border border-cyan-500/20 bg-[#0D171B] px-2.5 py-1 text-[10px] font-medium text-cyan-100">
+                    {reference.category ?? 'Referencia'}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {preparedOverlayReferences.length > 0 || overlayOnlyCategories.length > 0 ? (
+            <p className="mt-3 text-[11px] leading-relaxed text-white/56">
+              {failureState === 'split_required_after_garment_priority'
+                ? `Acessorios${overlayOnlyCategories.length > 0 ? ` como ${overlayOnlyCategories.join(', ')}` : ''} vao entrar depois como overlay/editorial, nao no Vertex principal.`
+                : 'Acessorios como chapeu, bolsa, joias e oculos vao entrar depois como overlay/editorial, nao no Vertex principal.'}
+            </p>
+          ) : null}
+          {garmentPriorityApplied && primaryProductType === 'matching_set' ? (
+            <p className="mt-2 text-[11px] leading-relaxed text-white/56">
+              O sistema tratou esta referencia como conjunto de roupa principal, nao como acessorio.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {failureState === 'manual_split_required' ? (
+        <div className="rounded-[18px] border border-amber-500/18 bg-amber-500/8 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-100">separacao manual recomendada</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/68">
+            Nao conseguimos isolar as pecas principais com seguranca. Envie imagens separadas do casaco, blusa e calca para garantir fidelidade.
+          </p>
+        </div>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {canSync ? (
           <button
@@ -1053,14 +1160,25 @@ function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: () =
             {syncing ? 'Verificando' : 'Buscar resultado'}
           </button>
         ) : null}
-        <button
-          type="button"
-          onClick={onGenerate}
-          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/78 transition-colors hover:border-white/18 hover:text-white"
-        >
-          <RotateCcw size={12} />
-          Tentar novamente
-        </button>
+        {canRunGuidedSplitRetry ? (
+          <button
+            type="button"
+            onClick={() => onGenerate(nextAction?.regenerate_params)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/24 bg-cyan-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100 transition-colors hover:border-cyan-400/40 hover:text-white"
+          >
+            <RotateCcw size={12} />
+            {nextAction?.label || 'Regenerar com look separado'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onGenerate()}
+            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/78 transition-colors hover:border-white/18 hover:text-white"
+          >
+            <RotateCcw size={12} />
+            Tentar novamente
+          </button>
+        )}
       </div>
       {message ? <p className="text-[11px] text-white/56">{message}</p> : null}
     </div>
@@ -1071,13 +1189,15 @@ function ProcessingCard({
   type,
   createdAt,
   assetId,
+  pipelineStage,
 }: {
   type: AssetType
   createdAt: string
   assetId: string
+  pipelineStage?: string
 }) {
   const estimated = ESTIMATED[type] ?? 30
-  const label = PROCESSING_LABELS[type] ?? 'Gerando com IA...'
+  const baseLabel = PROCESSING_LABELS[type] ?? 'Gerando com IA...'
   const [elapsed, setElapsed] = useState(0)
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState('')
@@ -1099,6 +1219,18 @@ function ProcessingCard({
 
   const formatSeconds = (seconds: number) =>
     seconds >= 60 ? `${Math.floor(seconds / 60)}m ${seconds % 60}s` : `${seconds}s`
+
+  const stageLabelMap: Record<string, string> = {
+    validating: 'Validando texto, politicas e limites de fala...',
+    voice_generating: 'Gerando a voz base da performance...',
+    voice_duration_check: 'Conferindo se a fala cabe em 8 segundos...',
+    veo_generating: 'Gerando o take falado no Veo...',
+    lipsyncing: 'Sincronizando labios e audio final...',
+    finalizing: 'Finalizando o video e consolidando saidas...',
+    completed: 'Pipeline concluido.',
+    failed: 'Pipeline falhou.',
+  }
+  const label = pipelineStage ? (stageLabelMap[pipelineStage] ?? baseLabel) : baseLabel
 
   async function syncNow() {
     setSyncing(true)
@@ -1133,6 +1265,7 @@ function ProcessingCard({
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8EDDED]">processing</p>
           <p className="mt-1 text-[12px] leading-relaxed text-white/78">{label}</p>
+          {pipelineStage ? <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-white/40">{pipelineStage.replace(/_/g, ' ')}</p> : null}
         </div>
       </div>
 
