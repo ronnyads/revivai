@@ -470,7 +470,7 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
                       product_url: activeFittingReferenceUrls[0] ?? '',
                       product_urls: activeFittingReferenceUrls,
                       fitting_group: '',
-                      compose_mode: 'vertex-vto',
+                      compose_mode: 'gemini',
                       compose_variant: variant,
                       position: DEFAULT_POSITION,
                       product_scale: DEFAULT_SCALE,

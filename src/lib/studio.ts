@@ -2144,11 +2144,18 @@ function getComposeAspectRatioInstruction(aspectRatio?: string): string {
   return `Compose the output in ${selected} format. Ensure the full person fits in frame and the key item remains clearly visible without awkward cropping.`
 }
 
-type FittingRoute = 'vertex-vto-wear' | 'vertex-vto-look' | 'gemini-hold' | 'gemini-hold-accessories' | 'gemini-look-sequential'
+type FittingRoute =
+  | 'provador-single'
+  | 'provador-multi'
+  | 'vertex-vto-wear'
+  | 'vertex-vto-look'
+  | 'gemini-hold'
+  | 'gemini-hold-accessories'
+  | 'gemini-look-sequential'
 type FittingReferenceMode = 'single-look-photo' | 'separate-references'
 type FittingReferenceModeInternal = 'direct-single-photo' | 'auto-split-from-single-photo' | 'separate-references'
 type FittingGroup = 'wearables' | 'fashion_accessories'
-type FittingStrategy = 'vertex_only' | 'gemini_only_accessories' | 'hybrid_vertex_gemini'
+type FittingStrategy = 'vertex_only' | 'gemini_only_accessories' | 'hybrid_vertex_gemini' | 'gemini_provador'
 type FittingReferenceMixMode =
   | 'single-look-photo'
   | 'separate-references-wearables-only'
@@ -3023,6 +3030,28 @@ function classifyProvadorSelection(params: {
   }
 }
 
+function dedupeProvadorItems(items: SegmentedFittingItem[]): SegmentedFittingItem[] {
+  const seen = new Set<string>()
+  const deduped: SegmentedFittingItem[] = []
+
+  for (const item of items) {
+    const key = [
+      item.sourceIndex ?? 'na',
+      item.category,
+      item.description.trim().toLowerCase(),
+      item.bbox.left,
+      item.bbox.top,
+      item.bbox.width,
+      item.bbox.height,
+    ].join(':')
+    if (seen.has(key)) continue
+    seen.add(key)
+    deduped.push(item)
+  }
+
+  return deduped
+}
+
 function extractLookSplitRequestedCategories(note?: string): string[] {
   const raw = note?.trim().toLowerCase()
   if (!raw) return []
@@ -3497,10 +3526,7 @@ async function prepareSingleLookReferenceForGeneration(
 }
 
 function decideFittingRoute(items: SegmentedFittingItem[]): FittingRoute {
-  const wearableCount = items.filter((item) => isWearableFittingCategory(item.category)).length
-  if (wearableCount > 1) return 'gemini-look-sequential'
-  if (wearableCount === 1) return 'vertex-vto-wear'
-  return 'gemini-hold'
+  return items.length > 1 ? 'provador-multi' : 'provador-single'
 }
 
 function buildFittingPrompt(params: {
@@ -3513,19 +3539,24 @@ function buildFittingPrompt(params: {
   route: FittingRoute
   itemDescriptions: string[]
 }): string {
-  const routeGoal = params.route === 'vertex-vto-look'
-    ? 'Reconstruct one coherent coordinated look using the supplied client items only.'
-    : params.route === 'gemini-look-sequential'
-      ? 'Apply the supplied client garments one step at a time while preserving every already-approved garment exactly.'
-    : params.route === 'vertex-vto-wear'
-      ? 'Replace the relevant base garment entirely with the supplied client garment.'
-      : 'Keep the base outfit intact unless the reference is wearable, and make the client item worn or held with clear physical contact.'
+  const isMulti = params.route === 'provador-multi'
+  const routeGoal = isMulti
+    ? 'Reconstruct the full submitted look in one single pass, using every reference as sovereign truth for the final outfit.'
+    : 'Apply the single submitted client item with literal fidelity while preserving the exact same person.'
+  const inputBlock = isMulti
+    ? `You receive:
+[BASE PHOTO]: the exact model identity reference.
+[CLIENT LOOK REFERENCES]: two or more client fashion references that together define the final look.`
+    : `You receive:
+[BASE PHOTO]: the exact model identity reference.
+[CLIENT ITEM REFERENCE]: one exclusive client fashion item that must be worn, used, or held with literal fidelity.`
+  const replacementRule = isMulti
+    ? 'Reconstruct the complete submitted outfit exactly as referenced. Preserve every required garment, shoe, accessory, logo, text, color, trim, seam, closure, hardware, and visible structural detail from the submitted references.'
+    : 'Replace only the relevant body zone for the submitted item when it is wearable, or make the item naturally worn/used/held when it is an accessory or object. Do not leave the old conflicting garment visible in the replaced zone.'
 
-  return `You are a world-class fashion compositor focused on exact wardrobe fidelity. Produce ONE single unified fashion photograph.
+  return `You are a world-class fashion compositor for premium e-commerce try-on. Produce ONE single unified commercial studio photograph.
 
-You receive two images:
-[BASE PHOTO]: the exact model identity, body proportions, hair, and base scene reference.
-[FASHION ITEM]: an exclusive client clothing piece or accessory that must be reproduced with literal fidelity.
+${inputBlock}
 
 ROUTE: ${params.route}
 FASHION CATEGORY: ${params.category}
@@ -3538,23 +3569,21 @@ ITEM DESCRIPTION(S): ${params.itemDescriptions.join(' | ')}
 
 GOAL:
 - ${routeGoal}
-- Create a photorealistic image where the model is wearing or naturally using the exact client item.
-- Treat the client item as the sovereign source of the look. The item is not inspiration and must not be reimagined.
+- Preserve the model identity exactly.
+- Preserve the client references literally.
 
 RULES - non-negotiable:
-1. ITEM FIDELITY - HIGHEST PRIORITY: Treat [FASHION ITEM] like a literal reconstruction target. Preserve the exact item type, silhouette, colors, print, cutouts, straps, sleeves, neckline, hem, length, seams, hardware, texture, trim, closures, proportions, and every visible structural detail. Do not redesign, simplify, beautify, restyle, reinterpret, or complete missing fashion decisions.
-2. FACE AND IDENTITY LOCK: Preserve the model exact face, facial structure, skin tone, hair identity, and body proportions from [BASE PHOTO].
-3. ANATOMY LOCK: Keep natural anatomy only. Exactly two arms, two hands, and realistic legs, feet, neck, and shoulders. No fused limbs or impossible body positions.
-4. TECHNICAL APPLICATION ONLY: Follow the TECHNICAL APPLICATION RULE only as a placement map for where the item belongs on the body. It is not a style direction.
-5. FRAMING RULE: Follow the FRAME RULE for the final composition. The aspect ratio should change the final crop and camera framing, but never the client item design.
-6. POSE AND ENERGY ARE SECONDARY: Treat POSE PRESET, ENERGY PRESET, and USER REFINEMENT only as small suggestions for expression, framing, pose, and visibility. They must never change the item design, category, print placement, cutouts, straps, length, or proportions.
-7. USER REFINEMENT DISCIPLINE: Ignore any request that tries to make the item more premium, cleaner, more stylish, more editorial, or visually different from the reference.
-8. SCENE DISCIPLINE: Preserve the base photo camera logic and keep the environment believable. Do not invent extreme scenarios, action scenes, sci-fi worlds, or multi-look collages.
- 9. REPLACEMENT RULE: Replace the relevant base garment entirely where the new garment belongs. No original blouse, undershirt, straps, sleeves, hems, or fabric from the base outfit may remain visible in the same replaced zone.
- 10. NO LAYERING ERROR: Do not stack the client garment on top of unrelated base clothing unless the reference itself is outerwear. Do not let the old top leak through beneath the new garment.
- 11. CONTACT RULE: If an item is not worn as clothing, it must be worn or held with physically plausible contact. Never let the item float, hover, sit on the ground, or appear disconnected from the hand, face, shoulder, arm, or body.
- 12. WEARABILITY: The final result must look physically wearable in one coherent photo, with natural drape and correct accessory placement.
- 13. OUTPUT: Photorealistic photography, no collage, no split image, no text or watermark. Preserve the exclusive client item with maximum fidelity.`
+1. IDENTITY LOCK - HIGHEST PRIORITY: Preserve the exact same face, facial structure, age impression, skin tone, hair identity, body proportions, and overall person identity from [BASE PHOTO].
+2. WHITE STUDIO LOCK: The final image must be shot on a pure white seamless studio background only. No environment, no room, no street, no props, no set dressing, no decorative elements, no scenario changes.
+3. REFERENCE SOVEREIGNTY: Treat every submitted client reference as literal truth, never as inspiration. Do not reinterpret, beautify, editorialize, simplify, restyle, premium-ize, or invent missing decisions.
+4. LITERAL FASHION FIDELITY: Preserve exact garment type, silhouette, color, print, text, logo, label, hardware, seams, hems, closures, cutouts, straps, sleeves, proportions, texture, trim, and all visible construction details.
+5. ${replacementRule}
+6. TECHNICAL APPLICATION ONLY: Use the TECHNICAL APPLICATION RULE only as a body-placement map. It must never override the literal submitted item design.
+7. POSE AND FRAMING DISCIPLINE: Follow the FRAME RULE, POSE PRESET, ENERGY PRESET, and USER REFINEMENT only as light framing and expression guidance. They must never change outfit design, item proportions, or visual details.
+8. ANATOMY LOCK: Keep natural human anatomy only. Exactly two arms, two hands, realistic legs, feet, shoulders, and neck. No fused limbs, no extra fingers, no impossible body positions.
+9. CONTACT RULE: Accessories, shoes, and held items must have physically plausible contact with the correct body zone. Nothing may float, detach, hover, sit on the floor, or appear pasted into the frame.
+10. NO SCENE DRIFT: Ignore any request for environment, background story, outdoor setting, cinematic scene, editorial set, or unrelated atmosphere. This is always a clean studio white-background Provador image.
+11. OUTPUT: One photorealistic commercial studio image only. No collage, no split panel, no watermark, no generated text outside the submitted fashion items themselves.`
 }
 
 function buildRetryPrompt(
@@ -3573,7 +3602,9 @@ function buildRetryPrompt(
   const modeLockBlock = composeVariant === 'product'
     ? '\nMODE LOCK: PRODUCT SHOWCASE ONLY. Keep pure white background, no scenario, no props, no outfit changes, product fully visible and dominant, and hands anatomically correct.'
     : `\nMODE LOCK: FASHION FITTING ONLY. Preserve the exact client item with literal fidelity. Do not redesign, restyle, simplify, beautify, reinterpret, or complete missing fashion decisions. Keep the exact item type, print, cutouts, straps, length, hardware, and proportions while fixing anatomy, drape, and placement.${
-      fittingRoute === 'gemini-hold' || fittingRoute === 'gemini-hold-accessories'
+      fittingRoute === 'provador-multi'
+        ? ' Preserve every submitted reference exactly in one unified white-background studio image. Do not drop, replace, or improvise any submitted garment, shoe, accessory, logo, text, or hardware.'
+        : fittingRoute === 'gemini-hold' || fittingRoute === 'gemini-hold-accessories' || fittingRoute === 'provador-single'
         ? ' The item must be worn or held with believable hand or body contact. Never let it float, hover, sit on the floor, detach from the model, or invent extra accessories.'
         : fittingRoute === 'gemini-look-sequential'
           ? ' Preserve every already-approved garment exactly as it appears in the current base image. Only change the target clothing zone for the current item, never removing or restyling previously approved garments.'
@@ -3796,7 +3827,7 @@ function buildHoldPrompt(params: {
   referenceDescription: string
   placementSuggestion: string
 }): string {
-  return `You are a world-class commercial compositor for accessories and props. Produce ONE single unified photograph.
+  return `You are a world-class commercial compositor for accessories and props. Produce ONE single unified white-background studio photograph.
 
 You receive:
 [BASE PHOTO]: the exact model identity and scene reference.
@@ -3813,13 +3844,14 @@ USER REFINEMENT: ${params.userIntent}
 RULES - non-negotiable:
 1. Preserve the exact client item with literal fidelity: keep shape, proportions, colors, print, hardware, trim, closures, and every visible structural detail exactly as supplied.
 2. Preserve the exact model identity from the base photo.
-3. The client item must be worn or held with physically plausible contact. It must touch the relevant hand, face, shoulder, arm, torso, or foot naturally.
-4. Never let the client item float, hover, sit on the ground, rest disconnected in the scene, or appear as a detached prop with a fake shadow.
-5. Never invent extra accessories, duplicate the item, or leave unrelated props in the composition.
-6. Pose, energy, and user refinement are only light suggestions for framing, visibility, gesture, and expression. They must never redesign the item.
-7. Keep anatomy natural with exactly two arms and two hands.
-8. Output one photorealistic image only, with believable scale and natural perspective.
-9. If the item cannot be worn as clothing, the model must visibly hold it or use it naturally instead of leaving it elsewhere in the frame.`
+3. Keep a pure white seamless studio background only. No room, no street, no environment, no set dressing, no props other than the submitted client item.
+4. The client item must be worn or held with physically plausible contact. It must touch the relevant hand, face, shoulder, arm, torso, or foot naturally.
+5. Never let the client item float, hover, sit on the ground, rest disconnected in the scene, or appear as a detached prop with a fake shadow.
+6. Never invent extra accessories, duplicate the item, or leave unrelated props in the composition.
+7. Pose, energy, and user refinement are only light suggestions for framing, visibility, gesture, and expression. They must never redesign the item.
+8. Keep anatomy natural with exactly two arms and two hands.
+9. Output one photorealistic image only, with believable scale and natural perspective.
+10. If the item cannot be worn as clothing, the model must visibly hold it or use it naturally instead of leaving it elsewhere in the frame.`
 }
 
 function buildAccessoryHoldPrompt(params: {
@@ -3842,7 +3874,7 @@ ${analysis.items.map((item, itemIndex) => (
 )).join('\n')}`
   )).join('\n\n')
 
-  return `You are a world-class commercial compositor for fashion accessories. Produce ONE single unified photograph.
+  return `You are a world-class commercial compositor for fashion accessories. Produce ONE single unified white-background studio photograph.
 
 You receive:
 [BASE PHOTO]: the exact model identity and scene reference.
@@ -3870,13 +3902,14 @@ ${accessoryTypes.some((type) => type.startsWith('jewelry-'))
 RULES - non-negotiable:
 1. Preserve every client accessory with literal fidelity: keep shape, proportions, colors, print, hardware, trim, closures, and all visible structure exactly as supplied.
 2. Preserve the exact model identity from the base photo.
-3. Every accessory must have physically plausible contact with the correct body zone. Nothing may float, hover, rest on the floor, or appear disconnected.
-4. Never invent extra accessories, duplicate any item, fuse metal or straps into skin/hair, or merge two references into a hybrid object.
-5. If one reference image contains a coordinated set, preserve every accessory from that set. Multiple accessories may share the same broad body zone when that matches the original set.
-6. Pose, energy, and user refinement are only light framing suggestions. They must never redesign any accessory.
-7. Keep anatomy natural with exactly two arms and two hands.
-8. Ignore decorative props, styling objects, perfume bottles, flowers, umbrellas, and any non-fashion object that is not one of the supplied client accessories.
-9. Output one photorealistic image only with natural perspective and clear visibility of all supplied accessories.`
+3. Keep a pure white seamless studio background only. No room, no street, no environment, no set dressing, and no decorative props.
+4. Every accessory must have physically plausible contact with the correct body zone. Nothing may float, hover, rest on the floor, or appear disconnected.
+5. Never invent extra accessories, duplicate any item, fuse metal or straps into skin/hair, or merge two references into a hybrid object.
+6. If one reference image contains a coordinated set, preserve every accessory from that set. Multiple accessories may share the same broad body zone when that matches the original set.
+7. Pose, energy, and user refinement are only light framing suggestions. They must never redesign any accessory.
+8. Keep anatomy natural with exactly two arms and two hands.
+9. Ignore decorative props, styling objects, perfume bottles, flowers, umbrellas, and any non-fashion object that is not one of the supplied client accessories.
+10. Output one photorealistic image only with natural perspective and clear visibility of all supplied accessories.`
 }
 
 const ACCESSORY_GEMINI_MODEL_CHAIN = [
@@ -4280,6 +4313,7 @@ function getProvadorPricingTier(params: {
   fittingRoute?: FittingRoute
 }): ProvadorPricingTier {
   if (params.fittingStrategy === 'gemini_only_accessories') return 'gemini_only_accessories'
+  if (params.fittingStrategy === 'gemini_provador') return 'hybrid_vertex_gemini'
   if (params.fittingRoute === 'gemini-look-sequential') return 'hybrid_vertex_gemini'
   if (params.editorialFinisherEligible) return 'hybrid_vertex_gemini_editorial'
   if (params.fittingStrategy === 'hybrid_vertex_gemini') return 'hybrid_vertex_gemini'
@@ -4390,7 +4424,7 @@ export async function preflightProvadorPricing(params: {
   })
   const fittingGroupRequestMode = getFittingGroupRequestMode(requestedFittingGroup)
 
-  let fittingStrategy: FittingStrategy = 'vertex_only'
+  let fittingStrategy: FittingStrategy = 'gemini_provador'
   let selectedAccessoryAnalyses: AccessoryReferenceAnalysis[] = []
   let ignoredPropTypes: string[] = []
   let primaryWearableCategory: string | undefined
@@ -4458,7 +4492,7 @@ export async function preflightProvadorPricing(params: {
       }
       if (mixedAccessoryAnalysis && mixedAccessoryAnalysis.containsAccessories && mixedAccessoryAnalysis.items.length > 0) {
         selectedAccessoryAnalyses = [mixedAccessoryAnalysis]
-        fittingStrategy = 'hybrid_vertex_gemini'
+        fittingStrategy = 'gemini_provador'
       }
     }
   } else if (fittingGroup === 'fashion_accessories') {
@@ -4496,14 +4530,12 @@ export async function preflightProvadorPricing(params: {
         .map((analysis) => filterAccessoryAnalysisItems(analysis))
       ignoredPropTypes = collectIgnoredPropTypes(selectedAccessoryAnalyses)
       if (selectedAccessoryAnalyses.length > 0) {
-        fittingStrategy = 'hybrid_vertex_gemini'
+        fittingStrategy = 'gemini_provador'
       }
     }
   }
 
-  const editorialFinisherEligible = referenceMode === 'single-look-photo'
-    && fittingGroup === 'wearables'
-    && (selectedAccessoryAnalyses.length > 0 || extractEditorialPropCandidates(ignoredPropTypes).length > 0)
+  const editorialFinisherEligible = false
   const referenceMixMode = getFittingReferenceMixMode({
     referenceMode,
     fittingGroup,
@@ -4513,37 +4545,18 @@ export async function preflightProvadorPricing(params: {
   const predictedWearableCount = fittingGroup === 'wearables'
     ? detectedItems.filter((item) => isWearableFittingCategory(item.category)).length
     : 0
-  const predictedFittingRoute: FittingRoute = fittingStrategy === 'gemini_only_accessories'
-    ? 'gemini-hold-accessories'
-    : predictedWearableCount > 1
-      ? 'gemini-look-sequential'
-      : predictedWearableCount === 1
-        ? 'vertex-vto-wear'
-        : 'gemini-hold'
-  const effectiveFittingStrategy = predictedFittingRoute === 'gemini-look-sequential' && fittingStrategy === 'vertex_only'
-    ? 'hybrid_vertex_gemini'
-    : fittingStrategy
+  const predictedAccessoryCount = selectedAccessoryAnalyses.reduce((sum, analysis) => sum + analysis.items.length, 0)
+  const predictedRelevantCount = Math.max(
+    predictedWearableCount,
+    fittingGroup === 'wearables' && predictedWearableCount > 0 ? 1 : 0,
+  ) + predictedAccessoryCount
+  const predictedFittingRoute: FittingRoute = predictedRelevantCount > 1 ? 'provador-multi' : 'provador-single'
+  const effectiveFittingStrategy = fittingStrategy
   const pricingTier = getProvadorPricingTier({ fittingStrategy: effectiveFittingStrategy, editorialFinisherEligible, fittingRoute: predictedFittingRoute })
-  const expectedVertexCallCount = fittingStrategy === 'gemini_only_accessories' || predictedFittingRoute === 'gemini-look-sequential'
-    ? 0
-    : referenceMode === 'single-look-photo'
-      ? 1
-      : Math.max(1, detectedItems.filter((item) => isWearableFittingCategory(item.category)).length)
+  const expectedVertexCallCount = 0
   const expectedGeminiModelsTried = pricingTier === 'gemini_only_accessories'
     ? ['gemini-3-pro-image-preview']
-    : predictedFittingRoute === 'gemini-look-sequential'
-      ? [
-          'gemini-2.5-flash-image',
-          'gemini-2.5-flash-image',
-          ...(selectedAccessoryAnalyses.length > 0 ? ['gemini-3-pro-image-preview'] : []),
-        ]
-    : pricingTier === 'vertex_only'
-      ? []
-      : pricingTier === 'hybrid_vertex_gemini'
-        ? ['gemini-3-pro-image-preview']
-        : selectedAccessoryAnalyses.length > 0
-          ? ['gemini-3-pro-image-preview', 'gemini-3-pro-image-preview']
-          : ['gemini-3-pro-image-preview']
+    : ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview']
   const estimatedCostBreakdown = buildEstimatedProviderCostBreakdown({
     vertexCallCount: expectedVertexCallCount,
     geminiModelsTried: expectedGeminiModelsTried,
@@ -4703,7 +4716,7 @@ async function composeDedicatedFittingScene(params: {
   let selectedAccessoryAnalyses: AccessoryReferenceAnalysis[] = []
   let selectedAccessoryDetailItems: SegmentedFittingItem[] = []
   let ignoredPropTypes: string[] = []
-  let fittingStrategy: FittingStrategy = 'vertex_only'
+  let fittingStrategy: FittingStrategy = 'gemini_provador'
   const accessoryMissingMessage = 'Nao detectamos acessorios com confianca nessa referencia. Envie uma referencia mais limpa ou menos itens por vez.'
   const accessorySingleLimitMessage = 'Detectamos mais de 6 acessorios nessa imagem. Divida em mais de uma geracao.'
   const accessoryTotalLimitMessage = 'Detectamos mais de 6 acessorios no total das referencias enviadas. Divida em mais de uma geracao.'
@@ -4882,7 +4895,7 @@ async function composeDedicatedFittingScene(params: {
           ...deferredHeadwearItems,
         ]
         ignoredPropTypes = Array.from(new Set(ignoredPropTypes))
-        fittingStrategy = 'hybrid_vertex_gemini'
+        fittingStrategy = 'gemini_provador'
       }
 
       if (segmentedWearableItems.length > 1) {
@@ -4951,7 +4964,7 @@ async function composeDedicatedFittingScene(params: {
           ...buildAccessorySegmentedItemsFromAnalyses([mixedAccessoryAnalysis]),
         ]
         singlePhotoOverlayOnlyCategories = collectOverlayOnlyAccessoryCategories([mixedAccessoryAnalysis])
-        fittingStrategy = 'hybrid_vertex_gemini'
+        fittingStrategy = 'gemini_provador'
       }
     }
   } else {
@@ -4994,7 +5007,7 @@ async function composeDedicatedFittingScene(params: {
       selectedItems = buildAccessorySegmentedItemsFromAnalyses(selectedAccessoryAnalyses)
       selectedZones = collectAccessoryZones(selectedAccessoryAnalyses)
       omittedItemCount = 0
-      fittingRoute = 'gemini-hold-accessories'
+      fittingRoute = 'provador-multi'
       routedFittingCategory = selectedItems[0]?.category ?? 'other-accessory'
       console.log(
         `[studio] multi-ref-accessory | reference_count=${referenceUrls.length} accessory_total=${selectedItems.length} accessory_types=${collectAccessoryTypes(selectedAccessoryAnalyses).join(',') || 'none'} routed_category=${routedFittingCategory}`,
@@ -5068,7 +5081,7 @@ async function composeDedicatedFittingScene(params: {
             ...selectedAccessoryDetailItems,
             ...buildAccessorySegmentedItemsFromAnalyses(guidedAccessoryAnalyses),
           ]
-          fittingStrategy = 'hybrid_vertex_gemini'
+          fittingStrategy = 'gemini_provador'
         }
       }
 
@@ -5104,7 +5117,7 @@ async function composeDedicatedFittingScene(params: {
       selectedZones = selectedLook.selectedZones
       omittedItemCount = selectedLook.omittedCount
       fittingRoute = decideFittingRoute(selectedItems)
-      if (selectedAccessoryAnalyses.length > 0) fittingStrategy = 'hybrid_vertex_gemini'
+      if (selectedAccessoryAnalyses.length > 0) fittingStrategy = 'gemini_provador'
       const primaryItem = selectedItems[0]
       routedFittingCategory = primaryItem?.category
         ?? inferFittingCategoryWithHint(
@@ -5130,8 +5143,16 @@ async function composeDedicatedFittingScene(params: {
   const blockingWearableItems = provadorSelection.blockingStructuralItems
   const remainingStructuralItems = provadorSelection.remainingStructuralItems
   const provadorOptionalOverlayItems = provadorSelection.optionalOverlayItems
-  if (fittingRoute === 'gemini-look-sequential' && selectedAccessoryAnalyses.length === 0) {
-    fittingStrategy = 'hybrid_vertex_gemini'
+  const provadorRelevantItems = dedupeProvadorItems([
+    ...selectedItems,
+    ...selectedAccessoryDetailItems,
+  ])
+  const provadorWearableItems = provadorRelevantItems.filter((item) => isWearableFittingCategory(item.category))
+  const provadorAccessoryItems = provadorRelevantItems.filter((item) => isAccessoryCompatibleFittingCategory(item.category))
+  const provadorReferenceCount = provadorRelevantItems.length
+  fittingRoute = provadorReferenceCount > 1 ? 'provador-multi' : 'provador-single'
+  if (fittingGroup === 'wearables') {
+    fittingStrategy = 'gemini_provador'
   }
   const routedCategoryPreset = getFittingCategoryPreset(routedFittingCategory)
   const routedPoseInstruction = getFittingPoseInstruction(params.fitting_pose_preset)
@@ -5140,12 +5161,8 @@ async function composeDedicatedFittingScene(params: {
   const userIntent = normalizedPrompt.intent || 'No extra refinement. Keep the exact client item fully faithful, clearly visible, and naturally fitted on the model.'
   const portraitVertexImage = await normalizeImageForVertex(portraitBuf, 'png')
   const portraitGeminiImage = await normalizeImageForVertex(portraitBuf, 'jpeg')
-  const editorialPropCandidates = referenceMode === 'single-look-photo' && fittingGroup === 'wearables'
-    ? extractEditorialPropCandidates(ignoredPropTypes)
-    : []
-  const editorialFinisherEligible = referenceMode === 'single-look-photo'
-    && fittingGroup === 'wearables'
-    && (selectedAccessoryAnalyses.length > 0 || editorialPropCandidates.length > 0)
+  const editorialPropCandidates: string[] = []
+  const editorialFinisherEligible = false
   const referenceMixMode = params.pricing_preflight?.referenceMixMode ?? getFittingReferenceMixMode({
     referenceMode,
     fittingGroup,
@@ -5196,8 +5213,9 @@ async function composeDedicatedFittingScene(params: {
   })
 
   const extraData: Record<string, unknown> = {
-    provador_strategy_version: 'v2_simplified',
+    provador_strategy_version: 'v3_gemini_unified',
     provador_mode: provadorSelection.mode,
+    reference_item_count: provadorReferenceCount,
     dominant_category: provadorSelection.dominantCategory,
     blocking_item_count: provadorSelection.blockingItemCount,
     optional_overlay_categories: provadorSelection.accessoryCategories,
@@ -5205,13 +5223,7 @@ async function composeDedicatedFittingScene(params: {
     auto_recovery_succeeded: false,
     auto_split_confidence: provadorSelection.autoSplitConfidence,
     recovery_plan: provadorSelection.recoveryPlan,
-    provador_engine: fittingRoute === 'gemini-look-sequential'
-      ? 'gemini_sequential'
-      : fittingRoute === 'vertex-vto-wear'
-        ? 'vertex_single'
-        : fittingRoute === 'gemini-hold-accessories'
-          ? 'gemini_accessories'
-          : 'gemini_hold',
+    provador_engine: 'gemini_flux',
     fitting_group: fittingGroup,
     fitting_group_request_mode: fittingGroupRequestMode,
     fitting_strategy: fittingStrategy,
@@ -5223,12 +5235,13 @@ async function composeDedicatedFittingScene(params: {
     segmented_items_count: detectedItems.length,
     omitted_item_count: omittedItemCount,
     detected_categories: detectedItems.map((item) => item.category),
-    selected_item_categories: selectedItems.map((item) => item.category),
+    selected_item_categories: provadorRelevantItems.map((item) => item.category),
     selected_item_zones: selectedZones,
     structural_categories: provadorSelection.structuralCategories,
     blocking_structural_categories: blockingWearableItems.map((item) => item.category),
     remaining_structural_categories: remainingStructuralItems.map((item) => item.category),
     optional_overlay_item_categories: provadorOptionalOverlayItems.map((item) => item.category),
+    applied_categories: provadorRelevantItems.map((item) => item.category),
     applied_structural_categories: [],
     continuation_ready: false,
     stage_results: [],
@@ -5241,14 +5254,8 @@ async function composeDedicatedFittingScene(params: {
     auto_split_reference_count: singlePhotoUsesSegmentedWearables ? selectedItems.length : 0,
     auto_split_failed_stage: 'none',
     primary_wearable_category: singlePhotoPrimaryWearableCategory ?? routedFittingCategory,
-    stage1_engine: fittingStrategy === 'gemini_only_accessories'
-      ? 'none'
-      : fittingRoute === 'gemini-look-sequential'
-        ? 'gemini:pending'
-        : 'vertex:virtual-try-on-001',
-    stage2_engine: fittingRoute === 'gemini-look-sequential'
-      ? (remainingStructuralItems.length > 0 || blockingWearableItems.length > 1 ? 'gemini:pending' : 'none')
-      : fittingStrategy === 'vertex_only' ? 'none' : 'pending',
+    stage1_engine: 'gemini:pending',
+    stage2_engine: 'flux:standby',
     final_qc_status: 'pending',
     pricing_strategy: pricingStrategy,
     pricing_tier: pricingTier,
@@ -5282,6 +5289,7 @@ async function composeDedicatedFittingScene(params: {
     vertex_validation_target: referenceMode === 'single-look-photo'
       ? (singlePhotoUsesSegmentedWearables ? 'auto-split-sequential' : 'vertex-single-photo-direct')
       : 'separate-references-batch-first',
+    model_chain_tried: [],
   }
   if (referenceMode === 'single-look-photo') {
     extraData.single_photo_primary_wearable_category = singlePhotoPrimaryWearableCategory
@@ -5445,7 +5453,7 @@ async function composeDedicatedFittingScene(params: {
         references: guidedReferences,
         regenerate_params: {
           compose_variant: 'fitting',
-          compose_mode: 'vertex-vto',
+          compose_mode: 'gemini',
           fitting_group: 'wearables',
           product_url: coreReferences[0]?.image_url ?? '',
           product_urls: coreReferences.map((reference) => reference.image_url),
@@ -5577,7 +5585,7 @@ async function composeDedicatedFittingScene(params: {
         references: guidedReferences,
         regenerate_params: {
           compose_variant: 'fitting',
-          compose_mode: 'vertex-vto',
+          compose_mode: 'gemini',
           fitting_group: 'wearables',
           product_url: coreReferences[0]?.image_url ?? '',
           product_urls: coreReferences.map((reference) => reference.image_url),
@@ -5743,7 +5751,265 @@ async function composeDedicatedFittingScene(params: {
     return { imageBase64: null }
   }
 
-  if (fittingRoute === 'gemini-hold' || fittingRoute === 'gemini-hold-accessories' || fittingRoute === 'gemini-look-sequential') {
+  async function callGeminiProvadorImage(params: {
+    promptText: string
+    parts: Array<Record<string, unknown>>
+    stageLabel: string
+  }): Promise<GeminiImageCallResult> {
+    const provadorModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview']
+    const body = JSON.stringify({
+      contents: [{ role: 'user', parts: params.parts }],
+      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+    })
+
+    for (const model of provadorModels) {
+      trackGeminiAttempt(params.stageLabel, model)
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body },
+      )
+      if (!res.ok) continue
+      const json = await res.json()
+      const responseParts = json.candidates?.[0]?.content?.parts ?? []
+      const imgPart = responseParts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
+      if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+    }
+
+    return { imageBase64: null }
+  }
+
+  async function callFluxProvadorImage(promptText: string, stageLabel: string): Promise<string | null> {
+    fallbackBranchUsed = 'flux-dev-image-to-image'
+    engineTrace.push({
+      stage: stageLabel,
+      engine: 'flux',
+      model: 'fal-ai/flux/dev/image-to-image',
+    })
+
+    const imageSize = params.aspect_ratio === '1:1'
+      ? 'square_hd'
+      : params.aspect_ratio === '16:9'
+        ? 'landscape_16_9'
+        : 'portrait_16_9'
+
+    const res = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
+      method: 'POST',
+      headers: {
+        Authorization: `Key ${falKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        image_url: params.portrait_url,
+        prompt: promptText,
+        strength: 0.48,
+        num_inference_steps: 38,
+        guidance_scale: 3.5,
+        image_size: imageSize,
+        output_format: 'jpeg',
+      }),
+    })
+    if (!res.ok) return null
+
+    const fluxData = await res.json()
+    const fluxUrl = fluxData.images?.[0]?.url
+    if (!fluxUrl) return null
+
+    const imageRes = await fetch(fluxUrl)
+    if (!imageRes.ok) return null
+
+    return Buffer.from(await imageRes.arrayBuffer()).toString('base64')
+  }
+
+  if (fittingRoute === 'provador-single' || fittingRoute === 'provador-multi') {
+    const candidateAttempts = extraData.candidate_attempts as string[]
+    candidateAttempts.length = 0
+
+    const promptText = buildFittingPrompt({
+      category: fittingRoute === 'provador-multi' ? 'full-look' : primaryItem.category,
+      categoryPreset: fittingRoute === 'provador-multi'
+        ? 'Rebuild the complete submitted look in one single white-background studio frame using all submitted references as literal truth.'
+        : getFittingCategoryPreset(primaryItem.category).instruction,
+      ratioInstruction,
+      poseInstruction: routedPoseInstruction,
+      energyInstruction: routedEnergyInstruction,
+      userIntent,
+      route: fittingRoute,
+      itemDescriptions: provadorRelevantItems.map((item) => item.description),
+    })
+
+    const referenceParts: Array<Record<string, unknown>> = [
+      { text: '[BASE PHOTO] - preserve this exact model identity:' },
+      { inlineData: { mimeType: portraitGeminiImage.mimeType, data: portraitGeminiImage.buffer.toString('base64') } },
+    ]
+
+    if (fittingRoute === 'provador-single') {
+      const singleReference = provadorRelevantItems[0] ?? primaryItem
+      referenceParts.push(
+        { text: '[CLIENT ITEM REFERENCE] - preserve this item literally:' },
+        { inlineData: { mimeType: singleReference.mimeType, data: singleReference.imageBuffer.toString('base64') } },
+      )
+    } else if (referenceMode === 'single-look-photo') {
+      const masterReference = await normalizeImageForVertex(finalReferenceBuffers[0], 'jpeg')
+      referenceParts.push(
+        { text: '[CLIENT LOOK MASTER REFERENCE] - this reference defines the submitted look:' },
+        { inlineData: { mimeType: masterReference.mimeType, data: masterReference.buffer.toString('base64') } },
+      )
+      for (const [index, item] of provadorRelevantItems.slice(0, 4).entries()) {
+        referenceParts.push(
+          { text: `[CLIENT LOOK DETAIL ${index + 1}] - preserve this item literally:` },
+          { inlineData: { mimeType: item.mimeType, data: item.imageBuffer.toString('base64') } },
+        )
+      }
+    } else {
+      const usedSourceIndexes = Array.from(new Set(
+        provadorRelevantItems
+          .map((item) => item.sourceIndex)
+          .filter((value): value is number => typeof value === 'number' && value >= 0),
+      )).slice(0, 5)
+
+      for (const [index, sourceIndex] of usedSourceIndexes.entries()) {
+        const normalizedReference = await normalizeImageForVertex(finalReferenceBuffers[sourceIndex], 'jpeg')
+        referenceParts.push(
+          { text: `[CLIENT LOOK REFERENCE ${index + 1}] - preserve this submitted fashion reference literally:` },
+          { inlineData: { mimeType: normalizedReference.mimeType, data: normalizedReference.buffer.toString('base64') } },
+        )
+      }
+    }
+
+    referenceParts.push({ text: promptText })
+
+    const runFinalQc = async (candidateBase64: string) => {
+      if (provadorWearableItems.length > 0) {
+        return runWearableQualityCheckForItems(candidateBase64, fittingRoute, provadorWearableItems)
+      }
+      if (selectedAccessoryAnalyses.length > 0) {
+        return assessAccessoryBatchQuality({
+          analyses: selectedAccessoryAnalyses,
+          generatedBase64: candidateBase64,
+          fittingRoute,
+        })
+      }
+      return runWearableQualityCheckForItems(candidateBase64, fittingRoute, [primaryItem])
+    }
+
+    let approvedBase64: string | null = null
+    let engineUsed = ''
+    let fallbackUsed = false
+
+    const initialResult = await callGeminiProvadorImage({
+      promptText,
+      parts: referenceParts,
+      stageLabel: `${fittingRoute}:attempt-1`,
+    })
+    approvedBase64 = initialResult.imageBase64
+    engineUsed = initialResult.modelUsed ? `gemini:${initialResult.modelUsed}` : ''
+
+    if (!approvedBase64) {
+      approvedBase64 = await callFluxProvadorImage(promptText, `${fittingRoute}:flux-fallback`)
+      if (approvedBase64) {
+        engineUsed = 'flux:fal-ai/flux/dev/image-to-image'
+        fallbackUsed = true
+      }
+    }
+
+    if (!approvedBase64) {
+      throw new Error('Todos os modelos Gemini e o fallback Flux falharam no Provador')
+    }
+
+    let qc = await runFinalQc(approvedBase64)
+    extraData.stage1_engine = engineUsed || 'gemini:unknown'
+    extraData.fallback_used = fallbackUsed
+    extraData.model_chain_tried = Array.from(new Set([
+      ...geminiModelsTried,
+      ...(fallbackUsed ? ['fal-ai/flux/dev/image-to-image'] : []),
+    ]))
+
+    logFittingQc({
+      mode: referenceMode,
+      route: fittingRoute,
+      stage: `${fittingRoute}:attempt-1`,
+      categories: provadorRelevantItems.map((item) => item.category),
+      approved: qc.approved,
+      weakestDimension: getQcWeakestDimension(qc),
+      issues: qc.issues,
+    })
+
+    if (!qc.approved && !fallbackUsed) {
+      candidateAttempts.push(`${fittingRoute}:attempt-1-rejected`)
+      const retryPrompt = buildRetryPrompt(
+        promptText,
+        qc.issues,
+        getQcWeakestDimension(qc),
+        'fitting',
+        fittingRoute,
+      )
+      const retryResult = await callGeminiProvadorImage({
+        promptText: retryPrompt,
+        parts: [...referenceParts.slice(0, -1), { text: retryPrompt }],
+        stageLabel: `${fittingRoute}:attempt-2`,
+      })
+
+      if (retryResult.imageBase64) {
+        approvedBase64 = retryResult.imageBase64
+        engineUsed = retryResult.modelUsed ? `gemini:${retryResult.modelUsed}` : engineUsed
+        qc = await runFinalQc(approvedBase64)
+        extraData.stage1_engine = engineUsed || extraData.stage1_engine
+        extraData.model_chain_tried = Array.from(new Set([...geminiModelsTried]))
+        logFittingQc({
+          mode: referenceMode,
+          route: fittingRoute,
+          stage: `${fittingRoute}:attempt-2`,
+          categories: provadorRelevantItems.map((item) => item.category),
+          approved: qc.approved,
+          weakestDimension: getQcWeakestDimension(qc),
+          issues: qc.issues,
+        })
+      }
+    }
+
+    if (!qc.approved && !fallbackUsed) {
+      const fluxRetryPrompt = buildRetryPrompt(
+        promptText,
+        qc.issues,
+        getQcWeakestDimension(qc),
+        'fitting',
+        fittingRoute,
+      )
+      const fluxRetryBase64 = await callFluxProvadorImage(fluxRetryPrompt, `${fittingRoute}:flux-retry`)
+      if (fluxRetryBase64) {
+        approvedBase64 = fluxRetryBase64
+        engineUsed = 'flux:fal-ai/flux/dev/image-to-image'
+        fallbackUsed = true
+        qc = await runFinalQc(approvedBase64)
+        extraData.stage1_engine = engineUsed
+        extraData.fallback_used = true
+        extraData.model_chain_tried = Array.from(new Set([
+          ...geminiModelsTried,
+          'fal-ai/flux/dev/image-to-image',
+        ]))
+        logFittingQc({
+          mode: referenceMode,
+          route: fittingRoute,
+          stage: `${fittingRoute}:flux-retry`,
+          categories: provadorRelevantItems.map((item) => item.category),
+          approved: qc.approved,
+          weakestDimension: getQcWeakestDimension(qc),
+          issues: qc.issues,
+        })
+      }
+    }
+
+    if (!qc.approved) {
+      throw new Error(`Provador rejeitado no QC final: ${qc.issues.join(', ') || getQcWeakestDimension(qc) || 'QC reprovado'}`)
+    }
+
+    candidateAttempts.push(`${fittingRoute}:approved`)
+    extraData.final_qc_status = 'approved'
+    extraData.reference_item_count = provadorReferenceCount
+    extraData.applied_categories = provadorRelevantItems.map((item) => item.category)
+    finalizeProvadorAudit()
+    resultBuffer = Buffer.from(approvedBase64, 'base64')
+  } else if (fittingRoute === 'gemini-hold' || fittingRoute === 'gemini-hold-accessories' || fittingRoute === 'gemini-look-sequential') {
     if (fittingRoute === 'gemini-look-sequential') {
       const stageResults: Array<Record<string, unknown>> = []
       const appendStageResult = (stage: string, item: SegmentedFittingItem, status: 'approved' | 'failed' | 'kept_base', issues: string[] = []) => {
@@ -6987,15 +7253,6 @@ async function composeDedicatedFittingScene(params: {
       extraData.editorial_qc_status = 'skipped_after_single_photo_gemini_fallback'
       candidateAttempts.push(`${fittingRoute}:post-processing:skipped-after-gemini-fallback`)
     }
-    if (!skipPostVertexPasses && fittingStrategy === 'hybrid_vertex_gemini' && selectedAccessoryDetailItems.length > 0) {
-      const hybridOverlayBase64 = await runHybridAccessoryOverlay(approvedBase64)
-      if (hybridOverlayBase64 !== approvedBase64) {
-        candidateAttempts.push('accessory-overlay:approved')
-      } else if (selectedAccessoryAnalyses.length > 0) {
-        candidateAttempts.push('accessory-overlay:kept-base')
-      }
-      approvedBase64 = hybridOverlayBase64
-    }
     if (!skipPostVertexPasses && shouldShortCircuitEditorialFinisher) {
       candidateAttempts.push('editorial-finisher:skipped-strong-hybrid-approval')
     }
@@ -7036,7 +7293,7 @@ async function composeDedicatedFittingScene(params: {
         portrait_url: publicUrl,
         product_url: continuationUrls[0],
         product_urls: continuationUrls,
-        compose_mode: 'vertex-vto',
+        compose_mode: 'gemini',
         compose_variant: 'fitting',
         position: params.position ?? 'southeast',
         product_scale: params.product_scale ?? 0.35,
@@ -7081,6 +7338,28 @@ export async function composeProductScene(params: {
 
   let resultBuffer: Buffer
   const extraData: Record<string, unknown> = {}
+  const composeVariant = params.compose_variant === 'product' ? 'product' : 'fitting'
+
+  if (composeVariant === 'fitting') {
+    return await composeDedicatedFittingScene({
+      portrait_url: params.portrait_url,
+      product_url: params.product_url,
+      product_urls: params.product_urls,
+      guided_overlay_references: params.guided_overlay_references,
+      position: params.position,
+      product_scale: params.product_scale,
+      aspect_ratio: params.aspect_ratio,
+      fitting_category: params.fitting_category,
+      fitting_group: params.fitting_group,
+      vton_category: params.vton_category,
+      fitting_pose_preset: params.fitting_pose_preset,
+      fitting_energy_preset: params.fitting_energy_preset,
+      smart_prompt: params.smart_prompt,
+      pricing_preflight: params.pricing_preflight,
+      assetId: params.assetId,
+      userId: params.userId,
+    })
+  }
 
   if (params.compose_mode === 'prompt') {
     // ---- MODO VESTIR VIA PROMPT (FLUX-PULID) ----
@@ -7226,7 +7505,6 @@ export async function composeProductScene(params: {
     ])
 
     const profile = await classifyProduct(productBuf, apiKey)
-    const composeVariant = params.compose_variant === 'product' ? 'product' : 'fitting'
     console.log(`[studio] product-profile | category=${profile.category} has_text=${profile.has_text_logo} risk=${profile.deformation_risk} complexity=${profile.shape_complexity} variant=${composeVariant}`)
     console.log(`[studio] key_features: ${profile.key_features.join(', ')}`)
 

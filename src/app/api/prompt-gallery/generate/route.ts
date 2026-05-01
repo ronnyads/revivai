@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
         portrait_url: uploadedUrls[0] ?? '',
         product_url: uploadedUrls[1] ?? '',
         product_urls: uploadedUrls.slice(1, 4),
-        compose_mode: 'vertex-vto',
+        compose_mode: 'gemini',
         compose_variant: 'fitting',
         position: 'southeast',
         product_scale: 0.35,

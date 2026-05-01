@@ -1174,7 +1174,7 @@ export async function POST(req: NextRequest) {
           ? normalizedInputParams.guided_overlay_references
               .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value))
           : undefined,
-        compose_mode:  composeVariant === 'fitting' ? 'vertex-vto' : composeMode,
+        compose_mode:  composeVariant === 'fitting' ? 'gemini' : composeMode,
         compose_variant: composeVariant,
         position:      normalizedInputParams.position ? String(normalizedInputParams.position) : 'southeast',
         product_scale: normalizedInputParams.product_scale ? Number(normalizedInputParams.product_scale) : 0.35,
