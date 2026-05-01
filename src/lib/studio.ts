@@ -4052,6 +4052,36 @@ async function assessAccessoryBatchQuality(params: {
   }
 }
 
+function getLowestQcScore(results: Array<{ score: number }>) {
+  if (results.length === 0) return 0
+  return results.reduce((lowest, result) => Math.min(lowest, result.score), Number.POSITIVE_INFINITY)
+}
+
+function getWearableQcScore(
+  result: CompositionQuality | {
+    approved: boolean
+    weakestDimension?: string
+    issues: string[]
+    results: WearableQcResult[]
+  },
+) {
+  return 'score' in result ? result.score : getLowestQcScore(result.results)
+}
+
+function shouldSkipEditorialFinisherAfterStrongHybridApproval(params: {
+  editorialPropCandidates: string[]
+  garmentScore: number
+  accessoryScore: number
+  weakestDimension?: string
+}) {
+  if (params.editorialPropCandidates.length > 0) return false
+  if (params.weakestDimension && /item fidelity|fit and placement|anatomy/i.test(params.weakestDimension)) {
+    return false
+  }
+
+  return params.garmentScore >= 92 && params.accessoryScore >= 92
+}
+
 function getQcWeakestDimension(result: CompositionQuality | { weakestDimension?: string }): string | undefined {
   return 'weakestDimension' in result ? result.weakestDimension : (result as CompositionQuality).weakest_dimension
 }
@@ -5031,6 +5061,7 @@ async function composeDedicatedFittingScene(params: {
     editorial_finisher_attempted: false,
     editorial_finisher_used: false,
     editorial_finisher_model: 'none',
+    editorial_finisher_skip_reason: 'none',
     editorial_prop_candidates: editorialPropCandidates,
     editorial_props_applied: [],
     editorial_qc_status: editorialFinisherEligible ? 'pending' : 'not_attempted',
@@ -5777,6 +5808,7 @@ async function composeDedicatedFittingScene(params: {
 
     let approvedBase64: string | null = null
     let singlePhotoGeminiFallbackApproved = false
+    let shouldShortCircuitEditorialFinisher = false
 
     async function runSinglePhotoGeminiFallback(params: {
       trigger: string
@@ -6001,6 +6033,8 @@ async function composeDedicatedFittingScene(params: {
 
         return {
           approved: garmentQc.approved && accessoryQc.approved,
+          garmentScore: getWearableQcScore(garmentQc),
+          accessoryScore: getLowestQcScore(accessoryQc.results),
           weakestDimension: getQcWeakestDimension(garmentQc) ?? accessoryQc.weakestDimension,
           issues: Array.from(new Set([...garmentQc.issues, ...accessoryQc.issues])).slice(0, 10),
         }
@@ -6012,7 +6046,22 @@ async function composeDedicatedFittingScene(params: {
       }
       extraData.stage2_engine = firstAttempt.modelUsed ? `gemini:${firstAttempt.modelUsed}` : 'gemini:unknown'
       const firstQc = await evaluateHybridResult(firstAttempt.imageBase64, 'hybrid-accessories:attempt-1')
-      if (firstQc.approved) return firstAttempt.imageBase64
+      if (firstQc.approved) {
+        if (shouldSkipEditorialFinisherAfterStrongHybridApproval({
+          editorialPropCandidates,
+          garmentScore: firstQc.garmentScore,
+          accessoryScore: firstQc.accessoryScore,
+          weakestDimension: firstQc.weakestDimension,
+        })) {
+          shouldShortCircuitEditorialFinisher = true
+          extraData.editorial_qc_status = 'skipped_after_strong_hybrid_approval'
+          extraData.editorial_finisher_skip_reason = 'strong-hybrid-approval'
+          console.log(
+            `[studio] editorial finisher skipped | reason=strong-hybrid-approval garment_score=${firstQc.garmentScore} accessory_score=${firstQc.accessoryScore}`,
+          )
+        }
+        return firstAttempt.imageBase64
+      }
 
       extraData.retry_reason = firstQc.weakestDimension ?? firstQc.issues[0] ?? 'hybrid-accessory-reject'
       const retryAttempt = await callGeminiHybridAccessoryOverlay(
@@ -6034,6 +6083,20 @@ async function composeDedicatedFittingScene(params: {
       const retryQc = await evaluateHybridResult(retryAttempt.imageBase64, 'hybrid-accessories:attempt-2')
       if (!retryQc.approved) {
         throw new Error(`Passe hibrido de acessorios reprovado: ${retryQc.issues.join(', ') || retryQc.weakestDimension || 'QC reprovado'}`)
+      }
+
+      if (shouldSkipEditorialFinisherAfterStrongHybridApproval({
+        editorialPropCandidates,
+        garmentScore: retryQc.garmentScore,
+        accessoryScore: retryQc.accessoryScore,
+        weakestDimension: retryQc.weakestDimension,
+      })) {
+        shouldShortCircuitEditorialFinisher = true
+        extraData.editorial_qc_status = 'skipped_after_strong_hybrid_approval'
+        extraData.editorial_finisher_skip_reason = 'strong-hybrid-approval'
+        console.log(
+          `[studio] editorial finisher skipped | reason=strong-hybrid-approval garment_score=${retryQc.garmentScore} accessory_score=${retryQc.accessoryScore}`,
+        )
       }
 
       return retryAttempt.imageBase64
@@ -6416,7 +6479,10 @@ async function composeDedicatedFittingScene(params: {
       approvedBase64 = await runHybridAccessoryOverlay(approvedBase64)
       candidateAttempts.push('accessory-overlay:approved')
     }
-    if (!skipPostVertexPasses && editorialFinisherEligible) {
+    if (!skipPostVertexPasses && shouldShortCircuitEditorialFinisher) {
+      candidateAttempts.push('editorial-finisher:skipped-strong-hybrid-approval')
+    }
+    if (!skipPostVertexPasses && !shouldShortCircuitEditorialFinisher && editorialFinisherEligible) {
       const editorialBase64 = await runEditorialFinisher(approvedBase64)
       if (editorialBase64 !== approvedBase64) {
         candidateAttempts.push('editorial-finisher:approved')

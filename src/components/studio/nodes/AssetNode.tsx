@@ -317,7 +317,7 @@ const ESTIMATED: Partial<Record<AssetType, number>> = {
   script: 8,
   upscale: 25,
   caption: 15,
-  compose: 20,
+  compose: 150,
   render: 30,
   lipsync: 120,
   music: 45,
