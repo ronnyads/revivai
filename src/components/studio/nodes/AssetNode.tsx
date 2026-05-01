@@ -453,6 +453,18 @@ function getTalkingVideoContinuationDraft(inputParams: Record<string, unknown>) 
   }
 }
 
+function getProvadorContinuationDraft(inputParams: Record<string, unknown>) {
+  if (!inputParams.continuation_params || typeof inputParams.continuation_params !== 'object' || Array.isArray(inputParams.continuation_params)) {
+    return null
+  }
+
+  const continuationParams = inputParams.continuation_params as Record<string, unknown>
+  const productUrl = typeof continuationParams.product_url === 'string' ? continuationParams.product_url.trim() : ''
+  if (!productUrl) return null
+
+  return continuationParams
+}
+
 function AssetNode({ data, selected }: NodeProps) {
   const {
     asset,
@@ -499,6 +511,13 @@ function AssetNode({ data, selected }: NodeProps) {
     () => (asset.type === 'talking_video' ? getTalkingVideoContinuationDraft(asset.input_params) : null),
     [asset.type, asset.input_params],
   )
+  const provadorContinuationDraft = useMemo(
+    () => (asset.type === 'compose' ? getProvadorContinuationDraft(asset.input_params) : null),
+    [asset.type, asset.input_params],
+  )
+  const provadorRemainingCategories = Array.isArray(asset.input_params.remaining_structural_categories)
+    ? asset.input_params.remaining_structural_categories.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    : []
   const cardWidth = getStudioNodeCardWidth(asset.type, {
     status: asset.status,
     collapsed: effectiveCollapsed,
@@ -602,6 +621,14 @@ function AssetNode({ data, selected }: NodeProps) {
                 </p>
               </div>
             ) : null}
+            {asset.type === 'compose' && provadorContinuationDraft ? (
+              <div className="rounded-[18px] border border-cyan-500/18 bg-[#0D171B] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100">proximo passo do look preparado</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-white/68">
+                  Este resultado estabilizou a base principal do look. Se quiser, continuamos com {provadorRemainingCategories.join(', ') || 'a proxima peca'} em outro card ja preenchido.
+                </p>
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -637,6 +664,16 @@ function AssetNode({ data, selected }: NodeProps) {
                 >
                   <ArrowRight size={12} />
                   Continuar restante
+                </button>
+              ) : null}
+              {asset.type === 'compose' && provadorContinuationDraft ? (
+                <button
+                  type="button"
+                  onClick={() => onDuplicate(asset.id, provadorContinuationDraft)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100 transition-colors hover:border-cyan-400/36 hover:text-white"
+                >
+                  <ArrowRight size={12} />
+                  Continuar look
                 </button>
               ) : null}
             </div>
