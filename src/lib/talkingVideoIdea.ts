@@ -27,16 +27,27 @@ export type TalkingVideoSpeechChunkPlan = {
   hasRemaining: boolean
 }
 
+type IdeaSection = 'neutral' | 'speech' | 'emotion' | 'visual' | 'ignore'
+
 const EMOTION_LABEL_RE = /^(?:tom|emocao|emocional|energia|expressao|performance|sentimento|vibe|clima|mood)\s*:\s*/i
 const VISUAL_LABEL_RE = /^(?:cena|visual|direcao visual|camera|movimento|enquadramento|ambiente|cenario|luz|lighting|shot|plano)\s*:\s*/i
-const SPEECH_LABEL_RE = /^(?:fala|frase|texto falado|fala exata|o que ela fala|ela fala)\s*:\s*/i
-const EMOTION_HINT_RE = /\b(intim[oa]|emocional|humano|acolhedor|acolhedora|sincero|sincera|casual|cinematico|cinematografico|natural|dramatico|dramatico|leve|calmo|calma|confiante|doce|sensivel|soft|warm|friendly|testimonial|depoimento)\b/i
+const SPEECH_LABEL_RE = /^(?:fala|frase|texto falado|fala exata|o que ela fala|ela fala|voiceover|voice over|locucao|locucao exata|falado)\s*:\s*/i
+const IGNORE_LINE_LABEL_RE = /^(?:texto na tela|texto de tela|on-screen text|onscreen text|caption|legenda|sfx|fx|efeitos sonoros|sound effects?|musica|trilha(?: sonora)?|audio|audio de fundo)\s*:\s*/i
+const STORYBOARD_LABEL_RE = /^(?:storyboard|roteiro|take(?:\s+\d+)?|shot list|acao|acao principal|direcao de cena|camera|cena|visual|ambiente|cenario|lighting|plano|conceito)\s*:?\s*/i
+const TIME_MARKER_RE = /^(?:seg(?:\.|undos?)?|sec(?:onds?)?|take|shot|corte)\s*[\d:\-\u2013]+\s*:?\s*/i
+const IGNORE_SPEECH_HINT_RE = /\b(texto na tela|on-screen text|caption|legenda|sfx|sound effects?|efeitos sonoros|musica|trilha(?: sonora)?|audio de fundo)\b/i
+const INLINE_IGNORE_SEGMENT_RE = /(?:^|[.;,-]\s*)(?:texto na tela|texto de tela|on-screen text|onscreen text|caption|legenda|sfx|fx|efeitos sonoros|sound effects?|musica|trilha(?: sonora)?|audio(?: de fundo)?)\s*:?.*$/i
+const EMOTION_HINT_RE = /\b(intim[oa]|emocional|humano|acolhedor|acolhedora|sincero|sincera|casual|cinematico|cinematografico|natural|dramatico|leve|calmo|calma|confiante|doce|sensivel|soft|warm|friendly|testimonial|depoimento)\b/i
 const VISUAL_HINT_RE = /\b(camera|cinematic|cinematografico|cinematica|golden hour|close-up|close up|medium shot|plano|enquadramento|luz|lighting|vento|parque|rua|ambiente|cenario|fundo|selfie|tiktok|movimento)\b/i
 const DIRECTION_HINT_RE = /\b(camera|luz|plano|shot|golden hour|cenario|ambiente|movimento|olhando para camera|olhando pra camera|vento|close|medium|cinemat)\b/i
+const QUOTED_SEGMENT_RE = /["\u201C\u201D\u00AB\u00BB]([^"\u201C\u201D\u00AB\u00BB]{3,320})["\u201C\u201D\u00AB\u00BB]/g
 
 function stripDecorators(value: string) {
   return value
+    .replace(/[`*_]/g, ' ')
+    .replace(/^\[\s*[x ]?\s*\]\s*/, '')
     .replace(/^[#>*\-\s]+/, '')
+    .replace(/^\d+[.)]\s*/, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -77,7 +88,7 @@ function splitSentenceLikeUnits(text: string) {
   const normalized = normalizeTalkingWhitespace(text)
   if (!normalized) return []
 
-  const matches = normalized.match(/[^.!?…]+[.!?…]?/g) ?? []
+  const matches = normalized.match(/[^.!?\u2026]+[.!?\u2026]?/g) ?? []
   const units = matches
     .map((value) => normalizeTalkingWhitespace(value))
     .filter(Boolean)
@@ -209,21 +220,46 @@ export function planTalkingVideoSpeechChunk(params: {
   }
 }
 
-function parseQuotedSpeech(ideaPrompt: string) {
-  const quoteMatches = Array.from(ideaPrompt.matchAll(/["“”«»]([^"“”«»]{3,320})["“”«»]/g))
+function extractQuotedSegments(value: string) {
+  return Array.from(value.matchAll(QUOTED_SEGMENT_RE))
     .map((match) => normalizeTalkingWhitespace(match[1] ?? ''))
     .filter(Boolean)
+}
 
-  if (quoteMatches.length === 0) {
-    return { speechText: '', visualIdea: ideaPrompt }
+function stripQuotedSegments(value: string) {
+  return normalizeTalkingWhitespace(value.replace(QUOTED_SEGMENT_RE, ' '))
+}
+
+function stripLeadingTimeMarker(value: string) {
+  return normalizeTalkingWhitespace(value.replace(TIME_MARKER_RE, ''))
+}
+
+function sanitizeDirectionLine(value: string) {
+  return stripLeadingTimeMarker(stripQuotedSegments(stripDecorators(value))).replace(INLINE_IGNORE_SEGMENT_RE, '').trim()
+}
+
+function pushUniqueLine(target: string[], value: string) {
+  const normalized = normalizeTalkingWhitespace(value)
+  if (!normalized || target.includes(normalized)) return
+  target.push(normalized)
+}
+
+function inferSectionHeader(line: string): IdeaSection {
+  const normalized = normalizeTalkingWhitespace(stripDecorators(line)).replace(/:\s*$/, '')
+  if (!normalized) return 'neutral'
+  if (/^(?:fala|frase|texto falado|fala exata|o que ela fala|ela fala|voiceover|voice over|locucao|locucao exata|falado)$/i.test(normalized)) {
+    return 'speech'
   }
-
-  const speechText = quoteMatches.join(' ')
-  const visualIdea = normalizeTalkingWhitespace(
-    ideaPrompt.replace(/["“”«»][^"“”«»]{3,320}["“”«»]/g, ' '),
-  )
-
-  return { speechText, visualIdea }
+  if (/^(?:tom|emocao|emocional|energia|expressao|performance|sentimento|vibe|clima|mood)$/i.test(normalized)) {
+    return 'emotion'
+  }
+  if (/^(?:storyboard|roteiro|visual|cena|camera|direcao visual|ambiente|cenario|luz|lighting|shot|plano|take(?:\s+\d+)?|conceito)$/i.test(normalized)) {
+    return 'visual'
+  }
+  if (/^(?:texto na tela|texto de tela|on-screen text|onscreen text|caption|legenda|sfx|fx|efeitos sonoros|sound effects?|musica|trilha(?: sonora)?|audio|audio de fundo)$/i.test(normalized)) {
+    return 'ignore'
+  }
+  return 'neutral'
 }
 
 function parseIdeaLines(rawIdea: string) {
@@ -236,35 +272,81 @@ function parseIdeaLines(rawIdea: string) {
   const emotionLines: string[] = []
   const visualLines: string[] = []
   const otherLines: string[] = []
+  const quotedSpeechCandidates: string[] = []
+  let currentSection: IdeaSection = 'neutral'
 
   for (const line of lines) {
+    const quotedSegments = extractQuotedSegments(line)
+
     if (SPEECH_LABEL_RE.test(line)) {
-      speechLines.push(normalizeTalkingWhitespace(line.replace(SPEECH_LABEL_RE, '')))
+      currentSection = 'speech'
+      const content = normalizeTalkingWhitespace(line.replace(SPEECH_LABEL_RE, ''))
+      if (quotedSegments.length > 0) quotedSegments.forEach((segment) => pushUniqueLine(speechLines, segment))
+      else pushUniqueLine(speechLines, content)
       continue
     }
+
     if (EMOTION_LABEL_RE.test(line)) {
-      emotionLines.push(normalizeTalkingWhitespace(line.replace(EMOTION_LABEL_RE, '')))
+      currentSection = 'emotion'
+      pushUniqueLine(emotionLines, sanitizeDirectionLine(line.replace(EMOTION_LABEL_RE, '')))
       continue
     }
-    if (VISUAL_LABEL_RE.test(line)) {
-      visualLines.push(normalizeTalkingWhitespace(line.replace(VISUAL_LABEL_RE, '')))
+
+    if (VISUAL_LABEL_RE.test(line) || STORYBOARD_LABEL_RE.test(line) || TIME_MARKER_RE.test(line)) {
+      currentSection = 'visual'
+      const withoutVisualLabel = VISUAL_LABEL_RE.test(line) ? line.replace(VISUAL_LABEL_RE, '') : line
+      const withoutStoryboardLabel = STORYBOARD_LABEL_RE.test(withoutVisualLabel)
+        ? withoutVisualLabel.replace(STORYBOARD_LABEL_RE, '')
+        : withoutVisualLabel
+      pushUniqueLine(visualLines, sanitizeDirectionLine(withoutStoryboardLabel))
+      if (!IGNORE_LINE_LABEL_RE.test(line) && !IGNORE_SPEECH_HINT_RE.test(line)) {
+        quotedSegments.forEach((segment) => pushUniqueLine(quotedSpeechCandidates, segment))
+      }
       continue
     }
-    otherLines.push(line)
+
+    if (IGNORE_LINE_LABEL_RE.test(line)) {
+      currentSection = 'ignore'
+      continue
+    }
+
+    const inferredSection = inferSectionHeader(line)
+    if (inferredSection !== 'neutral') {
+      currentSection = inferredSection
+      continue
+    }
+
+    if (currentSection === 'ignore') {
+      continue
+    }
+
+    if (currentSection === 'speech') {
+      if (quotedSegments.length > 0) quotedSegments.forEach((segment) => pushUniqueLine(speechLines, segment))
+      else pushUniqueLine(speechLines, line)
+      continue
+    }
+
+    if (currentSection === 'emotion') {
+      pushUniqueLine(emotionLines, sanitizeDirectionLine(line))
+      continue
+    }
+
+    if (currentSection === 'visual') {
+      pushUniqueLine(visualLines, sanitizeDirectionLine(line))
+      if (!IGNORE_SPEECH_HINT_RE.test(line)) {
+        quotedSegments.forEach((segment) => pushUniqueLine(quotedSpeechCandidates, segment))
+      }
+      continue
+    }
+
+    if (!IGNORE_LINE_LABEL_RE.test(line) && !IGNORE_SPEECH_HINT_RE.test(line)) {
+      quotedSegments.forEach((segment) => pushUniqueLine(quotedSpeechCandidates, segment))
+    }
+
+    pushUniqueLine(otherLines, sanitizeDirectionLine(line))
   }
 
-  return { speechLines, emotionLines, visualLines, otherLines }
-}
-
-function looksLikeDialogue(line: string) {
-  const normalized = normalizeTalkingWhitespace(line)
-  if (!normalized) return false
-  if (DIRECTION_HINT_RE.test(normalized)) return false
-  if (normalized.length > 220) return false
-  if (/\b(eu|voce|voces|me|te|mim|pra|para|gente|chat|pensando|preciso|quero|tava|anda)\b/i.test(normalized)) {
-    return true
-  }
-  return /[.!?…]$/.test(normalized)
+  return { speechLines, emotionLines, visualLines, otherLines, quotedSpeechCandidates }
 }
 
 function joinUnique(lines: string[]) {
@@ -318,30 +400,22 @@ export function parseTalkingVideoIdeaInput(params: {
   let speechSource: TalkingVideoIdeaParseResult['speechSource'] = speechText ? 'explicit' : 'missing'
 
   if (ideaPrompt) {
-    const quoted = parseQuotedSpeech(ideaPrompt)
-    const parsedLines = parseIdeaLines(quoted.visualIdea)
+    const parsedLines = parseIdeaLines(ideaPrompt)
 
     if (!speechText) {
       if (parsedLines.speechLines.length > 0) {
         speechText = normalizeTalkingWhitespace(parsedLines.speechLines.join(' '))
         speechSource = 'label'
-      } else if (quoted.speechText) {
-        speechText = quoted.speechText
+      } else if (parsedLines.quotedSpeechCandidates.length > 0) {
+        speechText = normalizeTalkingWhitespace(parsedLines.quotedSpeechCandidates.join(' '))
         speechSource = 'quoted'
-      } else if (params.mode === 'exact_speech') {
-        const candidate = parsedLines.otherLines.find(looksLikeDialogue) ?? ''
-        if (candidate) {
-          speechText = normalizeTalkingWhitespace(candidate)
-          speechSource = 'heuristic'
-          parsedLines.otherLines.splice(parsedLines.otherLines.indexOf(candidate), 1)
-        }
       }
     }
 
     if (!expressionDirection) {
       const emotionCandidates = [
         ...parsedLines.emotionLines,
-        ...parsedLines.otherLines.filter((line) => EMOTION_HINT_RE.test(line) && !looksLikeDialogue(line)),
+        ...parsedLines.otherLines.filter((line) => EMOTION_HINT_RE.test(line) && !VISUAL_HINT_RE.test(line)),
       ]
       expressionDirection = joinUnique(emotionCandidates)
     }
@@ -350,7 +424,7 @@ export function parseTalkingVideoIdeaInput(params: {
       const filteredOthers = parsedLines.otherLines.filter((line) => normalizeTalkingWhitespace(line) !== speechText)
       const visualCandidates = [
         ...parsedLines.visualLines,
-        ...filteredOthers.filter((line) => !EMOTION_HINT_RE.test(line) || VISUAL_HINT_RE.test(line)),
+        ...filteredOthers.filter((line) => !EMOTION_HINT_RE.test(line) || VISUAL_HINT_RE.test(line) || DIRECTION_HINT_RE.test(line)),
       ]
       visualPrompt = joinUnique(visualCandidates)
     }

@@ -9,6 +9,7 @@ import {
   Copy,
   CopyPlus,
   Download,
+  Pencil,
   FileText,
   Film,
   GripHorizontal,
@@ -478,12 +479,18 @@ function AssetNode({ data, selected }: NodeProps) {
 
   const inputHandles = INPUT_HANDLES[asset.type] ?? []
   const [collapsed, setCollapsed] = useState(() => asset.status === 'done' || (!asset.isLocal && asset.status === 'idle'))
+  const [doneEditorOpen, setDoneEditorOpen] = useState(false)
+  const hasDoneResult = asset.status === 'done' && Boolean(asset.result_url)
+  const isDonePreview = hasDoneResult && !doneEditorOpen
+  const isDoneEditing = hasDoneResult && doneEditorOpen
   const effectiveCollapsed =
-    selected || asset.status === 'processing' || asset.status === 'error'
+    isDoneEditing
       ? false
-      : asset.status === 'done' && !selected
-        ? true
-        : collapsed
+      : isDonePreview
+      ? true
+      : selected || asset.status === 'processing' || asset.status === 'error'
+      ? false
+      : collapsed
 
   const connectedInputLabels = useMemo(() => getConnectedInputLabels(asset, inputHandles), [asset, inputHandles])
   const summaryTokens = useMemo(() => getSummaryTokens(asset, inputHandles), [asset, inputHandles])
@@ -495,6 +502,7 @@ function AssetNode({ data, selected }: NodeProps) {
     status: asset.status,
     collapsed: effectiveCollapsed,
     selected,
+    donePreview: isDonePreview,
   })
   const showExpandedSummary = !LATERAL_EDITOR_TYPES.has(asset.type)
   return (
@@ -543,19 +551,19 @@ function AssetNode({ data, selected }: NodeProps) {
               <p className={`truncate text-[14px] font-semibold tracking-tight ${displayMeta.color}`}>{displayMeta.label}</p>
               <StatusPill status={asset.status} />
             </div>
-            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-white/42">{displayMeta.hint}</p>
+            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-white/72">{displayMeta.hint}</p>
           </div>
         </button>
 
         <div className="flex shrink-0 items-center gap-1.5">
-          <span className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/68">
+          <span className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/88">
             {asset.credits_cost} CR
           </span>
           <button
             type="button"
             onClick={() => onDuplicate(asset.id)}
             title="Duplicar card"
-            className="flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-white/35 transition-colors hover:border-white/8 hover:bg-white/[0.05] hover:text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-white/75 transition-colors hover:border-white/10 hover:bg-white/[0.06] hover:text-white"
           >
             <CopyPlus size={14} />
           </button>
@@ -563,7 +571,7 @@ function AssetNode({ data, selected }: NodeProps) {
             type="button"
             onClick={() => onDelete(asset.id)}
             title="Excluir card"
-            className="flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-white/35 transition-colors hover:border-red-500/14 hover:bg-red-500/10 hover:text-red-200"
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-white/75 transition-colors hover:border-red-500/18 hover:bg-red-500/10 hover:text-red-200"
           >
             <Trash2 size={14} />
           </button>
@@ -582,9 +590,9 @@ function AssetNode({ data, selected }: NodeProps) {
           />
         ) : asset.status === 'error' ? (
           <ErrorCard asset={asset} onGenerate={(paramsOverride) => onGenerate(asset.type, paramsOverride ?? asset.input_params, asset.id)} />
-        ) : asset.status === 'done' && asset.result_url ? (
+        ) : isDonePreview ? (
           <div className="space-y-3">
-            <ResultPreview type={asset.type} url={asset.result_url} params={asset.input_params} />
+            <ResultPreview type={asset.type} url={asset.result_url!} params={asset.input_params} donePreview />
             {asset.type === 'talking_video' && talkingVideoContinuationDraft ? (
               <div className="rounded-[18px] border border-cyan-500/18 bg-[#0D171B] p-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100">restante pronto para continuar</p>
@@ -596,8 +604,16 @@ function AssetNode({ data, selected }: NodeProps) {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => onGenerate(asset.type, asset.input_params, asset.id)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70 transition-colors hover:border-white/18 hover:text-white"
+                onClick={() => setDoneEditorOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.06] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/92 transition-colors hover:border-white/24 hover:bg-white/[0.08] hover:text-white"
+              >
+                <Pencil size={12} />
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={() => setDoneEditorOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.06] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/92 transition-colors hover:border-white/24 hover:bg-white/[0.08] hover:text-white"
               >
                 <RotateCcw size={12} />
                 Regenerar
@@ -606,7 +622,7 @@ function AssetNode({ data, selected }: NodeProps) {
                 <button
                   type="button"
                   onClick={() => downloadAsset(asset)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#54D6F6]/18 bg-[#0D171B] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8EDDED] transition-colors hover:border-[#54D6F6]/34 hover:text-white"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#54D6F6]/24 bg-[#0D171B] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white transition-colors hover:border-[#54D6F6]/40 hover:text-white"
                 >
                   <Download size={12} />
                   Download
@@ -640,6 +656,7 @@ function AssetNode({ data, selected }: NodeProps) {
               type={asset.type}
               initialParams={asset.input_params}
               onGenerate={(params) => {
+                setDoneEditorOpen(false)
                 onUpdateParams(asset.id, params)
                 onGenerate(asset.type, params, asset.id)
               }}
@@ -650,14 +667,24 @@ function AssetNode({ data, selected }: NodeProps) {
 
       <div className="border-t border-white/6 px-4 py-3">
         <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => setCollapsed(true)}
-            className="rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/62 transition-colors hover:border-white/16 hover:text-white"
-          >
-            Recolher
-          </button>
-          <div className="flex items-center justify-center gap-2 text-white/24">
+          {isDoneEditing ? (
+            <button
+              type="button"
+              onClick={() => setDoneEditorOpen(false)}
+              className="rounded-full border border-white/12 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/88 transition-colors hover:border-white/24 hover:text-white"
+            >
+              Voltar ao preview
+            </button>
+          ) : !isDonePreview ? (
+            <button
+              type="button"
+              onClick={() => setCollapsed(true)}
+              className="rounded-full border border-white/12 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/88 transition-colors hover:border-white/24 hover:text-white"
+            >
+              Recolher
+            </button>
+          ) : <div />}
+          <div className="flex items-center justify-center gap-2 text-white/58">
           <GripHorizontal size={15} />
           <span className="text-[10px] uppercase tracking-[0.24em]">drag node</span>
           </div>
@@ -772,12 +799,12 @@ function CollapsedIdleShell({
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/42">modo compacto</p>
-          <p className="mt-1 text-sm font-medium text-white/78">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/74">modo compacto</p>
+          <p className="mt-1 text-sm font-medium text-white/92">
             {summaryTokens.length > 0 ? 'Card pronto para abrir e gerar.' : 'Abra para configurar este card.'}
           </p>
         </div>
-        <span className="rounded-full border border-[#54D6F6]/18 bg-[#0D171B] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#8EDDED]">
+        <span className="rounded-full border border-[#54D6F6]/24 bg-[#0D171B] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
           Abrir
         </span>
       </div>
@@ -785,19 +812,19 @@ function CollapsedIdleShell({
       <div className="mt-3 flex flex-wrap gap-1.5">
         {summaryTokens.length > 0 ? (
           summaryTokens.map((token) => (
-            <span key={token} className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] text-white/60">
+            <span key={token} className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] text-white/88">
               {token}
             </span>
           ))
         ) : (
-          <span className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] text-white/38">
+          <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] text-white/66">
             Nenhum campo principal preenchido
           </span>
         )}
       </div>
 
       {connectedInputLabels.length > 0 ? (
-        <p className="mt-3 text-[11px] text-white/38">Entradas prontas: {connectedInputLabels.join(', ')}</p>
+        <p className="mt-3 text-[11px] text-white/72">Entradas prontas: {connectedInputLabels.join(', ')}</p>
       ) : null}
     </button>
   )
@@ -818,16 +845,16 @@ function OpenCardSummary({
     <div className="rounded-[22px] border border-white/8 bg-white/[0.03] px-3 py-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/42">configuracao ativa</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/74">configuracao ativa</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {chips.length > 0 ? (
               chips.map((token) => (
-                <span key={token} className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium text-white/66">
+                <span key={token} className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-medium text-white/88">
                   {token}
                 </span>
               ))
             ) : (
-              <span className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[10px] font-medium text-white/34">
+              <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-medium text-white/66">
                 Campos principais ainda vazios
               </span>
             )}
@@ -835,11 +862,11 @@ function OpenCardSummary({
         </div>
 
         <div className="min-w-0 lg:max-w-[240px]">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/36">entradas</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-white/46">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70">entradas</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-white/76">
             {connectedInputLabels.length > 0 ? connectedInputLabels.join(', ') : 'Sem entradas conectadas no momento.'}
           </p>
-          {nextStep ? <p className="mt-2 text-[10px] leading-relaxed text-[#8EDDED]">{nextStep}</p> : null}
+          {nextStep ? <p className="mt-2 text-[10px] leading-relaxed text-white/90">{nextStep}</p> : null}
         </div>
       </div>
     </div>
@@ -857,21 +884,31 @@ function ResultPreview({
   type,
   url,
   params,
+  donePreview = false,
 }: {
   type: AssetType
   url: string
   params: Record<string, unknown>
+  donePreview?: boolean
 }) {
+  const visualFrameClass = donePreview
+    ? 'mx-auto overflow-hidden rounded-[22px] border border-white/10 bg-black/30'
+    : 'overflow-hidden rounded-[22px] border border-white/8 bg-black/20'
+  const imageAspectClass = donePreview ? 'aspect-[4/5] w-full' : ''
+  const videoAspectClass = donePreview ? 'aspect-[9/16] w-full' : ''
+
   if (type === 'model') {
     return (
       <div className="space-y-3">
-        <div className="overflow-hidden rounded-[22px] border border-white/8 bg-black/20">
-          <img src={url} alt="Modelo UGC" className="max-h-[360px] w-full object-contain" />
+        <div className={visualFrameClass}>
+          <div className={imageAspectClass}>
+            <img src={url} alt="Modelo UGC" className={`w-full ${donePreview ? 'h-full object-contain' : 'max-h-[360px] object-contain'}`} />
+          </div>
         </div>
         {typeof params.model_text === 'string' && params.model_text.trim() ? (
           <div className="rounded-[18px] border border-indigo-500/14 bg-indigo-500/8 p-3">
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-200">descricao</p>
-            <p className="mt-1 text-[11px] leading-relaxed text-white/56">{String(params.model_text)}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-white/80">{String(params.model_text)}</p>
           </div>
         ) : null}
       </div>
@@ -880,8 +917,10 @@ function ResultPreview({
 
   if (type === 'image' || type === 'upscale' || type === 'compose' || type === 'face' || type === 'angles' || type === 'scene') {
     return (
-      <div className="overflow-hidden rounded-[22px] border border-white/8 bg-black/20">
-        <img src={url} alt={TYPE_META[type].label} className="max-h-[360px] w-full object-contain" />
+      <div className={visualFrameClass}>
+        <div className={imageAspectClass}>
+          <img src={url} alt={TYPE_META[type].label} className={`w-full ${donePreview ? 'h-full object-contain' : 'max-h-[360px] object-contain'}`} />
+        </div>
       </div>
     )
   }
@@ -922,8 +961,10 @@ function ResultPreview({
 
   if (type === 'video' || type === 'talking_video' || type === 'render' || type === 'animate' || type === 'lipsync' || type === 'join') {
     return (
-      <div className="overflow-hidden rounded-[22px] border border-white/8 bg-black/20">
-        <video src={url} controls className="max-h-[360px] w-full object-contain" playsInline />
+      <div className={visualFrameClass}>
+        <div className={videoAspectClass}>
+          <video src={url} controls className={`w-full ${donePreview ? 'h-full object-contain' : 'max-h-[360px] object-contain'}`} playsInline />
+        </div>
       </div>
     )
   }

@@ -128,7 +128,7 @@ export function StudioFormShell({
                   <div className="min-w-0">
                     <h4 className="text-[14px] font-semibold tracking-tight text-white">{title}</h4>
                     {description ? (
-                      <p className="mt-1 line-clamp-2 max-w-xl text-[10px] leading-relaxed text-white/44">{description}</p>
+                      <p className="mt-1 line-clamp-2 max-w-xl text-[10px] leading-relaxed text-white/72">{description}</p>
                     ) : null}
                   </div>
                 </div>
@@ -190,7 +190,7 @@ export function StudioPanel({
       {(eyebrow || title) ? (
         <div className="mb-2">
           {eyebrow ? (
-            <p className="font-label text-[8px] uppercase tracking-[0.18em] text-white/32">{eyebrow}</p>
+            <p className="font-label text-[8px] uppercase tracking-[0.18em] text-white/62">{eyebrow}</p>
           ) : null}
           {title ? <h5 className="mt-0.5 text-[11px] font-semibold tracking-tight text-white">{title}</h5> : null}
         </div>
@@ -223,8 +223,8 @@ export function StudioFieldLabel({
 }) {
   return (
     <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5">
-      <label className="font-label text-[9px] uppercase tracking-[0.16em] text-white/40">{children}</label>
-      {trailing ? <div className="text-[9px] font-semibold text-white/48">{trailing}</div> : null}
+      <label className="font-label text-[9px] uppercase tracking-[0.16em] text-white/72">{children}</label>
+      {trailing ? <div className="text-[9px] font-semibold text-white/78">{trailing}</div> : null}
     </div>
   )
 }
@@ -237,7 +237,7 @@ export function StudioHint({
   tone?: 'neutral' | 'warning'
 }) {
   return (
-    <p className={clsx('px-0.5 text-[9px] leading-relaxed', tone === 'warning' ? 'text-amber-200/85' : 'text-white/42')}>
+    <p className={clsx('px-0.5 text-[9px] leading-relaxed', tone === 'warning' ? 'text-amber-200/92' : 'text-white/72')}>
       {children}
     </p>
   )

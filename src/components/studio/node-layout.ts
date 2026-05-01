@@ -1,11 +1,12 @@
 import { AssetStatus, AssetType } from '@/types'
 
-export type StudioNodeVisualState = 'compact' | 'active' | 'expanded'
+export type StudioNodeVisualState = 'compact' | 'active' | 'expanded' | 'done-preview'
 
 type StudioNodeLayoutOptions = {
   status?: AssetStatus
   collapsed?: boolean
   selected?: boolean
+  donePreview?: boolean
 }
 
 const EXPANDED_NODE_TYPES = new Set<AssetType>(['compose', 'video', 'talking_video', 'image', 'animate', 'ugc_bundle', 'look_split', 'scene', 'model'])
@@ -18,7 +19,9 @@ export function getStudioNodeVisualState(
   type: AssetType,
   options: StudioNodeLayoutOptions = {},
 ): StudioNodeVisualState {
-  const { status = 'idle', collapsed = false, selected = false } = options
+  const { status = 'idle', collapsed = false, selected = false, donePreview = false } = options
+
+  if (donePreview) return 'done-preview'
 
   if (status === 'processing') {
     return EXPANDED_NODE_TYPES.has(type) ? 'expanded' : 'active'
@@ -44,6 +47,14 @@ export function getStudioNodeCardWidth(
   options: StudioNodeLayoutOptions = {},
 ) {
   const visualState = getStudioNodeVisualState(type, options)
+
+  if (visualState === 'done-preview') {
+    if (type === 'video' || type === 'talking_video' || type === 'render' || type === 'animate' || type === 'lipsync' || type === 'join') return 320
+    if (type === 'look_split' || type === 'ugc_bundle') return 420
+    if (type === 'voice' || type === 'music' || type === 'script' || type === 'caption') return 420
+    if (type === 'image' || type === 'upscale' || type === 'compose' || type === 'face' || type === 'angles' || type === 'scene' || type === 'model') return 390
+    return 360
+  }
 
   if (visualState === 'expanded') {
     if (type === 'compose') return 1040
