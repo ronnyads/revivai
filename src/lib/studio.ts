@@ -7153,20 +7153,56 @@ export async function startVeo3DirectGoogle(params: {
     }).finalPrompt
   function resolveVeoResolution(model: string) {
     const requested = params.quality === '1080p' ? '1080p' : '720p'
-    if (/^veo-3\.0/i.test(model) && requested === '1080p') return '720p'
+    if (/^veo-3\.0(?:-fast)?-generate-preview$/i.test(model) && requested === '1080p') return '720p'
     return requested
   }
 
   const durationSeconds = 8
 
   const wantsAudio = params.generate_audio ?? false
+
+  function normalizeGeminiVeoModelId(model: string) {
+    const normalized = String(model || '').trim()
+    if (!normalized) return normalized
+
+    if (normalized === 'veo-3.0-generate-preview') return 'veo-3.0-generate-001'
+    if (normalized === 'veo-3.0-fast-generate-preview') return 'veo-3.0-fast-generate-001'
+    return normalized
+  }
+
+  function uniqueModelList(models: Array<string | undefined>) {
+    return models
+      .map((model) => normalizeGeminiVeoModelId(String(model ?? '').trim()))
+      .filter(Boolean)
+      .filter((model, index, array) => array.indexOf(model) === index)
+  }
+
   const primaryModel = wantsAudio
-    ? (process.env.GOOGLE_VEO_AUDIO_MODEL ?? 'veo-3.0-generate-preview')
-    : (process.env.GOOGLE_VEO_SILENT_MODEL ?? 'veo-3.1-generate-preview')
+    ? normalizeGeminiVeoModelId(process.env.GOOGLE_VEO_AUDIO_MODEL ?? 'veo-3.1-generate-preview')
+    : normalizeGeminiVeoModelId(process.env.GOOGLE_VEO_SILENT_MODEL ?? 'veo-3.1-generate-preview')
+
+  const audioFallbackModels = wantsAudio
+    ? uniqueModelList([
+        process.env.GOOGLE_VEO_AUDIO_FALLBACK_MODEL,
+        'veo-3.1-fast-generate-preview',
+        'veo-3.0-generate-001',
+        'veo-3.0-fast-generate-001',
+      ])
+    : []
 
   async function requestVeoOperation(model: string, generateAudio: boolean) {
     const resolution = resolveVeoResolution(model)
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`
+    const parameters: Record<string, unknown> = {
+      aspectRatio: '9:16',
+      durationSeconds,
+      resolution,
+    }
+
+    if (!generateAudio) {
+      parameters.generateAudio = false
+    }
+
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -7177,12 +7213,7 @@ export async function startVeo3DirectGoogle(params: {
             image: { bytesBase64Encoded: base64Image, mimeType },
           }],
         }],
-        parameters: {
-          aspectRatio: '9:16',
-          durationSeconds,
-          generateAudio,
-          resolution,
-        },
+        parameters,
       }),
     })
 
@@ -7198,13 +7229,31 @@ export async function startVeo3DirectGoogle(params: {
   let usedModel = primaryModel
   let operationResponse = await requestVeoOperation(primaryModel, wantsAudio)
 
-  if (!operationResponse.ok && wantsAudio && /generateAudio.+isn'?t supported by this model/i.test(operationResponse.errText)) {
-    const fallbackAudioModel = process.env.GOOGLE_VEO_AUDIO_FALLBACK_MODEL ?? 'veo-3.0-fast-generate-preview'
-    console.warn(
-      `[studio] veo audio fallback | primary_model=${primaryModel} fallback_model=${fallbackAudioModel} reason=generateAudio_unsupported`,
-    )
-    usedModel = fallbackAudioModel
-    operationResponse = await requestVeoOperation(fallbackAudioModel, true)
+  if (!operationResponse.ok && wantsAudio) {
+    const fallbackReason = /generateAudio.+isn'?t supported by this model/i.test(operationResponse.errText)
+      ? 'generateAudio_unsupported'
+      : operationResponse.status === 404
+        ? 'model_not_found'
+        : operationResponse.status === 400 && /not found|unsupported/i.test(operationResponse.errText)
+          ? 'invalid_model'
+          : ''
+
+    if (fallbackReason) {
+      for (const fallbackAudioModel of audioFallbackModels) {
+        if (fallbackAudioModel === usedModel) continue
+        console.warn(
+          `[studio] veo audio fallback | primary_model=${usedModel} fallback_model=${fallbackAudioModel} reason=${fallbackReason}`,
+        )
+        const fallbackResponse = await requestVeoOperation(fallbackAudioModel, true)
+        if (fallbackResponse.ok) {
+          usedModel = fallbackAudioModel
+          operationResponse = fallbackResponse
+          break
+        }
+        operationResponse = fallbackResponse
+        usedModel = fallbackAudioModel
+      }
+    }
   }
 
   if (!operationResponse.ok) {
