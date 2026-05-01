@@ -525,14 +525,16 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     }
   }, [assets, connections, project.id, startPolling])
 
-  const handleDuplicate = useCallback(async (id: string) => {
+  const handleDuplicate = useCallback(async (id: string, overrides?: Record<string, unknown>) => {
     const original = assets.find(a => a.id === id)
     if (!original) return
     const newId = crypto.randomUUID()
+    const nextParams = { ...original.input_params, ...(overrides ?? {}) }
     const copy: StudioAsset = {
       ...original,
       id: newId,
       status: 'idle',
+      input_params: nextParams,
       result_url: null,
       last_frame_url: null,
       error_msg: null,
@@ -553,7 +555,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           type: original.type,
           status: 'idle',
           frontend_id: newId,
-          input_params: original.input_params,
+          input_params: nextParams,
           position_x: copy.position_x,
           position_y: copy.position_y,
         })

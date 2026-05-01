@@ -47,7 +47,8 @@ export function getStudioNodeCardWidth(
 
   if (visualState === 'expanded') {
     if (type === 'compose') return 1040
-    if (type === 'video' || type === 'talking_video' || type === 'scene') return 920
+    if (type === 'video' || type === 'scene') return 920
+    if (type === 'talking_video') return 840
     if (type === 'image' || type === 'look_split') return 900
     if (type === 'model') return 610
     return 560
@@ -55,7 +56,8 @@ export function getStudioNodeCardWidth(
 
   if (visualState === 'active') {
     if (type === 'compose') return 940
-    if (type === 'scene' || type === 'video' || type === 'talking_video') return 760
+    if (type === 'scene' || type === 'video') return 760
+    if (type === 'talking_video') return 700
     if (type === 'image' || type === 'look_split') return 740
     if (type === 'model') return 550
     if (EXPANDED_NODE_TYPES.has(type)) return 520

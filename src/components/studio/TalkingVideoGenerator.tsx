@@ -15,6 +15,7 @@ import { CREDIT_COST } from '@/constants/studio'
 import {
   buildTalkingVideoIdeaFromParts,
   estimateTalkingSpeechDurationSeconds,
+  planTalkingVideoSpeechChunk,
   parseTalkingVideoIdeaInput,
 } from '@/lib/talkingVideoIdea'
 
@@ -94,17 +95,21 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
     () => estimateTalkingSpeechDurationSeconds({ text: parsedIdea.speechText, speed }),
     [parsedIdea.speechText, speed],
   )
-  const estimateTone = getEstimateTone(estimateSeconds)
+  const chunkPlan = useMemo(
+    () => planTalkingVideoSpeechChunk({ text: parsedIdea.speechText, speed, targetSeconds: 7.35, maxSeconds: 7.95 }),
+    [parsedIdea.speechText, speed],
+  )
+  const speechWillContinue = mode === 'exact_speech' && chunkPlan.hasRemaining
+  const estimateTone = getEstimateTone(speechWillContinue ? chunkPlan.selectedSeconds : estimateSeconds)
   const baseVideoCost = CREDIT_COST.talking_video ?? CREDIT_COST.video_veo ?? 50
   const videoCost = quality === '1080p' ? baseVideoCost * 2 : baseVideoCost
   const cost = mode === 'exact_speech'
     ? videoCost + (CREDIT_COST.voice ?? 8) + (CREDIT_COST.lipsync ?? 20)
     : videoCost
-  const speechTooLong = mode === 'exact_speech' && estimateSeconds > 8
   const exactSpeechMissing = mode === 'exact_speech' && !parsedIdea.speechDetected
   const naturalMissing = !imageUrl.trim() || (!parsedIdea.speechDetected && !parsedIdea.sceneDetected)
   const isDisabled = mode === 'exact_speech'
-    ? !imageUrl.trim() || exactSpeechMissing || speechTooLong
+    ? !imageUrl.trim() || exactSpeechMissing
     : naturalMissing
 
   return (
@@ -173,14 +178,20 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
                       className={`rounded-full px-2 py-1 text-[9px] font-semibold ${
                         !parsedIdea.speechDetected
                           ? 'border border-amber-500/20 bg-amber-500/10 text-amber-200'
-                          : estimateTone === 'safe'
+                          : speechWillContinue
+                            ? 'border border-amber-500/20 bg-amber-500/10 text-amber-200'
+                            : estimateTone === 'safe'
                             ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
                             : estimateTone === 'warning'
                               ? 'border border-amber-500/20 bg-amber-500/10 text-amber-200'
                               : 'border border-red-500/20 bg-red-500/10 text-red-200'
                       }`}
                     >
-                      {!parsedIdea.speechDetected ? 'Fala nao detectada' : `Estimativa: ${estimateSeconds.toFixed(1)}s / 8s`}
+                      {!parsedIdea.speechDetected
+                        ? 'Fala nao detectada'
+                        : speechWillContinue
+                          ? `Total ${estimateSeconds.toFixed(1)}s -> parte 1 ${chunkPlan.selectedSeconds.toFixed(1)}s`
+                          : `Estimativa: ${estimateSeconds.toFixed(1)}s / 8s`}
                     </span>
                   )
                   : null
@@ -207,18 +218,18 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
               </StudioSummaryChip>
               <StudioSummaryChip tone="neutral">modelo preservada</StudioSummaryChip>
               <StudioSummaryChip tone={mode === 'exact_speech' ? 'cyan' : 'warning'}>
-                {mode === 'exact_speech' ? 'speech-safe ativo' : 'audio mais livre'}
+                {speechWillContinue ? 'continua em partes' : mode === 'exact_speech' ? 'speech-safe ativo' : 'audio mais livre'}
               </StudioSummaryChip>
             </div>
             <div className="mt-2 space-y-1.5">
               {mode === 'exact_speech' ? (
                 <>
                   <StudioHint>Escreva a fala entre aspas ou coloque a frase na primeira linha. O resto pode ser tom, cena e camera.</StudioHint>
-                  <StudioHint tone={exactSpeechMissing || speechTooLong ? 'warning' : 'neutral'}>
+                  <StudioHint tone={exactSpeechMissing || speechWillContinue ? 'warning' : 'neutral'}>
                     {exactSpeechMissing
                       ? 'Nao encontrei a frase exata ainda. Coloque a fala entre aspas para reduzir erro.'
-                      : speechTooLong
-                        ? 'A fala detectada passou do limite seguro de 8 segundos. Encurte a frase principal antes de gerar.'
+                      : speechWillContinue
+                        ? 'A fala ficou maior que 8 segundos. Vamos gerar a primeira parte agora e deixar o restante pronto para continuar em outro video.'
                         : 'O sistema extrai fala, emocao e direcao visual automaticamente para reduzir retrabalho.'}
                   </StudioHint>
                 </>
@@ -227,29 +238,6 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
                   Neste modo a IA pode adaptar as palavras. Use Frase exata quando a literalidade for obrigatoria.
                 </StudioHint>
               )}
-            </div>
-          </StudioPanel>
-
-          <StudioPanel title="Leitura automatica" accent="cyan">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div>
-                <StudioFieldLabel>Fala extraida</StudioFieldLabel>
-                <div className="min-h-[92px] rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[11px] leading-relaxed text-white/78">
-                  {parsedIdea.speechText || <span className="text-white/26">O sistema vai detectar a fala aqui.</span>}
-                </div>
-              </div>
-              <div>
-                <StudioFieldLabel>Tom emocional</StudioFieldLabel>
-                <div className="min-h-[92px] rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[11px] leading-relaxed text-white/78">
-                  {parsedIdea.expressionDirection || <span className="text-white/26">Tom automatico se voce nao especificar.</span>}
-                </div>
-              </div>
-              <div>
-                <StudioFieldLabel>Direcao visual</StudioFieldLabel>
-                <div className="min-h-[92px] rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[11px] leading-relaxed text-white/78">
-                  {parsedIdea.visualPrompt || <span className="text-white/26">Cena livre, coerente com a imagem base.</span>}
-                </div>
-              </div>
             </div>
           </StudioPanel>
 

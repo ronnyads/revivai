@@ -48,6 +48,7 @@ import SceneGenerator from '../SceneGenerator'
 import UGCBundleGenerator from '../UGCBundleGenerator'
 import LookSplitGenerator from '../LookSplitGenerator'
 import { getStudioNodeCardWidth } from '../node-layout'
+import { buildTalkingVideoIdeaFromParts } from '@/lib/talkingVideoIdea'
 
 const TYPE_META: Record<
   AssetType,
@@ -351,7 +352,7 @@ export interface AssetNodeData {
   onDelete: (id: string) => void
   onGenerate: (type: AssetType, params: Record<string, unknown>, existingId: string) => void
   onUpdateParams: (id: string, params: Record<string, unknown>) => void
-  onDuplicate: (id: string) => void
+  onDuplicate: (id: string, overrides?: Record<string, unknown>) => void
   [key: string]: unknown
 }
 
@@ -402,6 +403,54 @@ function getSummaryTokens(asset: StudioAsset, handles: Array<{ id: string; label
   return Array.from(tokens).slice(0, 4)
 }
 
+function getTalkingVideoContinuationDraft(inputParams: Record<string, unknown>) {
+  const remainingText = typeof inputParams.speech_text_remaining === 'string'
+    ? inputParams.speech_text_remaining.trim()
+    : typeof inputParams.speech_text_remaining_normalized === 'string'
+      ? inputParams.speech_text_remaining_normalized.trim()
+      : ''
+
+  if (!remainingText) return null
+
+  const continuationIdea = typeof inputParams.continuation_idea_prompt === 'string' && inputParams.continuation_idea_prompt.trim().length > 0
+    ? inputParams.continuation_idea_prompt.trim()
+    : buildTalkingVideoIdeaFromParts({
+        speechText: remainingText,
+        expressionDirection: typeof inputParams.expression_direction === 'string' ? inputParams.expression_direction : '',
+        visualPrompt: typeof inputParams.visual_prompt_raw === 'string'
+          ? inputParams.visual_prompt_raw
+          : typeof inputParams.visual_prompt === 'string'
+            ? inputParams.visual_prompt
+            : '',
+      })
+
+  return {
+    ...inputParams,
+    idea_prompt: continuationIdea,
+    idea_prompt_raw: continuationIdea,
+    speech_text: '',
+    speech_text_full: '',
+    speech_text_input_raw: '',
+    speech_text_raw: '',
+    speech_text_normalized: '',
+    speech_text_full_normalized: '',
+    speech_text_chunk: '',
+    speech_text_chunk_normalized: '',
+    speech_text_remaining: '',
+    speech_text_remaining_normalized: '',
+    estimated_chunk_seconds: 0,
+    estimated_remaining_speech_seconds: 0,
+    actual_speech_seconds: null,
+    generated_voice_asset_id: '',
+    generated_voice_url: '',
+    continuation_available: false,
+    continuation_idea_prompt: '',
+    talking_video_chunked: false,
+    pipeline_stage: 'validating',
+    pipeline_attempts: {},
+  }
+}
+
 function AssetNode({ data, selected }: NodeProps) {
   const {
     asset,
@@ -438,6 +487,10 @@ function AssetNode({ data, selected }: NodeProps) {
 
   const connectedInputLabels = useMemo(() => getConnectedInputLabels(asset, inputHandles), [asset, inputHandles])
   const summaryTokens = useMemo(() => getSummaryTokens(asset, inputHandles), [asset, inputHandles])
+  const talkingVideoContinuationDraft = useMemo(
+    () => (asset.type === 'talking_video' ? getTalkingVideoContinuationDraft(asset.input_params) : null),
+    [asset.type, asset.input_params],
+  )
   const cardWidth = getStudioNodeCardWidth(asset.type, {
     status: asset.status,
     collapsed: effectiveCollapsed,
@@ -532,6 +585,14 @@ function AssetNode({ data, selected }: NodeProps) {
         ) : asset.status === 'done' && asset.result_url ? (
           <div className="space-y-3">
             <ResultPreview type={asset.type} url={asset.result_url} params={asset.input_params} />
+            {asset.type === 'talking_video' && talkingVideoContinuationDraft ? (
+              <div className="rounded-[18px] border border-cyan-500/18 bg-[#0D171B] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100">restante pronto para continuar</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-white/68">
+                  Este primeiro video entregou a parte inicial da fala. Se quiser, criamos outro card ja com o texto restante preenchido.
+                </p>
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -549,6 +610,16 @@ function AssetNode({ data, selected }: NodeProps) {
                 >
                   <Download size={12} />
                   Download
+                </button>
+              ) : null}
+              {asset.type === 'talking_video' && talkingVideoContinuationDraft ? (
+                <button
+                  type="button"
+                  onClick={() => onDuplicate(asset.id, talkingVideoContinuationDraft)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100 transition-colors hover:border-cyan-400/36 hover:text-white"
+                >
+                  <ArrowRight size={12} />
+                  Continuar restante
                 </button>
               ) : null}
             </div>
@@ -1223,7 +1294,7 @@ function ProcessingCard({
   const stageLabelMap: Record<string, string> = {
     validating: 'Validando texto, politicas e limites de fala...',
     voice_generating: 'Gerando a voz base da performance...',
-    voice_duration_check: 'Conferindo se a fala cabe em 8 segundos...',
+    voice_duration_check: 'Ajustando o primeiro trecho para caber no take...',
     veo_generating: 'Gerando o take falado no Veo...',
     lipsyncing: 'Sincronizando labios e audio final...',
     finalizing: 'Finalizando o video e consolidando saidas...',

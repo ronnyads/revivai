@@ -17,6 +17,16 @@ export type TalkingVideoIdeaParseResult = {
   speechSource: 'explicit' | 'quoted' | 'label' | 'heuristic' | 'missing'
 }
 
+export type TalkingVideoSpeechChunkPlan = {
+  fullText: string
+  selectedText: string
+  remainingText: string
+  fullSeconds: number
+  selectedSeconds: number
+  remainingSeconds: number
+  hasRemaining: boolean
+}
+
 const EMOTION_LABEL_RE = /^(?:tom|emocao|emocional|energia|expressao|performance|sentimento|vibe|clima|mood)\s*:\s*/i
 const VISUAL_LABEL_RE = /^(?:cena|visual|direcao visual|camera|movimento|enquadramento|ambiente|cenario|luz|lighting|shot|plano)\s*:\s*/i
 const SPEECH_LABEL_RE = /^(?:fala|frase|texto falado|fala exata|o que ela fala|ela fala)\s*:\s*/i
@@ -61,6 +71,142 @@ export function estimateTalkingSpeechDurationSeconds(params: {
   const emojiPenalty = emojiCount * 0.12
 
   return Number((Math.max(byWords, byChars) + punctuationPenalty + numberPenalty + acronymPenalty + emojiPenalty + 0.28).toFixed(2))
+}
+
+function splitSentenceLikeUnits(text: string) {
+  const normalized = normalizeTalkingWhitespace(text)
+  if (!normalized) return []
+
+  const matches = normalized.match(/[^.!?…]+[.!?…]?/g) ?? []
+  const units = matches
+    .map((value) => normalizeTalkingWhitespace(value))
+    .filter(Boolean)
+
+  return units.length > 0 ? units : [normalized]
+}
+
+function joinSpeechUnits(units: string[]) {
+  return normalizeTalkingWhitespace(units.join(' '))
+}
+
+function buildWordChunk(words: string[], speed: number, targetSeconds: number, maxSeconds: number) {
+  const selectedWords: string[] = []
+
+  for (const word of words) {
+    const candidate = joinSpeechUnits([...selectedWords, word])
+    const candidateSeconds = estimateTalkingSpeechDurationSeconds({ text: candidate, speed })
+
+    if (selectedWords.length === 0 || candidateSeconds <= targetSeconds) {
+      selectedWords.push(word)
+      continue
+    }
+
+    break
+  }
+
+  if (selectedWords.length === 0 && words.length > 0) {
+    selectedWords.push(words[0])
+  }
+
+  let selectedText = joinSpeechUnits(selectedWords)
+  let selectedSeconds = estimateTalkingSpeechDurationSeconds({ text: selectedText, speed })
+
+  while (selectedWords.length > 1 && selectedSeconds > maxSeconds) {
+    selectedWords.pop()
+    selectedText = joinSpeechUnits(selectedWords)
+    selectedSeconds = estimateTalkingSpeechDurationSeconds({ text: selectedText, speed })
+  }
+
+  return {
+    selectedText,
+    remainingText: joinSpeechUnits(words.slice(selectedWords.length)),
+  }
+}
+
+export function planTalkingVideoSpeechChunk(params: {
+  text: string
+  speed?: number
+  targetSeconds?: number
+  maxSeconds?: number
+}): TalkingVideoSpeechChunkPlan {
+  const fullText = normalizeTalkingWhitespace(params.text)
+  const speed = Number(params.speed ?? 1)
+  const targetSeconds = Math.max(4.5, Number(params.targetSeconds ?? 7.35))
+  const maxSeconds = Math.max(targetSeconds, Number(params.maxSeconds ?? 7.95))
+
+  if (!fullText) {
+    return {
+      fullText: '',
+      selectedText: '',
+      remainingText: '',
+      fullSeconds: 0,
+      selectedSeconds: 0,
+      remainingSeconds: 0,
+      hasRemaining: false,
+    }
+  }
+
+  const fullSeconds = estimateTalkingSpeechDurationSeconds({ text: fullText, speed })
+  if (fullSeconds <= maxSeconds) {
+    return {
+      fullText,
+      selectedText: fullText,
+      remainingText: '',
+      fullSeconds,
+      selectedSeconds: fullSeconds,
+      remainingSeconds: 0,
+      hasRemaining: false,
+    }
+  }
+
+  const units = splitSentenceLikeUnits(fullText)
+  const selectedUnits: string[] = []
+
+  for (const unit of units) {
+    const candidate = joinSpeechUnits([...selectedUnits, unit])
+    const candidateSeconds = estimateTalkingSpeechDurationSeconds({ text: candidate, speed })
+
+    if (selectedUnits.length === 0) {
+      if (candidateSeconds <= maxSeconds) {
+        selectedUnits.push(unit)
+        if (candidateSeconds <= targetSeconds) {
+          continue
+        }
+      }
+      break
+    }
+
+    if (candidateSeconds <= targetSeconds) {
+      selectedUnits.push(unit)
+      continue
+    }
+
+    break
+  }
+
+  let selectedText = joinSpeechUnits(selectedUnits)
+  let remainingText = joinSpeechUnits(units.slice(selectedUnits.length))
+  let selectedSeconds = estimateTalkingSpeechDurationSeconds({ text: selectedText, speed })
+
+  if (!selectedText || selectedSeconds > maxSeconds) {
+    const words = fullText.split(/\s+/).filter(Boolean)
+    const fallback = buildWordChunk(words, speed, targetSeconds, maxSeconds)
+    selectedText = fallback.selectedText
+    remainingText = fallback.remainingText
+    selectedSeconds = estimateTalkingSpeechDurationSeconds({ text: selectedText, speed })
+  }
+
+  const remainingSeconds = estimateTalkingSpeechDurationSeconds({ text: remainingText, speed })
+
+  return {
+    fullText,
+    selectedText,
+    remainingText,
+    fullSeconds,
+    selectedSeconds,
+    remainingSeconds,
+    hasRemaining: remainingText.length > 0,
+  }
 }
 
 function parseQuotedSpeech(ideaPrompt: string) {

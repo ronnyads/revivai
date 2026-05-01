@@ -9,6 +9,11 @@ import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
 import { getLogicalStudioAssetType, getPersistedStudioAssetType, mapStudioAssetType } from '@/lib/studioAssetType'
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
+import {
+  buildTalkingVideoIdeaFromParts,
+  normalizeTalkingWhitespace,
+  planTalkingVideoSpeechChunk,
+} from '@/lib/talkingVideoIdea'
 
 type StudioAssetRecord = {
   id: string
@@ -39,6 +44,14 @@ function normalizeOptionalUrl(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : undefined
+}
+
+function mergeTalkingSpeechText(...parts: Array<unknown>) {
+  return normalizeTalkingWhitespace(
+    parts
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .join(' '),
+  )
 }
 
 function isValidHttpUrl(value: string): boolean {
@@ -575,6 +588,21 @@ export async function POST(req: NextRequest) {
       visualPrompt: visualPromptInputRaw,
       sourceAsset: sourceAssetForPolicy,
     })
+    const speechChunkPlan = talkingVideoMode === 'exact_speech'
+      ? planTalkingVideoSpeechChunk({
+          text: talkingPolicy.speechTextNormalized,
+          speed,
+          targetSeconds: 7.35,
+          maxSeconds: 7.95,
+        })
+      : planTalkingVideoSpeechChunk({ text: '', speed })
+    const continuationIdeaPrompt = speechChunkPlan.hasRemaining
+      ? buildTalkingVideoIdeaFromParts({
+          speechText: speechChunkPlan.remainingText,
+          expressionDirection: talkingPolicy.expressionDirection,
+          visualPrompt: talkingPolicy.visualPromptRaw,
+        })
+      : ''
 
     normalizedInputParams = {
       ...normalizedInputParams,
@@ -586,9 +614,15 @@ export async function POST(req: NextRequest) {
       composite_input_detected: speechFieldLooksComposite,
       speech_detection_source: talkingPolicy.speechSource,
       speech_text: talkingPolicy.speechTextRaw,
+      speech_text_full: talkingPolicy.speechTextRaw,
       speech_text_input_raw: speechTextInputRaw,
       speech_text_raw: talkingPolicy.speechTextRaw,
       speech_text_normalized: talkingPolicy.speechTextNormalized,
+      speech_text_full_normalized: talkingPolicy.speechTextNormalized,
+      speech_text_chunk: speechChunkPlan.selectedText,
+      speech_text_chunk_normalized: speechChunkPlan.selectedText,
+      speech_text_remaining: speechChunkPlan.remainingText,
+      speech_text_remaining_normalized: speechChunkPlan.remainingText,
       expression_direction: talkingPolicy.expressionDirection,
       expression_direction_input_raw: expressionDirectionInputRaw,
       visual_prompt: talkingPolicy.visualPromptRaw,
@@ -599,7 +633,9 @@ export async function POST(req: NextRequest) {
       voice_id: voiceId,
       speed,
       quality,
-      estimated_speech_seconds: talkingPolicy.estimatedSpeechSeconds,
+      estimated_speech_seconds: speechChunkPlan.fullSeconds || talkingPolicy.estimatedSpeechSeconds,
+      estimated_chunk_seconds: speechChunkPlan.selectedSeconds,
+      estimated_remaining_speech_seconds: speechChunkPlan.remainingSeconds,
       actual_speech_seconds: null,
       generated_voice_asset_id: String(normalizedInputParams.generated_voice_asset_id ?? ''),
       generated_voice_url: String(normalizedInputParams.generated_voice_url ?? ''),
@@ -610,6 +646,9 @@ export async function POST(req: NextRequest) {
       scene_freedom_level: talkingPolicy.sceneFreedomLevel,
       camera_motion_policy: talkingPolicy.cameraMotionPolicy,
       removed_directives: talkingPolicy.removedDirectives,
+      talking_video_chunked: speechChunkPlan.hasRemaining,
+      continuation_available: speechChunkPlan.hasRemaining,
+      continuation_idea_prompt: continuationIdeaPrompt,
       pipeline_stage: 'validating',
       pipeline_attempts: incrementTalkingPipelineAttempts(normalizedInputParams.pipeline_attempts, 'validating'),
       idempotency_key: String(normalizedInputParams.idempotency_key ?? crypto.randomUUID()),
@@ -644,13 +683,6 @@ export async function POST(req: NextRequest) {
         speed,
       })
       normalizedInputParams.estimated_speech_seconds = backendSpeechEstimate
-
-      if (talkingVideoMode === 'exact_speech' && backendSpeechEstimate > 8.05) {
-        return createAssetInputError(
-          'talking_video_speech_too_long',
-          'A fala detectada ultrapassa o limite seguro de 8 segundos. Encurte a frase principal antes de gerar.',
-        )
-      }
     }
   }
 
@@ -916,41 +948,99 @@ export async function POST(req: NextRequest) {
       let pipelineAttempts = asRecord(normalizedInputParams.pipeline_attempts)
 
       if (talkingMode === 'exact_speech') {
-        pipelineAttempts = incrementTalkingPipelineAttempts(pipelineAttempts, 'voice_generating')
-        await admin.from('studio_assets').update({
-          input_params: {
-            ...normalizedInputParams,
-            pipeline_stage: 'voice_generating',
-            pipeline_attempts: pipelineAttempts,
-          },
-        }).eq('id', asset.id)
-
-        const generatedVoiceUrl = await withStageRetry(
-          () => generateVoice({
-            script: String(normalizedInputParams.speech_text_normalized ?? normalizedInputParams.speech_text ?? ''),
-            voice_id: voiceId,
-            speed,
-            assetId: `${asset.id}-voice`,
-            userId: user.id,
-          }),
-          { attempts: 2 },
+        let selectedChunkText = String(
+          normalizedInputParams.speech_text_chunk_normalized
+            ?? normalizedInputParams.speech_text_normalized
+            ?? normalizedInputParams.speech_text
+            ?? '',
         )
+        let remainingSpeechText = String(
+          normalizedInputParams.speech_text_remaining_normalized
+            ?? normalizedInputParams.speech_text_remaining
+            ?? '',
+        )
+        let generatedVoiceUrl = ''
+        let actualSpeechSeconds = 0
 
-        pipelineAttempts = incrementTalkingPipelineAttempts(pipelineAttempts, 'voice_duration_check')
-        await admin.from('studio_assets').update({
-          input_params: {
-            ...normalizedInputParams,
-            generated_voice_asset_id: `${asset.id}-voice`,
-            generated_voice_url: generatedVoiceUrl,
-            pipeline_stage: 'voice_duration_check',
-            pipeline_attempts: pipelineAttempts,
-          },
-        }).eq('id', asset.id)
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          pipelineAttempts = incrementTalkingPipelineAttempts(pipelineAttempts, 'voice_generating')
+          await admin.from('studio_assets').update({
+            input_params: {
+              ...normalizedInputParams,
+              speech_text_chunk: selectedChunkText,
+              speech_text_chunk_normalized: selectedChunkText,
+              speech_text_remaining: remainingSpeechText,
+              speech_text_remaining_normalized: remainingSpeechText,
+              continuation_available: Boolean(remainingSpeechText),
+              continuation_idea_prompt: remainingSpeechText
+                ? buildTalkingVideoIdeaFromParts({
+                    speechText: remainingSpeechText,
+                    expressionDirection: String(normalizedInputParams.expression_direction ?? ''),
+                    visualPrompt: String(normalizedInputParams.visual_prompt_raw ?? normalizedInputParams.visual_prompt ?? ''),
+                  })
+                : '',
+              pipeline_stage: 'voice_generating',
+              pipeline_attempts: pipelineAttempts,
+            },
+          }).eq('id', asset.id)
 
-        const actualSpeechSeconds = await measureAudioDurationSeconds(generatedVoiceUrl)
-        if (actualSpeechSeconds > 8) {
-          throw new Error(`A fala gerada ficou com ${actualSpeechSeconds.toFixed(1)}s e ultrapassou o limite de 8 segundos. Encurte o texto e tente novamente.`)
+          generatedVoiceUrl = await withStageRetry(
+            () => generateVoice({
+              script: selectedChunkText,
+              voice_id: voiceId,
+              speed,
+              assetId: `${asset.id}-voice`,
+              userId: user.id,
+            }),
+            { attempts: 2 },
+          )
+
+          pipelineAttempts = incrementTalkingPipelineAttempts(pipelineAttempts, 'voice_duration_check')
+          await admin.from('studio_assets').update({
+            input_params: {
+              ...normalizedInputParams,
+              speech_text_chunk: selectedChunkText,
+              speech_text_chunk_normalized: selectedChunkText,
+              speech_text_remaining: remainingSpeechText,
+              speech_text_remaining_normalized: remainingSpeechText,
+              generated_voice_asset_id: `${asset.id}-voice`,
+              generated_voice_url: generatedVoiceUrl,
+              pipeline_stage: 'voice_duration_check',
+              pipeline_attempts: pipelineAttempts,
+            },
+          }).eq('id', asset.id)
+
+          actualSpeechSeconds = await measureAudioDurationSeconds(generatedVoiceUrl)
+          if (actualSpeechSeconds <= 8) break
+
+          const tightenedPlan = planTalkingVideoSpeechChunk({
+            text: selectedChunkText,
+            speed,
+            targetSeconds: Math.max(5.2, 6.85 - attempt * 0.45),
+            maxSeconds: Math.max(6.4, 7.4 - attempt * 0.3),
+          })
+          const nextChunkText = tightenedPlan.selectedText
+          const peeledText = mergeTalkingSpeechText(tightenedPlan.remainingText, remainingSpeechText)
+
+          if (!nextChunkText || nextChunkText === selectedChunkText) {
+            throw new Error(`Nao conseguimos encaixar a fala em um take de 8 segundos. A ultima tentativa ficou com ${actualSpeechSeconds.toFixed(1)}s.`)
+          }
+
+          selectedChunkText = nextChunkText
+          remainingSpeechText = peeledText
         }
+
+        if (actualSpeechSeconds > 8) {
+          throw new Error(`Nao conseguimos encaixar a fala em um take de 8 segundos. A ultima tentativa ficou com ${actualSpeechSeconds.toFixed(1)}s.`)
+        }
+
+        const continuationIdeaPrompt = remainingSpeechText
+          ? buildTalkingVideoIdeaFromParts({
+              speechText: remainingSpeechText,
+              expressionDirection: String(normalizedInputParams.expression_direction ?? ''),
+              visualPrompt: String(normalizedInputParams.visual_prompt_raw ?? normalizedInputParams.visual_prompt ?? ''),
+            })
+          : ''
 
         pipelineAttempts = incrementTalkingPipelineAttempts(pipelineAttempts, 'veo_generating')
         await startVeo3DirectGoogle({
@@ -966,6 +1056,15 @@ export async function POST(req: NextRequest) {
             generated_voice_asset_id: `${asset.id}-voice`,
             generated_voice_url: generatedVoiceUrl,
             actual_speech_seconds: actualSpeechSeconds,
+            speech_text_chunk: selectedChunkText,
+            speech_text_chunk_normalized: selectedChunkText,
+            speech_text_remaining: remainingSpeechText,
+            speech_text_remaining_normalized: remainingSpeechText,
+            estimated_chunk_seconds: estimateTalkingSpeechDurationSeconds({ text: selectedChunkText, speed }),
+            estimated_remaining_speech_seconds: estimateTalkingSpeechDurationSeconds({ text: remainingSpeechText, speed }),
+            talking_video_chunked: Boolean(remainingSpeechText),
+            continuation_available: Boolean(remainingSpeechText),
+            continuation_idea_prompt: continuationIdeaPrompt,
             pipeline_stage: 'veo_generating',
             pipeline_attempts: pipelineAttempts,
           },
