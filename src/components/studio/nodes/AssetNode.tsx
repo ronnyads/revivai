@@ -94,7 +94,7 @@ const TYPE_META: Record<
     label: 'Video',
     color: 'text-blue-100',
     chip: 'border-blue-500/20 bg-blue-500/10 text-blue-100',
-    hint: 'Transforma frame em take com movimento.',
+    hint: '',
     output: 'Take pronto',
   },
   talking_video: {
@@ -102,7 +102,7 @@ const TYPE_META: Record<
     label: 'Video com Fala',
     color: 'text-cyan-100',
     chip: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-100',
-    hint: 'Gera uma performance falada preservando a identidade da modelo.',
+    hint: '',
     output: 'Avatar pronto',
   },
   voice: {
@@ -150,7 +150,7 @@ const TYPE_META: Record<
     label: 'Movimento Guiado',
     color: 'text-fuchsia-100',
     chip: 'border-fuchsia-500/20 bg-fuchsia-500/10 text-fuchsia-100',
-    hint: 'Usa um video de referencia para guiar gesto, energia e camera.',
+    hint: '',
     output: 'Movimento pronto',
   },
   compose: {
@@ -572,7 +572,9 @@ function AssetNode({ data, selected }: NodeProps) {
               <p className={`truncate text-[14px] font-semibold tracking-tight ${displayMeta.color}`}>{displayMeta.label}</p>
               <StatusPill status={asset.status} />
             </div>
-            <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-white/82">{displayMeta.hint}</p>
+            {displayMeta.hint ? (
+              <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-white/82">{displayMeta.hint}</p>
+            ) : null}
           </div>
         </button>
 

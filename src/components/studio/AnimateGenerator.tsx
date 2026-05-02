@@ -1,14 +1,12 @@
 'use client'
 
-import { Download, Film, Sparkles, User } from 'lucide-react'
+import { Download, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { CREDIT_COST } from '@/constants/studio'
-import { getPreviewMediaUrl } from '@/lib/mediaUrl'
 import ImageUpload from './ImageUpload'
 import {
   StudioFieldLabel,
   StudioFormShell,
-  StudioHint,
   StudioPanel,
   StudioPrimaryButton,
   StudioSummaryChip,
@@ -64,14 +62,11 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
   const [uploadedPortraitUrl, setUploadedPortraitUrl] = useState('')
   const [recordedDrivingUrl, setRecordedDrivingUrl] = useState('')
   const [motionPrompt, setMotionPrompt] = useState(String(initial.motion_prompt ?? DEFAULT_MOTION_PROMPT))
-  const [loadedPreviewUrl, setLoadedPreviewUrl] = useState('')
 
   const portraitUrl = uploadedPortraitUrl || connectedPortraitUrl
   const drivingUrl = recordedDrivingUrl || connectedDrivingUrl
-  const drivingPreviewUrl = getPreviewMediaUrl(drivingUrl)
   const hasPortrait = !!portraitUrl.trim()
   const hasDriving = !!drivingUrl.trim()
-  const previewReady = loadedPreviewUrl === drivingUrl
   const cost = CREDIT_COST.animate
 
   function handleDownloadChecklist() {
@@ -87,13 +82,16 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
   return (
     <StudioFormShell
       accent="violet"
-      icon={<Film size={18} />}
+      icon={<Sparkles size={18} />}
       title="Movimento Guiado"
       hideHeader
       layout="split"
+      contentClassName="gap-2.5"
+      mediaColumnClassName="space-y-2.5"
+      controlsColumnClassName="space-y-2.5"
       chips={[
-        { label: 'foto manda no visual', tone: 'violet' },
-        { label: 'video so guia', tone: 'neutral' },
+        { label: 'foto base', tone: 'violet' },
+        { label: 'video referencia', tone: 'neutral' },
         { label: '50 CR', tone: 'warning' },
       ]}
       media={
@@ -113,84 +111,23 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
                 accept="image/*"
                 preview
                 compact
-                frameClassName="min-h-[180px]"
+                frameClassName="min-h-[120px]"
               />
-              {connectedPortraitUrl && !uploadedPortraitUrl ? (
-                <StudioHint>A foto conectada continua sendo a referencia central de identidade e cenario base.</StudioHint>
-              ) : (
-                <StudioHint>Escolha uma foto ja proxima do enquadramento e do ambiente desejados.</StudioHint>
-              )}
             </div>
           </StudioPanel>
-
-          {hasPortrait && hasDriving ? (
-            <StudioPanel title="Leitura rapida" compact>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="overflow-hidden rounded-[16px] border border-white/8 bg-[#0B0D0F]">
-                  <p className="border-b border-white/6 px-2.5 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/42">
-                    foto base
-                  </p>
-                  <img src={portraitUrl} alt="Foto base" className="aspect-[4/5] w-full object-cover" />
-                </div>
-                <div className="overflow-hidden rounded-[16px] border border-white/8 bg-[#0B0D0F]">
-                  <p className="border-b border-white/6 px-2.5 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/42">
-                    video guia
-                  </p>
-                  <div className="relative">
-                    <video
-                      key={drivingUrl}
-                      src={drivingPreviewUrl}
-                      className="aspect-[4/5] w-full object-cover"
-                      playsInline
-                      muted
-                      autoPlay
-                      loop
-                      preload="metadata"
-                      onLoadedMetadata={(event) => {
-                        const video = event.currentTarget
-                        const targetTime = Math.min(0.15, Math.max((video.duration || 0) - 0.01, 0))
-                        if (targetTime > 0) {
-                          video.currentTime = targetTime
-                          return
-                        }
-                        setLoadedPreviewUrl(drivingUrl)
-                        void video.play().catch(() => {})
-                      }}
-                      onSeeked={(event) => {
-                        setLoadedPreviewUrl(drivingUrl)
-                        void event.currentTarget.play().catch(() => {})
-                      }}
-                      onLoadedData={(event) => {
-                        if (loadedPreviewUrl === drivingUrl) return
-                        setLoadedPreviewUrl(drivingUrl)
-                        void event.currentTarget.play().catch(() => {})
-                      }}
-                    />
-                    {!previewReady ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/90 px-3 text-center text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500">
-                        carregando previa
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </StudioPanel>
-          ) : null}
         </>
       }
       controls={
         <>
-          <StudioPanel title="Video de referencia" compact>
+          <StudioPanel title="Referencia" compact>
             <div className="space-y-2">
               <div className="flex flex-wrap gap-1.5">
                 <StudioSummaryChip tone={hasDriving ? 'success' : 'neutral'}>
                   {hasDriving ? 'video pronto' : 'falta video'}
                 </StudioSummaryChip>
-                <StudioSummaryChip tone="neutral">guia gesto e camera</StudioSummaryChip>
                 <StudioSummaryChip tone="neutral">30s max</StudioSummaryChip>
               </div>
-              <WebcamRecorder value={drivingUrl} onChange={setRecordedDrivingUrl} />
-              <StudioHint>Use um video simples e com enquadramento parecido com a foto para aumentar a fidelidade.</StudioHint>
+              <WebcamRecorder value={drivingUrl} onChange={setRecordedDrivingUrl} compact hideLabel />
             </div>
           </StudioPanel>
 
@@ -203,14 +140,10 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
               className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-violet-400/30"
               placeholder="Ex: energia confiante, passo suave e camera acompanhando de leve."
             />
-            <div className="mt-2 space-y-1.5">
-              <StudioHint>A foto manda na identidade e no cenario base. O video apenas guia gesto, ritmo e camera.</StudioHint>
-              <StudioHint tone="warning">O resultado final e uma nova geracao guiada, nao uma troca exata frame a frame.</StudioHint>
-            </div>
           </StudioPanel>
 
-          <StudioPanel title="Apoio rapido" compact>
-            <div className="flex flex-col gap-2 sm:flex-row">
+          <StudioPanel compact>
+            <div className="flex flex-col gap-2">
               <button
                 type="button"
                 onClick={handleDownloadChecklist}
@@ -219,10 +152,6 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
                 <Download size={14} />
                 Baixar checklist ideal
               </button>
-              <div className="flex flex-1 items-center gap-2 rounded-[16px] border border-violet-500/14 bg-violet-500/[0.06] px-3 py-2.5 text-[10px] leading-relaxed text-white/58">
-                <User size={14} className="shrink-0 text-violet-200" />
-                Quanto mais a foto parecer com o take desejado, melhor o resultado.
-              </div>
             </div>
           </StudioPanel>
 

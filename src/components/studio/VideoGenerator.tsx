@@ -6,7 +6,6 @@ import ImageUpload from './ImageUpload'
 import {
   StudioFieldLabel,
   StudioFormShell,
-  StudioHint,
   StudioPanel,
   StudioPrimaryButton,
 } from './StudioFormShell'
@@ -145,7 +144,6 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
                   {engine === 'veo' ? 'Mais cinematografico.' : 'Melhor para sequencia e repeticao.'}
                 </p>
               </div>
-              <StudioHint>Imagem base e cenario do frame ficam travados por padrao.</StudioHint>
             </div>
           </StudioPanel>
         </>
@@ -193,13 +191,6 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
               <span className="text-[10px] font-semibold text-blue-200">{selectedEngineLabel}</span>
               <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/46">{cost} CR</span>
             </div>
-            <div className="mt-2">
-              <StudioHint>
-                {selectedScenePreset.value !== 'none'
-                  ? 'Preset ativo. O Studio prepara a pre-cena antes de animar.'
-                  : 'Sem preset, o video preserva o frame base e trabalha o movimento.'}
-              </StudioHint>
-            </div>
           </StudioPanel>
 
           <StudioPanel title="Movimento" compact>
@@ -215,12 +206,6 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
               rows={2}
               className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-blue-400/30"
             />
-            <div className="mt-2 space-y-1.5">
-              <StudioHint>Use este campo para gesto, expressao e camera. Modelo, produto, roupa e fundo ficam presos ao frame base.</StudioHint>
-              <StudioHint tone="warning">
-                Se pedir ambiente novo, o Studio precisa reinterpretar a cena antes de animar.
-              </StudioHint>
-            </div>
           </StudioPanel>
 
           <StudioPrimaryButton

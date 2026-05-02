@@ -10,6 +10,8 @@ type Phase = 'idle' | 'preview' | 'countdown' | 'recording' | 'recorded' | 'uplo
 interface Props {
   value: string
   onChange: (url: string) => void
+  compact?: boolean
+  hideLabel?: boolean
 }
 
 const MAX_SECONDS = 30
@@ -18,7 +20,7 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
-export default function WebcamRecorder({ value, onChange }: Props) {
+export default function WebcamRecorder({ value, onChange, compact = false, hideLabel = false }: Props) {
   const supabase = createClient()
   const [phase,       setPhase]       = useState<Phase>('idle')
   const [countdown,   setCountdown]   = useState(3)
@@ -151,7 +153,13 @@ export default function WebcamRecorder({ value, onChange }: Props) {
   if (value) {
     return (
       <div className="flex flex-col gap-2">
-        <video src={uploadedPreviewUrl} controls className="w-full rounded-xl max-h-40" playsInline preload="metadata" />
+        <video
+          src={uploadedPreviewUrl}
+          controls
+          className={`w-full rounded-xl ${compact ? 'max-h-28' : 'max-h-40'}`}
+          playsInline
+          preload="metadata"
+        />
         <button
           onClick={() => { onChange(''); setPhase('idle') }}
           className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 hover:text-red-400 border border-zinc-700 py-1.5 rounded-xl transition-colors"
@@ -164,7 +172,7 @@ export default function WebcamRecorder({ value, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-[10px] text-zinc-500 uppercase tracking-wide">Video de referencia</label>
+      {!hideLabel ? <label className="text-[10px] text-zinc-500 uppercase tracking-wide">Video de referencia</label> : null}
 
       {/* ── IDLE ── */}
       {phase === 'idle' && (
@@ -172,11 +180,11 @@ export default function WebcamRecorder({ value, onChange }: Props) {
           {/* Webcam */}
           <button
             onClick={openCamera}
-            className="w-full flex flex-col items-center gap-2 border-2 border-dashed border-fuchsia-500/40 hover:border-fuchsia-500/70 bg-fuchsia-500/5 rounded-xl py-5 transition-colors group"
+            className={`w-full flex flex-col items-center gap-2 border-2 border-dashed border-fuchsia-500/40 hover:border-fuchsia-500/70 bg-fuchsia-500/5 rounded-xl transition-colors group ${compact ? 'py-3.5' : 'py-5'}`}
           >
             <Camera size={24} className="text-fuchsia-400 group-hover:scale-110 transition-transform" />
             <p className="text-xs text-zinc-300 font-medium">Gravar referencia</p>
-            <p className="text-[10px] text-zinc-500">Grave ate 30s da sua referencia usando a camera</p>
+            {!compact ? <p className="text-[10px] text-zinc-500">Grave ate 30s da sua referencia usando a camera</p> : null}
           </button>
 
           <div className="relative flex items-center py-1">
@@ -186,12 +194,14 @@ export default function WebcamRecorder({ value, onChange }: Props) {
           </div>
 
           {/* File upload */}
-          <label className="w-full flex flex-col items-center gap-2 border-2 border-dashed border-zinc-700/60 hover:border-zinc-500 bg-zinc-800/30 rounded-xl py-4 transition-colors group cursor-pointer">
+          <label className={`w-full flex flex-col items-center gap-2 border-2 border-dashed border-zinc-700/60 hover:border-zinc-500 bg-zinc-800/30 rounded-xl transition-colors group cursor-pointer ${compact ? 'py-3' : 'py-4'}`}>
             <Upload size={20} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
             <p className="text-xs text-zinc-400 font-medium text-center">Enviar video do PC / Galeria</p>
-            <p className="text-[10px] text-zinc-500 text-center">
-              MP4, MOV, WebM — <span className="text-zinc-400 font-medium">máx. 100 MB</span>
-            </p>
+            {!compact ? (
+              <p className="text-[10px] text-zinc-500 text-center">
+                MP4, MOV, WebM — <span className="text-zinc-400 font-medium">máx. 100 MB</span>
+              </p>
+            ) : null}
             <input
               type="file"
               accept="video/*"
