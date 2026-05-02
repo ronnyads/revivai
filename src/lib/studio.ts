@@ -326,7 +326,7 @@ export async function generateImageGoogle(params: {
   const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
   const location = process.env.VERTEX_LOCATION || 'us-central1'
   const vertexToken = await getVertexAccessToken(vertexKey)
-  const response = await fetch(`https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-generate-001:predict`, {
+  const response = await fetch(`https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-4.0-generate-001:predict`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${vertexToken}`,
@@ -562,7 +562,7 @@ export async function generateModelGoogle(params: {
   const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
   const location = process.env.VERTEX_LOCATION || 'us-central1'
   const vertexToken = await getVertexAccessToken(vertexKey)
-  const imageRes = await fetch(`https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-generate-001:predict`, {
+  const imageRes = await fetch(`https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-4.0-generate-001:predict`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${vertexToken}`,
@@ -1002,7 +1002,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
       if (vertexKey) {
         console.log(`[studio] Usando Vertex AI Enterprise (UGC Model) para asset ${params.assetId}...`)
         const vertexToken = await getVertexAccessToken(vertexKey)
-        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-generate-001:predict`
+        const vertexUrl = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-4.0-generate-001:predict`
 
         const vertexRes = await fetch(vertexUrl, {
           method: 'POST',
@@ -5784,24 +5784,21 @@ async function composeSceneWhiteStudioFitting(params: {
 
         parts.push({ text: promptText })
 
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts }],
-              generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
-            }),
+        const res = await fetchGoogleGenerateContent({
+          model,
+          feature: 'compose_fitting_white_studio',
+          body: {
+            contents: [{ role: 'user', parts }],
+            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
           },
-        )
+        })
         if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
         const data = await res.json()
         const imagePart = (data.candidates?.[0]?.content?.parts ?? []).find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
         if (!imagePart?.inlineData?.data) {
           throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
         }
-        console.log(`[studio] fitting scene_white_studio success=${model} stage=${stageLabel}`)
+        console.log(`[studio] fitting scene_white_studio success=${model} stage=${stageLabel} via=vertex`)
         return { buffer: Buffer.from(imagePart.inlineData.data, 'base64'), modelUsed: model, lastError: '' }
       } catch (error: any) {
         attemptLastError = error.message
@@ -7200,22 +7197,25 @@ async function composeDedicatedFittingScene(params: {
       { text: params.promptText },
     )
 
-    const body = JSON.stringify({
+    const requestBody = {
       contents: [{ role: 'user', parts }],
       generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
-    })
+    }
 
     for (const model of holdModels) {
       trackGeminiAttempt(params.stageLabel, model)
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body },
-      )
-      if (!res.ok) continue
-      const json = await res.json()
-      const responseParts = json.candidates?.[0]?.content?.parts ?? []
-      const imgPart = responseParts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-      if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+      try {
+        const res = await fetchGoogleGenerateContent({
+          model,
+          feature: 'compose_hold_item',
+          body: requestBody,
+        })
+        if (!res.ok) continue
+        const json = await res.json()
+        const responseParts = json.candidates?.[0]?.content?.parts ?? []
+        const imgPart = responseParts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
+        if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+      } catch { /* continue */ }
     }
 
     return { imageBase64: null }
@@ -7227,22 +7227,25 @@ async function composeDedicatedFittingScene(params: {
     stageLabel: string
   }): Promise<GeminiImageCallResult> {
     const provadorModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview']
-    const body = JSON.stringify({
+    const requestBody = {
       contents: [{ role: 'user', parts: params.parts }],
       generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
-    })
+    }
 
     for (const model of provadorModels) {
       trackGeminiAttempt(params.stageLabel, model)
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body },
-      )
-      if (!res.ok) continue
-      const json = await res.json()
-      const responseParts = json.candidates?.[0]?.content?.parts ?? []
-      const imgPart = responseParts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-      if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+      try {
+        const res = await fetchGoogleGenerateContent({
+          model,
+          feature: 'compose_provador',
+          body: requestBody,
+        })
+        if (!res.ok) continue
+        const json = await res.json()
+        const responseParts = json.candidates?.[0]?.content?.parts ?? []
+        const imgPart = responseParts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
+        if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+      } catch { /* continue */ }
     }
 
     return { imageBase64: null }
@@ -7383,7 +7386,7 @@ async function composeDedicatedFittingScene(params: {
         )
       }
 
-      const body = JSON.stringify({
+      const requestBody = {
         contents: [{
           role: 'user',
           parts: [
@@ -7392,21 +7395,24 @@ async function composeDedicatedFittingScene(params: {
           ],
         }],
         generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
-      })
+      }
 
       for (const model of ACCESSORY_GEMINI_MODEL_CHAIN) {
         trackGeminiAttempt('single-look-rebuild-accessory-repair', model)
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body },
-        )
-        if (!res.ok) continue
-        const json = await res.json()
-        const parts = json.candidates?.[0]?.content?.parts ?? []
-        const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-        if (imgPart?.inlineData?.data) {
-          return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
-        }
+        try {
+          const res = await fetchGoogleGenerateContent({
+            model,
+            feature: 'compose_accessory_repair',
+            body: requestBody,
+          })
+          if (!res.ok) continue
+          const json = await res.json()
+          const parts = json.candidates?.[0]?.content?.parts ?? []
+          const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
+          if (imgPart?.inlineData?.data) {
+            return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+          }
+        } catch { /* continue */ }
       }
 
       return { imageBase64: null }
@@ -7895,15 +7901,18 @@ FULL LOOK REBUILD RESCUE:
 
       for (const model of holdModels) {
         trackGeminiAttempt(fittingRoute === 'gemini-hold-accessories' ? 'gemini-hold-accessories' : 'gemini-hold', model)
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body },
-        )
-        if (!res.ok) continue
-        const json = await res.json()
-        const parts = json.candidates?.[0]?.content?.parts ?? []
-        const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-        if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+        try {
+          const res = await fetchGoogleGenerateContent({
+            model,
+            feature: 'compose_gemini_hold',
+            body: JSON.parse(body),
+          })
+          if (!res.ok) continue
+          const json = await res.json()
+          const parts = json.candidates?.[0]?.content?.parts ?? []
+          const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
+          if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+        } catch { /* continue */ }
       }
 
       return { imageBase64: null }
@@ -7939,17 +7948,20 @@ FULL LOOK REBUILD RESCUE:
 
       for (const model of ACCESSORY_GEMINI_MODEL_CHAIN) {
         trackGeminiAttempt('gemini-hold-accessories', model)
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body },
-        )
-        if (!res.ok) continue
-        const json = await res.json()
-        const parts = json.candidates?.[0]?.content?.parts ?? []
-        const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-        if (imgPart?.inlineData?.data) {
-          return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
-        }
+        try {
+          const res = await fetchGoogleGenerateContent({
+            model,
+            feature: 'compose_gemini_accessory_hold',
+            body: JSON.parse(body),
+          })
+          if (!res.ok) continue
+          const json = await res.json()
+          const parts = json.candidates?.[0]?.content?.parts ?? []
+          const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
+          if (imgPart?.inlineData?.data) {
+            return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+          }
+        } catch { /* continue */ }
       }
 
       return { imageBase64: null }
@@ -8219,15 +8231,18 @@ FULL LOOK REBUILD RESCUE:
 
         for (const model of holdModels) {
           trackGeminiAttempt('gemini-single-photo-fallback', model)
-          const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-            { method: 'POST', headers: { 'Content-Type': 'application/json' }, body },
-          )
-          if (!res.ok) continue
-          const json = await res.json()
-          const parts = json.candidates?.[0]?.content?.parts ?? []
-          const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-          if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+          try {
+            const res = await fetchGoogleGenerateContent({
+              model,
+              feature: 'compose_single_photo_fallback',
+              body: JSON.parse(body),
+            })
+            if (!res.ok) continue
+            const json = await res.json()
+            const parts = json.candidates?.[0]?.content?.parts ?? []
+            const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
+            if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+          } catch { /* continue */ }
         }
 
         return { imageBase64: null }
@@ -8359,17 +8374,20 @@ FULL LOOK REBUILD RESCUE:
 
       for (const model of ACCESSORY_GEMINI_MODEL_CHAIN) {
         trackGeminiAttempt('hybrid-accessory-overlay', model)
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body },
-        )
-        if (!res.ok) continue
-        const json = await res.json()
-        const parts = json.candidates?.[0]?.content?.parts ?? []
-        const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-        if (imgPart?.inlineData?.data) {
-          return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
-        }
+        try {
+          const res = await fetchGoogleGenerateContent({
+            model,
+            feature: 'compose_hybrid_accessory_overlay',
+            body: JSON.parse(body),
+          })
+          if (!res.ok) continue
+          const json = await res.json()
+          const parts = json.candidates?.[0]?.content?.parts ?? []
+          const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
+          if (imgPart?.inlineData?.data) {
+            return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+          }
+        } catch { /* continue */ }
       }
 
       return { imageBase64: null }
@@ -8541,17 +8559,20 @@ FULL LOOK REBUILD RESCUE:
 
       for (const model of EDITORIAL_FINISHER_GEMINI_MODEL_CHAIN) {
         trackGeminiAttempt('editorial-finisher', model)
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body },
-        )
-        if (!res.ok) continue
-        const json = await res.json()
-        const parts = json.candidates?.[0]?.content?.parts ?? []
-        const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-        if (imgPart?.inlineData?.data) {
-          return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
-        }
+        try {
+          const res = await fetchGoogleGenerateContent({
+            model,
+            feature: 'compose_editorial_finisher',
+            body: JSON.parse(body),
+          })
+          if (!res.ok) continue
+          const json = await res.json()
+          const parts = json.candidates?.[0]?.content?.parts ?? []
+          const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
+          if (imgPart?.inlineData?.data) {
+            return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+          }
+        } catch { /* continue */ }
       }
 
       return { imageBase64: null }
@@ -9244,20 +9265,25 @@ export async function composeProductScene(params: {
         generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
       })
       for (const model of COMPOSE_MODELS) {
-        console.log(`[studio] Gemini compose trying: ${model}`)
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }
-        )
-        if (!res.ok) { console.warn(`[studio] ${model} falhou (${res.status})`); continue }
-        const json = await res.json()
-        const parts = json.candidates?.[0]?.content?.parts ?? []
-        const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
-        if (imgPart?.inlineData?.data) {
-          console.log(`[studio] Gemini compose OK | model=${model}`)
-          return imgPart.inlineData.data as string
+        console.log(`[studio] Vertex compose trying: ${model}`)
+        try {
+          const res = await fetchGoogleGenerateContent({
+            model,
+            feature: 'compose_product_scene',
+            body: JSON.parse(body),
+          })
+          if (!res.ok) { console.warn(`[studio] ${model} falhou (${res.status})`); continue }
+          const json = await res.json()
+          const parts = json.candidates?.[0]?.content?.parts ?? []
+          const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
+          if (imgPart?.inlineData?.data) {
+            console.log(`[studio] Vertex compose OK | model=${model}`)
+            return imgPart.inlineData.data as string
+          }
+          console.warn(`[studio] ${model} sem imagem | finishReason=${json.candidates?.[0]?.finishReason}`)
+        } catch (e: any) {
+          console.warn(`[studio] ${model} erro: ${e.message}`)
         }
-        console.warn(`[studio] ${model} sem imagem | finishReason=${json.candidates?.[0]?.finishReason}`)
       }
       return null
     }
@@ -9573,13 +9599,16 @@ export async function startVeo3DirectGoogle(params: {
   source_color_lock?: boolean
   inputParamsPatch?: Record<string, unknown>
 }) {
-  const apiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
-  if (!apiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
+  const hasVertex = !!process.env.GOOGLE_VERTEX_KEY && !!process.env.VERTEX_PROJECT_ID
+  const hasDirectKey = !!(process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
+  if (!hasVertex && !hasDirectKey) {
+    throw new Error('Vertex AI (GOOGLE_VERTEX_KEY + VERTEX_PROJECT_ID) ou GOOGLE_API_KEY não configurados')
+  }
 
   const admin = createAdminClient()
 
-  // 1. Baixa imagem e converte para base64 (Google API nÃ£o aceita URLs externas)
-  // Se for um vÃ­deo (continuaÃ§Ã£o), extraÃ­mos o frame agora mesmo
+  // 1. Baixa imagem e converte para base64 (Vertex/Gemini não aceitam URLs externas)
+  // Se for um vídeo (continuação), extraímos o frame agora mesmo
   let finalSourceUrl = params.source_image_url
   let imgBuffer: Buffer
 
@@ -9618,7 +9647,7 @@ export async function startVeo3DirectGoogle(params: {
     }).finalPrompt
   function resolveVeoResolution(model: string) {
     const requested = params.quality === '1080p' ? '1080p' : '720p'
-    if (/^veo-3\.0(?:-fast)?-generate-preview$/i.test(model) && requested === '1080p') return '720p'
+    if (/^veo-3\.0(?:-fast)?-generate(?:-preview|-001)?$/i.test(model) && requested === '1080p') return '720p'
     return requested
   }
 
@@ -9626,30 +9655,21 @@ export async function startVeo3DirectGoogle(params: {
 
   const wantsAudio = params.generate_audio ?? false
 
-  function normalizeGeminiVeoModelId(model: string) {
-    const normalized = String(model || '').trim()
-    if (!normalized) return normalized
-
-    if (normalized === 'veo-3.0-generate-preview') return 'veo-3.0-generate-001'
-    if (normalized === 'veo-3.0-fast-generate-preview') return 'veo-3.0-fast-generate-001'
-    return normalized
-  }
-
   function uniqueModelList(models: Array<string | undefined>) {
     return models
-      .map((model) => normalizeGeminiVeoModelId(String(model ?? '').trim()))
+      .map((model) => String(model ?? '').trim())
       .filter(Boolean)
       .filter((model, index, array) => array.indexOf(model) === index)
   }
 
   const primaryModel = wantsAudio
-    ? normalizeGeminiVeoModelId(process.env.GOOGLE_VEO_AUDIO_MODEL ?? 'veo-3.1-generate-preview')
-    : normalizeGeminiVeoModelId(process.env.GOOGLE_VEO_SILENT_MODEL ?? 'veo-3.1-generate-preview')
+    ? (process.env.GOOGLE_VEO_AUDIO_MODEL ?? 'veo-3.1-generate-001')
+    : (process.env.GOOGLE_VEO_SILENT_MODEL ?? 'veo-3.1-generate-001')
 
   const audioFallbackModels = wantsAudio
     ? uniqueModelList([
         process.env.GOOGLE_VEO_AUDIO_FALLBACK_MODEL,
-        'veo-3.1-fast-generate-preview',
+        'veo-3.1-fast-generate-001',
         'veo-3.0-generate-001',
         'veo-3.0-fast-generate-001',
       ])
@@ -9657,7 +9677,6 @@ export async function startVeo3DirectGoogle(params: {
 
   async function requestVeoOperation(model: string, generateAudio: boolean) {
     const resolution = resolveVeoResolution(model)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predictLongRunning?key=${apiKey}`
     const parameters: Record<string, unknown> = {
       aspectRatio: '9:16',
       durationSeconds,
@@ -9668,27 +9687,31 @@ export async function startVeo3DirectGoogle(params: {
       parameters.generateAudio = true
     }
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        instances: [{
-          prompt: finalMotion,
-          referenceImages: [{
+    try {
+      const res = await fetchGooglePredictLongRunning({
+        model,
+        feature: 'video_generation',
+        body: {
+          instances: [{
+            prompt: finalMotion,
             image: { bytesBase64Encoded: base64Image, mimeType },
           }],
-        }],
-        parameters,
-      }),
-    })
+          parameters,
+        },
+      })
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '')
-      return { ok: false as const, status: res.status, errText }
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '')
+        return { ok: false as const, status: res.status, errText }
+      }
+
+      const body = await res.json()
+      return { ok: true as const, body }
+    } catch (error: any) {
+      const errText = error instanceof Error ? error.message : String(error)
+      const status = (error && typeof error === 'object' && 'status' in error) ? Number(error.status) || 503 : 503
+      return { ok: false as const, status, errText }
     }
-
-    const body = await res.json()
-    return { ok: true as const, body }
   }
 
   let usedModel = primaryModel
@@ -9725,7 +9748,7 @@ export async function startVeo3DirectGoogle(params: {
       console.warn(
         `[studio] veo audio disabled fallback | requested_model=${usedModel} reason=${fallbackReason}`,
       )
-      const silentModel = normalizeGeminiVeoModelId(process.env.GOOGLE_VEO_SILENT_MODEL ?? usedModel)
+      const silentModel = process.env.GOOGLE_VEO_SILENT_MODEL ?? usedModel
       const silentResponse = await requestVeoOperation(silentModel, false)
       if (silentResponse.ok) {
         usedModel = silentModel
@@ -10124,17 +10147,17 @@ export async function generateAngles(params: {
       sourceDescription = String(sourceAsset.input_params.model_text)
     }
 
-    const visionRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${googleApiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const visionRes = await fetchGoogleGenerateContent({
+      model: 'gemini-2.5-flash',
+      feature: 'angles_gender_detection',
+      body: {
         contents: [{
           parts: [
             { text: "Just one word: Is the person in this image Male or Female?" },
             { inlineData: { mimeType, data: base64Image } }
           ]
         }]
-      })
+      },
     })
     const visionData = await visionRes.json()
     const text = visionData.candidates?.[0]?.content?.parts?.[0]?.text?.toLowerCase() || ''
@@ -10176,28 +10199,25 @@ export async function generateAngles(params: {
 
     for (const model of geminiChain) {
       try {
-        console.log(`[angles] Tentando Gemini model=${model} angle=${params.angle}`)
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts: [
-                { text: geminiPrompt },
-                { inlineData: { mimeType, data: base64Image } },
-              ]}],
-              generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
-            }),
-          }
-        )
+        console.log(`[angles] Tentando ${model} via Vertex angle=${params.angle}`)
+        const res = await fetchGoogleGenerateContent({
+          model,
+          feature: 'angles_generation',
+          body: {
+            contents: [{ role: 'user', parts: [
+              { text: geminiPrompt },
+              { inlineData: { mimeType, data: base64Image } },
+            ]}],
+            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+          },
+        })
         if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
         const data = await res.json()
         const parts = data.candidates?.[0]?.content?.parts ?? []
         const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
         if (!imgPart?.inlineData?.data) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
         photoBuffer = Buffer.from(imgPart.inlineData.data, 'base64')
-        console.log(`[angles] Gemini sucesso: ${model}`)
+        console.log(`[angles] Vertex sucesso: ${model}`)
         geminiSuccess = true
         break
       } catch (e: any) {
@@ -10205,7 +10225,7 @@ export async function generateAngles(params: {
       }
     }
 
-    if (!geminiSuccess) throw new Error('Todos os modelos Gemini falharam para angles.')
+    if (!geminiSuccess) throw new Error('Todos os modelos Vertex Gemini falharam para angles.')
   } else {
     // ---- FLUX DEV (IMAGE-TO-IMAGE) - OPTIMIZED FOR IDENTITY ----
     const falKey = process.env.FAL_KEY
@@ -10984,25 +11004,22 @@ export async function generatePresetIdentityScene(params: {
 
   for (const model of geminiChain) {
     try {
-      console.log(`[preset-scene] Tentando ${model} para asset ${params.assetId} (${imageParts.length} referÃªncia(s))`)
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: geminiPrompt }, ...imageParts] }],
-            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
-          }),
-        }
-      )
+      console.log(`[preset-scene] Tentando ${model} via Vertex para asset ${params.assetId} (${imageParts.length} referência(s))`)
+      const res = await fetchGoogleGenerateContent({
+        model,
+        feature: 'preset_scene_generation',
+        body: {
+          contents: [{ role: 'user', parts: [{ text: geminiPrompt }, ...imageParts] }],
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        },
+      })
       if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
       const data = await res.json()
       const parts = data.candidates?.[0]?.content?.parts ?? []
       const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
       if (!imgPart?.inlineData?.data) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
       photoBuffer = Buffer.from(imgPart.inlineData.data, 'base64')
-      console.log(`[preset-scene] Gemini sucesso: ${model}`)
+      console.log(`[preset-scene] Vertex sucesso: ${model}`)
       break
     } catch (e: any) {
       lastGeminiError = e.message
