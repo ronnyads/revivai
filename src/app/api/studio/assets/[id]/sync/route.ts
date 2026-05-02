@@ -20,6 +20,22 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+function getErrorStatus(error: unknown, fallback = 500): number {
+  if (error && typeof error === 'object' && 'status' in error) {
+    const status = Number((error as { status?: unknown }).status)
+    if (Number.isFinite(status) && status >= 400) return status
+  }
+  return fallback
+}
+
+function getErrorCode(error: unknown): string | undefined {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = (error as { code?: unknown }).code
+    if (typeof code === 'string' && code.trim()) return code
+  }
+  return undefined
+}
+
 function resolveAppUrl(req: NextRequest) {
   const origin = req.headers.get('origin') ?? req.headers.get('x-forwarded-host')
   const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
@@ -172,8 +188,17 @@ export async function POST(
       return NextResponse.json({ status: 'done', result_url: finalUrl })
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error)
-      console.error(`[sync] Google Veo3 check failed for ${id}:`, errorMessage)
-      return NextResponse.json({ status: 'error', error: errorMessage }, { status: 500 })
+      const errorStatus = getErrorStatus(error)
+      const errorCode = getErrorCode(error)
+      console.error(`[sync] Google Veo3 check failed for ${id}:`, {
+        message: errorMessage,
+        status: errorStatus,
+        code: errorCode,
+      })
+      return NextResponse.json(
+        { status: 'error', error: errorMessage, code: errorCode },
+        { status: errorStatus },
+      )
     }
   }
 
