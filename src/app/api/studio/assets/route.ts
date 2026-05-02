@@ -1474,19 +1474,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ asset: { ...responseAsset, status: 'processing' } }, { status: 201 })
 
     } else if (type === 'animate') {
-      await startVeo3DirectGoogle({
-        source_image_url: String(input_params.portrait_image_url ?? ''),
-        motion_prompt: input_params.motion_prompt
-          ? String(input_params.motion_prompt)
-          : 'animate this image with natural, fluid movement',
+      const appUrl = resolveAppUrl(req)
+
+      await startAnimateGeneration({
+        portrait_image_url: String(normalizedInputParams.portrait_image_url ?? input_params.portrait_image_url ?? ''),
+        driving_video_url: String(normalizedInputParams.driving_video_url ?? input_params.driving_video_url ?? ''),
+        motion_prompt: normalizedInputParams.motion_prompt
+          ? String(normalizedInputParams.motion_prompt)
+          : 'Copie o movimento do video de referencia, preservando a identidade e o estilo da personagem base.',
         assetId: asset.id,
         userId: user.id,
-        generate_audio: false,
-        inputParamsPatch: {
-          logical_type: 'animate',
-          motion_provider_chain: ['google:veo-direct'],
-          driving_video_url: input_params.driving_video_url ?? null,
-        },
+        appUrl,
       })
       return NextResponse.json({ asset: { ...responseAsset, status: 'processing' } }, { status: 201 })
 
