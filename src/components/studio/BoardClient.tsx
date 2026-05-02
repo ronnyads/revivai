@@ -60,7 +60,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   look_split: { source_url: '', smart_prompt: '' },
 }
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, talking_video: 50, model: 8, render: 1, animate: 20, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12, look_split: 6,
+  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, talking_video: 50, model: 8, render: 1, animate: 50, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12, look_split: 6,
 }
 
 export default function BoardClient({ project, initialAssets, userCredits }: Props) {

@@ -34,7 +34,7 @@ Date: 2026-05-01
 | `angles` | pending Google mapping | `vertex_imagen_edit_pending` | gap | blocked |
 | `compose` product | pending cleanup to Imagen composition | `vertex_imagen_compose_pending` | gap | blocked |
 | `compose` fitting / provador | pending VTO + Imagen orchestration | `vertex_vto_plus_imagen_pending` | gap | blocked |
-| `animate` | pending Veo migration | `vertex_veo_pending` | gap | blocked |
+| `animate` | Vertex Veo guided motion with reference video | `vertex_veo_predict_long_running` | ready | blocked |
 | `lipsync` | pending Google-native replacement | `google_talking_video_pending` | gap | blocked |
 
 ## Billing intent by feature

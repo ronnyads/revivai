@@ -147,11 +147,11 @@ const TYPE_META: Record<
   },
   animate: {
     icon: <Sparkles size={14} />,
-    label: 'Imitar Movimento',
+    label: 'Movimento Guiado',
     color: 'text-fuchsia-100',
     chip: 'border-fuchsia-500/20 bg-fuchsia-500/10 text-fuchsia-100',
-    hint: 'Replica gesto e energia a partir do video driver.',
-    output: 'Animacao pronta',
+    hint: 'Usa um video de referencia para guiar gesto, energia e camera.',
+    output: 'Movimento pronto',
   },
   compose: {
     icon: <Layers size={14} />,
@@ -232,7 +232,7 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
   ],
   animate: [
     { id: 'portrait_image_url', label: 'Retrato' },
-    { id: 'driving_video_url', label: 'Movimento' },
+    { id: 'driving_video_url', label: 'Referencia' },
   ],
   compose: [
     { id: 'portrait_url', label: 'Modelo' },
@@ -332,7 +332,7 @@ const ESTIMATED: Partial<Record<AssetType, number>> = {
 const PROCESSING_LABELS: Partial<Record<AssetType, string>> = {
   video: 'Gerando movimento e camera comercial...',
   talking_video: 'Montando a performance falada da modelo...',
-  animate: 'Replicando movimento de referencia...',
+  animate: 'Guiando movimento a partir do video de referencia...',
   model: 'Criando modelo UGC premium...',
   image: 'Renderizando cena em alta definicao...',
   voice: 'Sintetizando locucao natural...',

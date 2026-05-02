@@ -12,7 +12,7 @@ export const CREDIT_COST: Record<string, number> = {
   model:   8,   // Flux Pro + GPT-4o
   image:   8,   // Flux Pro Ultra
   compose: 12,  // IDM-VTON/overlay
-  animate: 20,  // live-portrait
+  animate: 50,  // Movimento Guiado — Vertex Veo 3.1
   lipsync: 20,  // SyncLabs Pro
   video:   15,  // Motor Padrão (Kling/Fal)
   video_veo: 50,  // Motor Premium (Google Veo 3.1) - Ajustado para 50 para incentivar volume de uso

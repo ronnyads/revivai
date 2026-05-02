@@ -4,7 +4,7 @@ import { GoogleAuth } from 'google-auth-library'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
 import { AssetType } from '@/types'
-import { extractLastFrame as extractVideoFrame, saveLastFrame } from './videoUtils'
+import { extractLastFrame as extractVideoFrame, extractVideoReferenceInsights, saveLastFrame } from './videoUtils'
 import { assessCompositionQuality, CompositionQuality, ProductProfile } from '@/lib/openai'
 import { synthesizeGoogleSpeech, transcribeGoogleAudio } from '@/lib/googleCloudMedia'
 import { fetchGoogleGenerateContent, fetchGooglePredict, fetchGooglePredictLongRunning } from '@/lib/googleGenai'
@@ -9440,6 +9440,97 @@ export async function startLipsyncGeneration(params: {
 }
 
 // â”€â”€ Animate â€” Fal AI Wan Motion (motion transfer real com vÃ­deo guia) â”€
+async function uploadAnimateReferenceFrame(params: {
+  admin: ReturnType<typeof createAdminClient>
+  userId: string
+  assetId: string
+  frameLabel: 'first' | 'last'
+  buffer: Buffer
+}) {
+  const storagePath = `${params.userId}/${params.assetId}-guided-${params.frameLabel}-frame.jpg`
+  const { error } = await params.admin.storage
+    .from('studio')
+    .upload(storagePath, params.buffer, { contentType: 'image/jpeg', upsert: true })
+
+  if (error) throw new Error(`Falha ao subir ${params.frameLabel} frame de referencia: ${error.message}`)
+  const { data: { publicUrl } } = params.admin.storage.from('studio').getPublicUrl(storagePath)
+  return publicUrl
+}
+
+async function buildAnimateReferenceMotionBrief(params: {
+  firstFrameBuffer: Buffer
+  lastFrameBuffer: Buffer
+  durationSeconds: number
+  motionPrompt?: string
+}) {
+  const cleanedPrompt = String(params.motionPrompt ?? '').trim()
+  const fallback = [
+    `Use a reference progression that starts in a calm setup and resolves into a more expressive end frame over about ${params.durationSeconds.toFixed(1)} seconds.`,
+    'Guide the body rhythm, gesture intensity, posture shifts, and camera energy from the reference video while keeping the portrait identity stable.',
+    cleanedPrompt ? `Extra direction: ${cleanedPrompt}.` : '',
+  ].filter(Boolean).join(' ')
+
+  try {
+    const response = await fetchStudioGoogleGenerateContent(
+      'gemini-2.5-flash',
+      {
+        systemInstruction: {
+          parts: [{
+            text: 'Analyze the first and last frame of a reference performance video. Return only a short production brief in English describing gesture arc, pacing, body energy, head movement, expression shift, and camera feeling. Do not claim exact frame-by-frame transfer. Keep it under 110 words.',
+          }],
+        },
+        contents: [{
+          role: 'user',
+          parts: [
+            {
+              text: [
+                `Reference duration: ${params.durationSeconds.toFixed(2)} seconds.`,
+                cleanedPrompt ? `User motion direction: ${cleanedPrompt}` : 'User motion direction: none provided.',
+                'Describe the movement as guidance for a text-to-video model that must preserve the portrait identity and approximate the action.',
+              ].join('\n'),
+            },
+            { inlineData: { mimeType: 'image/jpeg', data: params.firstFrameBuffer.toString('base64') } },
+            { inlineData: { mimeType: 'image/jpeg', data: params.lastFrameBuffer.toString('base64') } },
+          ],
+        }],
+        generationConfig: {
+          temperature: 0.35,
+          maxOutputTokens: 220,
+        },
+      },
+      'animate-reference-brief',
+    )
+
+    if (!response.ok) {
+      throw new Error(`Gemini reference brief failed (${response.status})`)
+    }
+
+    const payload = await response.json()
+    const text = extractGoogleTextCandidate(payload).replace(/\s+/g, ' ').trim()
+    return text || fallback
+  } catch (error) {
+    console.warn('[studio] animate reference brief fallback:', error)
+    return fallback
+  }
+}
+
+function buildAnimateGuidedPrompt(params: {
+  referenceMotionBrief: string
+  motionPrompt?: string
+  durationSeconds: number
+}) {
+  const cleanedPrompt = String(params.motionPrompt ?? '').trim()
+  return [
+    'Create a premium vertical commercial shot using the portrait image as the sovereign identity anchor.',
+    'Preserve the same face, hair, outfit, body proportions, and overall visual style from the portrait source.',
+    `Use the reference video only as guidance for motion, energy, rhythm, and camera feeling over roughly ${params.durationSeconds.toFixed(1)} seconds.`,
+    'This is guided movement, not exact frame-by-frame motion transfer.',
+    `Reference motion brief: ${params.referenceMotionBrief}`,
+    cleanedPrompt ? `Honor this extra user direction: ${cleanedPrompt}.` : '',
+    'Keep one coherent take, natural limb anatomy, stable face identity, clean hands, subtle body follow-through, and no scene cuts or identity drift.',
+  ].filter(Boolean).join(' ')
+}
+
 export async function startAnimateGeneration(params: {
   portrait_image_url: string
   driving_video_url: string
@@ -9448,66 +9539,68 @@ export async function startAnimateGeneration(params: {
   appUrl: string
   userId: string
 }) {
-  const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
-  if (!params.portrait_image_url) throw new Error('Imagem/retrato obrigatÃ³rio para imitar movimento')
-  if (!params.driving_video_url) throw new Error('VÃ­deo de referÃªncia obrigatÃ³rio para imitar movimento')
+  void params.appUrl
+  if (!params.portrait_image_url) throw new Error('Retrato obrigatório para gerar movimento guiado')
+  if (!params.driving_video_url) throw new Error('Vídeo de referência obrigatório para gerar movimento guiado')
 
   const admin = createAdminClient()
-  const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
+  const { durationSeconds, firstFrameBuffer, lastFrameBuffer } = await extractVideoReferenceInsights(params.driving_video_url)
 
-  const configStr = await getStudioPrompt(admin, 'video_wan_motion_config', '{}')
-  let config: Record<string, unknown> = {}
-  try { config = JSON.parse(configStr) } catch { /* ignore */ }
+  const [referenceFirstFrameUrl, referenceLastFrameUrl] = await Promise.all([
+    uploadAnimateReferenceFrame({
+      admin,
+      userId: params.userId,
+      assetId: params.assetId,
+      frameLabel: 'first',
+      buffer: firstFrameBuffer,
+    }).catch(() => ''),
+    uploadAnimateReferenceFrame({
+      admin,
+      userId: params.userId,
+      assetId: params.assetId,
+      frameLabel: 'last',
+      buffer: lastFrameBuffer,
+    }).catch(() => ''),
+  ])
 
-  const falModelPath = 'fal-ai/wan-motion'
-  const prompt = params.motion_prompt?.trim()
-    || 'Transfer the body pose, gestures, camera movement, head movement, and facial expression from the driving video to the reference character. Preserve the reference character identity, outfit, proportions, lighting, and visual style. Avoid flicker, warping, extra limbs, distorted hands, face drift, and scene cuts.'
-
-  const payload = {
-    video_url: params.driving_video_url,
-    image_url: params.portrait_image_url,
-    prompt,
-    adapt_motion: true,
-    enhance_identity: true,
-    acceleration: 'regular',
-    video_quality: 'high',
-    video_write_mode: 'balanced',
-    webhook_url: webhookUrl,
-    ...config,
-  }
-
-  const queueRes = await fetch(`https://queue.fal.run/${falModelPath}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Key ${falKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload)
+  const referenceMotionBrief = await buildAnimateReferenceMotionBrief({
+    firstFrameBuffer,
+    lastFrameBuffer,
+    durationSeconds,
+    motionPrompt: params.motion_prompt,
   })
 
-  if (!queueRes.ok) {
-    const err = await queueRes.text()
-    throw new Error(`Fal AI Wan Motion erro ao enfileirar: ${err}`)
-  }
+  const guidedPrompt = buildAnimateGuidedPrompt({
+    referenceMotionBrief,
+    motionPrompt: params.motion_prompt,
+    durationSeconds,
+  })
 
-  const { request_id } = await queueRes.json()
-  if (!request_id) throw new Error('Fal AI nÃ£o retornou request_id para animate')
-
-  // Salva prediction_id para permitir webhook/sync manual sem custo extra.
-  await admin.from('studio_assets')
-    .update({
-      input_params: {
-        prediction_id: request_id,
-        provider: 'fal',
-        engine: 'wan-motion',
-        fal_model_path: falModelPath,
-        portrait_image_url: params.portrait_image_url,
-        driving_video_url: params.driving_video_url,
-        motion_prompt: prompt,
-      }
-    })
-    .eq('id', params.assetId)
+  await startVeo3DirectGoogle({
+    source_image_url: params.portrait_image_url,
+    motion_prompt: params.motion_prompt?.trim() || referenceMotionBrief,
+    motion_prompt_raw: params.motion_prompt?.trim() || undefined,
+    motion_prompt_normalized: referenceMotionBrief,
+    prompt_override: guidedPrompt,
+    assetId: params.assetId,
+    userId: params.userId,
+    generate_audio: false,
+    inputParamsPatch: {
+      portrait_image_url: params.portrait_image_url,
+      driving_video_url: params.driving_video_url,
+      guided_motion_mode: 'vertex_reference_guided',
+      reference_video_duration_seconds: durationSeconds,
+      reference_first_frame_url: referenceFirstFrameUrl || null,
+      reference_last_frame_url: referenceLastFrameUrl || null,
+      reference_motion_brief: referenceMotionBrief,
+      guided_motion_prompt: guidedPrompt,
+      motion_transfer_exact: false,
+      provider_family: 'google_cloud',
+      runtime_engine: 'vertex_veo',
+      billing_route: 'vertex_veo_predict_long_running',
+      reference_video_role: 'guidance_only',
+    },
+  })
 }
 
 // â”€â”€ Join â€” Costura de vÃ­deos via FFmpeg (Fase 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

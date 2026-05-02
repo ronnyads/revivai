@@ -79,7 +79,7 @@ export async function POST(
   const engine = typeof assetInputParams.engine === 'string' ? assetInputParams.engine : undefined
   const providerFamily = typeof assetInputParams.provider_family === 'string' ? assetInputParams.provider_family : undefined
 
-  if ((logicalType === 'video' || logicalType === 'talking_video') && (provider === 'google' || engine === 'veo' || providerFamily === 'google_cloud')) {
+  if ((logicalType === 'video' || logicalType === 'talking_video' || logicalType === 'animate') && (provider === 'google' || engine === 'veo' || providerFamily === 'google_cloud')) {
     const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? 'vertex-managed'
     if (!apiKey) {
       return NextResponse.json({ status: 'error', error: 'GOOGLE_API_KEY / GEMINI_API_KEY nÃƒÂ£o configurada no servidor (Veo3)' }, { status: 500 })
@@ -177,7 +177,7 @@ export async function POST(
     }
   }
 
-  if (logicalType === 'video' || logicalType === 'talking_video' || logicalType === 'animate' || logicalType === 'lipsync') {
+  if (logicalType === 'video' || logicalType === 'talking_video' || logicalType === 'lipsync') {
     const falKey = process.env.FAL_KEY
     if (!falKey) return NextResponse.json({ status: 'error', error: 'FAL_KEY nÃƒÂ£o configurada' }, { status: 500 })
 
@@ -188,9 +188,6 @@ export async function POST(
     } else if (logicalType === 'talking_video') {
       const savedPath = typeof assetInputParams.fal_model_path === 'string' ? assetInputParams.fal_model_path : undefined
       modelPath = savedPath ?? 'fal-ai/sync-lipsync/v2/pro'
-    } else if (logicalType === 'animate') {
-      const savedPath = typeof assetInputParams.fal_model_path === 'string' ? assetInputParams.fal_model_path : undefined
-      modelPath = savedPath ?? 'fal-ai/wan-motion'
     } else {
       const savedPath = typeof assetInputParams.fal_model_path === 'string' ? assetInputParams.fal_model_path : undefined
       modelPath = savedPath ?? 'fal-ai/latentsync'
@@ -198,9 +195,7 @@ export async function POST(
 
     const altModelPath = logicalType === 'video'
       ? (modelPath.includes('veo') ? 'fal-ai/kling-video/v1.5/pro/image-to-video' : 'fal-ai/veo3.1/image-to-video')
-      : logicalType === 'animate'
-        ? (modelPath.includes('wan-motion') ? 'fal-ai/live-portrait' : 'fal-ai/wan-motion')
-        : null
+      : null
 
     async function fetchFalStatus(path: string) {
       const response = await fetch(`https://queue.fal.run/${path}/requests/${predictionId}/status`, {

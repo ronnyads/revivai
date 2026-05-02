@@ -13,7 +13,7 @@ interface Props {
 }
 
 const DEFAULT_MOTION_PROMPT =
-  'Copie o jeito de se mover do video de referencia, mantendo o mesmo rosto, roupa e estilo da imagem.'
+  'Use o video de referencia para guiar gesto, energia e camera, mantendo a identidade e o estilo da imagem.'
 
 export default function AnimateGenerator({ initial, onGenerate }: Props) {
   const connectedPortraitUrl = String(initial.portrait_image_url ?? '')
@@ -45,10 +45,10 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
           <Film size={18} className="text-fuchsia-400" />
         </div>
         <div>
-          <h4 className="text-[13px] font-bold leading-tight text-white">Imitar Movimento</h4>
+          <h4 className="text-[13px] font-bold leading-tight text-white">Movimento Guiado</h4>
           <p className="mt-1 text-[11px] leading-relaxed text-zinc-400">
-            Envie uma foto da pessoa e um video de exemplo. A IA usa esse video para copiar o jeito de mexer,
-            as expressoes e o ritmo do corpo.
+            Envie uma foto da pessoa e um video de referencia. A IA usa esse material para guiar gesto,
+            energia, ritmo corporal e sensacao de camera sem prometer copia fiel frame a frame.
           </p>
         </div>
       </div>
@@ -65,13 +65,13 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
       </div>
 
       <div className="rounded-xl border border-fuchsia-500/10 bg-fuchsia-500/5 px-3 py-2 text-[11px] leading-relaxed text-zinc-400">
-        <span className="font-semibold text-fuchsia-300">Duracao do video:</span> segue o video de referencia.
+        <span className="font-semibold text-fuchsia-300">Duracao do video:</span> o motor usa o video como guia de ritmo e progressao.
         Se gravar pela webcam aqui no card, o limite e de <span className="font-semibold text-white">30 segundos</span>.
       </div>
 
       <div className="rounded-xl border border-amber-500/10 bg-amber-500/5 px-3 py-2 text-[11px] leading-relaxed text-zinc-400">
-        <span className="font-semibold text-amber-300">Importante:</span> este modo copia o
-        movimento, pose e expressao do video. <span className="font-semibold text-white">O audio nao e copiado.</span>
+        <span className="font-semibold text-amber-300">Importante:</span> este modo usa o
+        video como referencia visual de gesto, energia e enquadramento. <span className="font-semibold text-white">O audio nao e copiado.</span>
         Para fazer falar ou sincronizar a boca, use <span className="font-semibold text-white">Lip Sync</span> depois.
       </div>
 
@@ -98,7 +98,7 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
             </div>
           </div>
           <div className="flex flex-1 flex-col gap-1.5">
-            <p className="text-center text-[9px] font-black uppercase tracking-widest text-zinc-500">Movimento</p>
+            <p className="text-center text-[9px] font-black uppercase tracking-widest text-zinc-500">Referencia</p>
             <div className="relative aspect-square overflow-hidden rounded-2xl border border-white/5 ring-4 ring-black/20 bg-zinc-950">
               <video
                 key={drivingUrl}
@@ -148,15 +148,15 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
           onChange={(event) => setMotionPrompt(event.target.value)}
           rows={3}
           className="resize-none rounded-2xl border border-zinc-800 bg-zinc-950 px-3 py-3 text-xs leading-relaxed text-zinc-200 outline-none transition-colors placeholder:text-zinc-700 focus:border-fuchsia-500/50"
-          placeholder="Exemplo: copie o jeito de andar, olhar e mexer os bracos do video."
+          placeholder="Exemplo: use a energia do passo, o olhar confiante e uma camera levemente acompanhando."
         />
       </label>
 
       <div className="flex items-start gap-2 rounded-xl border border-fuchsia-500/10 bg-fuchsia-500/5 p-3">
         <div className="mt-1.5 h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-fuchsia-500" />
         <p className="text-[10px] leading-relaxed text-zinc-500">
-          Use este modo quando quiser copiar um movimento real. Se tambem quiser voz ou boca sincronizada,
-          encaixe o resultado no card de Lip Sync. Para inventar uma cena nova, use o card de video.
+          Use este modo quando quiser que o video de referencia guie a acao. Alguns videos simples funcionam melhor;
+          movimentos complexos podem virar aproximacoes. Se tambem quiser voz ou boca sincronizada, encaixe o resultado no card de Lip Sync.
         </p>
       </div>
 
@@ -173,7 +173,7 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
       >
         <div className="absolute inset-0 bg-white/10 opacity-0 transition-opacity group-hover:opacity-100" />
         <Sparkles size={18} className="transition-transform group-hover:rotate-12" />
-        IMITAR MOVIMENTO - {cost} CREDITOS
+        MOVIMENTO GUIADO - {cost} CREDITOS
       </button>
     </div>
   )

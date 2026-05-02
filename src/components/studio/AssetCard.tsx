@@ -31,7 +31,7 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   upscale: { icon: <ZoomIn size={15} />,   label: 'Upscale',    color: 'text-amber-400' },
   script:  { icon: <FileText size={15} />, label: 'Script',     color: 'text-pink-400' },
   caption: { icon: <Captions size={15} />, label: 'Legenda',    color: 'text-cyan-400' },
-  animate: { icon: <Sparkles size={15} />, label: 'Animar',      color: 'text-fuchsia-400' },
+  animate: { icon: <Sparkles size={15} />, label: 'Movimento Guiado', color: 'text-fuchsia-400' },
   compose: { icon: <Layers size={15} />,   label: 'Compor Cena', color: 'text-orange-400'  },
   lipsync: { icon: <Wand2 size={15} />,    label: 'Lip Sync',    color: 'text-cyan-400'    },
   angles:  { icon: <Camera size={15} />,   label: 'Dir. de Cena',color: 'text-emerald-400' },
@@ -213,7 +213,7 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
   if (type === 'image' || type === 'upscale' || type === 'face') {
     return <img src={url} alt="Resultado" className="w-full rounded-xl object-cover max-h-64" />
   }
-  if (type === 'video' || type === 'talking_video' || type === 'join') {
+  if (type === 'video' || type === 'talking_video' || type === 'animate' || type === 'join') {
     return <video src={mediaPreviewUrl} controls className="w-full rounded-xl max-h-64" playsInline preload="metadata" />
   }
   if (type === 'voice' || type === 'music') {

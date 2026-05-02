@@ -1481,7 +1481,7 @@ export async function POST(req: NextRequest) {
         driving_video_url: String(normalizedInputParams.driving_video_url ?? input_params.driving_video_url ?? ''),
         motion_prompt: normalizedInputParams.motion_prompt
           ? String(normalizedInputParams.motion_prompt)
-          : 'Copie o movimento do video de referencia, preservando a identidade e o estilo da personagem base.',
+          : 'Use o video de referencia para guiar gesto, energia e camera, preservando a identidade da personagem base.',
         assetId: asset.id,
         userId: user.id,
         appUrl,
