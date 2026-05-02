@@ -205,6 +205,9 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
       title="Video com Fala"
       hideHeader
       layout="split"
+      contentClassName="gap-2.5"
+      mediaColumnClassName="space-y-2.5"
+      controlsColumnClassName="space-y-2.5"
       chips={[
         { label: mode === 'exact_speech' ? 'Frase exata' : 'Veo natural', tone: mode === 'exact_speech' ? 'cyan' : 'warning' },
         { label: quality === '1080p' ? '1080p HQ' : '720p', tone: quality === '1080p' ? 'warning' : 'neutral' },
@@ -212,11 +215,11 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
       ]}
       media={
         <>
-          <StudioPanel title="Base">
-            <ImageUpload value={imageUrl} onChange={setImageUrl} label="Imagem fonte" accept="image/*" preview />
+          <StudioPanel title="Base" compact>
+            <ImageUpload value={imageUrl} onChange={setImageUrl} label="Imagem fonte" accept="image/*" preview compact />
           </StudioPanel>
 
-          <StudioPanel title="Setup">
+          <StudioPanel title="Setup" compact>
             <div className="grid gap-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
@@ -254,9 +257,7 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
                 <p className="mt-1 text-[9px] leading-relaxed text-white/52">
                   {modeDescription} {scenePreset.description}
                 </p>
-                <p className="mt-2 text-[9px] leading-relaxed text-white/42">
-                  modelo, produto, roupa e cenario ficam iguais por padrao. cenario e roupa so mudam se voce pedir explicitamente.
-                </p>
+                <StudioHint>Modelo, produto, roupa e cenario ficam iguais por padrao.</StudioHint>
               </div>
             </div>
           </StudioPanel>
@@ -264,7 +265,7 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
       }
       controls={
         <>
-          <StudioPanel title="O que acontece no video?">
+          <StudioPanel title="O que acontece no video?" compact>
             <StudioFieldLabel
               trailing={
                 mode === 'exact_speech'
@@ -298,7 +299,7 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
               value={ideaPrompt}
               onChange={(event) => setIdeaPrompt(event.target.value)}
               placeholder={`Ex:\n"cara... eu preciso sair mais e fazer amigos novos"\n\nmulher caminhando em parque de outono,\ntom emocional intimo,\nolhando para camera,\nvideo cinematografico natural`}
-              rows={6}
+              rows={4}
               className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-2.5 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-cyan-400/30"
             />
             <div className="mt-3 flex flex-wrap gap-1.5">
@@ -325,8 +326,7 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
             <div className="mt-2 space-y-1.5">
               {mode === 'exact_speech' ? (
                 <>
-                  <StudioHint>Escreva a fala entre aspas ou coloque a frase na primeira linha. O resto pode ser tom, cena e camera.</StudioHint>
-                  <StudioHint>Pedidos de trocar roupa ou trocar cenario precisam ser explicitos. Storyboard sozinho nao muda a base.</StudioHint>
+                  <StudioHint>Escreva a fala entre aspas ou na primeira linha. Trocas de roupa ou cenario precisam ser explicitas.</StudioHint>
                   <StudioHint tone={exactSpeechMissing || speechWillContinue ? 'warning' : 'neutral'}>
                     {exactSpeechMissing
                       ? 'Nao encontrei a frase exata ainda. Coloque a fala entre aspas para reduzir erro.'
@@ -340,7 +340,6 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
                   <StudioHint tone="warning">
                     Neste modo a IA pode adaptar as palavras. Use Frase exata quando a literalidade for obrigatoria.
                   </StudioHint>
-                  <StudioHint>Se quiser trocar roupa ou ambiente, escreva isso de forma direta. Sem pedido explicito, a base fica travada.</StudioHint>
                   <StudioHint tone={parsedIdea.speechDetected ? 'warning' : 'neutral'}>
                     {parsedIdea.speechDetected
                       ? 'Como voce escreveu fala, este modo tambem vai incluir voz e lipsync no custo final.'
@@ -400,7 +399,7 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
             ) : null}
           </StudioPanel>
 
-          <StudioPanel title="Saida">
+          <StudioPanel title="Saida" compact>
             <div className={`grid gap-3 ${mode === 'exact_speech' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
               {mode === 'exact_speech' ? (
                 <>

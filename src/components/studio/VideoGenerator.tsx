@@ -113,6 +113,9 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
       title={isContinuation ? 'Continuacao de video' : 'Video IA'}
       hideHeader
       layout="split"
+      contentClassName="gap-2.5"
+      mediaColumnClassName="space-y-2.5"
+      controlsColumnClassName="space-y-2.5"
       chips={[
         { label: engine === 'veo' ? 'Google Veo' : 'Kling AI', tone: 'blue' },
         { label: quality === '1080p' ? '1080p' : isContinuation ? 'Continuacao' : '720p', tone: quality === '1080p' ? 'warning' : 'neutral' },
@@ -121,7 +124,7 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
         <>
           <StudioPanel title="Base" compact>
             {!isContinuation ? (
-              <ImageUpload value={imageUrl} onChange={setImageUrl} label="Imagem fonte" accept="image/*" preview />
+              <ImageUpload value={imageUrl} onChange={setImageUrl} label="Imagem fonte" accept="image/*" preview compact />
             ) : (
               <div className="flex items-center gap-2 rounded-[16px] border border-blue-500/20 bg-blue-500/10 px-3 py-2.5 text-[10px] font-semibold text-blue-200">
                 <Link2 size={14} /> Continua o clipe anterior
@@ -142,6 +145,7 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
                   {engine === 'veo' ? 'Mais cinematografico.' : 'Melhor para sequencia e repeticao.'}
                 </p>
               </div>
+              <StudioHint>Imagem base e cenario do frame ficam travados por padrao.</StudioHint>
             </div>
           </StudioPanel>
         </>
@@ -189,11 +193,13 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
               <span className="text-[10px] font-semibold text-blue-200">{selectedEngineLabel}</span>
               <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/46">{cost} CR</span>
             </div>
-            {selectedScenePreset.value !== 'none' ? (
-              <div className="mt-2">
-                <StudioHint>Preset aplicado. O Studio monta a pre-cena e depois anima o frame em um unico fluxo.</StudioHint>
-              </div>
-            ) : null}
+            <div className="mt-2">
+              <StudioHint>
+                {selectedScenePreset.value !== 'none'
+                  ? 'Preset ativo. O Studio prepara a pre-cena antes de animar.'
+                  : 'Sem preset, o video preserva o frame base e trabalha o movimento.'}
+              </StudioHint>
+            </div>
           </StudioPanel>
 
           <StudioPanel title="Movimento" compact>
@@ -206,15 +212,13 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
                   ? 'Ex: olha para a camera, sorri de leve, respiracao natural.'
                   : 'Ex: leve push-in, sorriso suave, pequeno giro de rosto, levantar levemente o produto.'
               }
-              rows={3}
+              rows={2}
               className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-blue-400/30"
             />
             <div className="mt-2 space-y-1.5">
-              <StudioHint>
-                Use este campo para micro-movimento, expressao e camera. O video preserva modelo, produto, roupa e fundo do frame base.
-              </StudioHint>
+              <StudioHint>Use este campo para gesto, expressao e camera. Modelo, produto, roupa e fundo ficam presos ao frame base.</StudioHint>
               <StudioHint tone="warning">
-                Se pedir ambiente novo, o Studio resolve uma pre-cena invisivel antes de animar. Para controle total do frame, use Cena Livre.
+                Se pedir ambiente novo, o Studio precisa reinterpretar a cena antes de animar.
               </StudioHint>
             </div>
           </StudioPanel>

@@ -164,7 +164,7 @@ export default function WebcamRecorder({ value, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-[10px] text-zinc-500 uppercase tracking-wide">Seu vídeo (driving)</label>
+      <label className="text-[10px] text-zinc-500 uppercase tracking-wide">Video de referencia</label>
 
       {/* ── IDLE ── */}
       {phase === 'idle' && (
@@ -175,8 +175,8 @@ export default function WebcamRecorder({ value, onChange }: Props) {
             className="w-full flex flex-col items-center gap-2 border-2 border-dashed border-fuchsia-500/40 hover:border-fuchsia-500/70 bg-fuchsia-500/5 rounded-xl py-5 transition-colors group"
           >
             <Camera size={24} className="text-fuchsia-400 group-hover:scale-110 transition-transform" />
-            <p className="text-xs text-zinc-300 font-medium">Gravar na Webcam</p>
-            <p className="text-[10px] text-zinc-500">Grave até 30s do seu rosto usando a câmera</p>
+            <p className="text-xs text-zinc-300 font-medium">Gravar referencia</p>
+            <p className="text-[10px] text-zinc-500">Grave ate 30s da sua referencia usando a camera</p>
           </button>
 
           <div className="relative flex items-center py-1">
@@ -188,7 +188,7 @@ export default function WebcamRecorder({ value, onChange }: Props) {
           {/* File upload */}
           <label className="w-full flex flex-col items-center gap-2 border-2 border-dashed border-zinc-700/60 hover:border-zinc-500 bg-zinc-800/30 rounded-xl py-4 transition-colors group cursor-pointer">
             <Upload size={20} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
-            <p className="text-xs text-zinc-400 font-medium text-center">Enviar Vídeo do PC / Galeria</p>
+            <p className="text-xs text-zinc-400 font-medium text-center">Enviar video do PC / Galeria</p>
             <p className="text-[10px] text-zinc-500 text-center">
               MP4, MOV, WebM — <span className="text-zinc-400 font-medium">máx. 100 MB</span>
             </p>

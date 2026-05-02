@@ -280,7 +280,7 @@ const STATUS_META = {
   },
 } as const
 
-const LATERAL_EDITOR_TYPES = new Set<AssetType>(['compose', 'scene', 'image', 'video', 'talking_video', 'look_split'])
+const LATERAL_EDITOR_TYPES = new Set<AssetType>(['compose', 'scene', 'image', 'video', 'talking_video', 'animate', 'look_split'])
 
 const FIELD_SUMMARIES: Partial<Record<AssetType, Array<{ field: string; label: string }>>> = {
   script: [
