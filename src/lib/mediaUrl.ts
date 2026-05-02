@@ -3,10 +3,12 @@ export function getPreviewMediaUrl(url: string): string {
 
   try {
     const parsed = new URL(url)
-    parsed.searchParams.set('_media_preview', '1')
+    parsed.searchParams.delete('_media_preview')
+    parsed.hash = 'media-preview'
     return parsed.toString()
   } catch {
-    const separator = url.includes('?') ? '&' : '?'
-    return `${url}${separator}_media_preview=1`
+    const cleaned = url.replace(/([?&])_media_preview=1(&|$)/, '$1').replace(/[?&]$/, '')
+    const hashSeparator = cleaned.includes('#') ? '&' : '#'
+    return `${cleaned}${hashSeparator}media-preview`
   }
 }
