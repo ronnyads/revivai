@@ -1,3 +1,5 @@
+import { fetchGoogleGenerateContent } from '@/lib/googleGenai'
+
 export interface SovereignAnalysis {
   needs_scratch_removal: boolean
   needs_colorization: boolean
@@ -491,6 +493,8 @@ export interface CompositionQuality {
   score: number      // 0-100
   issues: string[]
   weakest_dimension?: string
+  qc_relaxed?: boolean
+  qc_relax_reason?: string
 }
 
 export interface CompositionQualityOptions {
@@ -625,9 +629,6 @@ export async function assessCompositionQuality(
   profile?: ProductProfile,
   options?: CompositionQualityOptions,
 ): Promise<CompositionQuality> {
-  const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
-  if (!apiKey) return { approved: true, score: 80, issues: [] }
-
   const referenceImage = options?.referenceImage ?? await urlToInlineData(productUrl)
 
   const featuresLine = profile?.key_features?.length
@@ -717,14 +718,23 @@ Respond with valid JSON only:
   const prompt = isProductShowcase
     ? legacyPrompt
     : buildFittingQualityPrompt(profile, featuresLine, options?.fittingCategory, options?.fittingRoute)
+  const buildRelaxedQcResult = (reason: string): CompositionQuality => ({
+    approved: true,
+    score: 70,
+    issues: ['QC service unavailable - approved with warning'],
+    weakest_dimension: 'QC_UNAVAILABLE',
+    qc_relaxed: true,
+    qc_relax_reason: reason,
+  })
+  const isRetryableQcProviderFailure = (message: string) => (
+    /429|quota|resource_exhausted|rate limit|fetch failed|econnreset|timed out|timeout|503|502|500|service unavailable|network/i.test(message)
+  )
 
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    const res = await fetchGoogleGenerateContent({
+      model: 'gemini-2.5-flash',
+      feature: 'composition-qc',
+      body: {
           contents: [{
             role: 'user',
             parts: [
@@ -736,9 +746,8 @@ Respond with valid JSON only:
             ],
           }],
           generationConfig: { responseMimeType: 'application/json' },
-        }),
-      }
-    )
+        },
+    })
 
     if (!res.ok) throw new Error(`Gemini QC error: ${res.status}`)
     const data = await res.json()
@@ -750,8 +759,15 @@ Respond with valid JSON only:
       score: parsed.score ?? 80,
       issues: parsed.issues ?? [],
       weakest_dimension: parsed.weakest_dimension,
+      qc_relaxed: parsed.qc_relaxed,
+      qc_relax_reason: parsed.qc_relax_reason,
     }
   } catch (err: any) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (isRetryableQcProviderFailure(message)) {
+      console.warn('[compose-qc] Gemini QC falhou â€” aprovando com warning por indisponibilidade temporaria:', message)
+      return buildRelaxedQcResult('provider_unavailable')
+    }
     console.warn('[compose-qc] Gemini QC falhou — reprovando por segurança:', err.message)
     return { approved: false, score: 0, issues: ['QC service unavailable — rejecting to prevent bad output'] }
   }

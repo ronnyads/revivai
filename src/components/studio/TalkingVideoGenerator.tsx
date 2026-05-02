@@ -11,9 +11,9 @@ import {
   StudioPrimaryButton,
   StudioSummaryChip,
 } from './StudioFormShell'
-import { CREDIT_COST } from '@/constants/studio'
 import {
   buildTalkingVideoIdeaFromParts,
+  calculateTalkingVideoCredits,
   estimateTalkingSpeechDurationSeconds,
   planTalkingVideoSpeechChunk,
   parseTalkingVideoIdeaInput,
@@ -25,6 +25,7 @@ interface Props {
 }
 
 type TalkingVideoMode = 'exact_speech' | 'veo_natural'
+type ScenePresetId = 'none' | 'podcast' | 'beach' | 'office'
 
 const BR_VOICES = [
   { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (masculino)' },
@@ -33,6 +34,53 @@ const BR_VOICES = [
   { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli (feminino)' },
   { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh (masculino)' },
 ]
+
+const SCENE_PRESETS: Array<{
+  id: ScenePresetId
+  label: string
+  shortLabel: string
+  description: string
+  prompt: string
+}> = [
+  {
+    id: 'none',
+    label: 'Sem preset',
+    shortLabel: 'Cena livre',
+    description: 'Mantem a cena aberta para a direcao que voce escrever na ideia.',
+    prompt: '',
+  },
+  {
+    id: 'podcast',
+    label: 'Podcast',
+    shortLabel: 'Podcast',
+    description: 'Estudio com microfone, mesa clean e clima de conversa intimista.',
+    prompt: 'estudio de podcast premium, microfone visivel, mesa clean, luz quente controlada, enquadramento meio corpo, atmosfera intimista',
+  },
+  {
+    id: 'beach',
+    label: 'Praia',
+    shortLabel: 'Praia',
+    description: 'Litoral ensolarado com vento leve e textura natural de fim de tarde.',
+    prompt: 'praia ensolarada, brisa suave, mar ao fundo, luz de fim de tarde, atmosfera leve, enquadramento natural',
+  },
+  {
+    id: 'office',
+    label: 'Escritorio',
+    shortLabel: 'Escritorio',
+    description: 'Ambiente profissional limpo, luz suave e sensacao corporativa premium.',
+    prompt: 'escritorio contemporaneo, mesa organizada, luz suave de janela, atmosfera corporativa premium, enquadramento profissional',
+  },
+]
+
+const SPEED_OPTIONS = [0.8, 0.9, 1.0, 1.1, 1.2]
+
+function joinPromptParts(parts: string[]) {
+  return parts
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part, index, array) => array.indexOf(part) === index)
+    .join(', ')
+}
 
 function getEstimateTone(seconds: number) {
   if (seconds <= 6.6) return 'safe'
@@ -49,6 +97,21 @@ function getInitialIdeaPrompt(initial: Record<string, unknown>) {
     expressionDirection: typeof initial.expression_direction === 'string' ? initial.expression_direction : '',
     visualPrompt: typeof initial.visual_prompt === 'string' ? initial.visual_prompt : '',
   })
+}
+
+function getInitialScenePreset(initial: Record<string, unknown>): ScenePresetId {
+  const savedPreset = String(initial.scene_preset_id ?? '').trim().toLowerCase()
+  if (savedPreset === 'podcast' || savedPreset === 'beach' || savedPreset === 'office') {
+    return savedPreset
+  }
+
+  const seed = `${String(initial.idea_prompt ?? '')} ${String(initial.visual_prompt ?? '')}`.toLowerCase()
+
+  if (/(podcast|microfone|estudio de podcast)/.test(seed)) return 'podcast'
+  if (/(praia|mar|areia|litoral|oceano)/.test(seed)) return 'beach'
+  if (/(escritorio|office|mesa de trabalho|corporativ)/.test(seed)) return 'office'
+
+  return 'none'
 }
 
 export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
@@ -77,9 +140,14 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
   const [voiceId, setVoiceId] = useState(String(initial.voice_id ?? 'EXAVITQu4vr4xnSDxMaL'))
   const [speed, setSpeed] = useState(Number(initial.speed ?? 1.0))
   const [quality, setQuality] = useState(String(initial.quality ?? '720p'))
+  const [scenePresetId, setScenePresetId] = useState<ScenePresetId>(getInitialScenePreset(initial))
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
-  const parsedIdea = useMemo(
+  const scenePreset = useMemo(
+    () => SCENE_PRESETS.find((preset) => preset.id === scenePresetId) ?? SCENE_PRESETS[0],
+    [scenePresetId],
+  )
+  const parsedIdeaBase = useMemo(
     () =>
       parseTalkingVideoIdeaInput({
         mode,
@@ -89,6 +157,18 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
         visualPrompt: visualOverride,
       }),
     [mode, ideaPrompt, speechOverride, expressionOverride, visualOverride],
+  )
+  const resolvedVisualPrompt = useMemo(
+    () => joinPromptParts([scenePreset.prompt, parsedIdeaBase.visualPrompt]),
+    [scenePreset.prompt, parsedIdeaBase.visualPrompt],
+  )
+  const parsedIdea = useMemo(
+    () => ({
+      ...parsedIdeaBase,
+      visualPrompt: resolvedVisualPrompt,
+      sceneDetected: resolvedVisualPrompt.length > 0,
+    }),
+    [parsedIdeaBase, resolvedVisualPrompt],
   )
 
   const estimateSeconds = useMemo(
@@ -101,16 +181,22 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
   )
   const speechWillContinue = mode === 'exact_speech' && chunkPlan.hasRemaining
   const estimateTone = getEstimateTone(speechWillContinue ? chunkPlan.selectedSeconds : estimateSeconds)
-  const baseVideoCost = CREDIT_COST.talking_video ?? CREDIT_COST.video_veo ?? 50
-  const videoCost = quality === '1080p' ? baseVideoCost * 2 : baseVideoCost
-  const cost = mode === 'exact_speech'
-    ? videoCost + (CREDIT_COST.voice ?? 8) + (CREDIT_COST.lipsync ?? 20)
-    : videoCost
+  const requiresVoicePipeline = mode === 'exact_speech' || parsedIdea.speechDetected
+  const cost = calculateTalkingVideoCredits({
+    mode,
+    quality,
+    speechDetected: parsedIdea.speechDetected,
+  })
   const exactSpeechMissing = mode === 'exact_speech' && !parsedIdea.speechDetected
   const naturalMissing = !imageUrl.trim() || (!parsedIdea.speechDetected && !parsedIdea.sceneDetected)
   const isDisabled = mode === 'exact_speech'
     ? !imageUrl.trim() || exactSpeechMissing
     : naturalMissing
+  const modeLabel = mode === 'exact_speech' ? 'Frase exata' : 'Veo natural'
+  const modeDescription = mode === 'exact_speech'
+    ? 'A modelo fala exatamente a frase detectada em ate 8 segundos.'
+    : 'A IA pode adaptar ritmo, entonacao e pequenas variacoes para soar mais organico.'
+  const visualOverridePlaceholder = parsedIdeaBase.visualPrompt || scenePreset.prompt || 'Override manual de cena, camera e atmosfera'
 
   return (
     <StudioFormShell
@@ -130,39 +216,48 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
             <ImageUpload value={imageUrl} onChange={setImageUrl} label="Imagem fonte" accept="image/*" preview />
           </StudioPanel>
 
-          <StudioPanel title="Modo">
-            <div className="grid gap-2">
-              <button
-                type="button"
-                onClick={() => setMode('exact_speech')}
-                className={`rounded-[16px] border px-3 py-3 text-left transition-all ${
-                  mode === 'exact_speech'
-                    ? 'border-cyan-400/30 bg-cyan-500/12 text-white'
-                    : 'border-white/8 bg-[#0B0D0F] text-white/46 hover:border-white/14 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Mic size={14} />
-                  <span className="text-[11px] font-semibold">Frase exata</span>
+          <StudioPanel title="Setup">
+            <div className="grid gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <StudioFieldLabel>Modo</StudioFieldLabel>
+                  <select
+                    value={mode}
+                    onChange={(event) => setMode(event.target.value as TalkingVideoMode)}
+                    className="w-full rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 text-[11px] text-white outline-none transition-colors focus:border-cyan-400/30"
+                  >
+                    <option value="exact_speech">Frase exata</option>
+                    <option value="veo_natural">Veo natural</option>
+                  </select>
                 </div>
-                <p className="mt-1 text-[9px] leading-relaxed text-white/46">A modelo fala exatamente a frase detectada em ate 8 segundos.</p>
-              </button>
+                <div>
+                  <StudioFieldLabel>Cenario preset</StudioFieldLabel>
+                  <select
+                    value={scenePresetId}
+                    onChange={(event) => setScenePresetId(event.target.value as ScenePresetId)}
+                    className="w-full rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 text-[11px] text-white outline-none transition-colors focus:border-cyan-400/30"
+                  >
+                    {SCENE_PRESETS.map((preset) => (
+                      <option key={preset.id} value={preset.id}>{preset.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => setMode('veo_natural')}
-                className={`rounded-[16px] border px-3 py-3 text-left transition-all ${
-                  mode === 'veo_natural'
-                    ? 'border-cyan-400/30 bg-cyan-500/12 text-white'
-                    : 'border-white/8 bg-[#0B0D0F] text-white/46 hover:border-white/14 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Sparkles size={14} />
-                  <span className="text-[11px] font-semibold">Veo natural</span>
+              <div className="rounded-[16px] border border-cyan-500/14 bg-cyan-500/[0.06] px-3 py-2.5">
+                <div className="flex items-center gap-2 text-[10px] font-semibold text-white">
+                  {mode === 'exact_speech' ? <Mic size={13} className="text-cyan-200" /> : <Sparkles size={13} className="text-cyan-200" />}
+                  <span>{modeLabel}</span>
+                  <span className="text-white/34">/</span>
+                  <span className="text-cyan-200">{scenePreset.shortLabel}</span>
                 </div>
-                <p className="mt-1 text-[9px] leading-relaxed text-white/46">A IA pode adaptar ritmo, entonacao e pequenas variacoes para soar mais organico.</p>
-              </button>
+                <p className="mt-1 text-[9px] leading-relaxed text-white/52">
+                  {modeDescription} {scenePreset.description}
+                </p>
+                <p className="mt-2 text-[9px] leading-relaxed text-white/42">
+                  modelo, produto, roupa e cenario ficam iguais por padrao. cenario e roupa so mudam se voce pedir explicitamente.
+                </p>
+              </div>
             </div>
           </StudioPanel>
         </>
@@ -203,8 +298,8 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
               value={ideaPrompt}
               onChange={(event) => setIdeaPrompt(event.target.value)}
               placeholder={`Ex:\n"cara... eu preciso sair mais e fazer amigos novos"\n\nmulher caminhando em parque de outono,\ntom emocional intimo,\nolhando para camera,\nvideo cinematografico natural`}
-              rows={9}
-              className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-cyan-400/30"
+              rows={6}
+              className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-2.5 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-cyan-400/30"
             />
             <div className="mt-3 flex flex-wrap gap-1.5">
               <StudioSummaryChip tone={parsedIdea.speechDetected ? 'success' : 'warning'}>
@@ -216,15 +311,22 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
               <StudioSummaryChip tone={parsedIdea.sceneDetected ? 'success' : 'neutral'}>
                 {parsedIdea.sceneDetected ? 'cena detectada' : 'cena aberta'}
               </StudioSummaryChip>
+              <StudioSummaryChip tone={scenePreset.id === 'none' ? 'neutral' : 'cyan'}>
+                {scenePreset.shortLabel}
+              </StudioSummaryChip>
               <StudioSummaryChip tone="neutral">modelo preservada</StudioSummaryChip>
               <StudioSummaryChip tone={mode === 'exact_speech' ? 'cyan' : 'warning'}>
                 {speechWillContinue ? 'continua em partes' : mode === 'exact_speech' ? 'speech-safe ativo' : 'audio mais livre'}
               </StudioSummaryChip>
+              {requiresVoicePipeline ? (
+                <StudioSummaryChip tone="cyan">voice + lipsync incluidos</StudioSummaryChip>
+              ) : null}
             </div>
             <div className="mt-2 space-y-1.5">
               {mode === 'exact_speech' ? (
                 <>
                   <StudioHint>Escreva a fala entre aspas ou coloque a frase na primeira linha. O resto pode ser tom, cena e camera.</StudioHint>
+                  <StudioHint>Pedidos de trocar roupa ou trocar cenario precisam ser explicitos. Storyboard sozinho nao muda a base.</StudioHint>
                   <StudioHint tone={exactSpeechMissing || speechWillContinue ? 'warning' : 'neutral'}>
                     {exactSpeechMissing
                       ? 'Nao encontrei a frase exata ainda. Coloque a fala entre aspas para reduzir erro.'
@@ -234,9 +336,17 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
                   </StudioHint>
                 </>
               ) : (
-                <StudioHint tone="warning">
-                  Neste modo a IA pode adaptar as palavras. Use Frase exata quando a literalidade for obrigatoria.
-                </StudioHint>
+                <>
+                  <StudioHint tone="warning">
+                    Neste modo a IA pode adaptar as palavras. Use Frase exata quando a literalidade for obrigatoria.
+                  </StudioHint>
+                  <StudioHint>Se quiser trocar roupa ou ambiente, escreva isso de forma direta. Sem pedido explicito, a base fica travada.</StudioHint>
+                  <StudioHint tone={parsedIdea.speechDetected ? 'warning' : 'neutral'}>
+                    {parsedIdea.speechDetected
+                      ? 'Como voce escreveu fala, este modo tambem vai incluir voz e lipsync no custo final.'
+                      : 'Sem fala detectada, este modo cobra apenas o video.'}
+                  </StudioHint>
+                </>
               )}
             </div>
           </StudioPanel>
@@ -260,8 +370,8 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
                       value={speechOverride}
                       onChange={(event) => setSpeechOverride(event.target.value)}
                       placeholder={parsedIdea.speechText || 'Override manual da fala detectada'}
-                      rows={3}
-                      className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-cyan-400/30"
+                      rows={2}
+                      className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-2.5 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-cyan-400/30"
                     />
                   </div>
                   <div>
@@ -270,8 +380,8 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
                       value={expressionOverride}
                       onChange={(event) => setExpressionOverride(event.target.value)}
                       placeholder={parsedIdea.expressionDirection || 'Override manual do tom'}
-                      rows={3}
-                      className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-cyan-400/30"
+                      rows={2}
+                      className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-2.5 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-cyan-400/30"
                     />
                   </div>
                 </div>
@@ -280,70 +390,71 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
                   <textarea
                     value={visualOverride}
                     onChange={(event) => setVisualOverride(event.target.value)}
-                    placeholder={parsedIdea.visualPrompt || 'Override manual de cena, camera e atmosfera'}
-                    rows={3}
-                    className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-cyan-400/30"
+                    placeholder={visualOverridePlaceholder}
+                    rows={2}
+                    className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-2.5 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-cyan-400/30"
                   />
+                  <StudioHint>O preset de cenario entra junto com esta direcao visual no envio final.</StudioHint>
                 </div>
               </div>
             ) : null}
           </StudioPanel>
 
-          {mode === 'exact_speech' ? (
-            <StudioPanel title="Voz">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <StudioFieldLabel>Voz</StudioFieldLabel>
-                  <select
-                    value={voiceId}
-                    onChange={(event) => setVoiceId(event.target.value)}
-                    className="w-full rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 text-[11px] text-white outline-none transition-colors focus:border-cyan-400/30"
-                  >
-                    {BR_VOICES.map((voice) => (
-                      <option key={voice.id} value={voice.id}>{voice.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <StudioFieldLabel trailing={<span>{speed.toFixed(2)}x</span>}>Velocidade</StudioFieldLabel>
-                  <input
-                    type="range"
-                    min="0.8"
-                    max="1.2"
-                    step="0.05"
-                    value={speed}
-                    onChange={(event) => setSpeed(Number(event.target.value))}
-                    className="w-full accent-cyan-400"
-                  />
-                </div>
-              </div>
-            </StudioPanel>
-          ) : null}
-
-          <StudioPanel title="Qualidade">
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { value: '720p', label: '720p' },
-                { value: '1080p', label: '1080p HQ' },
-              ].map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setQuality(option.value)}
-                  className={`rounded-[16px] border px-3 py-2.5 text-[10px] font-semibold transition-all ${
-                    quality === option.value
-                      ? 'border-cyan-400/30 bg-cyan-500/12 text-white'
-                      : 'border-white/8 bg-[#0B0D0F] text-white/46 hover:border-white/14 hover:text-white'
-                  }`}
+          <StudioPanel title="Saida">
+            <div className={`grid gap-3 ${mode === 'exact_speech' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+              {mode === 'exact_speech' ? (
+                <>
+                  <div>
+                    <StudioFieldLabel>Voz</StudioFieldLabel>
+                    <select
+                      value={voiceId}
+                      onChange={(event) => setVoiceId(event.target.value)}
+                      className="w-full rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 text-[11px] text-white outline-none transition-colors focus:border-cyan-400/30"
+                    >
+                      {BR_VOICES.map((voice) => (
+                        <option key={voice.id} value={voice.id}>{voice.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <StudioFieldLabel>Velocidade</StudioFieldLabel>
+                    <select
+                      value={speed}
+                      onChange={(event) => setSpeed(Number(event.target.value))}
+                      className="w-full rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 text-[11px] text-white outline-none transition-colors focus:border-cyan-400/30"
+                    >
+                      {SPEED_OPTIONS.map((option) => (
+                        <option key={option} value={option}>{option.toFixed(2)}x</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              ) : null}
+              <div>
+                <StudioFieldLabel>Qualidade</StudioFieldLabel>
+                <select
+                  value={quality}
+                  onChange={(event) => setQuality(event.target.value)}
+                  className="w-full rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 text-[11px] text-white outline-none transition-colors focus:border-cyan-400/30"
                 >
-                  {option.label}
-                </button>
-              ))}
+                  <option value="720p">720p</option>
+                  <option value="1080p">1080p HQ</option>
+                </select>
+              </div>
             </div>
             <div className="mt-2 flex items-center justify-between rounded-[16px] border border-cyan-500/14 bg-cyan-500/[0.06] px-3 py-2.5">
               <span className="text-[10px] font-semibold text-cyan-200">8 segundos fixos</span>
               <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/46">{cost} CR</span>
             </div>
+            {mode !== 'exact_speech' ? (
+              <div className="mt-2">
+                <StudioHint tone={requiresVoicePipeline ? 'warning' : 'neutral'}>
+                  {requiresVoicePipeline
+                    ? 'Como existe fala detectada, o pipeline final ainda inclui voz e lipsync.'
+                    : 'Sem fala detectada, este modo fica focado apenas no movimento e no cenario.'}
+                </StudioHint>
+              </div>
+            ) : null}
           </StudioPanel>
 
           <StudioPrimaryButton
@@ -353,10 +464,11 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
               onGenerate({
                 source_image_url: imageUrl,
                 talking_video_mode: mode,
+                scene_preset_id: scenePresetId,
                 idea_prompt: ideaPrompt,
                 speech_text: speechOverride,
                 expression_direction: expressionOverride,
-                visual_prompt: visualOverride,
+                visual_prompt: resolvedVisualPrompt,
                 voice_id: voiceId,
                 speed,
                 quality,
@@ -364,7 +476,11 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
             }
           >
             <Clapperboard size={16} />
-            {mode === 'exact_speech' ? `Gerar video falado - ${cost} CR` : `Gerar Veo natural - ${cost} CR`}
+            {mode === 'exact_speech'
+              ? `Gerar video falado - ${cost} CR`
+              : requiresVoicePipeline
+                ? `Gerar Veo natural falado - ${cost} CR`
+                : `Gerar Veo natural - ${cost} CR`}
           </StudioPrimaryButton>
         </>
       }

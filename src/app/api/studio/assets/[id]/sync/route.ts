@@ -4,10 +4,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import Replicate from 'replicate'
-import { startLipsyncGeneration, incrementTalkingPipelineAttempts } from '@/lib/studio'
+import { finalizeTalkingVideoBaseGeneration } from '@/lib/studio'
 import { getLogicalStudioAssetType, mapStudioAssetType } from '@/lib/studioAssetType'
 import { saveLastFrame } from '@/lib/videoUtils'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
+import { fetchGoogleOperation } from '@/lib/googleGenai'
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -65,28 +66,32 @@ export async function POST(
     .eq('user_id', user.id)
     .single()
 
-  if (!asset) return NextResponse.json({ error: 'Asset nÃ£o encontrado' }, { status: 404 })
+  if (!asset) return NextResponse.json({ error: 'Asset nÃƒÂ£o encontrado' }, { status: 404 })
   const assetInputParams = asRecord(asset.input_params)
   const logicalType = getLogicalStudioAssetType(asset.type, assetInputParams)
   if (asset.status === 'done') return NextResponse.json({ status: 'done', asset: mapStudioAssetType(asset) })
   const predictionId = typeof assetInputParams.prediction_id === 'string' ? assetInputParams.prediction_id : undefined
   if (!predictionId) {
-    return NextResponse.json({ status: asset.status, message: 'prediction_id nÃ£o encontrado' })
+    return NextResponse.json({ status: asset.status, message: 'prediction_id nÃƒÂ£o encontrado' })
   }
 
   const provider = typeof assetInputParams.provider === 'string' ? assetInputParams.provider : undefined
   const engine = typeof assetInputParams.engine === 'string' ? assetInputParams.engine : undefined
+  const providerFamily = typeof assetInputParams.provider_family === 'string' ? assetInputParams.provider_family : undefined
 
-  if ((logicalType === 'video' || logicalType === 'talking_video') && (provider === 'google' || engine === 'veo')) {
-    const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
+  if ((logicalType === 'video' || logicalType === 'talking_video') && (provider === 'google' || engine === 'veo' || providerFamily === 'google_cloud')) {
+    const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? 'vertex-managed'
     if (!apiKey) {
-      return NextResponse.json({ status: 'error', error: 'GOOGLE_API_KEY / GEMINI_API_KEY nÃ£o configurada no servidor (Veo3)' }, { status: 500 })
+      return NextResponse.json({ status: 'error', error: 'GOOGLE_API_KEY / GEMINI_API_KEY nÃƒÂ£o configurada no servidor (Veo3)' }, { status: 500 })
     }
 
     try {
-      const opRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/${predictionId}?key=${apiKey}`)
+      const opRes = await fetchGoogleOperation({
+        operationName: predictionId,
+        feature: `studio-sync:${logicalType}`,
+      })
       if (!opRes.ok) {
-        const errMsg = 'Veo3: operaÃ§Ã£o nÃ£o encontrada no Google ou job bloqueado. Tente gerar novamente.'
+        const errMsg = 'Veo3: operaÃƒÂ§ÃƒÂ£o nÃƒÂ£o encontrada no Google ou job bloqueado. Tente gerar novamente.'
         await markStudioAssetFailed({ admin, assetId: id, errorMsg: errMsg, refundReason: 'sync:veo-operation-missing' })
         return NextResponse.json({ status: 'error', error: errMsg })
       }
@@ -97,7 +102,7 @@ export async function POST(
       if (!op.done) return NextResponse.json({ status: 'processing', message: 'Google Veo3 ainda processando...' })
 
       if (op.error) {
-        const errMsg = op.error.message ?? 'Falha na geraÃ§Ã£o do Veo3'
+        const errMsg = op.error.message ?? 'Falha na geraÃƒÂ§ÃƒÂ£o do Veo3'
         await markStudioAssetFailed({ admin, assetId: id, errorMsg: errMsg, refundReason: 'sync:veo-provider-error' })
         return NextResponse.json({ status: 'error', error: errMsg })
       }
@@ -111,17 +116,17 @@ export async function POST(
 
       const raiFiltered = op.response?.generateVideoResponse?.raiMediaFilteredCount > 0
       if (raiFiltered) {
-        const reason = op.response?.generateVideoResponse?.raiMediaFilteredReasons?.[0] || 'Bloqueado pelos filtros de seguranÃ§a do Google'
-        await markStudioAssetFailed({ admin, assetId: id, errorMsg: `SeguranÃ§a Google: ${reason}`, refundReason: 'sync:veo-safety-filter' })
+        const reason = op.response?.generateVideoResponse?.raiMediaFilteredReasons?.[0] || 'Bloqueado pelos filtros de seguranÃƒÂ§a do Google'
+        await markStudioAssetFailed({ admin, assetId: id, errorMsg: `SeguranÃƒÂ§a Google: ${reason}`, refundReason: 'sync:veo-safety-filter' })
         return NextResponse.json({ status: 'error', error: reason })
       }
 
       if (!finalUrl) {
-        return NextResponse.json({ status: 'processing', message: 'Finalizando vÃ­deo Veo3 (URL em processamento)...' })
+        return NextResponse.json({ status: 'processing', message: 'Finalizando vÃƒÂ­deo Veo3 (URL em processamento)...' })
       }
 
       try {
-        const vidReq = await fetch(finalUrl, { headers: { 'x-goog-api-key': apiKey } })
+        const vidReq = await fetch(finalUrl)
         if (vidReq.ok) {
           const buffer = Buffer.from(await vidReq.arrayBuffer())
           const path = `${user.id}/${id}-veo3.mp4`
@@ -132,73 +137,37 @@ export async function POST(
           }
         }
       } catch (error) {
-        console.error('[sync] Falha ao transpor vÃ­deo Veo3 p/ Storage:', error)
+        console.error('[sync] Falha ao transpor vÃƒÂ­deo Veo3 p/ Storage:', error)
       }
 
       const currentInputParams = asRecord(asset.input_params)
-      const talkingMode = typeof currentInputParams.talking_video_mode === 'string' ? currentInputParams.talking_video_mode : 'exact_speech'
-
-      if (logicalType === 'talking_video' && talkingMode === 'exact_speech' && currentInputParams.pipeline_stage === 'veo_generating') {
-        const generatedVoiceUrl = typeof currentInputParams.generated_voice_url === 'string'
-          ? currentInputParams.generated_voice_url
-          : ''
-
-        if (!generatedVoiceUrl) {
-          await markStudioAssetFailed({
-            admin,
-            assetId: id,
-            errorMsg: 'Audio interno nao encontrado para iniciar o lipsync do talking video.',
-            refundReason: 'sync:talking-video-missing-audio',
-          })
-          return NextResponse.json({ status: 'error', error: 'Audio interno nao encontrado para o talking video.' })
-        }
-
-        await admin.from('studio_assets').update({
-          status: 'processing',
-          result_url: finalUrl,
-          error_msg: null,
-          input_params: {
-            ...currentInputParams,
-            intermediate_video_url: finalUrl,
-            pipeline_stage: 'lipsyncing',
-            pipeline_attempts: incrementTalkingPipelineAttempts(currentInputParams.pipeline_attempts, 'lipsyncing'),
-          },
-        }).eq('id', id)
-
-        await startLipsyncGeneration({
-          face_url: finalUrl,
-          audio_url: generatedVoiceUrl,
+      if (logicalType === 'talking_video') {
+        const finalized = await finalizeTalkingVideoBaseGeneration({
+          admin,
           assetId: id,
           userId: user.id,
+          finalUrl,
           appUrl: resolveAppUrl(req),
-          inputParamsPatch: {
-            intermediate_video_url: finalUrl,
-            pipeline_stage: 'lipsyncing',
-            pipeline_attempts: incrementTalkingPipelineAttempts(currentInputParams.pipeline_attempts, 'lipsyncing'),
-          },
+          currentInputParams,
         })
 
-        return NextResponse.json({ status: 'processing', message: 'Veo pronto. Iniciando lipsync...' })
+        if (finalized.status === 'processing') {
+          return NextResponse.json({ status: 'processing', message: finalized.message, result_url: finalized.resultUrl })
+        }
+        if (finalized.status === 'error') {
+          return NextResponse.json({ status: 'error', error: finalized.error })
+        }
+        return NextResponse.json({ status: 'done', result_url: finalized.resultUrl ?? finalUrl })
       }
 
+      const lastFrameUrl = await saveLastFrame(finalUrl, user.id, id).catch(() => null)
       await admin.from('studio_assets').update({
         status: 'done',
         result_url: finalUrl,
+        last_frame_url: lastFrameUrl || finalUrl,
         error_msg: null,
-        input_params: logicalType === 'talking_video'
-          ? {
-                ...currentInputParams,
-                pipeline_stage: 'completed',
-            }
-          : currentInputParams,
+        input_params: currentInputParams,
       }).eq('id', id)
-
-      try {
-        const lastFrameUrl = await saveLastFrame(finalUrl, user.id, id)
-        await admin.from('studio_assets').update({ last_frame_url: lastFrameUrl || finalUrl }).eq('id', id)
-      } catch (error) {
-        console.error('[sync] Erro ao extrair frame (opcional):', error)
-      }
 
       return NextResponse.json({ status: 'done', result_url: finalUrl })
     } catch (error: unknown) {
@@ -210,7 +179,7 @@ export async function POST(
 
   if (logicalType === 'video' || logicalType === 'talking_video' || logicalType === 'animate' || logicalType === 'lipsync') {
     const falKey = process.env.FAL_KEY
-    if (!falKey) return NextResponse.json({ status: 'error', error: 'FAL_KEY nÃ£o configurada' }, { status: 500 })
+    if (!falKey) return NextResponse.json({ status: 'error', error: 'FAL_KEY nÃƒÂ£o configurada' }, { status: 500 })
 
     let modelPath: string
     if (logicalType === 'video') {
@@ -248,7 +217,7 @@ export async function POST(
         if (statusJson) modelPath = altModelPath
       }
       if (!statusJson) {
-        const errMsg = 'Job expirado ou nÃ£o encontrado. Clique em "Tentar novamente" para gerar novamente.'
+        const errMsg = 'Job expirado ou nÃƒÂ£o encontrado. Clique em "Tentar novamente" para gerar novamente.'
         await markStudioAssetFailed({ admin, assetId: id, errorMsg: errMsg, refundReason: 'sync:fal-job-missing' })
         return NextResponse.json({ status: 'error', error: errMsg })
       }
@@ -277,13 +246,32 @@ export async function POST(
         }
 
         if (!videoUrl) {
-          return NextResponse.json({ status: 'processing', message: 'Resultado ainda nÃ£o disponÃ­vel no payload' })
+          return NextResponse.json({ status: 'processing', message: 'Resultado ainda nÃƒÂ£o disponÃƒÂ­vel no payload' })
         }
 
         const currentInputParams = asRecord(asset.input_params)
         const permanentUrl = await persistToStorage(admin, videoUrl, user.id, id)
-        const lastFrameUrl = await saveLastFrame(permanentUrl, user.id, id).catch(() => null)
 
+        if (logicalType === 'talking_video' && String(currentInputParams.engine ?? '') !== 'sync-lipsync') {
+          const finalized = await finalizeTalkingVideoBaseGeneration({
+            admin,
+            assetId: id,
+            userId: user.id,
+            finalUrl: permanentUrl,
+            appUrl: resolveAppUrl(req),
+            currentInputParams,
+          })
+
+          if (finalized.status === 'processing') {
+            return NextResponse.json({ status: 'processing', message: finalized.message, result_url: finalized.resultUrl })
+          }
+          if (finalized.status === 'error') {
+            return NextResponse.json({ status: 'error', error: finalized.error })
+          }
+          return NextResponse.json({ status: 'done', result_url: finalized.resultUrl ?? permanentUrl })
+        }
+
+        const lastFrameUrl = await saveLastFrame(permanentUrl, user.id, id).catch(() => null)
         await admin.from('studio_assets').update({
           status: 'done',
           result_url: permanentUrl,
@@ -301,7 +289,7 @@ export async function POST(
       }
 
       if (statusJson.status === 'ERROR' || statusJson.status === 'FAILED') {
-        const errorMsg = statusJson.error ? String(statusJson.error) : 'GeraÃ§Ã£o falhou no Fal AI'
+        const errorMsg = statusJson.error ? String(statusJson.error) : 'GeraÃƒÂ§ÃƒÂ£o falhou no Fal AI'
         await markStudioAssetFailed({ admin, assetId: id, errorMsg, refundReason: `sync:fal-${String(statusJson.status).toLowerCase()}` })
         return NextResponse.json({ status: 'error', error: errorMsg })
       }
@@ -325,7 +313,7 @@ export async function POST(
     }
 
     if (prediction.status === 'failed' || prediction.status === 'canceled') {
-      const errorMsg = prediction.error ? String(prediction.error) : 'GeraÃ§Ã£o falhou no Replicate'
+      const errorMsg = prediction.error ? String(prediction.error) : 'GeraÃƒÂ§ÃƒÂ£o falhou no Replicate'
       await markStudioAssetFailed({ admin, assetId: id, errorMsg, refundReason: `sync:replicate-${prediction.status}` })
       return NextResponse.json({ status: 'error', error: errorMsg })
     }
@@ -337,3 +325,4 @@ export async function POST(
     return NextResponse.json({ status: 'error', error: errorMessage }, { status: 500 })
   }
 }
+

@@ -1,5 +1,7 @@
 export type SharedTalkingVideoMode = 'exact_speech' | 'veo_natural'
 
+import { CREDIT_COST } from '@/constants/studio'
+
 type TalkingVideoIdeaParts = {
   speechText?: string
   expressionDirection?: string
@@ -31,7 +33,7 @@ type IdeaSection = 'neutral' | 'speech' | 'emotion' | 'visual' | 'ignore'
 
 const EMOTION_LABEL_RE = /^(?:tom|emocao|emocional|energia|expressao|performance|sentimento|vibe|clima|mood)\s*:\s*/i
 const VISUAL_LABEL_RE = /^(?:cena|visual|direcao visual|camera|movimento|enquadramento|ambiente|cenario|luz|lighting|shot|plano)\s*:\s*/i
-const SPEECH_LABEL_RE = /^(?:fala|frase|texto falado|fala exata|o que ela fala|ela fala|voiceover|voice over|locucao|locucao exata|falado)\s*:\s*/i
+const SPEECH_LABEL_RE = /^(?:fala|frase|texto falado|fala exata|o que ela fala|ela fala|voiceover|voice over|locucao|locucao exata|falado)(?:\s*\([^)]{0,80}\))?\s*:\s*/i
 const IGNORE_LINE_LABEL_RE = /^(?:texto na tela|texto de tela|on-screen text|onscreen text|caption|legenda|sfx|fx|efeitos sonoros|sound effects?|musica|trilha(?: sonora)?|audio|audio de fundo)\s*:\s*/i
 const STORYBOARD_LABEL_RE = /^(?:storyboard|roteiro|take(?:\s+\d+)?|shot list|acao|acao principal|direcao de cena|camera|cena|visual|ambiente|cenario|lighting|plano|conceito)\s*:?\s*/i
 const TIME_MARKER_RE = /^(?:seg(?:\.|undos?)?|sec(?:onds?)?|take|shot|corte)\s*[\d:\-\u2013]+\s*:?\s*/i
@@ -244,6 +246,18 @@ function pushUniqueLine(target: string[], value: string) {
   target.push(normalized)
 }
 
+function isLikelySpokenUtterance(value: string) {
+  const normalized = normalizeTalkingWhitespace(value)
+  if (!normalized) return false
+
+  const words = normalized.split(/\s+/).filter(Boolean)
+  if (words.length >= 2) return true
+  if (/[.!?…]/.test(normalized)) return true
+  if (normalized.length >= 18) return true
+
+  return false
+}
+
 function inferSectionHeader(line: string): IdeaSection {
   const normalized = normalizeTalkingWhitespace(stripDecorators(line)).replace(/:\s*$/, '')
   if (!normalized) return 'neutral'
@@ -300,7 +314,9 @@ function parseIdeaLines(rawIdea: string) {
         : withoutVisualLabel
       pushUniqueLine(visualLines, sanitizeDirectionLine(withoutStoryboardLabel))
       if (!IGNORE_LINE_LABEL_RE.test(line) && !IGNORE_SPEECH_HINT_RE.test(line)) {
-        quotedSegments.forEach((segment) => pushUniqueLine(quotedSpeechCandidates, segment))
+        quotedSegments
+          .filter((segment) => isLikelySpokenUtterance(segment))
+          .forEach((segment) => pushUniqueLine(quotedSpeechCandidates, segment))
       }
       continue
     }
@@ -334,13 +350,17 @@ function parseIdeaLines(rawIdea: string) {
     if (currentSection === 'visual') {
       pushUniqueLine(visualLines, sanitizeDirectionLine(line))
       if (!IGNORE_SPEECH_HINT_RE.test(line)) {
-        quotedSegments.forEach((segment) => pushUniqueLine(quotedSpeechCandidates, segment))
+        quotedSegments
+          .filter((segment) => isLikelySpokenUtterance(segment))
+          .forEach((segment) => pushUniqueLine(quotedSpeechCandidates, segment))
       }
       continue
     }
 
     if (!IGNORE_LINE_LABEL_RE.test(line) && !IGNORE_SPEECH_HINT_RE.test(line)) {
-      quotedSegments.forEach((segment) => pushUniqueLine(quotedSpeechCandidates, segment))
+      quotedSegments
+        .filter((segment) => isLikelySpokenUtterance(segment))
+        .forEach((segment) => pushUniqueLine(quotedSpeechCandidates, segment))
     }
 
     pushUniqueLine(otherLines, sanitizeDirectionLine(line))
@@ -440,4 +460,18 @@ export function parseTalkingVideoIdeaInput(params: {
     sceneDetected: visualPrompt.length > 0,
     speechSource,
   } satisfies TalkingVideoIdeaParseResult
+}
+
+export function calculateTalkingVideoCredits(params: {
+  mode: SharedTalkingVideoMode
+  quality?: string
+  speechDetected: boolean
+}) {
+  const baseVideoCost = CREDIT_COST.talking_video ?? CREDIT_COST.video_veo ?? 50
+  const qualitySurcharge = params.quality === '1080p' ? (CREDIT_COST.video_veo ?? 50) : 0
+  const requiresVoicePipeline = params.mode === 'exact_speech' || params.speechDetected
+
+  return baseVideoCost
+    + qualitySurcharge
+    + (requiresVoicePipeline ? (CREDIT_COST.voice ?? 8) + (CREDIT_COST.lipsync ?? 20) : 0)
 }

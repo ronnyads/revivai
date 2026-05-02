@@ -2,9 +2,12 @@
 import { VertexAI } from '@google-cloud/vertexai'
 import { GoogleAuth } from 'google-auth-library'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
 import { AssetType } from '@/types'
-import { extractLastFrame as extractVideoFrame } from './videoUtils'
+import { extractLastFrame as extractVideoFrame, saveLastFrame } from './videoUtils'
 import { assessCompositionQuality, CompositionQuality, ProductProfile } from '@/lib/openai'
+import { synthesizeGoogleSpeech, transcribeGoogleAudio } from '@/lib/googleCloudMedia'
+import { fetchGoogleGenerateContent, fetchGooglePredict, fetchGooglePredictLongRunning } from '@/lib/googleGenai'
 import {
   estimateTalkingSpeechDurationSeconds,
   normalizeTalkingWhitespace,
@@ -14,7 +17,71 @@ import {
 export { CREDIT_COST } from '@/constants/studio'
 export { estimateTalkingSpeechDurationSeconds } from './talkingVideoIdea'
 
-// ── Prompt helper — lê da tabela studio_prompts, usa fallback hardcoded ─────
+async function fetchStudioGoogleGenerateContent(
+  model: string,
+  body: string | Record<string, unknown>,
+  feature: string,
+): Promise<Response> {
+  return fetchGoogleGenerateContent({
+    model,
+    feature: `studio:${feature}`,
+    body,
+  })
+}
+
+async function fetchStudioGooglePredict(
+  model: string,
+  body: string | Record<string, unknown>,
+  feature: string,
+): Promise<Response> {
+  return fetchGooglePredict({
+    model,
+    feature: `studio:${feature}`,
+    body,
+  })
+}
+
+async function fetchStudioGooglePredictLongRunning(
+  model: string,
+  body: string | Record<string, unknown>,
+  feature: string,
+): Promise<Response> {
+  return fetchGooglePredictLongRunning({
+    model,
+    feature: `studio:${feature}`,
+    body,
+  })
+}
+
+const nativeFetch = globalThis.fetch.bind(globalThis)
+
+async function studioScopedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (typeof input === 'string') {
+    const generateContentMatch = input.match(/^https:\/\/generativelanguage\.googleapis\.com\/v1(?:alpha|beta)\/models\/([^:]+):generateContent\?key=/)
+    if (generateContentMatch) {
+      const model = decodeURIComponent(generateContentMatch[1] ?? '').trim()
+      return fetchStudioGoogleGenerateContent(model, typeof init?.body === 'string' ? init.body : '', 'auto-routed-generate-content')
+    }
+
+    const predictMatch = input.match(/^https:\/\/generativelanguage\.googleapis\.com\/v1(?:alpha|beta)\/models\/([^:]+):predict\?key=/)
+    if (predictMatch) {
+      const model = decodeURIComponent(predictMatch[1] ?? '').trim()
+      return fetchStudioGooglePredict(model, typeof init?.body === 'string' ? init.body : '', 'auto-routed-predict')
+    }
+
+    const predictLongRunningMatch = input.match(/^https:\/\/generativelanguage\.googleapis\.com\/v1(?:alpha|beta)\/models\/([^:]+):predictLongRunning\?key=/)
+    if (predictLongRunningMatch) {
+      const model = decodeURIComponent(predictLongRunningMatch[1] ?? '').trim()
+      return fetchStudioGooglePredictLongRunning(model, typeof init?.body === 'string' ? init.body : '', 'auto-routed-predict-long-running')
+    }
+  }
+
+  return nativeFetch(input, init)
+}
+
+const fetch = studioScopedFetch
+
+// â”€â”€ Prompt helper â€” lÃª da tabela studio_prompts, usa fallback hardcoded â”€â”€â”€â”€â”€
 async function getStudioPrompt(
   admin: ReturnType<typeof createAdminClient>,
   key: string,
@@ -32,7 +99,7 @@ async function getStudioPrompt(
   }
 }
 
-// ── Image — DALL-E 3 via fetch ─────────────────────────────────────────────
+// â”€â”€ Image â€” DALL-E 3 via fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function generateImage(params: {
   prompt: string
   style: string
@@ -44,7 +111,7 @@ export async function generateImage(params: {
 }) {
   const admin = createAdminClient()
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
+  if (!apiKey) throw new Error('OPENAI_API_KEY nÃ£o configurada')
 
   const sizeMap: Record<string, string> = {
     '1:1':  '1024x1024',
@@ -71,7 +138,7 @@ export async function generateImage(params: {
     ? `${params.model_prompt}. ${stylePrefix}${params.prompt}`
     : stylePrefix + params.prompt
 
-  // Sulfixo varia se for mascote/cartoon (não usar 'real person' em desenhos)
+  // Sulfixo varia se for mascote/cartoon (nÃ£o usar 'real person' em desenhos)
   const isMascotOrCartoon = ['mascote', 'personagem_cartoon'].includes(params.style)
   
   // Suffixos de realismo via Admin
@@ -90,7 +157,7 @@ export async function generateImage(params: {
   if (params.source_face_url && !isMascotOrCartoon) {
     // PuLID - Exclusivo para Humanos
     const falKey = process.env.FAL_KEY
-    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+    if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
     const sizeMap: Record<string, string> = {
       '1:1':  'square_hd',
@@ -121,12 +188,12 @@ export async function generateImage(params: {
 
     const data = await res.json()
     tempUrl = data.images?.[0]?.url
-    if (!tempUrl) throw new Error('Fal AI não retornou URL')
+    if (!tempUrl) throw new Error('Fal AI nÃ£o retornou URL')
     
   } else {
-    // Fallback ou Mascote — Flux Pro 1.1 Ultra
+    // Fallback ou Mascote â€” Flux Pro 1.1 Ultra
     const falKey = process.env.FAL_KEY
-    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+    if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
     const payload: any = {
       prompt: finalPrompt,
@@ -140,7 +207,7 @@ export async function generateImage(params: {
       const payload: any = {
         prompt: finalPrompt,
         image_url: params.source_face_url,
-        strength: 0.85,  // Mantém a estrutura principal do mascote recriando o contexto
+        strength: 0.85,  // MantÃ©m a estrutura principal do mascote recriando o contexto
         num_inference_steps: 40,
         guidance_scale: 3.5,
       }
@@ -161,9 +228,9 @@ export async function generateImage(params: {
 
       const data = await res.json()
       tempUrl = data.images?.[0]?.url
-      if (!tempUrl) throw new Error('Flux Image-to-Image não retornou URL')
+      if (!tempUrl) throw new Error('Flux Image-to-Image nÃ£o retornou URL')
     } else {
-      // Geração Pura (Ultra)
+      // GeraÃ§Ã£o Pura (Ultra)
       const payload: any = {
         prompt: finalPrompt,
         aspect_ratio: params.aspect_ratio || '9:16',
@@ -187,7 +254,7 @@ export async function generateImage(params: {
 
       const data = await res.json()
       tempUrl = data.images?.[0]?.url
-      if (!tempUrl) throw new Error('Flux Ultra não retornou URL')
+      if (!tempUrl) throw new Error('Flux Ultra nÃ£o retornou URL')
     }
   }
 
@@ -205,7 +272,332 @@ export async function generateImage(params: {
   return publicUrl
 }
 
-// ── Script — GPT-4o UGC viral em PT via fetch ──────────────────────────────
+function extractGoogleTextCandidate(data: any): string {
+  return (data?.candidates?.[0]?.content?.parts ?? [])
+    .map((part: { text?: string }) => (typeof part?.text === 'string' ? part.text : ''))
+    .filter(Boolean)
+    .join('\n')
+    .trim()
+}
+
+export async function generateImageGoogle(params: {
+  prompt: string
+  style: string
+  aspect_ratio: string
+  model_prompt?: string
+  source_face_url?: string
+  assetId: string
+  userId: string
+}) {
+  const admin = createAdminClient()
+  const vertexKey = process.env.GOOGLE_VERTEX_KEY
+  if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY nao configurada')
+  if (params.source_face_url?.trim()) {
+    throw new Error('A variante com referencia facial deste card ainda dependia de um fallback legado. Nesta fase Google-first, gere sem face clone ou use o card Modelo.')
+  }
+
+  const styleFallbacks: Record<string, string> = {
+    realista: 'UGC style ad photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, cinematic lighting, hyper-realistic, 8k, highly detailed, ',
+    ugc: 'UGC style ad photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, authentic, candid, real person, photorealistic, film grain, natural depth of field, 8k, ',
+    clonado: 'UGC style ad photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, authentic, real person face, photorealistic, 8k, ',
+    produto: 'professional product photography, shot on film, shot on Phase One IQ4 150MP, Zeiss Milvus 100mm f/2M lens, clean background, studio lighting, hyper-realistic, 8k resolution, ',
+    logo: 'professional logo design, clean vector style, transparent background, minimalist, ',
+    mascote: '3D animated mascot, anthropomorphic character, cinematic lighting, highly detailed 3D render, Pixar style, ',
+    cartoon: 'Cartoon Network style, 2D flat animation, vibrant colors, bold outlines, stylized character design, solid color background, ',
+    aleatoria: 'lifestyle photography, natural light, aspirational, photorealism, cinematic lighting, ',
+  }
+  const stylePrefix = await getStudioPrompt(
+    admin,
+    `image_style_${params.style}`,
+    styleFallbacks[params.style] ?? styleFallbacks.aleatoria,
+  )
+  const basePrompt = params.model_prompt
+    ? `${params.model_prompt}. ${stylePrefix}${params.prompt}`
+    : stylePrefix + params.prompt
+  const isMascotOrCartoon = ['mascote', 'personagem_cartoon', 'cartoon'].includes(params.style)
+  const realismSuffix = await getStudioPrompt(
+    admin,
+    isMascotOrCartoon ? `image_realism_${params.style}` : 'image_realism_realista',
+    isMascotOrCartoon
+      ? '2D/3D stylized commercial art with clean edges, premium rendering, high detail.'
+      : 'RAW photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, film grain, natural depth of field.',
+  )
+  const finalPrompt = `${basePrompt}. ${realismSuffix}`
+  const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
+  const location = process.env.VERTEX_LOCATION || 'us-central1'
+  const vertexToken = await getVertexAccessToken(vertexKey)
+  const response = await fetch(`https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-generate-001:predict`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${vertexToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      instances: [{ prompt: finalPrompt }],
+      parameters: {
+        sampleCount: 1,
+        aspectRatio: params.aspect_ratio || '9:16',
+        personGeneration: isMascotOrCartoon ? undefined : 'allow_adult',
+        negativePrompt: [
+          'watermark',
+          'text overlay',
+          'extra limbs',
+          'cropped body',
+          'distorted face',
+        ].join(', '),
+      },
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Vertex Imagen erro (${response.status}): ${await response.text()}`)
+  }
+
+  const payload = await response.json()
+  const base64 = payload.predictions?.[0]?.bytesBase64Encoded
+  if (!base64) throw new Error('Vertex Imagen nao retornou imagem.')
+
+  const path = `${params.userId}/${params.assetId}.jpg`
+  const { error: uploadErr } = await admin.storage
+    .from('studio')
+    .upload(path, Buffer.from(base64, 'base64'), { contentType: 'image/jpeg', upsert: true })
+  if (uploadErr) throw new Error(`Upload falhou: ${uploadErr.message}`)
+
+  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return publicUrl
+}
+
+export async function generateScriptGoogle(params: {
+  product: string
+  audience: string
+  format: string
+  hook_style: string
+  assetId: string
+  userId: string
+}) {
+  const admin = createAdminClient()
+  const formatGuideStr = await getStudioPrompt(admin, 'script_format_guide', JSON.stringify({
+    reels: 'Reels/TikTok (15-30 segundos, hook nos primeiros 3s)',
+    story: 'Stories (ate 15 segundos por slide, 3 slides)',
+    feed: 'Feed/anuncio (30-60 segundos, mais elaborado)',
+  }))
+  const hookGuideStr = await getStudioPrompt(admin, 'script_hook_guide', JSON.stringify({
+    problema: 'comece identificando um problema real do publico',
+    resultado: 'comece mostrando o resultado incrivel primeiro',
+    pergunta: 'comece com uma pergunta provocadora',
+    historia: 'comece com uma mini historia pessoal',
+  }))
+
+  let formatGuide: Record<string, string> = {}
+  let hookGuide: Record<string, string> = {}
+  try { formatGuide = JSON.parse(formatGuideStr) as Record<string, string> } catch {}
+  try { hookGuide = JSON.parse(hookGuideStr) as Record<string, string> } catch {}
+
+  const response = await fetchGoogleGenerateContent({
+    model: 'gemini-2.5-flash',
+    feature: 'studio-script-generation',
+    body: {
+      systemInstruction: {
+        parts: [{
+          text: (await getStudioPrompt(
+            admin,
+            'script_generation_system',
+            'Voce e um especialista em criacao de scripts UGC virais para o mercado brasileiro. Crie scripts autenticos, conversacionais e de alta conversao. Inclua indicacoes de tom, pausas e emocao entre colchetes.',
+          )) + ` Formato: ${formatGuide[params.format] ?? formatGuide.reels ?? params.format}.`,
+        }],
+      },
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: `Produto/Servico: ${params.product}
+Publico-alvo: ${params.audience}
+Estilo de hook: ${hookGuide[params.hook_style] ?? hookGuide.problema ?? params.hook_style}
+
+Crie um script UGC completo com:
+1. HOOK
+2. DESENVOLVIMENTO
+3. PROVA SOCIAL
+4. CTA
+
+Inclua tambem 3 variacoes de hook alternativas no final.`,
+        }],
+      }],
+      generationConfig: {
+        temperature: 0.8,
+      },
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Gemini Vertex erro (${response.status}): ${await response.text()}`)
+  }
+
+  const payload = await response.json()
+  const script = extractGoogleTextCandidate(payload)
+  if (!script) throw new Error('Gemini Vertex nao retornou script.')
+
+  const path = `${params.userId}/${params.assetId}.txt`
+  const { error } = await admin.storage
+    .from('studio')
+    .upload(path, Buffer.from(script, 'utf-8'), { contentType: 'text/plain', upsert: true })
+  if (error) throw new Error(`Upload script falhou: ${error.message}`)
+
+  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return { url: publicUrl, text: script }
+}
+
+export async function generateVoiceGoogle(params: {
+  script: string
+  voice_id: string
+  speed: number
+  assetId: string
+  userId: string
+  language_code?: string
+}) {
+  const admin = createAdminClient()
+  const buffer = await synthesizeGoogleSpeech({
+    text: params.script,
+    voiceId: params.voice_id,
+    languageCode: params.language_code ?? inferSpeechLanguageCode(params.script),
+    speakingRate: params.speed ?? 1,
+  })
+
+  const path = `${params.userId}/${params.assetId}.mp3`
+  const { error } = await admin.storage
+    .from('studio')
+    .upload(path, buffer, { contentType: 'audio/mpeg', upsert: true })
+  if (error) throw new Error(`Upload audio falhou: ${error.message}`)
+
+  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return publicUrl
+}
+
+export async function generateCaptionGoogle(params: {
+  audio_url: string
+  assetId: string
+  userId: string
+}) {
+  const admin = createAdminClient()
+  const audioRes = await fetch(params.audio_url)
+  if (!audioRes.ok) throw new Error('Nao foi possivel baixar o audio')
+  const buffer = Buffer.from(await audioRes.arrayBuffer())
+  const mimeType = audioRes.headers.get('content-type') || 'audio/mpeg'
+  const { srt } = await transcribeGoogleAudio({
+    audioBuffer: buffer,
+    mimeType,
+    languageCode: 'pt-BR',
+  })
+
+  if (!srt.trim()) throw new Error('Google Speech-to-Text nao retornou legendas.')
+
+  const path = `${params.userId}/${params.assetId}.srt`
+  const { error } = await admin.storage
+    .from('studio')
+    .upload(path, Buffer.from(srt, 'utf-8'), { contentType: 'text/plain', upsert: true })
+  if (error) throw new Error(`Upload legenda falhou: ${error.message}`)
+
+  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return { url: publicUrl, srt }
+}
+
+export async function generateModelGoogle(params: {
+  gender: string
+  age_range: string
+  skin_tone: string
+  body_type: string
+  style: string
+  extra_details?: string
+  engine?: 'google' | 'flux'
+  assetId: string
+  userId: string
+}) {
+  const admin = createAdminClient()
+  const genderMap: Record<string, string> = { feminino: 'woman', masculino: 'man' }
+  const ageMap: Record<string, string> = { '20-30': 'mid-twenties', '30-40': 'mid-thirties', '40-55': 'mid-forties', '55+': 'late fifties' }
+  const skinMap: Record<string, string> = { muito_clara: 'very fair porcelain skin', clara: 'light peachy skin', media: 'medium warm skin', oliva: 'olive-toned skin', morena: 'rich brown skin', negra: 'deep ebony skin' }
+  const bodyMap: Record<string, string> = { magro: 'slim slender build', atletico: 'athletic toned build', normal: 'average proportional build', robusto: 'stocky sturdy build', plus_size: 'plus-size full-figured build' }
+  const styleMap: Record<string, string> = { casual: 'casual everyday streetwear', profissional: 'smart professional business attire', esportivo: 'sporty activewear', elegante: 'elegant formal wear', alternativo: 'alternative edgy fashion' }
+
+  const response = await fetchGoogleGenerateContent({
+    model: 'gemini-2.5-flash',
+    feature: 'studio-model-brief',
+    body: {
+      systemInstruction: {
+        parts: [{
+          text: await getStudioPrompt(
+            admin,
+            'model_generation_system',
+            'You are a UGC creative director specializing in commercial model casting for ads. Output one dense English paragraph with vivid, photorealistic visual description only.',
+          ),
+        }],
+      },
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: `Create a unique visual model description for a ${genderMap[params.gender] ?? params.gender}, ${ageMap[params.age_range] ?? params.age_range}, ${skinMap[params.skin_tone] ?? params.skin_tone}, ${bodyMap[params.body_type] ?? params.body_type}, wearing ${styleMap[params.style] ?? params.style}.${params.extra_details ? ` Additional details: ${params.extra_details}` : ''}`,
+        }],
+      }],
+      generationConfig: {
+        temperature: 0.95,
+      },
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error(`Gemini Vertex erro (${response.status}): ${await response.text()}`)
+  }
+
+  const payload = await response.json()
+  const text = extractGoogleTextCandidate(payload)
+  if (!text) throw new Error('Gemini Vertex nao retornou briefing visual.')
+
+  const fluxSuffix = await getStudioPrompt(
+    admin,
+    'model_flux_suffix',
+    'Skin pores and natural imperfections visible. Real human face, authentic natural lighting, not retouched, not illustrated, not CGI.',
+  )
+  const finalPrompt = `COMMERCIAL PHOTOGRAPHY STUDIO. Seamless pure white paper backdrop, studio strobe lighting, clean white background. ${text} ${fluxSuffix} Shot on film. Shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, hyper-realistic, 8k. MANDATORY: solid white background only, no environment, no outdoor scene, no bokeh, plain white seamless backdrop, professional studio portrait.`
+  const vertexKey = process.env.GOOGLE_VERTEX_KEY
+  if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY nao configurada')
+  const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
+  const location = process.env.VERTEX_LOCATION || 'us-central1'
+  const vertexToken = await getVertexAccessToken(vertexKey)
+  const imageRes = await fetch(`https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/imagen-3.0-generate-001:predict`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${vertexToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      instances: [{ prompt: finalPrompt }],
+      parameters: {
+        sampleCount: 1,
+        aspectRatio: '9:16',
+        personGeneration: 'allow_adult',
+        negativePrompt: 'outdoor, street, city, building, trees, nature, bokeh background, blurred background, environment, park, cafe, wall, colorful background, gradient background, dark background, window, curtain, interior room',
+      },
+    }),
+  })
+
+  if (!imageRes.ok) {
+    throw new Error(`Vertex Imagen erro (${imageRes.status}): ${await imageRes.text()}`)
+  }
+
+  const imagePayload = await imageRes.json()
+  const base64 = imagePayload.predictions?.[0]?.bytesBase64Encoded
+  if (!base64) throw new Error('Vertex Imagen nao retornou imagem do modelo.')
+
+  const path = `${params.userId}/${params.assetId}-model-${Date.now()}.jpg`
+  const { error } = await admin.storage
+    .from('studio')
+    .upload(path, Buffer.from(base64, 'base64'), { contentType: 'image/jpeg', upsert: true })
+  if (error) throw new Error(`Upload foto modelo falhou: ${error.message}`)
+
+  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return { url: publicUrl, text }
+}
+
+// â”€â”€ Script â€” GPT-4o UGC viral em PT via fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function generateScript(params: {
   product: string
   audience: string
@@ -216,18 +608,18 @@ export async function generateScript(params: {
 }) {
   const admin = createAdminClient()
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
+  if (!apiKey) throw new Error('OPENAI_API_KEY nÃ£o configurada')
 
   const formatGuideStr = await getStudioPrompt(admin, 'script_format_guide', JSON.stringify({
     reels: 'Reels/TikTok (15-30 segundos, hook nos primeiros 3s)',
-    story: 'Stories (até 15 segundos por slide, 3 slides)',
-    feed:  'Feed/anúncio (30-60 segundos, mais elaborado)',
+    story: 'Stories (atÃ© 15 segundos por slide, 3 slides)',
+    feed:  'Feed/anÃºncio (30-60 segundos, mais elaborado)',
   }))
   const hookGuideStr = await getStudioPrompt(admin, 'script_hook_guide', JSON.stringify({
-    problema: 'começe identificando um problema real do público',
-    resultado: 'começe mostrando o resultado incrível primeiro',
-    pergunta:  'começe com uma pergunta provocadora',
-    historia:  'começe com uma mini história pessoal',
+    problema: 'comeÃ§e identificando um problema real do pÃºblico',
+    resultado: 'comeÃ§e mostrando o resultado incrÃ­vel primeiro',
+    pergunta:  'comeÃ§e com uma pergunta provocadora',
+    historia:  'comeÃ§e com uma mini histÃ³ria pessoal',
   }))
 
   let formatGuide: any = {}
@@ -247,24 +639,24 @@ export async function generateScript(params: {
           content: (await getStudioPrompt(
             admin,
             'script_generation_system',
-            `Você é um especialista em criação de scripts UGC virais para o mercado brasileiro.
-Crie scripts autênticos, conversacionais e de alta conversão. Use linguagem natural e cotidiana do brasileiro.
-Inclua indicações de tom, pausas e emoção entre colchetes.`,
+            `VocÃª Ã© um especialista em criaÃ§Ã£o de scripts UGC virais para o mercado brasileiro.
+Crie scripts autÃªnticos, conversacionais e de alta conversÃ£o. Use linguagem natural e cotidiana do brasileiro.
+Inclua indicaÃ§Ãµes de tom, pausas e emoÃ§Ã£o entre colchetes.`,
           )) + ` Formato: ${formatGuide[params.format] ?? formatGuide.reels}.`,
         },
         {
           role: 'user',
-          content: `Produto/Serviço: ${params.product}
-Público-alvo: ${params.audience}
+          content: `Produto/ServiÃ§o: ${params.product}
+PÃºblico-alvo: ${params.audience}
 Estilo de hook: ${hookGuide[params.hook_style] ?? hookGuide.problema}
 
 Crie um script UGC completo com:
 1. HOOK (primeiros 3 segundos)
-2. DESENVOLVIMENTO (problema + solução)
+2. DESENVOLVIMENTO (problema + soluÃ§Ã£o)
 3. PROVA SOCIAL (resultado/depoimento)
 4. CTA (call-to-action forte)
 
-Inclua também 3 variações de hook alternativas no final.`,
+Inclua tambÃ©m 3 variaÃ§Ãµes de hook alternativas no final.`,
         },
       ],
     }),
@@ -289,7 +681,7 @@ Inclua também 3 variações de hook alternativas no final.`,
   return { url: publicUrl, text: script }
 }
 
-// ── Voice — ElevenLabs ─────────────────────────────────────────────────────
+// â”€â”€ Voice â€” ElevenLabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const ELEVENLABS_VOICES = [
   { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (masculino)' },
   { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (feminino)' },
@@ -298,16 +690,35 @@ export const ELEVENLABS_VOICES = [
   { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh (masculino)' },
 ]
 
+function inferSpeechLanguageCode(text: string): string {
+  const normalized = normalizeTalkingWhitespace(text).toLowerCase()
+  if (!normalized) return 'pt'
+
+  if (/[Ã£ÃµÃ¡Ã Ã¢ÃªÃ´Ã§]/i.test(normalized)) return 'pt'
+  if (/\b(voce|voces|vocÃª|vocÃªs|nao|nÃ£o|pra|pro|produto|quente|rotina|manha|manhÃ£|agora|comigo|gente|melhor|mesmo)\b/i.test(normalized)) {
+    return 'pt'
+  }
+  if (/\b(hola|gracias|usted|ustedes|maÃ±ana|producto|hablar|quiero)\b/i.test(normalized)) {
+    return 'es'
+  }
+  if (/\b(the|this|that|with|from|your|you|hello|today|product|morning|office|beach)\b/i.test(normalized)) {
+    return 'en'
+  }
+
+  return 'pt'
+}
+
 export async function generateVoice(params: {
   script: string
   voice_id: string
   speed: number
   assetId: string
   userId: string
+  language_code?: string
 }) {
   const admin = createAdminClient()
   const apiKey = process.env.ELEVENLABS_API_KEY
-  if (!apiKey) throw new Error('ELEVENLABS_API_KEY não configurada')
+  if (!apiKey) throw new Error('ELEVENLABS_API_KEY nÃ£o configurada')
 
   const configStr = await getStudioPrompt(admin, 'audio_elevenlabs_config', '{}')
   let config: any = {}
@@ -322,6 +733,7 @@ export async function generateVoice(params: {
     body: JSON.stringify({
       text: params.script,
       model_id: 'eleven_multilingual_v2',
+      language_code: params.language_code ?? inferSpeechLanguageCode(params.script),
       voice_settings: {
         stability: config.stability ?? 0.5,
         similarity_boost: config.similarity ?? 0.75,
@@ -343,13 +755,13 @@ export async function generateVoice(params: {
   const { error } = await admin.storage
     .from('studio')
     .upload(path, buffer, { contentType: 'audio/mpeg', upsert: true })
-  if (error) throw new Error(`Upload áudio falhou: ${error.message}`)
+  if (error) throw new Error(`Upload Ã¡udio falhou: ${error.message}`)
 
   const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
   return publicUrl
 }
 
-// ── Caption — Whisper via fetch ────────────────────────────────────────────
+// â”€â”€ Caption â€” Whisper via fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function generateCaption(params: {
   audio_url: string
   assetId: string
@@ -357,10 +769,10 @@ export async function generateCaption(params: {
 }) {
   const admin = createAdminClient()
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
+  if (!apiKey) throw new Error('OPENAI_API_KEY nÃ£o configurada')
 
   const audioRes = await fetch(params.audio_url)
-  if (!audioRes.ok) throw new Error('Não foi possível baixar o áudio')
+  if (!audioRes.ok) throw new Error('NÃ£o foi possÃ­vel baixar o Ã¡udio')
   const buffer = Buffer.from(await audioRes.arrayBuffer())
 
   const configStr = await getStudioPrompt(admin, 'subtitle_whisper_config', '{}')
@@ -398,7 +810,7 @@ export async function generateCaption(params: {
   return { url: publicUrl, srt }
 }
 
-// ── Upscale — Gemini 3 Pro → Gemini 3.1 Flash → Clarity fallback ─────────
+// â”€â”€ Upscale â€” Gemini 3 Pro â†’ Gemini 3.1 Flash â†’ Clarity fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function generateUpscale(params: {
   source_url: string
   scale: number
@@ -428,8 +840,8 @@ export async function generateUpscale(params: {
   }
 
   async function geminiEnhance(model: string, base64: string): Promise<string> {
-    if (!googleKey) throw new Error('GOOGLE_API_KEY não configurada')
-    const prompt = `You are an ultra-high quality photo enhancer. Output an enhanced version with maximum photorealistic detail — sharp skin texture, crisp fabric details, clear product labels, natural lighting. Preserve EVERYTHING exactly: same person, same product, same composition, same colors. Output at maximum quality.`
+    if (!googleKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada')
+    const prompt = `You are an ultra-high quality photo enhancer. Output an enhanced version with maximum photorealistic detail â€” sharp skin texture, crisp fabric details, clear product labels, natural lighting. Preserve EVERYTHING exactly: same person, same product, same composition, same colors. Output at maximum quality.`
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleKey}`,
       {
@@ -453,7 +865,7 @@ export async function generateUpscale(params: {
   }
 
   async function clarityUpscale(imageUrl: string): Promise<string> {
-    if (!falKey) throw new Error('FAL_KEY não configurada')
+    if (!falKey) throw new Error('FAL_KEY nÃ£o configurada')
     const res = await fetch('https://fal.run/fal-ai/clarity-upscaler', {
       method: 'POST',
       headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
@@ -466,7 +878,7 @@ export async function generateUpscale(params: {
     return url
   }
 
-  // ── Passo 1: Gemini enhance
+  // â”€â”€ Passo 1: Gemini enhance
   let sourceBase64: string | null = null
   try { sourceBase64 = await fetchBase64(params.source_url) } catch { /* segue pra fallback */ }
 
@@ -484,7 +896,7 @@ export async function generateUpscale(params: {
     }
   }
 
-  // ── Passo 2 (só 8K): Clarity Upscaler em cima do resultado Gemini
+  // â”€â”€ Passo 2 (sÃ³ 8K): Clarity Upscaler em cima do resultado Gemini
   if (is8k && geminiResultBase64) {
     try {
       const intermediateUrl = await uploadBase64ToStorage(geminiResultBase64, 'upscale-intermediate')
@@ -492,22 +904,22 @@ export async function generateUpscale(params: {
       const finalUrl = await clarityUpscale(intermediateUrl)
       return finalUrl
     } catch (e: any) {
-      console.warn(`[upscale] 8K Clarity falhou, entregando só Gemini: ${e.message}`)
+      console.warn(`[upscale] 8K Clarity falhou, entregando sÃ³ Gemini: ${e.message}`)
       return await uploadBase64ToStorage(geminiResultBase64)
     }
   }
 
-  // ── 4K: entrega direto resultado Gemini
+  // â”€â”€ 4K: entrega direto resultado Gemini
   if (geminiResultBase64) return await uploadBase64ToStorage(geminiResultBase64)
 
-  // ── Fallback externo: Clarity Upscaler
+  // â”€â”€ Fallback externo: Clarity Upscaler
   console.log('[upscale] Fallback para Clarity Upscaler (Fal AI)')
   try { return await clarityUpscale(params.source_url) } catch (e: any) {
-    throw new Error(`Todos os motores falharam. Último: ${e.message}`)
+    throw new Error(`Todos os motores falharam. Ãšltimo: ${e.message}`)
   }
 }
 
-// ── Model — GPT-4o gera descrição visual única para UGC ───────────────────
+// â”€â”€ Model â€” GPT-4o gera descriÃ§Ã£o visual Ãºnica para UGC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function generateModel(params: {
   gender: string
   age_range: string
@@ -521,7 +933,7 @@ export async function generateModel(params: {
 }) {
   const admin = createAdminClient()
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) throw new Error('OPENAI_API_KEY não configurada')
+  if (!apiKey) throw new Error('OPENAI_API_KEY nÃ£o configurada')
 
   const seed = Math.random().toString(36).slice(2, 8)
 
@@ -542,7 +954,7 @@ export async function generateModel(params: {
     'model_generation_system',
     `You are a UGC creative director specializing in AI image generation for ads.
 Generate a UNIQUE, vivid, photorealistic visual description of a model for FLUX PRO Ultra API.
-Vary vocabulary, hair details, facial features, and scene context every response — never repeat.
+Vary vocabulary, hair details, facial features, and scene context every response â€” never repeat.
 Output: one dense English paragraph (3-5 sentences). No names. Pure visual description.`
   )
   const system = `${systemBase}\nSeed for uniqueness: ${seed}.`
@@ -624,11 +1036,11 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
         throw new Error('Sem Vertex Key')
       }
     } catch (vertexError: any) {
-      console.warn('[studio] Vertex AI (Model) falhou ou não configurado, tentando Gemini API...', vertexError.message)
+      console.warn('[studio] Vertex AI (Model) falhou ou nÃ£o configurado, tentando Gemini API...', vertexError.message)
       
       // ---- FALLBACK: MOTOR GOOGLE IMAGEN 4.0 (Gemini API) ----
       const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
-      if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+      if (!googleApiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
 
       const imgRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${googleApiKey}`, {
         method: 'POST',
@@ -650,7 +1062,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 
       const data = await imgRes.json()
       const base64 = data.predictions?.[0]?.bytesBase64Encoded
-      if (!base64) throw new Error('Google Imagen 4.0 não retornou imagem. Verifique logs.')
+      if (!base64) throw new Error('Google Imagen 4.0 nÃ£o retornou imagem. Verifique logs.')
 
       photoBuffer = Buffer.from(base64, 'base64')
     }
@@ -658,7 +1070,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   } else {
     // ---- MOTOR FLUX PRO 1.1 ULTRA (Opcional/Alternativo) ----
     const falKey = process.env.FAL_KEY
-    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+    if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
     const res = await fetch('https://fal.run/fal-ai/flux-pro/v1.1-ultra', {
       method: 'POST',
@@ -683,7 +1095,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 
     const data = await res.json()
     const tempUrl = data.images?.[0]?.url
-    if (!tempUrl) throw new Error('Flux Ultra não retornou URL')
+    if (!tempUrl) throw new Error('Flux Ultra nÃ£o retornou URL')
 
     const imgRes = await fetch(tempUrl)
     photoBuffer = Buffer.from(await imgRes.arrayBuffer())
@@ -701,7 +1113,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
   return { url: publicUrl, text }
 }
 
-// ── Video — Kling AI via Fal AI (async — usa webhook) ──────────────────
+// â”€â”€ Video â€” Kling AI via Fal AI (async â€” usa webhook) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const VIDEO_LOCK_POLICY = 'preserve-model-product-scene-v1'
 const VIDEO_MOTION_FALLBACK =
   'subtle natural motion only, gentle breathing, soft blink, tiny head turn, stable hands, slight camera push-in'
@@ -729,6 +1141,10 @@ export type VideoMotionPromptPolicy = {
   sceneChangeRequested: boolean
   sceneChangeBlocked: boolean
   videoLockPolicy: string
+  sourceFidelityMode: 'strict' | 'best_effort' | 'none'
+  sourceVisibleItemManifest: string[]
+  sourceTextLogoLock: boolean
+  sourceColorLock: boolean
   finalPrompt: string
 }
 
@@ -745,6 +1161,12 @@ export type TalkingVideoPipelineStage =
   | 'finalizing'
   | 'completed'
   | 'failed'
+
+export type TalkingVideoSourceChangeRequest = {
+  requestedSceneChange?: boolean
+  requestedWardrobeChange?: boolean
+  requestedProductChange?: boolean
+}
 
 export type TalkingVideoPromptPolicy = {
   ideaPrompt: string
@@ -763,9 +1185,53 @@ export type TalkingVideoPromptPolicy = {
   modelIdentityLock: true
   productLockMode: TalkingVideoProductLockMode
   productVisibilityConfidence: number
+  strictSourceFidelity: boolean
+  sourceTextLogoLock: boolean
+  sourceColorLock: boolean
   preserveAllVisibleSourceItems: boolean
   sourceVisibleItemManifest: string[]
   finalPrompt: string
+}
+
+export type TalkingVideoMotionStartParams = {
+  source_image_url: string
+  motion_prompt: string
+  model_prompt?: string
+  motion_prompt_raw?: string
+  motion_prompt_normalized?: string
+  removed_directives?: string[]
+  video_lock_policy?: string
+  scene_change_requested?: boolean
+  scene_change_blocked?: boolean
+  duration?: number
+  quality?: string
+  assetId: string
+  userId: string
+  appUrl: string
+  prompt_override?: string
+  generate_audio?: boolean
+  strict_source_fidelity?: boolean
+  source_visible_item_manifest?: string[]
+  source_text_logo_lock?: boolean
+  source_color_lock?: boolean
+  inputParamsPatch?: Record<string, unknown>
+}
+
+export type TalkingVideoFinalizeResult = {
+  status: 'processing' | 'done' | 'error'
+  resultUrl?: string
+  message?: string
+  error?: string
+}
+
+type SourceVisualFidelityProfile = {
+  productLockMode: TalkingVideoProductLockMode
+  productVisibilityConfidence: number
+  strictSourceFidelity: boolean
+  sourceTextLogoLock: boolean
+  sourceColorLock: boolean
+  preserveAllVisibleSourceItems: boolean
+  sourceVisibleItemManifest: string[]
 }
 
 const TALKING_VIDEO_POLICY =
@@ -799,16 +1265,17 @@ function dedupeNormalizedStrings(values: Array<unknown>) {
 function inferTalkingVideoSourceVisualProfile(sourceAsset?: {
   type?: string
   input_params?: Record<string, unknown>
-}): {
-  productLockMode: TalkingVideoProductLockMode
-  productVisibilityConfidence: number
-  preserveAllVisibleSourceItems: boolean
-  sourceVisibleItemManifest: string[]
-} {
+}): SourceVisualFidelityProfile {
   const inputParams = sourceAsset?.input_params ?? {}
+  const sourceOrigin = typeof inputParams.source_origin === 'string' ? inputParams.source_origin : ''
   const composeVariant = typeof inputParams.compose_variant === 'string' ? inputParams.compose_variant : ''
   const hasProductUrl = typeof inputParams.product_url === 'string' && inputParams.product_url.trim().length > 0
   const hasProductUrls = Array.isArray(inputParams.product_urls) && inputParams.product_urls.some((value) => typeof value === 'string' && value.trim().length > 0)
+  const explicitStrictSourceFidelity =
+    Boolean(inputParams.force_strict_source_fidelity)
+    || Boolean(inputParams.source_text_logo_lock)
+    || Boolean(inputParams.source_color_lock)
+    || inputParams.preserve_all_visible_source_items === true
   const sourceVisibleItemManifest = dedupeNormalizedStrings([
     ...(Array.isArray(inputParams.submitted_item_manifest) ? inputParams.submitted_item_manifest : []),
     ...(Array.isArray(inputParams.source_visible_item_manifest) ? inputParams.source_visible_item_manifest : []),
@@ -818,27 +1285,45 @@ function inferTalkingVideoSourceVisualProfile(sourceAsset?: {
   const withVisibleItems = (
     productLockMode: TalkingVideoProductLockMode,
     productVisibilityConfidence: number,
+    strictSourceFidelity: boolean,
+    sourceTextLogoLock: boolean,
+    sourceColorLock: boolean,
     preserveAllVisibleSourceItems: boolean,
   ) => ({
     productLockMode,
     productVisibilityConfidence,
+    strictSourceFidelity,
+    sourceTextLogoLock,
+    sourceColorLock,
     preserveAllVisibleSourceItems,
     sourceVisibleItemManifest,
   })
 
   if (sourceAsset?.type === 'compose' && composeVariant === 'product') {
-    return withVisibleItems('strict', 0.94, true)
+    return withVisibleItems('strict', 0.94, true, true, true, true)
   }
 
-  if ((sourceAsset?.type === 'compose' && composeVariant === 'fitting') || hasProductUrl || hasProductUrls) {
-    return withVisibleItems('best_effort', 0.72, true)
+  if (
+    (sourceAsset?.type === 'compose' && composeVariant === 'fitting')
+    || hasProductUrl
+    || hasProductUrls
+    || sourceVisibleItemManifest.length > 0
+  ) {
+    return withVisibleItems('strict', 0.88, true, true, true, true)
   }
 
-  if (sourceAsset?.type === 'scene' || sourceAsset?.type === 'image' || sourceAsset?.type === 'upscale') {
-    return withVisibleItems('best_effort', 0.46, true)
+  if (
+    sourceAsset?.type === 'scene'
+    || sourceAsset?.type === 'image'
+    || sourceAsset?.type === 'upscale'
+    || sourceAsset?.type === 'direct_upload_source'
+    || sourceOrigin === 'direct_upload'
+    || explicitStrictSourceFidelity
+  ) {
+    return withVisibleItems('strict', 0.84, true, true, true, true)
   }
 
-  return withVisibleItems('none', 0.18, true)
+  return withVisibleItems('none', 0.18, false, false, false, true)
 }
 
 function isSoftSovereignAccessoryIssue(issue: string): boolean {
@@ -846,7 +1331,7 @@ function isSoftSovereignAccessoryIssue(issue: string): boolean {
   if (!normalized) return false
 
   const mentionsAccessory =
-    /(bangle|bracelet|brinco|earring|ring|anel|watch|relogio|relógio|jewelry|joia|joias|necklace|colar|scarf fringe|fringe|belt buckle|fivela)/i.test(normalized)
+    /(bangle|bracelet|brinco|earring|ring|anel|watch|relogio|relÃ³gio|jewelry|joia|joias|necklace|colar|scarf fringe|fringe|belt buckle|fivela)/i.test(normalized)
   const indicatesSmallMismatch =
     /(one of the two|one of two|slight|slightly|minor|subtle|softened|less defined|small detail|tiny detail|could not fully verify|hard to verify)/i.test(normalized)
 
@@ -865,12 +1350,25 @@ export function incrementTalkingPipelineAttempts(
   }
 }
 
+function isStrictTalkingVideoRestagingSegment(segment: string) {
+  const normalized = normalizeTalkingWhitespace(segment).toLowerCase()
+  if (!normalized) return false
+
+  return (
+    /\b(storyboard|roteiro|take|shot|seg(?:\.|undos?)?|sec(?:onds?)?|close|close-up|close up|texto na tela|on-screen text|caption|legenda|musica|trilha|sfx|sound effects?)\b/i.test(normalized)
+    || /\b(acorda|se espreguica|se espreguiÃ§a|se levanta|vai em direcao|vai em direÃ§Ã£o|walking|walks|gets up|stands up|vira para a camera|vira para camera|joinha|pisca)\b/i.test(normalized)
+    || /\b(cama|criado-mudo|criado mudo|janela|window|bed|bedside|nightstand)\b/i.test(normalized)
+  )
+}
+
 export function prepareTalkingVideoPrompt(params: {
   mode: TalkingVideoMode
   ideaPrompt?: string
   speechText?: string
   expressionDirection?: string
   visualPrompt?: string
+  requestedSceneChange?: boolean
+  requestedWardrobeChange?: boolean
   sourceAsset?: {
     type?: string
     input_params?: Record<string, unknown>
@@ -886,6 +1384,7 @@ export function prepareTalkingVideoPrompt(params: {
   const speechTextRaw = parsedIdea.speechText
   const speechTextNormalized = normalizeTalkingWhitespace(speechTextRaw)
   const visualPromptRaw = parsedIdea.visualPrompt
+  const sourceVisualProfile = inferTalkingVideoSourceVisualProfile(params.sourceAsset)
   const visualSegments = visualPromptRaw
     .split(/[\n,.;]+/)
     .map((segment) => segment.trim())
@@ -908,6 +1407,16 @@ export function prepareTalkingVideoPrompt(params: {
       }
     }
 
+    if (
+      sourceVisualProfile.strictSourceFidelity
+      && !params.requestedSceneChange
+      && !params.requestedWardrobeChange
+      && isStrictTalkingVideoRestagingSegment(segment)
+    ) {
+      removed.add('strict_scene_restage')
+      continue
+    }
+
     filteredSegments.push(segment)
   }
 
@@ -922,7 +1431,6 @@ export function prepareTalkingVideoPrompt(params: {
   })
   const sceneFreedomLevel: TalkingVideoSceneFreedomLevel = params.mode === 'exact_speech' ? 'guided' : 'free'
   const cameraMotionPolicy: TalkingVideoCameraMotionPolicy = params.mode === 'exact_speech' ? 'speech_safe' : 'free'
-  const sourceVisualProfile = inferTalkingVideoSourceVisualProfile(params.sourceAsset)
 
   const productLockInstruction =
     sourceVisualProfile.productLockMode === 'strict'
@@ -936,9 +1444,25 @@ export function prepareTalkingVideoPrompt(params: {
       ? `LOCK ALL VISIBLE SOURCE ITEMS: preserve the exact outfit, accessories, held objects, props, and important composition elements already visible in the source frame. Pay special attention to these visible items: ${sourceVisualProfile.sourceVisibleItemManifest.join(', ')}. Do not remove, swap, recolor, redesign, or invent replacements.`
       : 'LOCK ALL VISIBLE SOURCE ITEMS: preserve the exact outfit, accessories, held objects, props, and important composition elements already visible in the source frame. Do not remove, swap, recolor, redesign, or invent replacements.'
     : 'If the source frame contains meaningful visible objects, keep them coherent and stable.'
+  const wardrobeInstruction = params.requestedWardrobeChange
+    ? 'WARDROBE CHANGE IS PRE-RESOLVED ONLY: if an approved new outfit is already visible in the current source frame, preserve that wardrobe exactly during animation. Do not restyle it again while generating motion.'
+    : 'LOCK WARDROBE: preserve the exact same outfit, accessories, fit, colors, and visible styling from the current source frame.'
+  const strictSourceInstruction = sourceVisualProfile.strictSourceFidelity
+    ? 'SOURCE FRAME IS SOVEREIGN: preserve the visible product, printed text, logo, labels, wardrobe, props, and overall frame composition literally from the reference image. Do not reinterpret or improve branding.'
+    : 'Stay visually faithful to the source frame.'
+  const textLogoInstruction = sourceVisualProfile.sourceTextLogoLock
+    ? 'LOCK TEXT AND LOGOS: any visible printed text, product logo, label, packaging copy, or branding in the source frame must remain exactly the same.'
+    : ''
+  const colorInstruction = sourceVisualProfile.sourceColorLock
+    ? 'LOCK COLORS: preserve the exact product colorway, text color, logo color, wardrobe colors, and visible prop colors from the source frame.'
+    : ''
 
   const sceneInstruction =
-    sceneFreedomLevel === 'free'
+    params.requestedSceneChange
+      ? 'SCENE CHANGE IS PRE-RESOLVED ONLY: if an approved new environment is already present in the current source frame, preserve that updated scene exactly during animation. Do not restage or replace the environment again while generating motion.'
+      : sourceVisualProfile.strictSourceFidelity
+      ? 'LOCK SCENE: preserve the exact same background, environment, framing, camera height, and composition from the current source frame. If a new scenario is needed, it must be resolved before video generation; do not restage it during animation.'
+      : sceneFreedomLevel === 'free'
       ? 'SCENE FREEDOM: you may adapt camera energy and cinematic atmosphere, but keep the source-frame composition coherent and never remove intentional visible items from the source frame.'
       : 'GUIDED SCENE: keep the environment coherent and stable around the speaking subject. Favor one continuous shot instead of scene jumps, without removing intentional visible items from the source frame.'
 
@@ -950,8 +1474,12 @@ export function prepareTalkingVideoPrompt(params: {
   const promptParts = [
     'Create a short talking-performance video from this source image.',
     'LOCK IDENTITY: preserve the exact same person, face, hair, skin tone, body proportions, and overall identity from the source frame.',
+    strictSourceInstruction,
     visibleItemInstruction,
     productLockInstruction,
+    wardrobeInstruction,
+    textLogoInstruction,
+    colorInstruction,
     sceneInstruction,
     cameraInstruction,
     'Do not add subtitles, on-screen captions, or rendered text in the frame.',
@@ -988,6 +1516,9 @@ export function prepareTalkingVideoPrompt(params: {
     modelIdentityLock: true,
     productLockMode: sourceVisualProfile.productLockMode,
     productVisibilityConfidence: sourceVisualProfile.productVisibilityConfidence,
+    strictSourceFidelity: sourceVisualProfile.strictSourceFidelity,
+    sourceTextLogoLock: sourceVisualProfile.sourceTextLogoLock,
+    sourceColorLock: sourceVisualProfile.sourceColorLock,
     preserveAllVisibleSourceItems: sourceVisualProfile.preserveAllVisibleSourceItems,
     sourceVisibleItemManifest: sourceVisualProfile.sourceVisibleItemManifest,
     finalPrompt: promptParts.join(' '),
@@ -1071,6 +1602,10 @@ export async function measureAudioDurationSeconds(audioUrl: string) {
 export function prepareLockedVideoMotionPrompt(params: {
   motionPrompt?: string
   modelPrompt?: string
+  sourceAsset?: {
+    type?: string
+    input_params?: Record<string, unknown>
+  }
 }): VideoMotionPromptPolicy {
   const rawPrompt = (params.motionPrompt ?? '').trim()
   const segments = rawPrompt
@@ -1103,11 +1638,30 @@ export function prepareLockedVideoMotionPrompt(params: {
   const identityContext = params.modelPrompt?.trim()
     ? `Identity reference: ${params.modelPrompt.trim().slice(0, 220)}.`
     : ''
+  const sourceVisualProfile = inferTalkingVideoSourceVisualProfile(params.sourceAsset)
+  const visibleItemInstruction = sourceVisualProfile.preserveAllVisibleSourceItems
+    ? sourceVisualProfile.sourceVisibleItemManifest.length > 0
+      ? `LOCK ALL VISIBLE SOURCE ITEMS: preserve the exact same outfit, accessories, held objects, product details, props, and composition cues from the source frame. Mandatory visible items: ${sourceVisualProfile.sourceVisibleItemManifest.join(', ')}.`
+      : 'LOCK ALL VISIBLE SOURCE ITEMS: preserve the exact same outfit, accessories, held objects, product details, props, and composition cues from the source frame.'
+    : 'Keep the source frame visually coherent.'
+  const strictSourceInstruction = sourceVisualProfile.strictSourceFidelity
+    ? 'SOURCE FRAME IS SOVEREIGN: preserve the source frame literally. Do not reinterpret, redesign, beautify, simplify, recolor, premium-ize, or swap any visible element from the reference frame.'
+    : 'Stay highly faithful to the source frame.'
+  const textLogoInstruction = sourceVisualProfile.sourceTextLogoLock
+    ? 'LOCK TEXT AND LOGOS: any visible printed text, logo, label, packaging text, or branding in the source frame must remain exactly the same in wording, styling, placement, and legibility.'
+    : ''
+  const colorInstruction = sourceVisualProfile.sourceColorLock
+    ? 'LOCK COLORS: preserve the exact product colorway, text color, logo color, wardrobe colors, and visible prop colors from the source frame.'
+    : ''
 
   const finalPrompt = [
     'Animate this exact reference frame into a short video while preserving it with near-frozen fidelity.',
     'LOCK PERSON AND IDENTITY: preserve the exact same person, face, hair, skin tone, body proportions, expression family, and age appearance.',
+    strictSourceInstruction,
+    visibleItemInstruction,
     'LOCK PRODUCT: preserve the exact same product, label, logo, text, shape, color, texture, scale, and hand placement. Do not swap, redesign, simplify, or deform the product.',
+    textLogoInstruction,
+    colorInstruction,
     'LOCK WARDROBE AND ANATOMY: preserve the exact outfit, accessories already present, body pose logic, and valid anatomy. Keep exactly two arms and two hands with stable fingers.',
     'LOCK SCENE: preserve the exact same background, environment, framing, camera height, composition, and scenario. Do not move the person to a new location and do not replace the background.',
     'ALLOW ONLY MICRO-MOTION: subtle breathing, soft blinking, tiny head turns, slight gaze shifts, gentle hand motion that keeps the product stable, natural hair or fabric movement, and restrained camera drift or push-in.',
@@ -1125,6 +1679,14 @@ export function prepareLockedVideoMotionPrompt(params: {
     sceneChangeRequested,
     sceneChangeBlocked: sceneChangeRequested,
     videoLockPolicy: VIDEO_LOCK_POLICY,
+    sourceFidelityMode: sourceVisualProfile.strictSourceFidelity
+      ? 'strict'
+      : sourceVisualProfile.productLockMode === 'best_effort'
+        ? 'best_effort'
+        : 'none',
+    sourceVisibleItemManifest: sourceVisualProfile.sourceVisibleItemManifest,
+    sourceTextLogoLock: sourceVisualProfile.sourceTextLogoLock,
+    sourceColorLock: sourceVisualProfile.sourceColorLock,
     finalPrompt,
   }
 }
@@ -1140,6 +1702,10 @@ export async function startVideoGeneration(params: {
   video_lock_policy?: string
   scene_change_requested?: boolean
   scene_change_blocked?: boolean
+  strict_source_fidelity?: boolean
+  source_visible_item_manifest?: string[]
+  source_text_logo_lock?: boolean
+  source_color_lock?: boolean
   engine?: string
   assetId: string
   appUrl: string
@@ -1147,7 +1713,7 @@ export async function startVideoGeneration(params: {
   inputParamsPatch?: Record<string, unknown>
 }) {
   const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
 
@@ -1159,6 +1725,16 @@ export async function startVideoGeneration(params: {
   const finalMotion = prepareLockedVideoMotionPrompt({
     motionPrompt: params.motion_prompt,
     modelPrompt: params.model_prompt,
+    sourceAsset: {
+      type: 'video_source_frame',
+      input_params: {
+        source_visible_item_manifest: params.source_visible_item_manifest ?? [],
+        preserve_all_visible_source_items: true,
+        product_urls: params.strict_source_fidelity ? ['strict'] : [],
+        source_text_logo_lock: params.source_text_logo_lock ?? false,
+        source_color_lock: params.source_color_lock ?? false,
+      },
+    },
   }).finalPrompt
 
   const FAL_KLING_PATH = 'fal-ai/kling-video/v1.5/pro/image-to-video'
@@ -1202,11 +1778,11 @@ export async function startVideoGeneration(params: {
 
   if (!queueRes.ok) {
     const err = await queueRes.text()
-    throw new Error(`Fal AI erro ao enfileirar vídeo Kling: ${err}`)
+    throw new Error(`Fal AI erro ao enfileirar vÃ­deo Kling: ${err}`)
   }
 
   const { request_id } = await queueRes.json()
-  if (!request_id) throw new Error('Fal AI não retornou request_id para video')
+  if (!request_id) throw new Error('Fal AI nÃ£o retornou request_id para video')
 
   await mergeAssetInputParams(admin, params.assetId, {
     prediction_id: request_id,
@@ -1226,7 +1802,7 @@ export async function startVideoGeneration(params: {
   })
 }
 
-// ── Render — merge áudio + vídeo via Replicate ────────────────────────────
+// â”€â”€ Render â€” merge Ã¡udio + vÃ­deo via Replicate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function mergeVideoAudio(params: {
   video_url: string
   audio_url: string
@@ -1265,7 +1841,7 @@ export async function mergeVideoAudio(params: {
         .input(audioPath)
         .outputOptions([
           '-c:v', 'copy',       // copia stream original sem reencodar video
-          '-c:a', 'aac',        // encoder compatível pra audio
+          '-c:a', 'aac',        // encoder compatÃ­vel pra audio
           '-map', '0:v:0',      // pega o primeiro track de video
           '-map', '1:a:0',      // pega o primeiro track de audio
           '-shortest',          // acaba quando a variavel mais curta acabar
@@ -1292,7 +1868,7 @@ export async function mergeVideoAudio(params: {
   }
 }
 
-// Helper: executa fn com retry automático em caso de 429 (respeita retry_after)
+// Helper: executa fn com retry automÃ¡tico em caso de 429 (respeita retry_after)
 async function withReplicateRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -1307,7 +1883,7 @@ async function withReplicateRetry<T>(fn: () => Promise<T>, maxRetries = 3): Prom
   throw new Error('Max retries exceeded')
 }
 
-// ── Product-Aware Helpers (Fases 1-4) ─────────────────────────────────────────
+// â”€â”€ Product-Aware Helpers (Fases 1-4) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 async function classifyProduct(
   productBuf: Buffer,
@@ -1341,7 +1917,7 @@ shape_complexity rules:
 - "medium": recognizable shape but with distinctive features (watch, sunglasses)
 - "simple": standard symmetric shape (bottle, box, jar, ball)
 
-Respond ONLY with valid JSON — no markdown, no explanation:
+Respond ONLY with valid JSON â€” no markdown, no explanation:
 {
   "category": "<category>",
   "has_text_logo": <true|false>,
@@ -1382,7 +1958,7 @@ Respond ONLY with valid JSON — no markdown, no explanation:
       key_features: Array.isArray(parsed.key_features) ? parsed.key_features : [],
     }
   } catch (e: any) {
-    console.warn('[studio] classifyProduct falhou — usando fallback:', e.message)
+    console.warn('[studio] classifyProduct falhou â€” usando fallback:', e.message)
     return FALLBACK
   }
 }
@@ -1392,18 +1968,18 @@ function buildCompositionPrompt(_profile: ProductProfile, userIntent: string): s
 
 You receive two images:
 [BASE PHOTO]: The specific UGC model identity.
-[PRODUCT]: A client product — this is the EXACT product the client wants to showcase (can be a physical object, clothing, or accessory).
+[PRODUCT]: A client product â€” this is the EXACT product the client wants to showcase (can be a physical object, clothing, or accessory).
 
 Your task: ${userIntent}
 
-RULES — non-negotiable:
-1. FACE & IDENTITY: Preserve the person's exact facial structure, features, skin tone, hair, and makeup exactly as seen in [BASE PHOTO] — do not alter her identity.
-2. PRODUCT FIDELITY — CRITICAL: Treat [PRODUCT] like a literal photo restoration. The client's product must appear with 100% fidelity. Every single shape, color, texture, precise text, label, logo, proportion, and detail must be preserved exactly as in [PRODUCT]. Do NOT reimagine, reinterpret, simplify, or substitute anything.
+RULES â€” non-negotiable:
+1. FACE & IDENTITY: Preserve the person's exact facial structure, features, skin tone, hair, and makeup exactly as seen in [BASE PHOTO] â€” do not alter her identity.
+2. PRODUCT FIDELITY â€” CRITICAL: Treat [PRODUCT] like a literal photo restoration. The client's product must appear with 100% fidelity. Every single shape, color, texture, precise text, label, logo, proportion, and detail must be preserved exactly as in [PRODUCT]. Do NOT reimagine, reinterpret, simplify, or substitute anything.
 3. CONDITIONAL CLOTHING & INTERACTION:
    - IF [PRODUCT] IS A HELD OBJECT (e.g., mug, jar, device): The person must hold it naturally. Keep the person's existing clothing exactly as in [BASE PHOTO].
    - IF [PRODUCT] IS CLOTHING OR ACCESSORY (e.g., shirt, coat, hat, full look): The person MUST WEAR the [PRODUCT]. Completely replace the relevant parts of the original clothing with the client's product. Fit the new clothing perfectly to her body shape with realistic fabric folds.
-4. COMPOSITION: ONE unified photo — not a collage, not side-by-side. Check anatomy strictly: a person has exactly 2 hands and 2 arms — do NOT generate extra hands, extra arms, or disembodied limbs. Adjust hands naturally around the product.
-5. BACKGROUND: Pure white (#FFFFFF) — no outdoor, no studio, no city scene.
+4. COMPOSITION: ONE unified photo â€” not a collage, not side-by-side. Check anatomy strictly: a person has exactly 2 hands and 2 arms â€” do NOT generate extra hands, extra arms, or disembodied limbs. Adjust hands naturally around the product.
+5. BACKGROUND: Pure white (#FFFFFF) â€” no outdoor, no studio, no city scene.
 6. OUTPUT: Natural commercial lighting and shadows that make the product look real and grounded in the scene. No watermarks, borders, or text outside the product itself.`
 }
 
@@ -1815,7 +2391,7 @@ function normalizeFittingCategory(input?: string): string {
     case 'fashion-accessory':
     case 'accessory':
     case 'acessorio':
-    case 'acessÃ³rio':
+    case 'acessÃƒÂ³rio':
       return 'other-accessory'
     case 'shoes':
     case 'shoe':
@@ -1830,7 +2406,7 @@ function normalizeFittingCategory(input?: string): string {
     case 'headpiece':
     case 'bone':
     case 'chapeu':
-    case 'chapéu':
+    case 'chapÃ©u':
       return 'headwear'
     default:
       return 'tops'
@@ -1877,7 +2453,7 @@ function parseKnownFittingCategory(input?: string): string | undefined {
     case 'fashion-accessory':
     case 'accessory':
     case 'acessorio':
-    case 'acessório':
+    case 'acessÃ³rio':
       return 'other-accessory'
     case 'shoes':
     case 'shoe':
@@ -1892,8 +2468,8 @@ function parseKnownFittingCategory(input?: string): string | undefined {
     case 'headpiece':
     case 'bone':
     case 'chapeu':
-    case 'chapéu':
     case 'chapÃ©u':
+    case 'chapÃƒÂ©u':
       return 'headwear'
     default:
       return undefined
@@ -1914,7 +2490,7 @@ function normalizeAccessoryType(input?: string): string {
     case 'glasses':
     case 'sunglasses':
     case 'oculos':
-    case 'óculos':
+    case 'Ã³culos':
       return 'eyewear'
     case 'jewelry-neck':
     case 'necklace':
@@ -1932,7 +2508,7 @@ function normalizeAccessoryType(input?: string): string {
     case 'pulseira':
     case 'watch':
     case 'relogio':
-    case 'relógio':
+    case 'relÃ³gio':
       return 'jewelry-wrist'
     case 'jewelry-hand':
     case 'ring':
@@ -1942,7 +2518,7 @@ function normalizeAccessoryType(input?: string): string {
     case 'cinto':
       return 'belt'
     case 'scarf':
-    case 'lenço':
+    case 'lenÃ§o':
     case 'lenco':
     case 'cachecol':
       return 'scarf'
@@ -2071,7 +2647,7 @@ function inferFittingCategoryFromReference(profile: ProductProfile, explicitCate
   if (/(glasses|sunglasses|oculos|eyewear|frame|lens)/i.test(haystack)) return 'glasses'
   if (/(jewelry|jewellery|joia|earring|necklace|bracelet|ring|watch|pendant)/i.test(haystack)) return 'jewelry'
   if (/(shoe|shoes|sapato|sandalia|sandal|heel|boot|tenis|sneaker)/i.test(haystack)) return 'shoes'
-  if (/(hat|hats|cap|caps|beanie|headwear|headpiece|bone|chapeu|chap[eé]u|bucket hat)/i.test(haystack)) return 'headwear'
+  if (/(hat|hats|cap|caps|beanie|headwear|headpiece|bone|chapeu|chap[eÃ©]u|bucket hat)/i.test(haystack)) return 'headwear'
   if (/(dress|dresses|vestido|macacao|jumpsuit|romper|one-piece|one piece)/i.test(haystack)) return 'one-pieces'
   if (/(pants|trousers|jeans|shorts|saia|skirt|bottom|calca)/i.test(haystack)) return 'bottoms'
   if (/(jacket|coat|blazer|outerwear|casaco|jaqueta|cardigan)/i.test(haystack)) return 'outerwear'
@@ -3127,11 +3703,11 @@ function extractLookSplitRequestedCategories(note?: string): string[] {
   const categoryMatchers: Array<{ category: string; pattern: RegExp }> = [
     { category: 'outerwear', pattern: /\b(casaco|jaqueta|blazer|trench|sobretudo|coat|jacket|outerwear)\b/i },
     { category: 'tops', pattern: /\b(blusa|camisa|camiseta|top|shirt|tee|blouse|regata)\b/i },
-    { category: 'bottoms', pattern: /\b(calca|calça|jeans|saia|short|shorts|pants|trousers|skirt|bottom)\b/i },
-    { category: 'one-pieces', pattern: /\b(vestido|macacao|macacão|jumpsuit|romper|dress|one[\s-]?piece)\b/i },
-    { category: 'shoes', pattern: /\b(sapato|sapatos|tenis|tênis|bota|sandalia|sandália|shoe|shoes|sneaker|boot|heel|heels)\b/i },
+    { category: 'bottoms', pattern: /\b(calca|calÃ§a|jeans|saia|short|shorts|pants|trousers|skirt|bottom)\b/i },
+    { category: 'one-pieces', pattern: /\b(vestido|macacao|macacÃ£o|jumpsuit|romper|dress|one[\s-]?piece)\b/i },
+    { category: 'shoes', pattern: /\b(sapato|sapatos|tenis|tÃªnis|bota|sandalia|sandÃ¡lia|shoe|shoes|sneaker|boot|heel|heels)\b/i },
     { category: 'bags', pattern: /\b(bolsa|bag|handbag|purse|tote)\b/i },
-    { category: 'headwear', pattern: /\b(chapeu|chapéu|bone|boné|hat|cap|beanie|bucket hat)\b/i },
+    { category: 'headwear', pattern: /\b(chapeu|chapÃ©u|bone|bonÃ©|hat|cap|beanie|bucket hat)\b/i },
   ]
 
   for (const matcher of categoryMatchers) {
@@ -3876,14 +4452,14 @@ async function callGeminiSinglePhotoFittingRescue(params: {
     contents: [{
       role: 'user',
       parts: [
-        { text: '[BASE PHOTO] — preserve this person exactly:' },
+        { text: '[BASE PHOTO] â€” preserve this person exactly:' },
         {
           inlineData: {
             mimeType: params.portraitImage.mimeType,
             data: params.portraitImage.buffer.toString('base64'),
           },
         },
-        { text: '[FASHION ITEM] — preserve this exact single-photo look reference with literal fidelity:' },
+        { text: '[FASHION ITEM] â€” preserve this exact single-photo look reference with literal fidelity:' },
         {
           inlineData: {
             mimeType: params.referenceItem.mimeType,
@@ -4445,7 +5021,7 @@ function buildEstimatedProviderCostBreakdown(params: {
   }
 }
 
-// ── Compose — Virtual Try-On ou Colar Produto ─────────
+// â”€â”€ Compose â€” Virtual Try-On ou Colar Produto â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function preflightProvadorPricing(params: {
   product_url: string
   product_urls?: string[]
@@ -4702,6 +5278,56 @@ type SovereignFittingAuditResult = {
   notes: string[]
 }
 
+export type SourceFrameFidelityAuditResult = {
+  approved: boolean
+  blockingIssues: string[]
+  warningIssues: string[]
+  notes: string[]
+}
+
+type SovereignProvadorReferencePlan = {
+  categories: string[]
+  manifest: string[]
+  conflictReasons: string[]
+}
+
+function buildSovereignProvadorReferencePlan(params: {
+  explicitCategoryHint?: string
+  guidedOverlayReferences: GuidedSplitReference[]
+}): SovereignProvadorReferencePlan {
+  const categories = dedupeNormalizedStrings([
+    params.explicitCategoryHint ? normalizeFittingCategory(params.explicitCategoryHint) : '',
+    ...params.guidedOverlayReferences.map((reference) => parseKnownFittingCategory(reference.category) ?? ''),
+  ]).filter(Boolean)
+
+  const manifest = dedupeNormalizedStrings([
+    ...categories,
+    ...params.guidedOverlayReferences
+      .map((reference) => normalizeTalkingWhitespace(reference.description))
+      .filter(Boolean),
+  ]).slice(0, 16)
+
+  const countByCategory = new Map<string, number>()
+  for (const category of categories) {
+    if (category === 'jewelry' || category === 'other-accessory') continue
+    countByCategory.set(category, (countByCategory.get(category) ?? 0) + 1)
+  }
+
+  const conflictReasons = Array.from(countByCategory.entries())
+    .filter(([, count]) => count > 1)
+    .map(([category]) => `multiple_${category}`)
+
+  if (categories.includes('one-pieces') && (categories.includes('tops') || categories.includes('bottoms'))) {
+    conflictReasons.push('one-piece_conflicts_with_separates')
+  }
+
+  return {
+    categories,
+    manifest,
+    conflictReasons: dedupeNormalizedStrings(conflictReasons),
+  }
+}
+
 async function buildSovereignSubmittedItemManifest(params: {
   apiKey: string
   referenceMode: FittingReferenceMode
@@ -4791,12 +5417,14 @@ IMAGE 1 is the base model photo.
 The NEXT image(s) are sovereign submitted references.
 The FINAL image is the generated result.
 
-Rules:
-- Every intentional visible submitted item from the reference images is mandatory in the result.
-- This includes clothes, shoes, bags, headwear, jewelry, eyewear, and also non-fashion props or objects intentionally submitted by the client, such as umbrella, perfume, flowers, or other visible scene objects.
-- The result must preserve the base model identity.
-- The result must use a clean white seamless studio background.
-- Mark approved=false if any intentional submitted item is missing, materially redesigned, recolored, reshaped, replaced, simplified, or turned into a different kind of object.
+  Rules:
+  - Every intentional visible submitted item from the reference images is mandatory in the result.
+  - This includes clothes, shoes, bags, headwear, jewelry, eyewear, and also non-fashion props or objects intentionally submitted by the client, such as umbrella, perfume, flowers, or other visible scene objects.
+  - The result must preserve the base model identity.
+  - The result must use a clean white seamless studio background.
+  - If the generated result still shows the original base-photo garment in a body zone that should have been replaced by a submitted wearable item, mark approved=false.
+  - If a submitted wearable item is not actually worn by the model, mark approved=false.
+  - Mark approved=false if any intentional submitted item is missing, materially redesigned, recolored, reshaped, replaced, simplified, or turned into a different kind of object.
 
 Respond ONLY with valid JSON:
 {
@@ -4849,8 +5477,150 @@ Respond ONLY with valid JSON:
   } catch (error: any) {
     console.warn('[studio] auditSovereignWhiteStudioComposition falhou:', error.message)
     return {
+      approved: false,
+      missingOrDistortedItems: ['audit_unavailable'],
+      notes: dedupeNormalizedStrings(['audit_unavailable', String(error?.message ?? 'audit_error')]).slice(0, 8),
+    }
+  }
+}
+
+function normalizeAuditIssueList(values: unknown) {
+  return dedupeNormalizedStrings(Array.isArray(values) ? values : []).slice(0, 12)
+}
+
+function isBlockingWhiteStudioIssue(
+  issue: string,
+  options: {
+    advisoryMode: boolean
+    structuralCategories: string[]
+  },
+) {
+  const normalized = issue.trim().toLowerCase()
+  if (!normalized) return false
+
+  if (!options.advisoryMode) return true
+
+  if (/(identity|face|hair|skin tone|body proportions|different person|wrong person|background|scene|environment|street|room|white studio|white seamless|not provided|base model)/i.test(normalized)) {
+    return true
+  }
+
+  if (options.structuralCategories.some((category) => normalized.includes(category))) {
+    return true
+  }
+
+  if (/(coat|jacket|blazer|shirt|top|blouse|dress|skirt|pants|trousers|shorts|jeans|outerwear|bottoms|one-piece|matching set|garment|main outfit)/i.test(normalized)) {
+    return true
+  }
+
+  if (/(bracelet|bangle|jewelry|joia|glasses|eyewear|scarf|hat|headwear|bag|handbag|belt|boots|boot|shoe|shoes|ankle boots|mid-calf|fringe|watch|necklace|ring|perfume|umbrella|prop)/i.test(normalized)) {
+    return false
+  }
+
+  return true
+}
+
+export async function auditGeneratedVideoFrameFidelity(params: {
+  apiKey: string
+  sourceImageUrl: string
+  generatedFrameUrl: string
+  visibleItemManifest?: string[]
+  requireExactTextLogo?: boolean
+  requireExactColor?: boolean
+}): Promise<SourceFrameFidelityAuditResult> {
+  if (!params.sourceImageUrl || !params.generatedFrameUrl) {
+    return {
       approved: true,
-      missingOrDistortedItems: [],
+      blockingIssues: [],
+      warningIssues: [],
+      notes: ['audit_skipped_missing_frame'],
+    }
+  }
+
+  async function fetchInlineData(url: string) {
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`fidelity-audit download failed: ${response.status}`)
+    const mimeType = response.headers.get('content-type') || 'image/jpeg'
+    const buffer = Buffer.from(await response.arrayBuffer())
+    const normalized = await normalizeImageForVertex(buffer, 'jpeg')
+    return { mimeType: normalized.mimeType, data: normalized.buffer.toString('base64') }
+  }
+
+  const prompt = `Audit source-frame fidelity for a generated video frame.
+
+IMAGE 1 is the original source frame.
+IMAGE 2 is the generated final video frame.
+
+Rules:
+- Preserve the exact same person and overall frame identity from IMAGE 1.
+- Preserve visible products, packaging, labels, logos, printed text, props, wardrobe, and relevant accessories from IMAGE 1.
+- If printed text, logo, label, or branding changes wording, spelling, layout, color, or identity, mark that as a blocking issue.
+- If the main product changes shape, colorway, or branding, mark that as a blocking issue.
+- Treat minor cinematic differences that do not alter branding or product identity as warning issues only.
+- Ignore subtitles or generated text only if IMAGE 1 had none and IMAGE 2 also has none.
+${params.requireExactTextLogo ? '- Exact text/logo fidelity is mandatory.' : ''}
+${params.requireExactColor ? '- Exact color fidelity is mandatory.' : ''}
+${params.visibleItemManifest && params.visibleItemManifest.length > 0 ? `Mandatory visible source items: ${params.visibleItemManifest.join(', ')}.` : ''}
+
+Respond ONLY with valid JSON:
+{
+  "approved": true,
+  "blocking_issues": ["<short issue>", "..."],
+  "warning_issues": ["<short warning>", "..."],
+  "notes": ["<short note>", "..."]
+}`
+
+  try {
+    const [sourceInline, frameInline] = await Promise.all([
+      fetchInlineData(params.sourceImageUrl),
+      fetchInlineData(params.generatedFrameUrl),
+    ])
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${params.apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            role: 'user',
+            parts: [
+              { text: prompt },
+              { text: '[SOURCE FRAME]' },
+              { inlineData: sourceInline },
+              { text: '[GENERATED VIDEO FRAME]' },
+              { inlineData: frameInline },
+            ],
+          }],
+          generationConfig: { responseMimeType: 'application/json' },
+        }),
+      },
+    )
+    if (!res.ok) throw new Error(`video-fidelity-audit HTTP ${res.status}`)
+
+    const data = await res.json()
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
+    const parsed = parseModelJsonResponse<{
+      approved?: boolean
+      blocking_issues?: string[]
+      warning_issues?: string[]
+      notes?: string[]
+    }>(text)
+
+    const blockingIssues = normalizeAuditIssueList(parsed.blocking_issues)
+    const warningIssues = normalizeAuditIssueList(parsed.warning_issues)
+
+    return {
+      approved: Boolean(parsed.approved) && blockingIssues.length === 0,
+      blockingIssues,
+      warningIssues,
+      notes: dedupeNormalizedStrings(parsed.notes ?? []).slice(0, 8),
+    }
+  } catch (error: any) {
+    console.warn('[studio] auditGeneratedVideoFrameFidelity falhou:', error.message)
+    return {
+      approved: true,
+      blockingIssues: [],
+      warningIssues: [],
       notes: ['audit_unavailable'],
     }
   }
@@ -4860,6 +5630,7 @@ async function composeSceneWhiteStudioFitting(params: {
   portrait_url: string
   product_url: string
   product_urls?: string[]
+  guided_overlay_references?: unknown[]
   aspect_ratio?: string
   fitting_category?: string
   vton_category?: string
@@ -4878,19 +5649,49 @@ async function composeSceneWhiteStudioFitting(params: {
     : []
   const referenceUrls = (rawReferenceUrls.length > 0 ? rawReferenceUrls : [params.product_url])
     .filter((url): url is string => typeof url === 'string' && url.startsWith('http'))
-    .slice(0, 5)
+    .slice(0, 3)
   if (!params.portrait_url?.startsWith('http')) throw new Error('Imagem base da modelo invalida para o Provador')
   if (referenceUrls.length === 0) throw new Error('Nenhuma referencia valida foi enviada para o Provador')
 
   const referenceMode: FittingReferenceMode = referenceUrls.length > 1 ? 'separate-references' : 'single-look-photo'
   const explicitCategoryHint = getExplicitFittingCategoryHint(params.fitting_category ?? params.vton_category)
+  const guidedOverlayReferences = normalizeGuidedOverlayReferences(params.guided_overlay_references)
+  const referencePlan = buildSovereignProvadorReferencePlan({
+    explicitCategoryHint,
+    guidedOverlayReferences,
+  })
   const normalizedPrompt = normalizeFittingPrompt(params.smart_prompt)
   const ratioInstruction = getComposeAspectRatioInstruction(params.aspect_ratio)
   const poseInstruction = getFittingPoseInstruction(params.fitting_pose_preset)
   const energyInstruction = getFittingEnergyInstruction(params.fitting_energy_preset)
   const userIntent = normalizedPrompt.intent
-    ? `Light creative direction only: ${normalizedPrompt.intent}. This may influence mood or micro-staging, but must never remove, simplify, restyle, replace, or reinterpret any submitted visible item or object.`
-    : 'No extra creative deviation. Prioritize exact submitted-item fidelity over styling.'
+    ? `Light direction only: ${normalizedPrompt.intent}. Use it only for micro-pose, facial energy, gaze, or framing. Never let it change submitted item set, colors, logos, text, materials, structure, layering, or styling.`
+    : 'No extra creative deviation. Prioritize literal submitted-item fidelity over styling.'
+
+  if (referencePlan.conflictReasons.length > 0) {
+    failGuidedFitting(
+      `Referencias soberanas conflitantes: ${referencePlan.conflictReasons.join(', ')}`,
+      {
+        fitting_engine: 'scene_white_studio',
+        fitting_route: 'scene_white_studio',
+        fitting_primary_route: 'scene_white_studio',
+        provador_engine: 'scene_white_studio',
+        pricing_strategy: 'white_studio_fixed',
+        pricing_tier: 'scene_white_studio',
+        white_studio_lock: true,
+        sovereign_mode: 'strict',
+        smart_prompt_policy: 'light_pose_only',
+        reference_conflict_policy: 'fail_on_same_zone_conflict',
+        fitting_reference_mode: referenceMode,
+        fitting_reference_mix_mode: referenceMode === 'single-look-photo' ? 'single-look-photo' : 'sovereign-complementary',
+        submitted_item_categories: referencePlan.categories,
+        submitted_item_manifest: referencePlan.manifest,
+        conflict_reasons: referencePlan.conflictReasons,
+        failure_state: 'scene_white_studio_reference_conflict',
+      },
+      'scene-white-studio:reference-conflict',
+    )
+  }
 
   async function fetchInlineData(url: string) {
     const response = await fetch(url)
@@ -4907,43 +5708,58 @@ async function composeSceneWhiteStudioFitting(params: {
 
   const portraitInline = await fetchInlineData(params.portrait_url)
   const referenceInlines = await Promise.all(referenceUrls.map((url) => fetchInlineData(url)))
-  const submittedManifest = await buildSovereignSubmittedItemManifest({
-    apiKey,
-    referenceMode,
-    referenceBuffers: referenceInlines.map((item) => item.buffer),
-    referenceUrls,
-    explicitCategoryHint,
-  })
+  const structuralSubmittedCategories = referencePlan.categories.filter((category) => isStructuralBodyCategory(category))
+  const wearableSubmittedCategories = referencePlan.categories.filter((category) => isWearableFittingCategory(category))
+  const submittedStructuralChecklist = structuralSubmittedCategories.length > 0
+    ? `Submitted structural garment categories that must visibly replace the base outfit where relevant: ${structuralSubmittedCategories.join(', ')}.`
+    : ''
+  const submittedWearableChecklist = wearableSubmittedCategories.length > 0
+    ? `Submitted wearable categories that must be visibly worn by the model in the final image: ${wearableSubmittedCategories.join(', ')}.`
+    : ''
+  const explicitReplacementRule = structuralSubmittedCategories.length > 0
+    ? 'WARDROBE REPLACEMENT LOCK: the model must literally wear the submitted garments in the correct body zones. Remove every trace of the original base-photo clothing from any zone replaced by submitted tops, bottoms, outerwear, one-pieces, or footwear.'
+    : 'WEAR RULE: any submitted wearable item must be visibly worn or used by the model with believable contact. Do not leave the base item unchanged when a submitted wearable exists.'
+  const singleLookWearRule = referenceMode === 'single-look-photo'
+    ? 'If the sovereign reference is a full look photo, reconstruct that exact worn look on the model. Do not keep the base model outfit unchanged.'
+    : 'If multiple submitted references define one outfit, combine them into one coherent worn look on the model. Do not keep the base model outfit unchanged in any replaced zone.'
 
   const promptLines = [
-    'You are a world-class fashion compositor and identity-preserving studio photographer.',
+    'You are a source-sovereign fashion restoration compositor.',
     'Create ONE unified white-studio fitting image from the submitted references.',
-    'LOCK MODEL IDENTITY: preserve the exact same person from the base model photo, including face, skin tone, hair, body proportions, age appearance, and natural identity.',
+    'Treat the base model photo as identity sovereign: preserve the exact same person, face, hair, skin tone, body proportions, age appearance, and natural identity.',
     referenceMode === 'single-look-photo'
-      ? 'Treat the submitted reference image as one sovereign composition reference. Every intentional visible item or object from that image is mandatory in the final result.'
-      : 'Treat all submitted reference images together as sovereign references. Every intentional visible item or object from those references is mandatory in the final result.',
-    'LOCK ALL SUBMITTED ITEMS: preserve the exact garment categories, layering, colors, materials, prints, hardware, trims, closures, silhouettes, proportions, footwear, accessories, and any intentionally visible objects exactly as submitted.',
-    'Do not ignore umbrellas, perfume bottles, flowers, packaging, handheld objects, or any other visible submitted prop just because it is not fashion.',
-    'Do not drop, hide, simplify, recolor, resize, redesign, swap, or reinterpret any submitted visible item or object.',
-    'Output a clean pure white seamless studio background with natural commercial studio shadows only. Do not place the model in Paris, a street, a cafe, a room, or any environmental scene.',
+      ? 'Treat the submitted reference image as one sovereign restoration reference. Rebuild that exact visible look and exact visible items on the base model.'
+      : 'Treat all submitted reference images as complementary sovereign references. Combine all compatible visible items into one single worn look on the base model without dropping any submitted item.',
+    'SOVEREIGN ITEM LOCK: preserve submitted garments, footwear, bags, glasses, jewelry, props, printed text, logos, labels, hardware, materials, silhouettes, proportions, shape, trims, closures, and colors literally as submitted.',
+    'Act like a restoration artist, not a stylist. Do not reinterpret, improve, beautify, simplify, premium-ize, recolor, resize, restyle, or swap any submitted item.',
+    explicitReplacementRule,
+    singleLookWearRule,
+    submittedStructuralChecklist,
+    submittedWearableChecklist,
+    referencePlan.manifest.length > 0
+      ? `Submitted sovereign checklist: ${referencePlan.manifest.join(', ')}.`
+      : '',
+    'If a submitted item has visible text, branding, logo, print, or packaging, keep it exactly identical. Do not change a single letter, mark, color, or placement.',
+    'Keep every intentional submitted accessory or prop if it is visible in the reference. Do not omit items just because they are small.',
+    'Background rule: final image must always be a pure white seamless studio background with natural e-commerce shadows only, even if the submitted reference has another environment.',
     ratioInstruction,
     poseInstruction,
     energyInstruction,
     userIntent,
-    submittedManifest.submittedItemManifest.length > 0
-      ? `Submitted sovereign item checklist: ${submittedManifest.submittedItemManifest.join(', ')}.`
-      : '',
-    'Keep the full person in frame when needed to show the entire look and any submitted handheld or surrounding objects clearly.',
-    'Output: photorealistic premium studio fashion photo, Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, subtle film grain, clean depth of field, no text, no watermark.',
+    'Keep the person fully readable in frame whenever needed to show the complete sovereign look clearly.',
+    'Output: photorealistic premium studio fashion photo, natural commercial lighting, no collage, no watermark, no text outside the submitted item itself.',
   ].filter(Boolean)
   const finalPrompt = promptLines.join(' ')
   const geminiChain = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
   const modelChainTried = new Set<string>()
   let lastGeminiError = ''
-  let fallbackUsed = false
-  let finalBuffer: Buffer | null = null
-  let finalEngine = ''
-  let publicUrl = ''
+
+  function resolveSceneWhiteStudioFailureState(providerError: string) {
+    const normalizedError = providerError.toLowerCase()
+    return /429|quota|resource_exhausted|provider|temporar|unavailable|google/i.test(normalizedError)
+      ? 'scene_white_studio_provider_unavailable'
+      : 'scene_white_studio_generation_failed'
+  }
 
   async function runGeminiWhiteStudioAttempt(promptText: string, stageLabel: string): Promise<{ buffer: Buffer | null; modelUsed: string; lastError: string }> {
     let attemptLastError = ''
@@ -4997,33 +5813,6 @@ async function composeSceneWhiteStudioFitting(params: {
     return { buffer: null, modelUsed: '', lastError: attemptLastError }
   }
 
-  async function auditGeneratedBuffer(generatedBuffer: Buffer) {
-    const audit = await auditSovereignWhiteStudioComposition({
-      apiKey,
-      portraitInline: { mimeType: portraitInline.mimeType, data: portraitInline.data },
-      referenceInlines: referenceInlines.map((reference) => ({ mimeType: reference.mimeType, data: reference.data })),
-      generatedBuffer,
-      referenceMode,
-    })
-    const hardAuditIssues = audit.missingOrDistortedItems.filter((issue) => !isSoftSovereignAccessoryIssue(issue))
-    const softAuditIssues = audit.missingOrDistortedItems.filter((issue) => isSoftSovereignAccessoryIssue(issue))
-    const auditApproved = audit.approved || (hardAuditIssues.length === 0 && softAuditIssues.length > 0)
-    return { audit, hardAuditIssues, softAuditIssues, auditApproved }
-  }
-
-  function buildWhiteStudioRepairPrompt(issues: string[]) {
-    return [
-      finalPrompt,
-      'CRITICAL REPAIR INSTRUCTION: this is a sovereign-item fidelity retry.',
-      'Repair every missing, distorted, simplified, recolored, resized, reshaped, swapped, or omitted submitted item exactly as originally submitted.',
-      'Do not change any submitted item that is already correct.',
-      'Do not remove previously correct garments, shoes, bags, scarves, jewelry, eyewear, or handheld objects while fixing the missing items.',
-      issues.length > 0 ? `Mandatory fixes from the failed audit: ${issues.join('; ')}.` : '',
-      'If boots, scarves, jewelry stacks, logos, or hardware were altered, restore them exactly.',
-      'Keep the same white seamless studio background and the exact same model identity.',
-    ].filter(Boolean).join(' ')
-  }
-
   async function uploadSceneWhiteStudioBuffer(buffer: Buffer) {
     const fileName = `compose-fitting-${params.assetId}-${Date.now()}.jpg`
     const filePath = `${params.userId}/${fileName}`
@@ -5036,172 +5825,143 @@ async function composeSceneWhiteStudioFitting(params: {
   }
 
   const attemptOne = await runGeminiWhiteStudioAttempt(finalPrompt, 'attempt-1')
-  let finalAudit = attemptOne.buffer ? await auditGeneratedBuffer(attemptOne.buffer) : null
+  if (!attemptOne.buffer) {
+    const failureState = resolveSceneWhiteStudioFailureState(lastGeminiError)
 
-  if (attemptOne.buffer && finalAudit) {
-    logFittingQc({
-      mode: referenceMode,
-      route: 'single-look-rebuild',
-      stage: 'scene_white_studio:attempt-1',
-      categories: submittedManifest.submittedItemCategories,
-      approved: finalAudit.auditApproved,
-      weakestDimension: finalAudit.auditApproved
-        ? (finalAudit.softAuditIssues.length > 0 ? 'SOFT_ACCESSORY_DEVIATION' : (finalAudit.audit.notes[0] ?? 'approved'))
-        : 'ALL_SUBMITTED_ITEMS',
-      issues: finalAudit.auditApproved ? [...finalAudit.softAuditIssues, ...finalAudit.audit.notes] : finalAudit.hardAuditIssues,
-    })
-  }
+    if (failureState === 'scene_white_studio_provider_unavailable') {
+      console.warn(
+        `[studio] fitting scene_white_studio fallback=legacy route=composeDedicatedFittingScene reason=${lastGeminiError || 'gemini_sem_imagem'}`,
+      )
 
-  if (attemptOne.buffer && finalAudit?.auditApproved) {
-    finalBuffer = attemptOne.buffer
-    finalEngine = `gemini:${attemptOne.modelUsed}`
-  }
+      try {
+        const fallbackResult = await composeDedicatedFittingScene({
+          portrait_url: params.portrait_url,
+          product_url: params.product_url,
+          product_urls: params.product_urls,
+          guided_overlay_references: params.guided_overlay_references,
+          aspect_ratio: params.aspect_ratio,
+          fitting_category: params.fitting_category,
+          vton_category: params.vton_category,
+          fitting_pose_preset: params.fitting_pose_preset,
+          fitting_energy_preset: params.fitting_energy_preset,
+          smart_prompt: params.smart_prompt,
+          assetId: params.assetId,
+          userId: params.userId,
+        })
 
-  if (!finalBuffer && attemptOne.buffer && finalAudit && finalAudit.hardAuditIssues.length > 0) {
-    const repairPrompt = buildWhiteStudioRepairPrompt(finalAudit.hardAuditIssues)
-    const attemptTwo = await runGeminiWhiteStudioAttempt(repairPrompt, 'attempt-2')
-    const retryAudit = attemptTwo.buffer ? await auditGeneratedBuffer(attemptTwo.buffer) : null
+        return {
+          url: fallbackResult.url,
+          extraData: {
+            ...(fallbackResult.extraData ?? {}),
+            fallback_used: true,
+            scene_white_studio_fallback_used: true,
+            scene_white_studio_fallback_path: 'composeDedicatedFittingScene',
+            scene_white_studio_fallback_reason: failureState,
+            scene_white_studio_model_chain_tried: Array.from(modelChainTried),
+            scene_white_studio_last_provider_error: lastGeminiError,
+            scene_white_studio_reference_mode: referenceMode,
+          },
+        }
+      } catch (fallbackError: unknown) {
+        const baseError = fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError))
+        const fallbackFailure =
+          fallbackError && typeof fallbackError === 'object'
+            ? fallbackError as StudioFailureContext
+            : {}
 
-    if (attemptTwo.buffer && retryAudit) {
-      logFittingQc({
-        mode: referenceMode,
-        route: 'single-look-rebuild',
-        stage: 'scene_white_studio:attempt-2',
-        categories: submittedManifest.submittedItemCategories,
-        approved: retryAudit.auditApproved,
-        weakestDimension: retryAudit.auditApproved
-          ? (retryAudit.softAuditIssues.length > 0 ? 'SOFT_ACCESSORY_DEVIATION' : (retryAudit.audit.notes[0] ?? 'approved'))
-          : 'ALL_SUBMITTED_ITEMS',
-        issues: retryAudit.auditApproved ? [...retryAudit.softAuditIssues, ...retryAudit.audit.notes] : retryAudit.hardAuditIssues,
-      })
+        console.warn(
+          `[studio] fitting scene_white_studio fallback_failed=legacy reason=${baseError.message}`,
+        )
+
+        throw attachStudioFailureContext(
+          baseError,
+          {
+            ...(fallbackFailure.studioFailureData ?? {}),
+            fallback_used: true,
+            scene_white_studio_fallback_used: true,
+            scene_white_studio_fallback_failed: true,
+            scene_white_studio_fallback_path: 'composeDedicatedFittingScene',
+            scene_white_studio_fallback_reason: failureState,
+            scene_white_studio_model_chain_tried: Array.from(modelChainTried),
+            scene_white_studio_last_provider_error: lastGeminiError,
+            scene_white_studio_reference_mode: referenceMode,
+          },
+          fallbackFailure.studioRefundReason ?? 'scene-white-studio:legacy-fallback-failed',
+        )
+      }
     }
 
-    if (attemptTwo.buffer && retryAudit?.auditApproved) {
-      finalBuffer = attemptTwo.buffer
-      finalEngine = `gemini:${attemptTwo.modelUsed}`
-      finalAudit = retryAudit
-    } else if (retryAudit) {
-      finalAudit = retryAudit
-    }
+    failGuidedFitting(
+      `Provador soberano indisponivel: ${lastGeminiError || 'gemini_sem_imagem'}`,
+      {
+        fitting_engine: 'scene_white_studio',
+        fitting_route: 'scene_white_studio',
+        fitting_primary_route: 'scene_white_studio',
+        provador_engine: 'scene_white_studio',
+        stage1_engine: 'gemini:scene_white_studio',
+        stage2_engine: 'none',
+        fitting_strategy: 'scene_white_studio',
+        pricing_strategy: 'white_studio_fixed',
+        pricing_tier: 'scene_white_studio',
+        fallback_used: false,
+        white_studio_lock: true,
+        sovereign_mode: 'strict',
+        smart_prompt_policy: 'light_pose_only',
+        reference_conflict_policy: 'fail_on_same_zone_conflict',
+        fitting_reference_mode: referenceMode,
+        fitting_reference_mix_mode: referenceMode === 'single-look-photo' ? 'single-look-photo' : 'sovereign-complementary',
+        required_all_submitted_items: true,
+        submitted_item_categories: referencePlan.categories,
+        submitted_item_manifest: referencePlan.manifest,
+        model_chain_tried: Array.from(modelChainTried),
+        last_provider_error: lastGeminiError,
+        failure_state: failureState,
+      },
+      'scene-white-studio:provider-unavailable',
+    )
   }
 
-  if (!finalBuffer) {
-    fallbackUsed = true
-    const fallbackIssues = finalAudit?.hardAuditIssues ?? []
-    console.warn(`[studio] fitting scene_white_studio fallback=generateScene asset=${params.assetId} issues=${fallbackIssues.join(' | ') || 'generation_failed'} last_error=${lastGeminiError}`)
-    publicUrl = await generateScene({
-      source_url: params.portrait_url,
-      extra_source_urls: referenceUrls,
-      scene_prompt: [
-        'Rebuild the entire submitted look and every intentional submitted visible object on the same model in a pure white seamless studio.',
-        'Preserve exact model identity, exact outfit fidelity, exact accessory fidelity, exact visible submitted props or objects, and exact footwear.',
-        'Do not omit scarves, bracelets, handbags, glasses, hats, jewelry stacks, logos, hardware, packaging, umbrellas, perfume bottles, flowers, or other visible submitted objects.',
-        'Do not place the model in an environmental scene. Use only white seamless studio background.',
-        fallbackIssues.length > 0 ? `Mandatory repair list from the previous failed audit: ${fallbackIssues.join('; ')}.` : '',
-        'Do not reinterpret or restyle the look. Reconstruct it literally.',
-        userIntent,
-      ].filter(Boolean).join(' '),
-      aspect_ratio: params.aspect_ratio,
-      assetId: params.assetId,
-      userId: params.userId,
-    })
-
-    const outputResponse = await fetch(publicUrl)
-    if (!outputResponse.ok) throw new Error(`Falha ao baixar resultado do Provador scene_white_studio: ${outputResponse.status}`)
-    const fallbackBuffer = Buffer.from(await outputResponse.arrayBuffer())
-    const fallbackAudit = await auditGeneratedBuffer(fallbackBuffer)
-
-    logFittingQc({
-      mode: referenceMode,
-      route: 'single-look-rebuild',
-      stage: 'scene_white_studio:scene-fallback',
-      categories: submittedManifest.submittedItemCategories,
-      approved: fallbackAudit.auditApproved,
-      weakestDimension: fallbackAudit.auditApproved
-        ? (fallbackAudit.softAuditIssues.length > 0 ? 'SOFT_ACCESSORY_DEVIATION' : (fallbackAudit.audit.notes[0] ?? 'approved'))
-        : 'ALL_SUBMITTED_ITEMS',
-      issues: fallbackAudit.auditApproved ? [...fallbackAudit.softAuditIssues, ...fallbackAudit.audit.notes] : fallbackAudit.hardAuditIssues,
-    })
-
-    if (fallbackAudit.auditApproved) {
-      finalBuffer = fallbackBuffer
-      finalEngine = 'scene:generateScene'
-      finalAudit = fallbackAudit
-    } else {
-      finalAudit = fallbackAudit
-    }
-  }
-
-  if (finalBuffer && !publicUrl) {
-    publicUrl = await uploadSceneWhiteStudioBuffer(finalBuffer)
-  }
-
-  const hardAuditIssues = finalAudit?.hardAuditIssues ?? []
-  const softAuditIssues = finalAudit?.softAuditIssues ?? []
-  const auditApproved = finalAudit?.auditApproved ?? false
+  const publicUrl = await uploadSceneWhiteStudioBuffer(attemptOne.buffer)
 
   const extraData: Record<string, unknown> = {
     fitting_engine: 'scene_white_studio',
     fitting_route: 'scene_white_studio',
     fitting_primary_route: 'scene_white_studio',
-    provador_engine: 'gemini_flux',
-    stage1_engine: finalEngine || 'scene_white_studio',
-    fallback_used: fallbackUsed,
-    model_chain_tried: Array.from(new Set([
-      ...modelChainTried,
-      ...(fallbackUsed ? ['scene:generateScene'] : []),
-    ])),
+    provador_engine: 'scene_white_studio',
+    stage1_engine: `gemini:${attemptOne.modelUsed}`,
+    stage2_engine: 'none',
+    fitting_strategy: 'scene_white_studio',
+    pricing_strategy: 'white_studio_fixed',
+    pricing_tier: 'scene_white_studio',
+    fallback_used: false,
+    provador_qc_mode: 'sovereign_prompt_only',
+    provador_delivery_basis: 'direct_sovereign_generation',
+    sovereign_mode: 'strict',
+    smart_prompt_policy: 'light_pose_only',
+    reference_conflict_policy: 'fail_on_same_zone_conflict',
+    model_chain_tried: Array.from(modelChainTried),
     white_studio_lock: true,
     required_all_submitted_items: true,
-    submitted_item_categories: submittedManifest.submittedItemCategories,
-    submitted_non_fashion_items: submittedManifest.submittedNonFashionItems,
-    submitted_item_manifest: submittedManifest.submittedItemManifest,
-    missing_or_distorted_items: hardAuditIssues,
-    soft_missing_or_distorted_items: softAuditIssues,
-    ignored_prop_types: [],
-    single_photo_ignored_props: [],
+    submitted_item_categories: referencePlan.categories,
+    submitted_non_fashion_items: [],
+    submitted_item_manifest: referencePlan.manifest,
+    missing_or_distorted_items: [],
+    advisory_missing_or_distorted_items: [],
+    soft_missing_or_distorted_items: [],
+    audit_unavailable: false,
     reference_mode: referenceMode,
     fitting_reference_mode: referenceMode,
     fitting_input_mode: referenceMode,
-    generation_budget_profile: 'single-pass-scene-white-studio',
+    fitting_reference_mix_mode: referenceMode === 'single-look-photo' ? 'single-look-photo' : 'sovereign-complementary',
+    generation_budget_profile: 'direct-sovereign-scene-white-studio',
     removed_directives: normalizedPrompt.removedDirectives,
   }
-
-  if (!auditApproved) {
-    logFittingQc({
-      mode: referenceMode,
-      route: 'single-look-rebuild',
-      stage: 'scene_white_studio:final-audit',
-      categories: submittedManifest.submittedItemCategories,
-      approved: false,
-      weakestDimension: 'ALL_SUBMITTED_ITEMS',
-      issues: hardAuditIssues,
-    })
-    failGuidedFitting(
-      `Provador rejeitado no QC final: ${hardAuditIssues.join(', ') || 'itens soberanos ausentes ou distorcidos'}`,
-      {
-        ...extraData,
-        qc_failure_kind: 'sovereign-item-fidelity',
-        qc_failure_category: 'all_submitted_items',
-        failure_state: 'scene_white_studio_qc_rejected',
-      },
-      'scene-white-studio:qc-fail',
-    )
-  }
-
-  logFittingQc({
-    mode: referenceMode,
-    route: 'single-look-rebuild',
-    stage: 'scene_white_studio:final-audit',
-    categories: submittedManifest.submittedItemCategories,
-    approved: true,
-    weakestDimension: softAuditIssues.length > 0 ? 'SOFT_ACCESSORY_DEVIATION' : (finalAudit?.audit.notes[0] ?? 'approved'),
-    issues: [...softAuditIssues, ...(finalAudit?.audit.notes ?? [])],
-  })
 
   return { url: publicUrl, extraData }
 }
 
+// Legacy Vertex-based try-on pipeline.
+// Inactive for the public Provador flow: keep only as technical reference until full removal.
 async function composeDedicatedFittingScene(params: {
   portrait_url: string
   product_url: string
@@ -5221,11 +5981,11 @@ async function composeDedicatedFittingScene(params: {
   userId: string
 }): Promise<ComposeSceneResult> {
   const admin = createAdminClient()
-  const apiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
-  if (!apiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada')
+  const apiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY) ?? 'vertex-managed'
+  if (!apiKey) throw new Error('GOOGLE_API_KEY nÃƒÂ£o configurada')
 
   const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada')
+  if (!falKey) throw new Error('FAL_KEY nÃƒÂ£o configurada')
 
   const rawReferenceUrls = Array.isArray(params.product_urls)
     ? params.product_urls.filter((url): url is string => typeof url === 'string' && url.startsWith('http'))
@@ -7070,9 +7830,9 @@ FULL LOOK REBUILD RESCUE:
         contents: [{
           role: 'user',
           parts: [
-            { text: '[BASE PHOTO] â€” preserve this person exactly:' },
+            { text: '[BASE PHOTO] Ã¢â‚¬â€ preserve this person exactly:' },
             { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
-            { text: '[CLIENT ITEM] â€” integrate naturally into the base photo:' },
+            { text: '[CLIENT ITEM] Ã¢â‚¬â€ integrate naturally into the base photo:' },
             { inlineData: { mimeType: primaryItem.mimeType, data: primaryItem.imageBuffer.toString('base64') } },
             { text: promptText },
           ],
@@ -8165,7 +8925,7 @@ export async function composeProductScene(params: {
 }): Promise<ComposeSceneResult> {
   const admin  = createAdminClient()
   const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada')
+  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada')
 
   let resultBuffer: Buffer
   const extraData: Record<string, unknown> = {}
@@ -8176,6 +8936,7 @@ export async function composeProductScene(params: {
       portrait_url: params.portrait_url,
       product_url: params.product_url,
       product_urls: params.product_urls,
+      guided_overlay_references: params.guided_overlay_references,
       aspect_ratio: params.aspect_ratio,
       vton_category: params.vton_category,
       fitting_pose_preset: params.fitting_pose_preset,
@@ -8225,7 +8986,7 @@ export async function composeProductScene(params: {
 
     const data = await pulidRes.json()
     const finalUrl = data.images?.[0]?.url || data.image?.url
-    if (!finalUrl) throw new Error('Flux Prompt não retornou imagem válida.')
+    if (!finalUrl) throw new Error('Flux Prompt nÃ£o retornou imagem vÃ¡lida.')
 
     const imgRes = await fetch(finalUrl)
     resultBuffer = Buffer.from(await imgRes.arrayBuffer())
@@ -8252,16 +9013,16 @@ export async function composeProductScene(params: {
       fetch(transparentUrl),
     ])
     
-    if (!portraitRes.ok || !productRes.ok) throw new Error('Falha ao baixar imagens para composição')
+    if (!portraitRes.ok || !productRes.ok) throw new Error('Falha ao baixar imagens para composiÃ§Ã£o')
 
     const [portraitBuf, productBuf] = await Promise.all([
       portraitRes.arrayBuffer().then(b => Buffer.from(b)),
       productRes.arrayBuffer().then(b => Buffer.from(b)),
     ])
 
-    // ---- VALIDAÇÃO DOS BUFFERS ----
+    // ---- VALIDAÃ‡ÃƒO DOS BUFFERS ----
     let portraitMeta = await sharp(portraitBuf).metadata().catch(() => null)
-    if (!portraitMeta) throw new Error('Imagem da modelo inválida ou corrompida')
+    if (!portraitMeta) throw new Error('Imagem da modelo invÃ¡lida ou corrompida')
 
     const portraitWidth = portraitMeta.width ?? 1024
     const portraitHeight = portraitMeta.height ?? 1024
@@ -8302,28 +9063,28 @@ export async function composeProductScene(params: {
     const shadowTop  = compositeTop  !== undefined ? compositeTop  + shadowOffset : undefined
     const shadowLeft = compositeLeft !== undefined ? compositeLeft + shadowOffset : undefined
 
-    // ---- COMPOSIÇÃO FINAL (sombra atrás + produto na frente) ----
+    // ---- COMPOSIÃ‡ÃƒO FINAL (sombra atrÃ¡s + produto na frente) ----
     resultBuffer = await sharp(portraitBuf)
       .composite([
         // Sombra (ligeiramente deslocada para baixo-direita)
         { input: shadowBuf, ...(gravity ? { gravity } : { top: shadowTop, left: shadowLeft }), blend: 'multiply' },
-        // Produto (posição exata)
+        // Produto (posiÃ§Ã£o exata)
         { input: productResized, ...(gravity ? { gravity } : { top: compositeTop, left: compositeLeft }) }
       ])
       .jpeg({ quality: 95 })
       .toBuffer()
 
   } else if (params.compose_mode === 'gemini') {
-    // ---- FUSÃO GEMINI NATIVA — Product-Aware Architecture ----
+    // ---- FUSÃƒO GEMINI NATIVA â€” Product-Aware Architecture ----
     const apiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
-    if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada')
+    if (!apiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada')
 
     const [portraitRes, productRes] = await Promise.all([
       fetch(params.portrait_url),
       fetch(params.product_url),
     ])
     if (!portraitRes.ok || !productRes.ok)
-      throw new Error('Falha ao baixar imagens para composição Gemini')
+      throw new Error('Falha ao baixar imagens para composiÃ§Ã£o Gemini')
 
     const [portraitBuf, productBuf] = await Promise.all([
       portraitRes.arrayBuffer().then(b => Buffer.from(b)),
@@ -8420,9 +9181,9 @@ export async function composeProductScene(params: {
         contents: [{
           role: 'user',
           parts: [
-            { text: '[BASE PHOTO] — preserve this person exactly:' },
+            { text: '[BASE PHOTO] â€” preserve this person exactly:' },
             { inlineData: { mimeType: 'image/jpeg', data: portraitBuf.toString('base64') } },
-            { text: '[PRODUCT] — place this into the base photo:' },
+            { text: '[PRODUCT] â€” place this into the base photo:' },
             { inlineData: { mimeType: referenceMimeType, data: referenceBuffer.toString('base64') } },
             { text: promptText },
           ],
@@ -8448,9 +9209,9 @@ export async function composeProductScene(params: {
       return null
     }
 
-    // Gemini para todos os produtos — 1 retry com prompt adaptado se QC reprovar
+    // Gemini para todos os produtos â€” 1 retry com prompt adaptado se QC reprovar
     const initialBase64 = await callGeminiCompose(finalPrompt, finalProductBuf, productMime)
-    if (!initialBase64) throw new Error('Todos os modelos Gemini falharam na composição')
+    if (!initialBase64) throw new Error('Todos os modelos Gemini falharam na composiÃ§Ã£o')
 
     let currentBase64 = initialBase64
     resultBuffer = Buffer.from(currentBase64, 'base64')
@@ -8475,7 +9236,7 @@ export async function composeProductScene(params: {
           currentBase64 = retryBase64
           resultBuffer = Buffer.from(currentBase64, 'base64')
         } else {
-          console.warn(`[compose-qc] Retry PIOR que original — mantendo attempt=1`)
+          console.warn(`[compose-qc] Retry PIOR que original â€” mantendo attempt=1`)
         }
       }
     } else {
@@ -8483,37 +9244,20 @@ export async function composeProductScene(params: {
     }
 
   } else {
-    return await composeDedicatedFittingScene({
-      portrait_url: params.portrait_url,
-      product_url: params.product_url,
-      product_urls: params.product_urls,
-      guided_overlay_references: params.guided_overlay_references,
-      position: params.position,
-      product_scale: params.product_scale,
-      aspect_ratio: params.aspect_ratio,
-      fitting_category: params.fitting_category,
-      fitting_group: params.fitting_group,
-      vton_category: params.vton_category,
-      fitting_pose_preset: params.fitting_pose_preset,
-      fitting_energy_preset: params.fitting_energy_preset,
-      smart_prompt: params.smart_prompt,
-      pricing_preflight: params.pricing_preflight,
-      assetId: params.assetId,
-      userId: params.userId,
-    })
+    throw new Error(`compose_mode=${params.compose_mode ?? 'unknown'} nao e suportado para este card. Use gemini, overlay ou prompt em Modelo + Produto.`)
 
     // ---- LEGACY / INATIVO NESTE CICLO ----
-    // O Provador ativo retorna acima via composeDedicatedFittingScene.
+    // O Provador ativo retorna acima via composeSceneWhiteStudioFitting.
     // O trecho abaixo com IDM-VTON permanece apenas como referencia historica e nao atua como fallback.
     // ---- MODO VIRTUAL TRY-ON (Vestir Roupa) usando IDM-VTON (Native Fetch) ----
     
-    // Mapeamos para 'dresses' quando é Corpo Inteiro para garantir calça e blusa
+    // Mapeamos para 'dresses' quando Ã© Corpo Inteiro para garantir calÃ§a e blusa
     let idmCategory = 'upper_body'
     if (params.vton_category === 'bottoms') idmCategory = 'lower_body'
     if (params.vton_category === 'one-pieces') idmCategory = 'dresses'
 
-    // Evita rigorosamente que o IDM-VTON ache que 'dresses' é um vestido de mulher com decote.
-    // Força o entendimento de que é um "Conjunto/Terno Masculino Fechado"
+    // Evita rigorosamente que o IDM-VTON ache que 'dresses' Ã© um vestido de mulher com decote.
+    // ForÃ§a o entendimento de que Ã© um "Conjunto/Terno Masculino Fechado"
     const femaleDesc = await getStudioPrompt(admin, 'compose_vton_description_female', 'Virtual try-on garment, {category}')
     const maleDesc = await getStudioPrompt(admin, 'compose_vton_description_male', 'A fully closed masculine outfit, formal suit with pants, completely buttoned coat, chest fully covered by fabric, formal menswear, highly masculine tailoring, strictly male outfit, no cleavage, no skin visible on chest.')
 
@@ -8544,7 +9288,7 @@ export async function composeProductScene(params: {
 
     const data = await vtonRes.json()
     const vtonImageUrl = data.image?.url || data.images?.[0]?.url
-    if (!vtonImageUrl) throw new Error('IDM-VTON não retornou imagem válida.')
+    if (!vtonImageUrl) throw new Error('IDM-VTON nÃ£o retornou imagem vÃ¡lida.')
 
     const imgRes = await fetch(vtonImageUrl)
     if (!imgRes.ok) throw new Error('Falha ao baixar imagem do IDM-VTON.')
@@ -8562,7 +9306,7 @@ export async function composeProductScene(params: {
   return { url: publicUrl, extraData }
 }
 
-// ── Lip Sync — Fal AI SyncLabs 2.0 Pro (assíncrono via webhook) ────────────────────────
+// â”€â”€ Lip Sync â€” Fal AI SyncLabs 2.0 Pro (assÃ­ncrono via webhook) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function startLipsyncGeneration(params: {
   face_url:  string
   audio_url: string
@@ -8572,7 +9316,7 @@ export async function startLipsyncGeneration(params: {
   inputParamsPatch?: Record<string, unknown>
 }) {
   const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
   const admin = createAdminClient()
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}&provider=fal`
@@ -8602,7 +9346,7 @@ export async function startLipsyncGeneration(params: {
   }
 
   const { request_id } = await queueRes.json()
-  if (!request_id) throw new Error('Fal AI não retornou request_id')
+  if (!request_id) throw new Error('Fal AI nÃ£o retornou request_id')
 
   // Salva request_id para o webhook identificar depois
   await mergeAssetInputParams(admin, params.assetId, {
@@ -8616,7 +9360,7 @@ export async function startLipsyncGeneration(params: {
   })
 }
 
-// ── Animate — Fal AI Wan Motion (motion transfer real com vídeo guia) ─
+// â”€â”€ Animate â€” Fal AI Wan Motion (motion transfer real com vÃ­deo guia) â”€
 export async function startAnimateGeneration(params: {
   portrait_image_url: string
   driving_video_url: string
@@ -8626,9 +9370,9 @@ export async function startAnimateGeneration(params: {
   userId: string
 }) {
   const falKey = process.env.FAL_KEY
-  if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
-  if (!params.portrait_image_url) throw new Error('Imagem/retrato obrigatório para imitar movimento')
-  if (!params.driving_video_url) throw new Error('Vídeo de referência obrigatório para imitar movimento')
+  if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
+  if (!params.portrait_image_url) throw new Error('Imagem/retrato obrigatÃ³rio para imitar movimento')
+  if (!params.driving_video_url) throw new Error('VÃ­deo de referÃªncia obrigatÃ³rio para imitar movimento')
 
   const admin = createAdminClient()
   const webhookUrl = `${params.appUrl}/api/studio/webhook?assetId=${params.assetId}&userId=${params.userId}`
@@ -8669,7 +9413,7 @@ export async function startAnimateGeneration(params: {
   }
 
   const { request_id } = await queueRes.json()
-  if (!request_id) throw new Error('Fal AI não retornou request_id para animate')
+  if (!request_id) throw new Error('Fal AI nÃ£o retornou request_id para animate')
 
   // Salva prediction_id para permitir webhook/sync manual sem custo extra.
   await admin.from('studio_assets')
@@ -8687,13 +9431,13 @@ export async function startAnimateGeneration(params: {
     .eq('id', params.assetId)
 }
 
-// ── Join — Costura de vídeos via FFmpeg (Fase 3) ───────────────────────────
+// â”€â”€ Join â€” Costura de vÃ­deos via FFmpeg (Fase 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function joinVideos(params: {
-  video_urls: string[]   // array ordenado de URLs de vídeo
+  video_urls: string[]   // array ordenado de URLs de vÃ­deo
   assetId:    string
   userId:     string
 }) {
-  if (params.video_urls.length < 2) throw new Error('Mínimo de 2 vídeos para unir')
+  if (params.video_urls.length < 2) throw new Error('MÃ­nimo de 2 vÃ­deos para unir')
 
   const admin   = createAdminClient()
   const os      = await import('os')
@@ -8708,11 +9452,11 @@ export async function joinVideos(params: {
   const localPaths: string[] = []
 
   try {
-    // 1. Download de cada vídeo para /tmp
+    // 1. Download de cada vÃ­deo para /tmp
     for (let i = 0; i < params.video_urls.length; i++) {
       const url = params.video_urls[i]
       const res = await fetch(url)
-      if (!res.ok) throw new Error(`Falha ao baixar vídeo ${i + 1}: ${res.status}`)
+      if (!res.ok) throw new Error(`Falha ao baixar vÃ­deo ${i + 1}: ${res.status}`)
       const buf = Buffer.from(await res.arrayBuffer())
       const localPath = path.join(tmpDir, `clip_${i}.mp4`)
       fs.writeFileSync(localPath, buf)
@@ -8749,7 +9493,7 @@ export async function joinVideos(params: {
     return publicUrl
 
   } finally {
-    // Limpa arquivos temporários
+    // Limpa arquivos temporÃ¡rios
     try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ignora */ }
   }
 }
@@ -8770,25 +9514,29 @@ export async function startVeo3DirectGoogle(params: {
   userId:           string
   prompt_override?: string
   generate_audio?: boolean
+  strict_source_fidelity?: boolean
+  source_visible_item_manifest?: string[]
+  source_text_logo_lock?: boolean
+  source_color_lock?: boolean
   inputParamsPatch?: Record<string, unknown>
 }) {
   const apiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
-  if (!apiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+  if (!apiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
 
   const admin = createAdminClient()
 
-  // 1. Baixa imagem e converte para base64 (Google API não aceita URLs externas)
-  // Se for um vídeo (continuação), extraímos o frame agora mesmo
+  // 1. Baixa imagem e converte para base64 (Google API nÃ£o aceita URLs externas)
+  // Se for um vÃ­deo (continuaÃ§Ã£o), extraÃ­mos o frame agora mesmo
   let finalSourceUrl = params.source_image_url
   let imgBuffer: Buffer
 
   if (finalSourceUrl.toLowerCase().includes('.mp4')) {
-    console.log(`[studio] Detectado vídeo como origem para Veo3. Extraindo último frame...`)
+    console.log(`[studio] Detectado vÃ­deo como origem para Veo3. Extraindo Ãºltimo frame...`)
     try {
       imgBuffer = await extractVideoFrame(finalSourceUrl)
     } catch (e) {
       console.error(`[studio] Falha ao extrair frame on-the-fly:`, e)
-      throw new Error('Não foi possível processar a continuação: falha ao extrair frame do vídeo anterior.')
+      throw new Error('NÃ£o foi possÃ­vel processar a continuaÃ§Ã£o: falha ao extrair frame do vÃ­deo anterior.')
     }
   } else {
     const imgRes = await fetch(finalSourceUrl)
@@ -8804,6 +9552,16 @@ export async function startVeo3DirectGoogle(params: {
     : prepareLockedVideoMotionPrompt({
       motionPrompt: params.motion_prompt || defaultMotionPrompt,
       modelPrompt: params.model_prompt,
+      sourceAsset: {
+        type: 'video_source_frame',
+        input_params: {
+          source_visible_item_manifest: params.source_visible_item_manifest ?? [],
+          preserve_all_visible_source_items: true,
+          product_urls: params.strict_source_fidelity ? ['strict'] : [],
+          source_text_logo_lock: params.source_text_logo_lock ?? false,
+          source_color_lock: params.source_color_lock ?? false,
+        },
+      },
     }).finalPrompt
   function resolveVeoResolution(model: string) {
     const requested = params.quality === '1080p' ? '1080p' : '720p'
@@ -8932,7 +9690,7 @@ export async function startVeo3DirectGoogle(params: {
   const body = operationResponse.body
   const operationName = body.name
   const usedResolution = resolveVeoResolution(usedModel)
-  if (!operationName) throw new Error('Google não retornou o nome da operação de vídeo')
+  if (!operationName) throw new Error('Google nÃ£o retornou o nome da operaÃ§Ã£o de vÃ­deo')
 
   await mergeAssetInputParams(admin, params.assetId, {
     prediction_id: operationName,
@@ -8950,6 +9708,10 @@ export async function startVeo3DirectGoogle(params: {
     quality_requested: params.quality,
     generate_audio: audioDisabledFallbackReason ? false : wantsAudio,
     audio_generation_fallback_reason: audioDisabledFallbackReason || undefined,
+    source_fidelity_mode: params.strict_source_fidelity ? 'strict' : 'best_effort',
+    source_visible_item_manifest: params.source_visible_item_manifest ?? [],
+    source_text_logo_lock: params.source_text_logo_lock ?? false,
+    source_color_lock: params.source_color_lock ?? false,
     veo_model: usedModel,
     duration: durationSeconds,
     ...(params.inputParamsPatch ?? {}),
@@ -8958,7 +9720,279 @@ export async function startVeo3DirectGoogle(params: {
   return operationName;
 }
 
-// ── Image-to-Image (Angles / Poses) ──────────────────────────────────────────────────────────
+// â”€â”€ Image-to-Image (Angles / Poses) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function classifyTalkingVideoGoogleFallbackReason(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  if (!/Erro na API do Google \((403|429)\)/i.test(message)) return ''
+  if (/PERMISSION_DENIED/i.test(message)) return 'google_permission_denied'
+  if (/RESOURCE_EXHAUSTED/i.test(message)) return 'google_resource_exhausted'
+  if (/quota|quota exceeded/i.test(message)) return 'google_quota_exceeded'
+  return 'google_retryable_provider_error'
+}
+
+export async function startTalkingVideoMotionGeneration(params: TalkingVideoMotionStartParams) {
+  const providerChain: string[] = ['google:veo-direct']
+  const basePatch = params.inputParamsPatch ?? {}
+
+  try {
+    await startVeo3DirectGoogle({
+      ...params,
+      inputParamsPatch: {
+        ...basePatch,
+        motion_provider_chain: providerChain,
+        motion_provider_fallback_used: false,
+      },
+    })
+    return { provider: 'google:veo-direct', motionProviderChain: providerChain, usedFallback: false as const }
+  } catch (error: unknown) {
+    const fallbackReason = classifyTalkingVideoGoogleFallbackReason(error)
+    if (!fallbackReason) throw error
+
+    const fallbackProviders: Array<{ label: string; engine?: string }> = [
+      { label: 'fal:veo', engine: 'veo' },
+      { label: 'fal:kling', engine: 'kling' },
+    ]
+    let lastFallbackError: unknown = error
+
+    for (const provider of fallbackProviders) {
+      providerChain.push(provider.label)
+      try {
+        await startVideoGeneration({
+          source_image_url: params.source_image_url,
+          motion_prompt: params.motion_prompt,
+          duration: Number(params.duration ?? 8),
+          model_prompt: params.model_prompt,
+          motion_prompt_raw: params.motion_prompt_raw,
+          motion_prompt_normalized: params.motion_prompt_normalized,
+          removed_directives: params.removed_directives,
+          video_lock_policy: params.video_lock_policy,
+          scene_change_requested: params.scene_change_requested,
+          scene_change_blocked: params.scene_change_blocked,
+          strict_source_fidelity: params.strict_source_fidelity,
+          source_visible_item_manifest: params.source_visible_item_manifest,
+          source_text_logo_lock: params.source_text_logo_lock,
+          source_color_lock: params.source_color_lock,
+          engine: provider.engine,
+          assetId: params.assetId,
+          userId: params.userId,
+          appUrl: params.appUrl,
+          inputParamsPatch: {
+            ...basePatch,
+            motion_provider_chain: providerChain,
+            motion_provider_fallback_used: true,
+            motion_provider_fallback_reason: fallbackReason,
+          },
+        })
+        return { provider: provider.label, motionProviderChain: providerChain, usedFallback: true as const }
+      } catch (fallbackError: unknown) {
+        lastFallbackError = fallbackError
+      }
+    }
+
+    throw lastFallbackError
+  }
+}
+
+export async function finalizeTalkingVideoBaseGeneration(params: {
+  admin?: ReturnType<typeof createAdminClient>
+  assetId: string
+  userId: string
+  finalUrl: string
+  appUrl: string
+  currentInputParams: Record<string, unknown>
+}): Promise<TalkingVideoFinalizeResult> {
+  const admin = params.admin ?? createAdminClient()
+  let currentInputParams = asStudioRecord(params.currentInputParams)
+  const talkingMode = typeof currentInputParams.talking_video_mode === 'string' ? currentInputParams.talking_video_mode : 'exact_speech'
+  const generatedVoiceUrl = typeof currentInputParams.generated_voice_url === 'string'
+    ? currentInputParams.generated_voice_url
+    : ''
+  const lastFrameUrl = await saveLastFrame(params.finalUrl, params.userId, params.assetId) || params.finalUrl
+  const pipelineStage = typeof currentInputParams.pipeline_stage === 'string' ? currentInputParams.pipeline_stage : ''
+  const strictSourceFidelity = String(currentInputParams.source_fidelity_mode ?? '') === 'strict'
+  const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
+
+  if (strictSourceFidelity && apiKey) {
+    const sourceFrameUrl = typeof currentInputParams.source_image_url === 'string' && currentInputParams.source_image_url.trim().length > 0
+      ? currentInputParams.source_image_url
+      : ''
+    const fidelityAudit = await auditGeneratedVideoFrameFidelity({
+      apiKey,
+      sourceImageUrl: sourceFrameUrl,
+      generatedFrameUrl: lastFrameUrl,
+      visibleItemManifest: Array.isArray(currentInputParams.source_visible_item_manifest)
+        ? currentInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
+        : [],
+      requireExactTextLogo: Boolean(currentInputParams.source_text_logo_lock),
+      requireExactColor: Boolean(currentInputParams.source_color_lock),
+    })
+    const fidelityRetryCount = Number(currentInputParams.fidelity_retry_count ?? 0)
+
+    if (!fidelityAudit.approved) {
+      if (fidelityRetryCount < 1) {
+        const retryPrompt = [
+          String(currentInputParams.talking_video_prompt_final ?? currentInputParams.visual_prompt_normalized ?? currentInputParams.visual_prompt ?? ''),
+          'CRITICAL FIDELITY RETRY: preserve the source frame literally and keep branding perfectly identical.',
+          'Do not alter product text, logo, label, packaging copy, product color, text color, or visible product shape.',
+          `Mandatory fixes from the fidelity audit: ${fidelityAudit.blockingIssues.join('; ')}.`,
+        ].filter(Boolean).join(' ')
+
+        currentInputParams = {
+          ...currentInputParams,
+          fidelity_retry_count: fidelityRetryCount + 1,
+          fidelity_retry_reason: fidelityAudit.blockingIssues.join('; '),
+          fidelity_warning: false,
+          fidelity_blocking_issues: fidelityAudit.blockingIssues,
+          fidelity_warning_issues: fidelityAudit.warningIssues,
+          fidelity_audit_notes: fidelityAudit.notes,
+        }
+
+        await admin.from('studio_assets').update({
+          status: 'processing',
+          error_msg: null,
+          input_params: currentInputParams,
+        }).eq('id', params.assetId)
+
+        await startTalkingVideoMotionGeneration({
+          source_image_url: sourceFrameUrl,
+          motion_prompt: String(currentInputParams.visual_prompt_normalized ?? currentInputParams.visual_prompt ?? ''),
+          model_prompt: typeof currentInputParams.model_prompt === 'string' ? currentInputParams.model_prompt : undefined,
+          motion_prompt_raw: String(currentInputParams.visual_prompt_raw ?? currentInputParams.visual_prompt ?? ''),
+          motion_prompt_normalized: String(currentInputParams.visual_prompt_normalized ?? currentInputParams.visual_prompt ?? ''),
+          prompt_override: retryPrompt,
+          removed_directives: Array.isArray(currentInputParams.removed_directives)
+            ? currentInputParams.removed_directives.filter((value): value is string => typeof value === 'string')
+            : [],
+          video_lock_policy: typeof currentInputParams.video_lock_policy === 'string' ? currentInputParams.video_lock_policy : '',
+          scene_change_requested: false,
+          scene_change_blocked: false,
+          duration: Number(currentInputParams.duration ?? 8),
+          quality: String(currentInputParams.quality ?? currentInputParams.quality_requested ?? '720p'),
+          assetId: params.assetId,
+          userId: params.userId,
+          appUrl: params.appUrl,
+          generate_audio: false,
+          strict_source_fidelity: true,
+          source_visible_item_manifest: Array.isArray(currentInputParams.source_visible_item_manifest)
+            ? currentInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
+            : [],
+          source_text_logo_lock: Boolean(currentInputParams.source_text_logo_lock),
+          source_color_lock: Boolean(currentInputParams.source_color_lock),
+          inputParamsPatch: {
+            fidelity_retry_count: fidelityRetryCount + 1,
+            fidelity_retry_reason: fidelityAudit.blockingIssues.join('; '),
+            fidelity_warning: false,
+            fidelity_blocking_issues: fidelityAudit.blockingIssues,
+            fidelity_warning_issues: fidelityAudit.warningIssues,
+            fidelity_audit_notes: fidelityAudit.notes,
+            pipeline_stage: 'veo_generating',
+          },
+        })
+
+        return {
+          status: 'processing',
+          message: 'Refazendo o video para preservar o produto com fidelidade total...',
+        }
+      }
+
+      await markStudioAssetFailed({
+        admin,
+        assetId: params.assetId,
+        errorMsg: `Nao conseguimos preservar o produto com fidelidade suficiente: ${fidelityAudit.blockingIssues.join(', ')}`,
+        refundReason: 'sync:video-source-fidelity-failed',
+        extraInputParams: {
+          fidelity_warning: true,
+          fidelity_blocking_issues: fidelityAudit.blockingIssues,
+          fidelity_warning_issues: fidelityAudit.warningIssues,
+          fidelity_audit_notes: fidelityAudit.notes,
+        },
+        publicErrorCode: 'nao_conseguimos_preservar_a_referencia',
+        publicErrorTitle: 'Nao conseguimos preservar a referencia',
+        publicErrorMessage: 'Nao conseguimos manter o produto e o branding com fidelidade suficiente neste video. Tente novamente e vamos priorizar a referencia original.',
+      })
+      return {
+        status: 'error',
+        error: 'Nao conseguimos preservar a referencia com fidelidade suficiente.',
+      }
+    }
+
+    currentInputParams = {
+      ...currentInputParams,
+      fidelity_warning: fidelityAudit.warningIssues.length > 0,
+      fidelity_blocking_issues: [],
+      fidelity_warning_issues: fidelityAudit.warningIssues,
+      fidelity_audit_notes: fidelityAudit.notes,
+    }
+    await admin.from('studio_assets').update({
+      input_params: currentInputParams,
+    }).eq('id', params.assetId)
+  }
+
+  if (pipelineStage === 'veo_generating' && generatedVoiceUrl) {
+    const pipelineAttempts = incrementTalkingPipelineAttempts(currentInputParams.pipeline_attempts, 'lipsyncing')
+    await admin.from('studio_assets').update({
+      status: 'processing',
+      result_url: params.finalUrl,
+      last_frame_url: lastFrameUrl || params.finalUrl,
+      error_msg: null,
+      input_params: {
+        ...currentInputParams,
+        intermediate_video_url: params.finalUrl,
+        pipeline_stage: 'lipsyncing',
+        pipeline_attempts: pipelineAttempts,
+      },
+    }).eq('id', params.assetId)
+
+    await startLipsyncGeneration({
+      face_url: params.finalUrl,
+      audio_url: generatedVoiceUrl,
+      assetId: params.assetId,
+      userId: params.userId,
+      appUrl: params.appUrl,
+      inputParamsPatch: {
+        intermediate_video_url: params.finalUrl,
+        pipeline_stage: 'lipsyncing',
+        pipeline_attempts: pipelineAttempts,
+      },
+    })
+
+    return {
+      status: 'processing',
+      message: 'Veo pronto. Iniciando lipsync...',
+      resultUrl: params.finalUrl,
+    }
+  }
+
+  if (talkingMode === 'exact_speech' && pipelineStage === 'veo_generating') {
+    await markStudioAssetFailed({
+      admin,
+      assetId: params.assetId,
+      errorMsg: 'Audio interno nao encontrado para iniciar o lipsync do talking video.',
+      refundReason: 'sync:talking-video-missing-audio',
+    })
+    return {
+      status: 'error',
+      error: 'Audio interno nao encontrado para o talking video.',
+    }
+  }
+
+  await admin.from('studio_assets').update({
+    status: 'done',
+    result_url: params.finalUrl,
+    last_frame_url: lastFrameUrl || params.finalUrl,
+    error_msg: null,
+    input_params: {
+      ...currentInputParams,
+      pipeline_stage: 'completed',
+    },
+  }).eq('id', params.assetId)
+
+  return {
+    status: 'done',
+    resultUrl: params.finalUrl,
+  }
+}
+
 export async function generateAngles(params: {
   source_url: string
   angle: string
@@ -8991,11 +10025,11 @@ export async function generateAngles(params: {
   const perspective = angleMap[params.angle] || angleMap['frontal']
   
   const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
-  if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+  if (!googleApiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
 
-  // 1. Download base image (Garantindo que seja IMAGEM e não VÍDEO)
+  // 1. Download base image (Garantindo que seja IMAGEM e nÃ£o VÃDEO)
   if (!params.source_url || !params.source_url.startsWith('http')) {
-    throw new Error('URL da imagem fonte inválida para o Imagen')
+    throw new Error('URL da imagem fonte invÃ¡lida para o Imagen')
   }
 
   let urlToFetch = params.source_url
@@ -9026,7 +10060,7 @@ export async function generateAngles(params: {
   let detectedGender = 'person'
   let sourceDescription = ''
   try {
-    // Busca descrição original se vier de um Nó de Modelo ou Compose
+    // Busca descriÃ§Ã£o original se vier de um NÃ³ de Modelo ou Compose
     const { data: sourceAsset } = await admin
       .from('studio_assets')
       .select('input_params')
@@ -9044,7 +10078,7 @@ export async function generateAngles(params: {
         contents: [{
           parts: [
             { text: "Just one word: Is the person in this image Male or Female?" },
-            { inline_data: { mime_type: mimeType, data: base64Image } }
+            { inlineData: { mimeType, data: base64Image } }
           ]
         }]
       })
@@ -9057,7 +10091,7 @@ export async function generateAngles(params: {
     console.warn('[studio] Falha na auto-detencao de genero:', e)
   }
 
-  // Se tivermos a descrição original, ela vira um reforço imbatível no prompt
+  // Se tivermos a descriÃ§Ã£o original, ela vira um reforÃ§o imbatÃ­vel no prompt
   const traits = sourceDescription 
     ? `Exactly this person: ${sourceDescription}. `
     : `A ${detectedGender} model. `
@@ -9072,13 +10106,13 @@ export async function generateAngles(params: {
   const allowFallback = fallbackSet?.value === 'true'
 
   if (engine === 'google') {
-    // Gemini 3 Pro Image → Gemini 3.1 Flash Image (fallback)
+    // Gemini 3 Pro Image â†’ Gemini 3.1 Flash Image (fallback)
     const aspectLabel: Record<string, string> = { '9:16': 'vertical 9:16 portrait', '1:1': 'square 1:1', '4:5': 'vertical 4:5 portrait', '16:9': 'horizontal 16:9 landscape', '3:4': 'vertical 3:4 portrait' }
     const ratioInstruction = `Compose the output image in ${aspectLabel[geminiAspectRatio] ?? 'vertical 9:16 portrait'} format. Ensure the full body fits within the frame without cropping.`
 
     const geminiPrompt = [
       `You are a professional photo director. You receive a photo of a ${detectedGender} and must output a NEW photorealistic photo of the SAME person from a different camera angle.`,
-      `CHANGE ONLY: the camera angle to "${params.angle}" view — ${perspective}.`,
+      `CHANGE ONLY: the camera angle to "${params.angle}" view â€” ${perspective}.`,
       `PRESERVE EXACTLY: same face, same facial features, same skin tone, same hair color and style, same outfit and every clothing item with exact colors, patterns and details, same body proportions.`,
       ratioInstruction,
       `Output: photorealistic commercial photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, white or neutral background, no watermarks.`,
@@ -9122,7 +10156,7 @@ export async function generateAngles(params: {
   } else {
     // ---- FLUX DEV (IMAGE-TO-IMAGE) - OPTIMIZED FOR IDENTITY ----
     const falKey = process.env.FAL_KEY
-    if (!falKey) throw new Error('FAL_KEY não configurada no servidor')
+    if (!falKey) throw new Error('FAL_KEY nÃ£o configurada no servidor')
 
     const res = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
       method: 'POST',
@@ -9132,7 +10166,7 @@ export async function generateAngles(params: {
       },
       body: JSON.stringify({
         image_url: params.source_url,
-        prompt: `${prompt} — camera angle change ONLY. Do NOT alter any clothing, outfit, hair color, face, or accessories. Preserve every visual detail from the source image.`,
+        prompt: `${prompt} â€” camera angle change ONLY. Do NOT alter any clothing, outfit, hair color, face, or accessories. Preserve every visual detail from the source image.`,
         strength: 0.28,
         num_inference_steps: 35,
         guidance_scale: 3.5,
@@ -9148,7 +10182,7 @@ export async function generateAngles(params: {
 
     const data = await res.json()
     const imageUrl = data.images?.[0]?.url
-    if (!imageUrl) throw new Error('Não foi possível obter a URL da nova imagem (Flux)')
+    if (!imageUrl) throw new Error('NÃ£o foi possÃ­vel obter a URL da nova imagem (Flux)')
 
     const imgDl = await fetch(imageUrl)
     photoBuffer = Buffer.from(await imgDl.arrayBuffer())
@@ -9174,7 +10208,7 @@ export async function generateAngles(params: {
 async function getVertexAccessToken(keyJson?: string): Promise<string> {
   if (!keyJson) return ''
   try {
-    // Tenta limpar possíveis erros de escape no JSON vindo de ENV
+    // Tenta limpar possÃ­veis erros de escape no JSON vindo de ENV
     let credentials = keyJson
     if (keyJson.startsWith('"') && keyJson.endsWith('"')) {
       credentials = JSON.parse(keyJson)
@@ -9187,11 +10221,11 @@ async function getVertexAccessToken(keyJson?: string): Promise<string> {
     })
     const client = await auth.getClient()
     const token = await client.getAccessToken()
-    if (!token.token) throw new Error('Token vindo do Google está vazio. Verifique permissões da IA.')
+    if (!token.token) throw new Error('Token vindo do Google estÃ¡ vazio. Verifique permissÃµes da IA.')
     return token.token
   } catch (e: any) {
-    console.error('[studio] ERRO CRÍTICO NO TOKEN VERTEX:', e)
-    throw new Error(`Erro Autenticação Vertex: ${e.message}`)
+    console.error('[studio] ERRO CRÃTICO NO TOKEN VERTEX:', e)
+    throw new Error(`Erro AutenticaÃ§Ã£o Vertex: ${e.message}`)
   }
 }
 
@@ -9205,7 +10239,7 @@ export async function generateMusic(params: {
   source_image_url?: string
 }) {
   const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
-  if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+  if (!googleApiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
 
   const parts: any[] = [{ text: params.prompt }]
 
@@ -9247,7 +10281,7 @@ export async function generateMusic(params: {
     }
   }
 
-  if (!audioData) throw new Error('Lyria 3 não retornou áudio')
+  if (!audioData) throw new Error('Lyria 3 nÃ£o retornou Ã¡udio')
 
   const path = `${params.userId}/${params.assetId}-audio.mp3`
   const admin = createAdminClient()
@@ -9256,16 +10290,66 @@ export async function generateMusic(params: {
   return publicUrl
 }
 
-// ── UGC Poses ──────────────────────────────────────────────────────────────
+export async function generateMusicGoogle(params: {
+  userId: string
+  assetId: string
+  prompt: string
+  source_image_url?: string
+}) {
+  const vertexKey = process.env.GOOGLE_VERTEX_KEY
+  if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY nao configurada')
+
+  const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
+  const location = process.env.VERTEX_LOCATION || 'us-central1'
+  const vertexToken = await getVertexAccessToken(vertexKey)
+  const response = await fetch(`https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/lyria-002:predict`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${vertexToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      instances: [{
+        prompt: params.prompt,
+      }],
+      parameters: {
+        sample_count: 1,
+      },
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Vertex Lyria erro (${response.status}): ${await response.text()}`)
+  }
+
+  const payload = await response.json()
+  const prediction = payload.predictions?.[0]
+  const audioContent = prediction?.audioContent
+  const mimeType = typeof prediction?.mimeType === 'string' ? prediction.mimeType : 'audio/wav'
+  if (!audioContent) throw new Error('Vertex Lyria nao retornou audioContent.')
+
+  const extension = mimeType.includes('wav') ? 'wav' : 'bin'
+  const path = `${params.userId}/${params.assetId}-audio.${extension}`
+  const admin = createAdminClient()
+  const { error } = await admin.storage
+    .from('studio')
+    .upload(path, Buffer.from(audioContent, 'base64'), { contentType: mimeType, upsert: true })
+  if (error) throw new Error(`Upload musica falhou: ${error.message}`)
+
+  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return publicUrl
+}
+
+// â”€â”€ UGC Poses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const UGC_POSITIONS = {
   rosto_close: {
     prompt: `Extreme close-up portrait, face filling the frame, looking directly at camera, natural smile, soft studio background. Hands NOT visible.`,
-    description: 'Close-up rosto - máxima emoção'
+    description: 'Close-up rosto - mÃ¡xima emoÃ§Ã£o'
   },
   rosto_lado: {
     prompt: `Side profile portrait, face turned 90 degrees, looking forward with calm expression, hair visible, clean neutral background. Hands NOT visible.`,
-    description: 'Perfil rosto - elegância'
+    description: 'Perfil rosto - elegÃ¢ncia'
   },
   meia_pose_cta: {
     prompt: `Medium shot waist-up, one hand extended toward camera with open palm gesture, other hand relaxed at side, smiling at camera, white studio background, professional lighting. Exactly 2 hands total, no extra limbs.`,
@@ -9273,7 +10357,7 @@ export const UGC_POSITIONS = {
   },
   corpo_inteiro_pe: {
     prompt: `Full body standing shot, confident posture, right hand on hip, left arm hanging naturally at side with hand fully visible, natural smile, plain white minimalist background. Both arms fully visible, anatomically correct.`,
-    description: 'Corpo inteiro - confiança'
+    description: 'Corpo inteiro - confianÃ§a'
   },
   corpo_inteiro_sentada: {
     prompt: `Full body sitting on a simple modern stool, relaxed pose, legs crossed naturally, looking at camera, warm neutral background. Hands resting naturally on lap. No objects on the stool. Exactly 2 hands.`,
@@ -9281,7 +10365,7 @@ export const UGC_POSITIONS = {
   },
   movimento_dinamica: {
     prompt: `Dynamic movement shot, walking confidently forward, hair flowing naturally, arms swinging naturally at sides in walking motion, energetic expression, modern urban background. Exactly 2 arms, 2 hands.`,
-    description: 'Movimento dinâmico - energia'
+    description: 'Movimento dinÃ¢mico - energia'
   },
   plano_americano: {
     prompt: `American plan shot waist-up, arms crossed over chest, natural confident expression, modern glass office background. Exactly 2 arms crossed. No extra hands or limbs.`,
@@ -9289,7 +10373,7 @@ export const UGC_POSITIONS = {
   },
   detalhe_expressao: {
     prompt: `Three-quarter shot, hands gently touching face or hair in natural casual gesture, genuine expressive smile, soft bokeh background, cinematic natural lighting. Exactly 2 hands, no floating limbs, no invented objects.`,
-    description: 'Expressão natural - autenticidade'
+    description: 'ExpressÃ£o natural - autenticidade'
   }
 }
 
@@ -9415,28 +10499,28 @@ export async function generateUGCPositions(params: {
   
   console.log('[studio] Downloading source for UGC Positions...')
   const imgRes = await fetch(params.sourceUrl)
-  if (!imgRes.ok) throw new Error('Falha ao baixar imagem base para posições UGC')
+  if (!imgRes.ok) throw new Error('Falha ao baixar imagem base para posiÃ§Ãµes UGC')
   
   const mimeType = imgRes.headers.get('content-type') || 'image/jpeg'
   const buffer = Buffer.from(await imgRes.arrayBuffer())
   const base64 = buffer.toString('base64')
 
   const vertexKey = process.env.GOOGLE_VERTEX_KEY
-  if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY não encontrada nas variáveis de ambiente.')
+  if (!vertexKey) throw new Error('GOOGLE_VERTEX_KEY nÃ£o encontrada nas variÃ¡veis de ambiente.')
 
-  // Tenta extrair o Project ID de dentro do JSON da chave se não houver ENV específica
+  // Tenta extrair o Project ID de dentro do JSON da chave se nÃ£o houver ENV especÃ­fica
   let projectId = process.env.VERTEX_PROJECT_ID
   if (!projectId) {
      try {
        const keyData = JSON.parse(vertexKey.startsWith('"') ? JSON.parse(vertexKey) : vertexKey)
        projectId = keyData.project_id
      } catch (e) {
-       console.warn('[studio] Não foi possível extrair ProjectID da chave JSON')
+       console.warn('[studio] NÃ£o foi possÃ­vel extrair ProjectID da chave JSON')
      }
   }
   
-  // Fallback final inseguro removido por segunrança. Forçamos o erro se não achar.
-  if (!projectId) throw new Error('VERTEX_PROJECT_ID não configurado e não foi possível detectar pela chave JSON.')
+  // Fallback final inseguro removido por segunranÃ§a. ForÃ§amos o erro se nÃ£o achar.
+  if (!projectId) throw new Error('VERTEX_PROJECT_ID nÃ£o configurado e nÃ£o foi possÃ­vel detectar pela chave JSON.')
 
   const location = process.env.VERTEX_LOCATION || 'us-central1'
   const vertexToken = await getVertexAccessToken(vertexKey)
@@ -9453,23 +10537,23 @@ export async function generateUGCPositions(params: {
       try {
         const payload = {
           instances: [{
-            prompt: `IDENTITY LOCK — person[1] is the sole reference. Generate ONE single high-resolution commercial photograph.
+            prompt: `IDENTITY LOCK â€” person[1] is the sole reference. Generate ONE single high-resolution commercial photograph.
 
-RULE 1 — FACIAL & BODY IDENTITY (non-negotiable): This is a CLONING task. Reproduce person[1] with 100% fidelity: exact facial bone structure, exact nose shape, exact lip shape, exact eye shape and color, exact eyebrow shape, exact skin tone and texture, exact age appearance, exact hair cut and length, exact hair color. Both eyes symmetrical and correctly aligned. The generated person must be indistinguishable from person[1]. Do NOT make them younger, thinner, prettier or different in any way.
+RULE 1 â€” FACIAL & BODY IDENTITY (non-negotiable): This is a CLONING task. Reproduce person[1] with 100% fidelity: exact facial bone structure, exact nose shape, exact lip shape, exact eye shape and color, exact eyebrow shape, exact skin tone and texture, exact age appearance, exact hair cut and length, exact hair color. Both eyes symmetrical and correctly aligned. The generated person must be indistinguishable from person[1]. Do NOT make them younger, thinner, prettier or different in any way.
 
-RULE 2 — OUTFIT FIDELITY (non-negotiable): The outfit must be pixel-perfect identical to person[1]: exact garment type, exact color, exact fabric texture, exact neckline, exact straps, exact fit. Do NOT add, remove or change any clothing item.
+RULE 2 â€” OUTFIT FIDELITY (non-negotiable): The outfit must be pixel-perfect identical to person[1]: exact garment type, exact color, exact fabric texture, exact neckline, exact straps, exact fit. Do NOT add, remove or change any clothing item.
 
-RULE 2B — NO INVENTED OBJECTS: Do NOT add any product, object, prop or accessory NOT visible in person[1]. Empty hands stay empty. No bottles, no packages, no devices.
+RULE 2B â€” NO INVENTED OBJECTS: Do NOT add any product, object, prop or accessory NOT visible in person[1]. Empty hands stay empty. No bottles, no packages, no devices.
 
-RULE 3 — UNIFIED COMPOSITION & ANATOMY (critical): ONE single photograph only. Both arms must be fully visible and anatomically correct — no arm disappearing behind body, no merged limbs, no floating hands. Exactly 2 arms, 2 hands, 5 fingers each. Verify arm visibility before finalizing.
+RULE 3 â€” UNIFIED COMPOSITION & ANATOMY (critical): ONE single photograph only. Both arms must be fully visible and anatomically correct â€” no arm disappearing behind body, no merged limbs, no floating hands. Exactly 2 arms, 2 hands, 5 fingers each. Verify arm visibility before finalizing.
 
-RULE 4 — DYNAMIC POSE EXECUTION: Execute exactly — ${posConfig.prompt}
+RULE 4 â€” DYNAMIC POSE EXECUTION: Execute exactly â€” ${posConfig.prompt}
 
-RULE 5 — SCENE & LIGHTING: Follow the scene context described in the pose. Cinematic commercial studio lighting, natural depth of field, soft bokeh.
+RULE 5 â€” SCENE & LIGHTING: Follow the scene context described in the pose. Cinematic commercial studio lighting, natural depth of field, soft bokeh.
 
-RULE 6 — CAMERA & QUALITY BOOSTERS (critical): Shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, hyper-realistic, 8k. Shot on film. No external borders, no watermarks, no text overlay.
+RULE 6 â€” CAMERA & QUALITY BOOSTERS (critical): Shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, hyper-realistic, 8k. Shot on film. No external borders, no watermarks, no text overlay.
 
-FINAL CHECK — ABSOLUTE PROHIBITIONS: NO bottles, NO cans, NO skincare products, NO supplements, NO packages, NO props, NO objects in hands unless already in person[1]. NO outfit changes — clothing must be 100% identical to person[1]. NO jacket, NO coat, NO added accessories not present in person[1].`,
+FINAL CHECK â€” ABSOLUTE PROHIBITIONS: NO bottles, NO cans, NO skincare products, NO supplements, NO packages, NO props, NO objects in hands unless already in person[1]. NO outfit changes â€” clothing must be 100% identical to person[1]. NO jacket, NO coat, NO added accessories not present in person[1].`,
             referenceImages: [
               {
                 referenceId: 1,
@@ -9539,7 +10623,7 @@ FINAL CHECK — ABSOLUTE PROHIBITIONS: NO bottles, NO cans, NO skincare products
   return successful
 }
 
-// ── Cena Livre — coloca o modelo em qualquer ambiente descrito ────────────────
+// â”€â”€ Cena Livre â€” coloca o modelo em qualquer ambiente descrito â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function generateScene(params: {
   source_url: string
   extra_source_urls?: string[]
@@ -9547,14 +10631,20 @@ export async function generateScene(params: {
   aspect_ratio?: string
   assetId: string
   userId: string
+  mode?: 'generic' | 'talking_video'
+  requested_scene_change?: boolean
+  requested_wardrobe_change?: boolean
+  source_visible_item_manifest?: string[]
+  require_exact_text_logo?: boolean
+  require_exact_color?: boolean
 }) {
   const admin = createAdminClient()
   const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
-  if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+  if (!googleApiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
 
-  if (!params.source_url?.startsWith('http')) throw new Error('URL da imagem fonte inválida')
+  if (!params.source_url?.startsWith('http')) throw new Error('URL da imagem fonte invÃ¡lida')
 
-  // Download da imagem principal + extras (até 2 extras)
+  // Download da imagem principal + extras (atÃ© 2 extras)
   async function fetchInlineData(url: string) {
     const r = await fetch(url)
     if (!r.ok) throw new Error(`Download falhou: ${r.status}`)
@@ -9569,6 +10659,18 @@ export async function generateScene(params: {
   ).then(r => r.filter(Boolean) as { mimeType: string; data: string }[])
 
   const hasMultiple = extraData.length > 0
+  const talkingVideoMode = params.mode === 'talking_video'
+  const visibleItemManifest = dedupeNormalizedStrings(params.source_visible_item_manifest ?? []).slice(0, 16)
+  const approvedChangeSummary = params.requested_scene_change && params.requested_wardrobe_change
+    ? 'Approved changes: background/environment and wardrobe only.'
+    : params.requested_scene_change
+      ? 'Approved changes: background/environment only.'
+      : params.requested_wardrobe_change
+        ? 'Approved changes: wardrobe/clothing only.'
+        : 'Approved changes: no visual redesign beyond fidelity-preserving cleanup.'
+  const visibleItemInstruction = visibleItemManifest.length > 0
+    ? `Mandatory visible items to preserve exactly: ${visibleItemManifest.join(', ')}.`
+    : ''
 
   const aspectLabel: Record<string, string> = {
     '9:16': 'vertical 9:16 portrait', '1:1': 'square 1:1', '4:5': 'vertical 4:5 portrait',
@@ -9576,17 +10678,41 @@ export async function generateScene(params: {
   }
   const ratioInstruction = `Compose the output in ${aspectLabel[params.aspect_ratio ?? '9:16'] ?? 'vertical 9:16 portrait'} format. Ensure the full person fits in frame.`
 
-  const geminiPrompt = [
+  const defaultGeminiPrompt = [
     `You are a professional photo director and visual effects artist.`,
     hasMultiple
       ? `You receive ${extraData.length + 1} reference photos of the same person from different angles. Use ALL of them together to build the most accurate identity possible.`
       : `You receive a photo of a person and must place them EXACTLY into a new scene or environment.`,
     `NEW SCENE: ${params.scene_prompt}.`,
     `PRESERVE EXACTLY: same face, same facial features, same skin tone, same hair color and style, same outfit with exact colors and details, same body proportions.`,
-    `The person must look naturally integrated into the new scene — realistic lighting matching the environment, natural shadows, correct perspective.`,
+    `The person must look naturally integrated into the new scene â€” realistic lighting matching the environment, natural shadows, correct perspective.`,
     ratioInstruction,
     `Output: photorealistic commercial photo, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, no watermarks.`,
   ].join(' ')
+
+  const geminiPrompt = talkingVideoMode
+    ? [
+        'You are a source-sovereign talking-video prepass compositor.',
+        hasMultiple
+          ? `You receive ${extraData.length + 1} reference photos of the same person from different angles. Use ALL of them together to preserve identity exactly.`
+          : 'You receive a source frame that must remain sovereign.',
+        approvedChangeSummary,
+        `Change brief: ${params.scene_prompt}.`,
+        'Preserve the exact same person, identity, face, hair, skin tone, body proportions, framing, crop, held objects, props, product, packaging, labels, printed text, logos, and overall composition from the source frame.',
+        visibleItemInstruction,
+        params.require_exact_text_logo ? 'Visible branding, printed text, and logos must remain exactly identical to the source frame.' : '',
+        params.require_exact_color ? 'Visible colors must remain exactly identical to the source frame.' : '',
+        params.requested_scene_change
+          ? 'Only change the background/environment requested in the brief. Do not restage the subject or product.'
+          : 'Keep the background and environment exactly the same as the source frame.',
+        params.requested_wardrobe_change
+          ? 'Only change the wardrobe requested in the brief. Keep accessories, product interaction, and all other visible items unchanged.'
+          : 'Keep wardrobe, styling, and accessories exactly the same as the source frame.',
+        'Ignore storyboard narration, shot lists, and spoken-text staging. Preserve source fidelity over cinematic reinterpretation.',
+        ratioInstruction,
+        'Output: photorealistic commercial photo, natural lighting, correct shadows, realistic perspective, no watermarks.',
+      ].filter(Boolean).join(' ')
+    : defaultGeminiPrompt
 
   const imageParts = [
     { inlineData: primaryData },
@@ -9599,7 +10725,7 @@ export async function generateScene(params: {
 
   for (const model of geminiChain) {
     try {
-      console.log(`[scene] Tentando ${model} para asset ${params.assetId} (${imageParts.length} referência(s))`)
+      console.log(`[scene] Tentando ${model} para asset ${params.assetId} (${imageParts.length} referÃªncia(s))`)
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`,
         {
@@ -9630,9 +10756,35 @@ export async function generateScene(params: {
 
   if (!photoBuffer) {
     const falKey = process.env.FAL_KEY
-    if (!falKey) throw new Error(`Todos os modelos Gemini falharam para scene. Último erro: ${lastGeminiError}`)
+    if (!falKey) throw new Error(`Todos os modelos Gemini falharam para scene. Ãšltimo erro: ${lastGeminiError}`)
 
     console.log(`[scene] Gemini bloqueou/falhou; tentando fallback Flux para asset ${params.assetId}`)
+    const fluxPrompt = talkingVideoMode
+      ? [
+          'Create a source-sovereign talking-video prepass frame.',
+          approvedChangeSummary,
+          `Change brief: ${params.scene_prompt}.`,
+          'Preserve the exact same person, identity, pose logic, framing, crop, held objects, product, packaging, labels, logos, printed text, props, and composition from the source frame.',
+          visibleItemInstruction,
+          params.require_exact_text_logo ? 'Branding, text, and logos must remain identical.' : '',
+          params.require_exact_color ? 'Colors must remain identical wherever already visible in the source frame.' : '',
+          params.requested_scene_change
+            ? 'Change only the environment/background requested in the brief.'
+            : 'Keep the environment and background exactly the same.',
+          params.requested_wardrobe_change
+            ? 'Change only the wardrobe requested in the brief.'
+            : 'Keep wardrobe and accessories exactly the same.',
+          'Ignore storyboard narration, camera beats, and spoken text. No watermark.',
+          ratioInstruction,
+          'Natural lighting, correct shadows, realistic perspective.',
+        ].filter(Boolean).join(' ')
+      : [
+          `Transform the uploaded person into a new photorealistic commercial scene.`,
+          `Creative direction: ${params.scene_prompt}.`,
+          `Preserve the person's face, age, skin tone, hair, outfit colors, body proportions and identity as closely as possible.`,
+          ratioInstruction,
+          `Natural lighting, correct shadows, realistic perspective, no watermark.`,
+        ].join(' ')
     const res = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
       method: 'POST',
       headers: {
@@ -9641,13 +10793,7 @@ export async function generateScene(params: {
       },
       body: JSON.stringify({
         image_url: params.source_url,
-        prompt: [
-          `Transform the uploaded person into a new photorealistic commercial scene.`,
-          `Creative direction: ${params.scene_prompt}.`,
-          `Preserve the person's face, age, skin tone, hair, outfit colors, body proportions and identity as closely as possible.`,
-          ratioInstruction,
-          `Natural lighting, correct shadows, realistic perspective, no watermark.`,
-        ].join(' '),
+        prompt: fluxPrompt,
         strength: 0.55,
         num_inference_steps: 38,
         guidance_scale: 3.5,
@@ -9659,7 +10805,7 @@ export async function generateScene(params: {
     if (!res.ok) throw new Error(`Fallback Flux falhou para scene: ${await res.text()}`)
     const fluxData = await res.json()
     const fluxUrl = fluxData.images?.[0]?.url
-    if (!fluxUrl) throw new Error(`Fallback Flux não retornou imagem para scene. Último Gemini: ${lastGeminiError}`)
+    if (!fluxUrl) throw new Error(`Fallback Flux nÃ£o retornou imagem para scene. Ãšltimo Gemini: ${lastGeminiError}`)
 
     const imageRes = await fetch(fluxUrl)
     if (!imageRes.ok) throw new Error(`Download do fallback Flux falhou: ${imageRes.status}`)
@@ -9678,7 +10824,7 @@ export async function generateScene(params: {
   return urlData.publicUrl
 }
 
-// ── Preset Identity Scene — usa uma imagem-base do preset + referência do cliente ──
+// â”€â”€ Preset Identity Scene â€” usa uma imagem-base do preset + referÃªncia do cliente â”€â”€
 export async function generatePresetIdentityScene(params: {
   template_scene_url: string
   identity_reference_urls: string[]
@@ -9690,15 +10836,15 @@ export async function generatePresetIdentityScene(params: {
 }) {
   const admin = createAdminClient()
   const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
-  if (!googleApiKey) throw new Error('GOOGLE_API_KEY não configurada no servidor')
+  if (!googleApiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
 
   if (!params.template_scene_url?.startsWith('http')) {
-    throw new Error('URL da cena-base do preset inválida')
+    throw new Error('URL da cena-base do preset invÃ¡lida')
   }
 
   const identityRefs = params.identity_reference_urls.filter((url) => url.startsWith('http'))
   if (identityRefs.length === 0) {
-    throw new Error('É necessário ao menos uma foto de referência do cliente')
+    throw new Error('Ã‰ necessÃ¡rio ao menos uma foto de referÃªncia do cliente')
   }
 
   async function fetchInlineData(url: string) {
@@ -9722,39 +10868,39 @@ export async function generatePresetIdentityScene(params: {
   const useTemplateOutfit = params.outfit_source === 'template'
 
   const identityLockBlock = [
-    'IDENTITY LOCK — person[1] é a referência exclusiva.',
-    'RULE 1 — FACIAL & BODY IDENTITY: Clonagem 100% fiel — estrutura óssea, nariz, lábios, olhos, cor dos olhos, sobrancelhas, tom de pele, idade, cabelo. Nada de deixar mais jovem ou diferente.',
+    'IDENTITY LOCK â€” person[1] Ã© a referÃªncia exclusiva.',
+    'RULE 1 â€” FACIAL & BODY IDENTITY: Clonagem 100% fiel â€” estrutura Ã³ssea, nariz, lÃ¡bios, olhos, cor dos olhos, sobrancelhas, tom de pele, idade, cabelo. Nada de deixar mais jovem ou diferente.',
     useTemplateOutfit
-      ? 'RULE 2 — TEMPLATE OUTFIT LOCK: Use a roupa do personagem principal da cena-base, não a roupa da pessoa enviada. Preserve fantasia, uniforme, acessórios, cores, tecidos, caimento e todos os detalhes visíveis da imagem-base.'
-      : 'RULE 2 — OUTFIT FIDELITY: Roupa da pessoa enviada pixel-perfect idêntica — tipo de peça, cor, textura, decote, alças, mangas, fit, caimento, estampas, acessórios e todos os detalhes visíveis. Não invente fantasia, uniforme, traje de personagem, roupa premium ou roupa nova.',
+      ? 'RULE 2 â€” TEMPLATE OUTFIT LOCK: Use a roupa do personagem principal da cena-base, nÃ£o a roupa da pessoa enviada. Preserve fantasia, uniforme, acessÃ³rios, cores, tecidos, caimento e todos os detalhes visÃ­veis da imagem-base.'
+      : 'RULE 2 â€” OUTFIT FIDELITY: Roupa da pessoa enviada pixel-perfect idÃªntica â€” tipo de peÃ§a, cor, textura, decote, alÃ§as, mangas, fit, caimento, estampas, acessÃ³rios e todos os detalhes visÃ­veis. NÃ£o invente fantasia, uniforme, traje de personagem, roupa premium ou roupa nova.',
     useTemplateOutfit
-      ? 'RULE 2B — NO UPLOADED CLOTHING: Não copie camiseta, vestido, acessórios ou qualquer peça da foto enviada. Somente rosto, cabelo, tom de pele, idade aparente e expressão vêm da pessoa enviada.'
-      : 'RULE 2B — NO INVENTED OBJECTS: Nenhum produto, objeto, acessório ou peça de roupa que não esteja na pessoa original. Mãos vazias ficam vazias.',
-    'RULE 3 — ANATOMY: Foto única. Os 2 braços completamente visíveis e anatomicamente corretos — exatamente 2 braços, 2 mãos, 5 dedos cada.',
-    'RULE 4 — POSE/POSITION LOCK: Copie a pose, posição corporal, gesto, direção do olhar, distância da câmera e ângulo do template scene. Não mude pose, perspectiva, lente ou enquadramento.',
-    'RULE 5 — LIGHTING: Iluminação comercial cinematográfica, profundidade de campo natural, bokeh suave.',
-    'RULE 6 — CAMERA & QUALITY: Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, film grain, 8K, ultra-detailed commercial photography. NEGATIVE: não rotacione, não aproxime, não afaste, não mude o ângulo, perspectiva, pose, roupa, composição, fundo, lente aparente ou enquadramento da cena-base.',
+      ? 'RULE 2B â€” NO UPLOADED CLOTHING: NÃ£o copie camiseta, vestido, acessÃ³rios ou qualquer peÃ§a da foto enviada. Somente rosto, cabelo, tom de pele, idade aparente e expressÃ£o vÃªm da pessoa enviada.'
+      : 'RULE 2B â€” NO INVENTED OBJECTS: Nenhum produto, objeto, acessÃ³rio ou peÃ§a de roupa que nÃ£o esteja na pessoa original. MÃ£os vazias ficam vazias.',
+    'RULE 3 â€” ANATOMY: Foto Ãºnica. Os 2 braÃ§os completamente visÃ­veis e anatomicamente corretos â€” exatamente 2 braÃ§os, 2 mÃ£os, 5 dedos cada.',
+    'RULE 4 â€” POSE/POSITION LOCK: Copie a pose, posiÃ§Ã£o corporal, gesto, direÃ§Ã£o do olhar, distÃ¢ncia da cÃ¢mera e Ã¢ngulo do template scene. NÃ£o mude pose, perspectiva, lente ou enquadramento.',
+    'RULE 5 â€” LIGHTING: IluminaÃ§Ã£o comercial cinematogrÃ¡fica, profundidade de campo natural, bokeh suave.',
+    'RULE 6 â€” CAMERA & QUALITY: Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, film grain, 8K, ultra-detailed commercial photography. NEGATIVE: nÃ£o rotacione, nÃ£o aproxime, nÃ£o afaste, nÃ£o mude o Ã¢ngulo, perspectiva, pose, roupa, composiÃ§Ã£o, fundo, lente aparente ou enquadramento da cena-base.',
   ].join(' ')
 
   const templatePreservationBlock = [
-    'TEMPLATE SCENE LOCK: a primeira imagem é a cena-base absoluta.',
-    'Preserve com fidelidade máxima a composição, enquadramento, proporção da câmera, distância focal, ângulo, pose, posição corporal, gestos, fundo, profundidade, ambiente, posição dos personagens secundários, objetos, atmosfera e storytelling da cena-base.',
+    'TEMPLATE SCENE LOCK: a primeira imagem Ã© a cena-base absoluta.',
+    'Preserve com fidelidade mÃ¡xima a composiÃ§Ã£o, enquadramento, proporÃ§Ã£o da cÃ¢mera, distÃ¢ncia focal, Ã¢ngulo, pose, posiÃ§Ã£o corporal, gestos, fundo, profundidade, ambiente, posiÃ§Ã£o dos personagens secundÃ¡rios, objetos, atmosfera e storytelling da cena-base.',
     'Substitua somente a pessoa humana principal da cena-base por person[1].',
     ...(useTemplateOutfit
-      ? ['Preserve a roupa do personagem principal da cena-base. A troca é de identidade/rosto, não de vestuário.']
+      ? ['Preserve a roupa do personagem principal da cena-base. A troca Ã© de identidade/rosto, nÃ£o de vestuÃ¡rio.']
       : []),
     'Remova completamente a pessoa original da cena-base.',
-    'Não simplifique a imagem para um retrato isolado.',
-    'Não corte personagens secundários.',
-    'Não troque o fundo por outro ambiente.',
-    'Não mude pose, ângulo, perspectiva, lente, zoom, rotação, altura da câmera ou posição dos personagens.',
-    'NEGATIVE PROMPT: sem nova pose, sem novo figurino, sem nova câmera, sem novo fundo, sem retrato de estúdio, sem crop diferente, sem zoom diferente, sem mudar distância focal aparente, sem simplificar a cena.',
-    'Não transforme a saída em foto solo de estúdio, floresta ou fundo neutro se a cena-base for uma selfie urbana com personagens.',
-    'Se a cena-base for selfie, mantenha a lógica de selfie, braço estendido e perspectiva de câmera em primeira pessoa.',
-    'A cena final deve parecer a mesma foto-base, porém com a pessoa principal trocada pela identidade de person[1].',
+    'NÃ£o simplifique a imagem para um retrato isolado.',
+    'NÃ£o corte personagens secundÃ¡rios.',
+    'NÃ£o troque o fundo por outro ambiente.',
+    'NÃ£o mude pose, Ã¢ngulo, perspectiva, lente, zoom, rotaÃ§Ã£o, altura da cÃ¢mera ou posiÃ§Ã£o dos personagens.',
+    'NEGATIVE PROMPT: sem nova pose, sem novo figurino, sem nova cÃ¢mera, sem novo fundo, sem retrato de estÃºdio, sem crop diferente, sem zoom diferente, sem mudar distÃ¢ncia focal aparente, sem simplificar a cena.',
+    'NÃ£o transforme a saÃ­da em foto solo de estÃºdio, floresta ou fundo neutro se a cena-base for uma selfie urbana com personagens.',
+    'Se a cena-base for selfie, mantenha a lÃ³gica de selfie, braÃ§o estendido e perspectiva de cÃ¢mera em primeira pessoa.',
+    'A cena final deve parecer a mesma foto-base, porÃ©m com a pessoa principal trocada pela identidade de person[1].',
   ].join(' ')
 
-  const geminiPrompt = [
+  const defaultGeminiPrompt = [
     'You are a professional photo director and identity-preserving compositing artist.',
     'The FIRST image is the master scene template. The NEXT images are identity references.',
     `The NEXT ${identityData.length} image(s) are exclusive identity references for the person that must replace the original main subject in the template scene.`,
@@ -9775,6 +10921,8 @@ export async function generatePresetIdentityScene(params: {
     'Output: photorealistic commercial photo, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, no watermarks.',
   ].join(' ')
 
+  const geminiPrompt = defaultGeminiPrompt
+
   const imageParts = [
     { inlineData: templateScene },
     ...identityData.map((item) => ({ inlineData: item })),
@@ -9786,7 +10934,7 @@ export async function generatePresetIdentityScene(params: {
 
   for (const model of geminiChain) {
     try {
-      console.log(`[preset-scene] Tentando ${model} para asset ${params.assetId} (${imageParts.length} referência(s))`)
+      console.log(`[preset-scene] Tentando ${model} para asset ${params.assetId} (${imageParts.length} referÃªncia(s))`)
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`,
         {
@@ -9814,7 +10962,7 @@ export async function generatePresetIdentityScene(params: {
 
   if (!photoBuffer) {
     const falKey = process.env.FAL_KEY
-    if (!falKey) throw new Error(`Todos os modelos Gemini falharam para preset identity scene. Último erro: ${lastGeminiError}`)
+    if (!falKey) throw new Error(`Todos os modelos Gemini falharam para preset identity scene. Ãšltimo erro: ${lastGeminiError}`)
 
     console.log(`[preset-scene] Gemini bloqueou/falhou; tentando fallback Flux PuLID para asset ${params.assetId}`)
     const fallbackOutfitInstructions = useTemplateOutfit
@@ -9854,7 +11002,7 @@ export async function generatePresetIdentityScene(params: {
     if (!res.ok) throw new Error(`Fallback Flux PuLID falhou para preset identity scene: ${await res.text()}`)
     const fluxData = await res.json()
     const fluxUrl = fluxData.images?.[0]?.url
-    if (!fluxUrl) throw new Error(`Fallback Flux PuLID não retornou imagem para preset identity scene. Último Gemini: ${lastGeminiError}`)
+    if (!fluxUrl) throw new Error(`Fallback Flux PuLID nÃ£o retornou imagem para preset identity scene. Ãšltimo Gemini: ${lastGeminiError}`)
 
     const imageRes = await fetch(fluxUrl)
     if (!imageRes.ok) throw new Error(`Download do fallback Flux PuLID falhou: ${imageRes.status}`)
@@ -9872,3 +11020,4 @@ export async function generatePresetIdentityScene(params: {
   const { data: urlData } = admin.storage.from('studio').getPublicUrl(filePath)
   return urlData.publicUrl
 }
+

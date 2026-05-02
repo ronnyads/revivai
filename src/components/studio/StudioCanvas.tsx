@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   ReactFlow, Background, BackgroundVariant, MiniMap, Controls,
   useNodesState, useEdgesState, addEdge, ConnectionMode,
-  type Node, type Edge, type Connection, type NodeChange, type EdgeChange,
+  type Node, type Edge, type Connection, type Viewport,
   MarkerType, ReactFlowProvider, useReactFlow
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -32,9 +32,72 @@ import { resolveStudioPublicError } from '@/lib/studioPublicErrors'
 
 const nodeTypes = { assetNode: AssetNode }
 const edgeTypes = { lightEdge: LightEdge }
+const STUDIO_VIEWPORT_STORAGE_PREFIX = 'studio:viewport:'
+const STUDIO_VIEWPORT_SAVE_DELAY_MS = 180
+const STUDIO_VIEWPORT_ABS_LIMIT = 15000
+const DEFAULT_NODE_FOCUS_HEIGHT = 260
+
+type StudioCanvasEdge = Edge & {
+  isLocalConn?: boolean
+}
+
+type StudioViewportState = {
+  x: number
+  y: number
+  zoom: number
+  updatedAt?: number
+}
 
 function areNodeSelectionsEqual(previous: string[], next: string[]) {
   return previous.length === next.length && previous.every((id, index) => id === next[index])
+}
+
+function buildStudioViewportStorageKey(projectId: string) {
+  return `${STUDIO_VIEWPORT_STORAGE_PREFIX}${projectId}`
+}
+
+function normalizeStudioViewportState(value: unknown): StudioViewportState | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+
+  const candidate = value as Partial<StudioViewportState>
+  const x = Number(candidate.x)
+  const y = Number(candidate.y)
+  const zoom = Number(candidate.zoom)
+
+  if (![x, y, zoom].every(Number.isFinite)) return null
+  if (Math.abs(x) > STUDIO_VIEWPORT_ABS_LIMIT || Math.abs(y) > STUDIO_VIEWPORT_ABS_LIMIT) return null
+
+  return {
+    x,
+    y,
+    zoom: Math.min(1.35, Math.max(0.32, zoom)),
+    updatedAt: typeof candidate.updatedAt === 'number' && Number.isFinite(candidate.updatedAt)
+      ? candidate.updatedAt
+      : undefined,
+  }
+}
+
+function buildLocalCanvasEdge(input: {
+  id?: string
+  source: string
+  target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
+}): StudioCanvasEdge {
+  return {
+    id: input.id ?? crypto.randomUUID(),
+    source: input.source,
+    target: input.target,
+    sourceHandle: input.sourceHandle ?? 'output',
+    targetHandle: input.targetHandle ?? 'output',
+    type: 'lightEdge',
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
+    isLocalConn: true,
+  }
+}
+
+function isLocalCanvasEdge(edge: Edge | StudioCanvasEdge): edge is StudioCanvasEdge & { isLocalConn: true } {
+  return (edge as StudioCanvasEdge).isLocalConn === true
 }
 
 function buildClientAssetError(input: {
@@ -194,7 +257,7 @@ function buildNodes(
   }))
 }
 
-function buildEdges(connections: StudioConnection[], selectedNodeIds: string[] = []): Edge[] {
+function buildEdges(connections: StudioConnection[], selectedNodeIds: string[] = []): StudioCanvasEdge[] {
   const selectedNodeIdSet = new Set(selectedNodeIds)
 
   return connections.map(c => ({
@@ -217,7 +280,15 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [connections, setConnections] = useState<StudioConnection[]>(initialConnections)
   const [credits,     setCredits]     = useState(userCredits)
   const [hydrated,    setHydrated]    = useState(false)
-  const { screenToFlowPosition } = useReactFlow()
+  const {
+    fitView,
+    getNodes,
+    getViewport,
+    getZoom,
+    screenToFlowPosition,
+    setCenter,
+    setViewport,
+  } = useReactFlow()
   const [title,       setTitle]       = useState(project.title)
   const [editing,     setEditing]     = useState(false)
   const [showWizard,  setShowWizard]  = useState(false)
@@ -230,6 +301,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   }, [])
   const pollingRef        = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
   const startPollingRef   = useRef<(id: string) => void>(() => {})
+  const undoDeleteAssetRef = useRef<() => Promise<void>>(async () => {})
   
   // Lixeira para Ctrl+Z — conexões e soft-delete de assets
   const trashRef = useRef<{ connections: StudioConnection[] }>({ connections: [] })
@@ -245,6 +317,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   const [saveState,    setSaveState]    = useState<'saved' | 'saving' | 'error'>('saved')
   const [lastSavedAt,  setLastSavedAt]  = useState(() => (project.updated_at ? new Date(project.updated_at) : null))
   const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const viewportSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const viewportInitializedRef = useRef(false)
+  const shouldPersistViewportRef = useRef(false)
+  const lastViewportSnapshotRef = useRef('')
+  const viewportStorageKey = useMemo(() => buildStudioViewportStorageKey(project.id), [project.id])
   const persistedInputRef = useRef<Map<string, string>>(
     new Map(
       initialAssets
@@ -257,6 +334,101 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   useEffect(() => {
     setHydrated(true)
   }, [])
+
+  const persistViewport = useCallback((viewport: Viewport) => {
+    if (!hydrated || !shouldPersistViewportRef.current) return
+
+    const normalizedViewport = normalizeStudioViewportState(viewport)
+    if (!normalizedViewport) return
+
+    const snapshot = JSON.stringify({
+      ...normalizedViewport,
+      updatedAt: Date.now(),
+    })
+    if (snapshot === lastViewportSnapshotRef.current) return
+
+    if (viewportSaveTimeoutRef.current) clearTimeout(viewportSaveTimeoutRef.current)
+    viewportSaveTimeoutRef.current = setTimeout(() => {
+      window.localStorage.setItem(viewportStorageKey, snapshot)
+      lastViewportSnapshotRef.current = snapshot
+    }, STUDIO_VIEWPORT_SAVE_DELAY_MS)
+  }, [hydrated, viewportStorageKey])
+
+  const focusNodeInViewport = useCallback((nodeId: string) => {
+    setSelectedNodeIds((previous) => (areNodeSelectionsEqual(previous, [nodeId]) ? previous : [nodeId]))
+
+    let attempt = 0
+    const maxAttempts = 8
+
+    const run = () => {
+      const flowNode = getNodes().find((node) => node.id === nodeId)
+      const assetForNode = assets.find((candidate) => candidate.id === nodeId)
+
+      if (!flowNode || !assetForNode) {
+        if (attempt < maxAttempts) {
+          attempt += 1
+          window.setTimeout(run, 80)
+        }
+        return
+      }
+
+      const nodeWidth =
+        typeof flowNode.measured?.width === 'number'
+          ? flowNode.measured.width
+          : getStudioNodeCardWidth(assetForNode.type, {
+              status: assetForNode.status,
+              collapsed: assetForNode.status === 'done',
+              donePreview: assetForNode.status === 'done' && Boolean(assetForNode.result_url),
+            })
+      const nodeHeight =
+        typeof flowNode.measured?.height === 'number'
+          ? flowNode.measured.height
+          : DEFAULT_NODE_FOCUS_HEIGHT
+
+      void setCenter(
+        flowNode.position.x + nodeWidth / 2,
+        flowNode.position.y + nodeHeight / 2,
+        {
+          zoom: Math.max(0.76, Math.min(getZoom(), 1.02)),
+          duration: 260,
+        },
+      )
+    }
+
+    requestAnimationFrame(run)
+  }, [assets, getNodes, getZoom, setCenter])
+
+  const focusNodesInViewport = useCallback((nodeIds: string[]) => {
+    if (nodeIds.length === 0) return
+
+    let attempt = 0
+    const maxAttempts = 8
+
+    const run = () => {
+      const flowNodes = getNodes().filter((node) => nodeIds.includes(node.id))
+      if (flowNodes.length === 0) {
+        if (attempt < maxAttempts) {
+          attempt += 1
+          window.setTimeout(run, 80)
+        }
+        return
+      }
+
+      void fitView({
+        nodes: flowNodes,
+        padding: 0.16,
+        duration: 320,
+        minZoom: 0.5,
+        maxZoom: 1.02,
+      })
+    }
+
+    requestAnimationFrame(run)
+  }, [fitView, getNodes])
+
+  const handleMoveEnd = useCallback((_event: unknown, viewport: Viewport) => {
+    persistViewport(viewport)
+  }, [persistViewport])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -274,30 +446,83 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         e.preventDefault()
         // Prioridade: card deletado > conexão deletada
         if (pendingDeleteRef.current) {
-          undoDeleteAsset()
+          void undoDeleteAssetRef.current()
         } else {
           const lastConn = trashRef.current.connections.pop()
           if (lastConn) {
             setConnections(prev => [...prev, lastConn])
-            if (!(lastConn as any).isLocalConn) {
-              fetch('/api/studio/connections', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  project_id: lastConn.project_id,
-                  source_id: lastConn.source_id,
-                  target_id: lastConn.target_id,
-                  source_handle: lastConn.source_handle,
-                  target_handle: lastConn.target_handle
-                }),
-              })
-            }
+            fetch('/api/studio/connections', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project_id: lastConn.project_id,
+                source_id: lastConn.source_id,
+                target_id: lastConn.target_id,
+                source_handle: lastConn.source_handle,
+                target_handle: lastConn.target_handle,
+              }),
+            })
           }
         }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  useEffect(() => {
+    if (!hydrated || viewportInitializedRef.current || assets.length === 0) return
+
+    let cancelled = false
+
+    const restoreViewport = async () => {
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      })
+      if (cancelled) return
+
+      let savedViewport: StudioViewportState | null = null
+
+      try {
+        const rawViewport = window.localStorage.getItem(viewportStorageKey)
+        if (rawViewport) {
+          const parsedViewport = JSON.parse(rawViewport) as unknown
+          savedViewport = normalizeStudioViewportState(parsedViewport)
+          if (!savedViewport) window.localStorage.removeItem(viewportStorageKey)
+        }
+      } catch {
+        window.localStorage.removeItem(viewportStorageKey)
+      }
+
+      if (savedViewport) {
+        await setViewport(savedViewport, { duration: 0 })
+      } else {
+        await fitView({
+          padding: 0.16,
+          duration: 0,
+          minZoom: 0.5,
+          maxZoom: 1.02,
+        })
+      }
+
+      if (cancelled) return
+
+      viewportInitializedRef.current = true
+      shouldPersistViewportRef.current = true
+      persistViewport(getViewport())
+    }
+
+    void restoreViewport()
+
+    return () => {
+      cancelled = true
+    }
+  }, [assets.length, fitView, getViewport, hydrated, persistViewport, setViewport, viewportStorageKey])
+
+  useEffect(() => {
+    return () => {
+      if (viewportSaveTimeoutRef.current) clearTimeout(viewportSaveTimeoutRef.current)
+    }
   }, [])
 
   // ── Desfazer exclusão de card ────────────────────────────────────────────
@@ -332,6 +557,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       startPollingRef.current(restored.id)
     }
   }, [])
+  undoDeleteAssetRef.current = undoDeleteAsset
 
   // ── Callbacks passados para os nós ──────────────────────────────────────
   const handleDelete = useCallback((id: string) => {
@@ -543,9 +769,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         setCredits(c => c - asset.credits_cost)
       }
       if (asset.status === 'processing') startPolling(asset.id)
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro na geracao'
       setAssets(prev => prev.map(a =>
-        a.id === existingId ? { ...a, status: 'error', error_msg: err.message ?? 'Erro na geração' } : a
+        a.id === existingId ? { ...a, status: 'error', error_msg: errorMessage } : a
       ))
     }
   }, [assets, connections, project.id, startPolling])
@@ -569,6 +796,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       isLocal: true,
     }
     setAssets(prev => [...prev, copy])
+    focusNodeInViewport(newId)
 
     // Persiste no banco imediatamente para que "Regenerar" funcione
     try {
@@ -590,7 +818,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         if (asset) setAssets(prev => prev.map(a => a.id === newId ? { ...asset, isLocal: false } : a))
       }
     } catch { /* fica local se falhar */ }
-  }, [assets])
+  }, [assets, focusNodeInViewport])
 
   const nodeCallbacks = useMemo<Omit<AssetNodeData, 'asset' | 'selectionActive'>>(() => ({
     onDelete: handleDelete,
@@ -602,7 +830,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
   // ── React Flow state ─────────────────────────────────────────────────────
   const [nodes, setNodes, onNodesChange] = useNodesState(buildNodes(assets, nodeCallbacks, selectedNodeIds.length > 0))
-  const [edges, setEdges, onEdgesChange] = useEdgesState(buildEdges(connections, selectedNodeIds))
+  const [edges, setEdges, onEdgesChange] = useEdgesState<StudioCanvasEdge>(buildEdges(connections, selectedNodeIds))
 
   // Sincroniza assets → nodes de forma granular (sem recriar todos — preserva edges)
   useEffect(() => {
@@ -643,7 +871,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     setEdges(prev => {
       const dbEdges = buildEdges(connections, selectedNodeIds)
       const tempEdges = prev.filter(e => {
-        if (!(e as any).isLocalConn) return false
+        if (!e.isLocalConn) return false
         // Remove temp edge se já existe uma DB edge cobrindo a mesma conexão
         return !dbEdges.some(de =>
           de.source === e.source &&
@@ -663,13 +891,13 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
   // ── Promove arestas locais → DB quando ambos os nós ganham ID real ─────────
   const promotedEdgesRef = useRef<Set<string>>(new Set())
-  const edgesRef = useRef<Edge[]>([])
+  const edgesRef = useRef<StudioCanvasEdge[]>([])
   useEffect(() => { edgesRef.current = edges }, [edges])
 
   useEffect(() => {
     const assetMap = new Map(assets.map(a => [a.id, a]))
     const toPromote = edgesRef.current.filter(e => {
-      if (!(e as any).isLocalConn) return false
+      if (!e.isLocalConn) return false
       if (promotedEdgesRef.current.has(e.id)) return false
       const src = assetMap.get(e.source)
       const tgt = assetMap.get(e.target)
@@ -695,7 +923,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           if (conn) {
             setConnections(prev => [...prev, conn])
             setEdges(prev => prev.map(edge =>
-              edge.id === e.id ? { ...edge, isLocalConn: undefined } as any : edge
+              edge.id === e.id ? { ...edge, isLocalConn: undefined } : edge
             ))
           }
         } else {
@@ -772,9 +1000,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
   useEffect(() => {
     assets.filter(a => a.status === 'processing').forEach(a => startPolling(a.id))
+    const pollingMap = pollingRef.current
     return () => {
-      pollingRef.current.forEach(i => clearInterval(i))
-      pollingRef.current.clear()
+      pollingMap.forEach((timer) => clearInterval(timer))
+      pollingMap.clear()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -964,16 +1193,16 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     } else {
       // Pelo menos um card ainda é temporário — adiciona aresta visual localmente
       const tempConnId = crypto.randomUUID()
-      setEdges(prev => addEdge({
-        id: tempConnId,
-        source,
-        target,
-        sourceHandle: sourceHandle ?? 'output',
-        targetHandle,
-        type: 'lightEdge',
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
-        isLocalConn: true,
-      } as any, prev))
+      setEdges(prev => addEdge(
+        buildLocalCanvasEdge({
+          id: tempConnId,
+          source,
+          target,
+          sourceHandle,
+          targetHandle,
+        }),
+        prev,
+      ))
     }
 
     // Auto-preenche o campo no nó destino com a URL do nó fonte (sempre)
@@ -1022,7 +1251,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       
       setConnections(prev => prev.filter(c => c.id !== e.id))
       // Tenta excluir do DB toda Edge não-local (já salva). Edge do DB == Edge sem isLocalConn.
-      if (!(e as any).isLocalConn) {
+      if (!isLocalCanvasEdge(e)) {
         await fetch(`/api/studio/connections/${e.id}`, { method: 'DELETE' })
       }
 
@@ -1102,6 +1331,9 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       isNew: true, // Efeito de fogo ativado
     }
     setAssets(prev => [...prev, newAsset])
+    if (!quickAddMenu) {
+      focusNodeInViewport(frontend_id)
+    }
 
     // Resfriamento automático: o brilho some após 12 segundos
     setTimeout(() => {
@@ -1196,20 +1428,17 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   // ── Campaign Wizard → monta cards automaticamente ──────────────────────
   function buildCampaign(result: WizardResult) {
     setShowWizard(false)
-    const now = Date.now()
     const newAssets: StudioAsset[] = []
-    const tempEdges: Edge[] = []
+    const tempEdges: StudioCanvasEdge[] = []
     let idx = 0
-    let edgeIdx = 0
 
-    function mkEdge(source: string, target: string, sh: string, th: string): Edge {
-      return {
-        id: crypto.randomUUID(),
-        source, target, sourceHandle: sh, targetHandle: th,
-        type: 'lightEdge',
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
-        isLocalConn: true,
-      } as any
+    function mkEdge(source: string, target: string, sh: string, th: string): StudioCanvasEdge {
+      return buildLocalCanvasEdge({
+        source,
+        target,
+        sourceHandle: sh,
+        targetHandle: th,
+      })
     }
 
     // 1. Card Modelo UGC — coluna esquerda
@@ -1334,16 +1563,16 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     })
 
     setEdges(prev => [...prev, ...tempEdges])
+    focusNodesInViewport(newAssets.map((asset) => asset.id))
   }
 
   // ── Template Gallery → injeta workflow pré-fabricado ─────────────────────
   function buildFromTemplate(tpl: WorkflowTemplate) {
     setShowGallery(false)
-    const now = Date.now()
     const idMap: string[] = []
 
     // Cria um ID temporário estável para cada nó do template
-    tpl.nodes.forEach((_, i) => idMap.push(crypto.randomUUID()))
+    tpl.nodes.forEach(() => idMap.push(crypto.randomUUID()))
 
     const newAssets: StudioAsset[] = tpl.nodes.map((n, i) => ({
       id: idMap[i],
@@ -1360,15 +1589,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       isLocal: true,
     }))
 
-    const newEdges: Edge[] = tpl.edges.map((e, i) => ({
-      id: crypto.randomUUID(),
+    const newEdges: StudioCanvasEdge[] = tpl.edges.map((e) => buildLocalCanvasEdge({
       source: idMap[e.source],
       target: idMap[e.target],
       sourceHandle: e.sourceHandle,
       targetHandle: e.targetHandle,
-      type: 'lightEdge',
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8', width: 16, height: 16 },
-      isLocalConn: true,
     }))
 
     setAssets(prev => [...prev, ...newAssets])
@@ -1388,6 +1613,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     })
 
     setEdges(prev => [...prev, ...newEdges])
+    focusNodesInViewport(newAssets.map((asset) => asset.id))
   }
 
   // ── Título ───────────────────────────────────────────────────────────────
@@ -1504,6 +1730,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           onConnect={onConnect}
           onNodeDragStop={onNodeDragStop}
           onEdgesDelete={onEdgesDelete}
+          onMoveEnd={handleMoveEnd}
           onPaneClick={() => setQuickAddMenu(null)}
           onPaneContextMenu={e => {
             e.preventDefault();
@@ -1621,3 +1848,5 @@ export default function StudioCanvas(props: Props) {
     </ReactFlowProvider>
   )
 }
+
+

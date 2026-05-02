@@ -4,15 +4,18 @@ export const maxDuration = 300
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, generateImage, generateScript, generateVoice, generateCaption, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModel, mergeVideoAudio, startAnimateGeneration, composeProductScene, preflightProvadorPricing, startLipsyncGeneration, joinVideos, generateAngles, generateMusic, generateUGCPositions, generateScene, splitLookReferences, prepareLockedVideoMotionPrompt, prepareTalkingVideoPrompt, estimateTalkingSpeechDurationSeconds, measureAudioDurationSeconds, incrementTalkingPipelineAttempts } from '@/lib/studio'
+import { CREDIT_COST, generateImageGoogle, generateScriptGoogle, generateVoiceGoogle, generateCaptionGoogle, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModelGoogle, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideos, generateAngles, generateMusicGoogle, generateUGCPositions, generateScene, splitLookReferences, prepareLockedVideoMotionPrompt, prepareTalkingVideoPrompt, estimateTalkingSpeechDurationSeconds, measureAudioDurationSeconds, incrementTalkingPipelineAttempts, startTalkingVideoMotionGeneration } from '@/lib/studio'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
 import { resolveStudioPublicError, type StudioPublicErrorEnvelope } from '@/lib/studioPublicErrors'
 import { getLogicalStudioAssetType, getPersistedStudioAssetType, mapStudioAssetType } from '@/lib/studioAssetType'
+import { applyStudioEngineMetadata, assertStudioAssetExecutionReady, normalizeStudioEngineInputParams, resolveStudioAssetEnginePolicy, StudioEnginePolicyError } from '@/lib/studioEngineRegistry'
 import { AssetType } from '@/types'
 import { checkRateLimit } from '@/lib/rateLimit'
 import {
   buildTalkingVideoIdeaFromParts,
+  calculateTalkingVideoCredits,
   normalizeTalkingWhitespace,
+  parseTalkingVideoIdeaInput,
   planTalkingVideoSpeechChunk,
 } from '@/lib/talkingVideoIdea'
 
@@ -86,6 +89,114 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {}
 }
 
+async function loadSourceAssetForPolicy(params: {
+  admin: ReturnType<typeof createAdminClient>
+  projectId: string
+  userId: string
+  sourceUrl?: string
+}) {
+  const sourceUrl = normalizeOptionalUrl(params.sourceUrl)
+  if (!sourceUrl) return undefined
+
+  let { data: sourceAssetRow } = await params.admin
+    .from('studio_assets')
+    .select('type, input_params')
+    .eq('project_id', params.projectId)
+    .eq('user_id', params.userId)
+    .eq('result_url', sourceUrl)
+    .maybeSingle()
+
+  if (!sourceAssetRow) {
+    const fallbackQuery = await params.admin
+      .from('studio_assets')
+      .select('type, input_params')
+      .eq('project_id', params.projectId)
+      .eq('user_id', params.userId)
+      .eq('last_frame_url', sourceUrl)
+      .maybeSingle()
+
+    sourceAssetRow = fallbackQuery.data ?? null
+  }
+
+  return sourceAssetRow
+    ? {
+        type: String(sourceAssetRow.type ?? ''),
+        input_params: asRecord(sourceAssetRow.input_params),
+      }
+    : sourceUrl
+      ? {
+          type: 'direct_upload_source',
+          input_params: {
+            source_origin: 'direct_upload',
+            force_strict_source_fidelity: true,
+            preserve_all_visible_source_items: true,
+            source_text_logo_lock: true,
+            source_color_lock: true,
+          },
+        }
+      : undefined
+}
+
+export function legacyShouldTalkingVideoPreResolveScene(params: {
+  sourceFidelityMode?: unknown
+  visualPrompt?: unknown
+  ideaPrompt?: unknown
+}) {
+  if (String(params.sourceFidelityMode ?? '') !== 'strict') return false
+
+  const prompt = mergeTalkingSpeechText(
+    typeof params.visualPrompt === 'string' ? params.visualPrompt : '',
+    typeof params.ideaPrompt === 'string' ? params.ideaPrompt : '',
+  )
+  if (!prompt) return false
+
+  return (
+    prompt.length >= 220
+    || /\b(storyboard|roteiro|take|shot|seg(?:\.|undos?)?|close|close-up|close up)\b/i.test(prompt)
+    || /\b(cama|criado-mudo|criado mudo|janela|window|bed|bedside|nightstand|praia|beach|podcast|microfone|escritorio|office|mesa|quarto|hotel|cafe|caf[eé])\b/i.test(prompt)
+    || /\b(acorda|se espreguica|se espreguiça|se levanta|vai em direcao|vai em direção|walking|walks|gets up|stands up|vira para a camera|vira para camera)\b/i.test(prompt)
+  )
+}
+
+const TALKING_VIDEO_SCENE_CHANGE_PATTERNS = [
+  /\b(trocar|mudar|substituir|colocar|levar|passar|transformar|move|put|set)\b.{0,48}\b(cenario|cenário|fundo|ambiente|location|setting|praia|beach|podcast|microfone|escritorio|escritório|office|quarto|hotel|cafe|caf[eé]|restaurante|rua|street)\b/i,
+  /\b(agora|coloca|deixa)\b.{0,24}\b(no|na|em)\b.{0,24}\b(praia|beach|podcast|escritorio|escritório|office|quarto|hotel|cafe|caf[eé]|restaurante|rua|street)\b/i,
+]
+
+const TALKING_VIDEO_WARDROBE_CHANGE_PATTERNS = [
+  /\b(trocar|mudar|substituir|colocar|usar|vestir|deixar com)\b.{0,48}\b(roupa|look|outfit|jaqueta|blazer|vestido|dress|camiseta|camisa|shirt|blusa|calca|calça|pants|saia|skirt|sapato|shoes|tenis|tênis)\b/i,
+]
+
+const TALKING_VIDEO_PRODUCT_CHANGE_PATTERNS = [
+  /\b(trocar|mudar|substituir|replace|swap)\b.{0,48}\b(produto|product|caneca|mug|garrafa|bottle|item|embalagem|packaging|logo|branding)\b/i,
+]
+
+function detectTalkingVideoSourceChanges(params: {
+  scenePresetId?: string
+  visualPrompt?: string
+  ideaPrompt?: string
+}) {
+  const mergedPrompt = mergeTalkingSpeechText(params.visualPrompt, params.ideaPrompt)
+  const scenePresetId = String(params.scenePresetId ?? 'none').trim().toLowerCase()
+
+  return {
+    requestedSceneChange:
+      (scenePresetId !== '' && scenePresetId !== 'none')
+      || TALKING_VIDEO_SCENE_CHANGE_PATTERNS.some((pattern) => pattern.test(mergedPrompt)),
+    requestedWardrobeChange:
+      TALKING_VIDEO_WARDROBE_CHANGE_PATTERNS.some((pattern) => pattern.test(mergedPrompt)),
+    requestedProductChange:
+      TALKING_VIDEO_PRODUCT_CHANGE_PATTERNS.some((pattern) => pattern.test(mergedPrompt)),
+  }
+}
+
+function shouldTalkingVideoPreResolveScene(params: {
+  requestedSceneChange?: boolean
+  requestedWardrobeChange?: boolean
+}) {
+  return Boolean(params.requestedSceneChange || params.requestedWardrobeChange)
+}
+
 function buildStudioPublicErrorEnvelope(params: {
   type?: AssetType
   inputParams?: Record<string, unknown>
@@ -98,6 +209,14 @@ function buildStudioPublicErrorEnvelope(params: {
   const technicalMessage = params.errorMsg.toLowerCase()
 
   if (params.type === 'compose' && composeVariant === 'fitting') {
+    if (failureState === 'scene_white_studio_reference_conflict') {
+      return resolveStudioPublicError({
+        code: 'referencias_conflitantes',
+        message: 'As referencias enviadas parecem disputar a mesma parte do look. Envie refs complementares ou separe os itens em cards diferentes.',
+        supportDebugId: params.supportDebugId,
+      })
+    }
+
     if (failureState === 'split_required_after_outerwear_failure' || failureState === 'split_required_after_garment_priority') {
       return resolveStudioPublicError({
         code: 'resultado_pronto_para_revisao',
@@ -260,6 +379,14 @@ const COMPOSE_RUNTIME_INPUT_KEYS = new Set([
   'single_photo_garment_priority_applied',
   'single_photo_overlay_only_categories',
   'single_photo_ignored_props',
+  'fitting_engine',
+  'white_studio_lock',
+  'required_all_submitted_items',
+  'submitted_item_categories',
+  'submitted_non_fashion_items',
+  'submitted_item_manifest',
+  'missing_or_distorted_items',
+  'generation_budget_profile',
 ])
 
 function sanitizeComposeInputParams(input: Record<string, unknown>): Record<string, unknown> {
@@ -337,9 +464,10 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const userId = user.id
 
   // ── Rate limit ──
-  if (!checkRateLimit(user.id, 'studio-asset', { max: 60, windowMs: 60_000 })) {
+  if (!checkRateLimit(userId, 'studio-asset', { max: 60, windowMs: 60_000 })) {
     return NextResponse.json({ error: 'Muitos assets gerados.' }, { status: 429 })
   }
 
@@ -372,7 +500,7 @@ export async function POST(req: NextRequest) {
   if (projectErr) {
     return NextResponse.json({ error: 'Falha ao validar projeto' }, { status: 500 })
   }
-  if (!project || project.user_id !== user.id) {
+  if (!project || project.user_id !== userId) {
     return NextResponse.json({ error: 'Projeto nÃ£o encontrado' }, { status: 403 })
   }
 
@@ -390,7 +518,7 @@ export async function POST(req: NextRequest) {
 
     if (existingAsset) {
       const ownedAsset = existingAsset as ExistingAssetOwnership
-      if (ownedAsset.user_id !== user.id || ownedAsset.project_id !== project_id) {
+      if (ownedAsset.user_id !== userId || ownedAsset.project_id !== project_id) {
         return NextResponse.json({ error: 'Asset nÃ£o pertence a este projeto' }, { status: 403 })
       }
       if (getLogicalStudioAssetType(ownedAsset.type, ownedAsset.input_params) !== type) {
@@ -531,9 +659,16 @@ export async function POST(req: NextRequest) {
     const modelPrompt = typeof normalizedInputParams.model_prompt === 'string'
       ? normalizedInputParams.model_prompt.trim()
       : ''
+    const sourceAssetForPolicy = await loadSourceAssetForPolicy({
+      admin,
+      projectId: project_id,
+      userId: user.id,
+      sourceUrl: sourceImageUrl ?? continuationFrame,
+    })
     const videoPromptPolicy = prepareLockedVideoMotionPrompt({
       motionPrompt: motionPromptRaw,
       modelPrompt: modelPrompt || undefined,
+      sourceAsset: sourceAssetForPolicy,
     })
 
     normalizedInputParams = {
@@ -547,6 +682,10 @@ export async function POST(req: NextRequest) {
       scene_change_requested: videoPromptPolicy.sceneChangeRequested,
       scene_change_blocked: false,
       removed_directives: videoPromptPolicy.removedDirectives,
+      source_fidelity_mode: videoPromptPolicy.sourceFidelityMode,
+      source_visible_item_manifest: videoPromptPolicy.sourceVisibleItemManifest,
+      source_text_logo_lock: videoPromptPolicy.sourceTextLogoLock,
+      source_color_lock: videoPromptPolicy.sourceColorLock,
     }
 
     if (!isDraft) {
@@ -554,14 +693,6 @@ export async function POST(req: NextRequest) {
         return createAssetInputError(
           'source_image_url_required',
           'Conecte uma imagem base ou uma continuacao antes de gerar o video.',
-        )
-      }
-
-      if (videoPromptPolicy.sceneChangeRequested) {
-        console.warn('[studio] video-input-invalid | field=motion_prompt reason=scene-change-requested')
-        return createAssetInputError(
-          'video_scene_change_requires_scene_card',
-          'Esse card de video so anima o frame atual. Para trocar cenario ou ambiente, gere a cena correta em Cena Livre e depois volte para Video.',
         )
       }
     }
@@ -597,36 +728,28 @@ export async function POST(req: NextRequest) {
       && /\b(expressao|performance|tom|camera|cena|visual|emoc|luz|ambiente)\b/i.test(speechTextInputRaw)
     const ideaPromptForPolicy = ideaPromptInputRaw || (speechFieldLooksComposite ? speechTextInputRaw : '')
     const speechTextForPolicy = speechFieldLooksComposite ? '' : speechTextInputRaw
+    const scenePresetId = typeof normalizedInputParams.scene_preset_id === 'string'
+      ? normalizedInputParams.scene_preset_id.trim().toLowerCase()
+      : 'none'
+    const parsedTalkingIdea = parseTalkingVideoIdeaInput({
+      mode: talkingVideoMode,
+      ideaPrompt: ideaPromptForPolicy,
+      speechText: speechTextForPolicy,
+      expressionDirection: expressionDirectionInputRaw,
+      visualPrompt: visualPromptInputRaw,
+    })
+    const requestedSourceChanges = detectTalkingVideoSourceChanges({
+      scenePresetId,
+      visualPrompt: parsedTalkingIdea.visualPrompt,
+      ideaPrompt: ideaPromptForPolicy,
+    })
 
-    let sourceAssetForPolicy: { type?: string; input_params?: Record<string, unknown> } | undefined
-    if (sourceImageUrl) {
-      let { data: sourceAssetRow } = await admin
-        .from('studio_assets')
-        .select('type, input_params')
-        .eq('project_id', project_id)
-        .eq('user_id', user.id)
-        .eq('result_url', sourceImageUrl)
-        .maybeSingle()
-
-      if (!sourceAssetRow) {
-        const fallbackQuery = await admin
-          .from('studio_assets')
-          .select('type, input_params')
-          .eq('project_id', project_id)
-          .eq('user_id', user.id)
-          .eq('last_frame_url', sourceImageUrl)
-          .maybeSingle()
-
-        sourceAssetRow = fallbackQuery.data ?? null
-      }
-
-      sourceAssetForPolicy = sourceAssetRow
-        ? {
-            type: String(sourceAssetRow.type ?? ''),
-            input_params: asRecord(sourceAssetRow.input_params),
-          }
-        : undefined
-    }
+    const sourceAssetForPolicy = await loadSourceAssetForPolicy({
+      admin,
+      projectId: project_id,
+      userId: user.id,
+      sourceUrl: sourceImageUrl,
+    })
 
     const talkingPolicy = prepareTalkingVideoPrompt({
       mode: talkingVideoMode,
@@ -634,6 +757,8 @@ export async function POST(req: NextRequest) {
       speechText: speechTextForPolicy,
       expressionDirection: expressionDirectionInputRaw,
       visualPrompt: visualPromptInputRaw,
+      requestedSceneChange: requestedSourceChanges.requestedSceneChange,
+      requestedWardrobeChange: requestedSourceChanges.requestedWardrobeChange,
       sourceAsset: sourceAssetForPolicy,
     })
     const speechChunkPlan = talkingVideoMode === 'exact_speech'
@@ -688,11 +813,30 @@ export async function POST(req: NextRequest) {
       generated_voice_asset_id: String(normalizedInputParams.generated_voice_asset_id ?? ''),
       generated_voice_url: String(normalizedInputParams.generated_voice_url ?? ''),
       talking_video_policy: talkingPolicy.talkingVideoPolicy,
+      scene_preset_id: scenePresetId || 'none',
+      requested_scene_change: requestedSourceChanges.requestedSceneChange,
+      requested_wardrobe_change: requestedSourceChanges.requestedWardrobeChange,
+      requested_product_change: requestedSourceChanges.requestedProductChange,
+      motion_provider_fallback_used: false,
+      motion_provider_chain: Array.isArray(normalizedInputParams.motion_provider_chain)
+        ? normalizedInputParams.motion_provider_chain.filter((value): value is string => typeof value === 'string')
+        : [],
       model_identity_lock: true,
       product_lock_mode: talkingPolicy.productLockMode,
       product_visibility_confidence: talkingPolicy.productVisibilityConfidence,
+      source_fidelity_mode: talkingPolicy.strictSourceFidelity ? 'strict' : talkingPolicy.productLockMode,
+      source_text_logo_lock: talkingPolicy.sourceTextLogoLock,
+      source_color_lock: talkingPolicy.sourceColorLock,
+      preserve_all_visible_source_items: talkingPolicy.preserveAllVisibleSourceItems,
+      source_visible_item_manifest: talkingPolicy.sourceVisibleItemManifest,
       scene_freedom_level: talkingPolicy.sceneFreedomLevel,
       camera_motion_policy: talkingPolicy.cameraMotionPolicy,
+      talking_video_scene_presolve_required: shouldTalkingVideoPreResolveScene({
+        requestedSceneChange: requestedSourceChanges.requestedSceneChange,
+        requestedWardrobeChange: requestedSourceChanges.requestedWardrobeChange,
+      }),
+      talking_video_scene_presolved: false,
+      talking_video_requires_voice_pipeline: talkingVideoMode === 'exact_speech' || talkingPolicy.speechTextNormalized.length > 0,
       removed_directives: talkingPolicy.removedDirectives,
       talking_video_chunked: speechChunkPlan.hasRemaining,
       continuation_available: speechChunkPlan.hasRemaining,
@@ -707,6 +851,13 @@ export async function POST(req: NextRequest) {
         return createAssetInputError(
           'talking_video_source_required',
           'Conecte uma imagem base antes de gerar o Video com Fala.',
+        )
+      }
+
+      if (requestedSourceChanges.requestedProductChange) {
+        return createAssetInputError(
+          'talking_video_product_change_not_supported',
+          'Esse card preserva o produto da imagem base. Para trocar o produto, gere uma nova imagem/cena primeiro e depois volte para Video com Fala.',
         )
       }
 
@@ -734,61 +885,84 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  normalizedInputParams = normalizeStudioEngineInputParams({
+    type,
+    inputParams: normalizedInputParams,
+  })
+
+  const enginePolicy = resolveStudioAssetEnginePolicy({
+    type,
+    inputParams: normalizedInputParams,
+  })
+
+  normalizedInputParams = applyStudioEngineMetadata(normalizedInputParams, enginePolicy)
+
+  if (!isDraft) {
+    try {
+      assertStudioAssetExecutionReady(enginePolicy)
+    } catch (error) {
+      if (error instanceof StudioEnginePolicyError) {
+        return NextResponse.json({
+          error: 'google_primary_required',
+          code: error.code,
+          message: error.message,
+          billing_route: error.policy.billingRoute,
+          runtime_engine: error.policy.runtimeEngine,
+          runtime_model: error.policy.runtimeModel,
+        }, { status: error.status })
+      }
+      throw error
+    }
+  }
+
   const baseCost = CREDIT_COST[type] ?? 1
   let effectiveCost = baseCost
-  let composePricingPreflight:
-    | Awaited<ReturnType<typeof preflightProvadorPricing>>
-    | undefined
+  let composePricingPreflight: undefined
   if (
     type === 'compose'
     && !isDraft
     && String(normalizedInputParams.compose_variant ?? 'fitting') === 'fitting'
   ) {
-    composePricingPreflight = await preflightProvadorPricing({
-      product_url: String(normalizedInputParams.product_url ?? ''),
-      product_urls: Array.isArray(normalizedInputParams.product_urls)
-        ? normalizedInputParams.product_urls.filter((value): value is string => typeof value === 'string')
-        : undefined,
-      fitting_group: normalizedInputParams.fitting_group ? String(normalizedInputParams.fitting_group) : undefined,
-      fitting_category: normalizedInputParams.fitting_category ? String(normalizedInputParams.fitting_category) : undefined,
-      vton_category: normalizedInputParams.vton_category ? String(normalizedInputParams.vton_category) : undefined,
-    })
+    const normalizedProductUrls = Array.isArray(normalizedInputParams.product_urls)
+      ? normalizedInputParams.product_urls.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      : []
+    composePricingPreflight = undefined
     normalizedInputParams = {
       ...normalizedInputParams,
-      pricing_strategy: composePricingPreflight.pricingStrategy,
-      pricing_tier: composePricingPreflight.pricingTier,
-      estimated_provider_cost_usd: composePricingPreflight.estimatedProviderCostUsd,
-      estimated_cost_breakdown: composePricingPreflight.estimatedCostBreakdown,
-      fitting_strategy: composePricingPreflight.fittingStrategy,
-      fitting_group_request_mode: composePricingPreflight.fittingGroupRequestMode,
-      fitting_reference_mode: composePricingPreflight.referenceMode,
-      fitting_reference_mix_mode: composePricingPreflight.referenceMixMode,
-      editorial_finisher_eligible: composePricingPreflight.editorialFinisherEligible,
-      preflight_primary_wearable_category: composePricingPreflight.primaryWearableCategory ?? '',
-      single_photo_primary_product_type: composePricingPreflight.singlePhotoPrimaryProductType ?? '',
-      single_photo_garment_priority_applied: composePricingPreflight.singlePhotoGarmentPriorityApplied ?? false,
-      preflight_accessory_detected_types: composePricingPreflight.accessoryDetectedTypes,
-      preflight_ignored_prop_types: composePricingPreflight.ignoredPropTypes,
+      pricing_strategy: 'white_studio_fixed',
+      pricing_tier: 'scene_white_studio',
+      fitting_strategy: 'scene_white_studio',
+      fitting_engine: 'scene_white_studio',
+      fitting_route: 'scene_white_studio',
+      fitting_primary_route: 'scene_white_studio',
+      provador_engine: 'scene_white_studio',
+      sovereign_mode: 'strict',
+      white_studio_lock: true,
+      smart_prompt_policy: 'light_pose_only',
+      reference_conflict_policy: 'fail_on_same_zone_conflict',
+      fitting_reference_mode: normalizedProductUrls.length > 1 ? 'separate-references' : 'single-look-photo',
+      fitting_reference_mix_mode: normalizedProductUrls.length > 1 ? 'sovereign-complementary' : 'single-look-photo',
+      editorial_finisher_eligible: false,
+      preflight_accessory_detected_types: [],
+      preflight_ignored_prop_types: [],
     }
-    effectiveCost = composePricingPreflight.creditsCost
+    effectiveCost = baseCost
   }
   if (type === 'video' && String(normalizedInputParams?.engine ?? '') === 'veo') {
     effectiveCost = CREDIT_COST['video_veo'] ?? 50
   }
   if (type === 'talking_video') {
-    const videoCost = CREDIT_COST['video_veo'] ?? 50
-    const exactSpeech = String(normalizedInputParams.talking_video_mode ?? 'exact_speech') === 'exact_speech'
-    effectiveCost = exactSpeech
-      ? videoCost + (CREDIT_COST.voice ?? 8) + (CREDIT_COST.lipsync ?? 20)
-      : videoCost
-  }
-  // Dobra o custo se a qualidade for 1080p HQ
-  if (String(normalizedInputParams?.quality ?? '') === '1080p') {
-    if (type === 'talking_video') {
-      effectiveCost += CREDIT_COST['video_veo'] ?? 50
-    } else {
-      effectiveCost *= 2
-    }
+    const talkingMode = String(normalizedInputParams.talking_video_mode ?? 'exact_speech') === 'veo_natural'
+      ? 'veo_natural'
+      : 'exact_speech'
+    const speechDetected = Boolean(normalizedInputParams.talking_video_requires_voice_pipeline)
+    effectiveCost = calculateTalkingVideoCredits({
+      mode: talkingMode,
+      quality: String(normalizedInputParams?.quality ?? '720p'),
+      speechDetected,
+    })
+  } else if (String(normalizedInputParams?.quality ?? '') === '1080p') {
+    effectiveCost *= 2
   }
   const { data: profile } = await admin.from('users').select('credits, plan').eq('id', user.id).single()
 
@@ -856,50 +1030,50 @@ export async function POST(req: NextRequest) {
     let extraData: Record<string, unknown> = {}
 
     if (type === 'image') {
-      resultUrl = await generateImage({
-        prompt: String(input_params.prompt ?? ''),
-        style: String(input_params.style ?? 'ugc'),
-        aspect_ratio: String(input_params.aspect_ratio ?? '1:1'),
-        model_prompt: input_params.model_prompt ? String(input_params.model_prompt) : undefined,
-        source_face_url: input_params.source_face_url ? String(input_params.source_face_url) : undefined,
+      resultUrl = await generateImageGoogle({
+        prompt: String(normalizedInputParams.prompt ?? ''),
+        style: String(normalizedInputParams.style ?? 'ugc'),
+        aspect_ratio: String(normalizedInputParams.aspect_ratio ?? '1:1'),
+        model_prompt: normalizedInputParams.model_prompt ? String(normalizedInputParams.model_prompt) : undefined,
+        source_face_url: normalizedInputParams.source_face_url ? String(normalizedInputParams.source_face_url) : undefined,
         assetId: asset.id,
         userId: user.id,
       })
     } else if (type === 'model') {
-      const { url, text } = await generateModel({
-        gender: String(input_params.gender ?? 'feminino'),
-        age_range: String(input_params.age_range ?? '20-30'),
-        skin_tone: String(input_params.skin_tone ?? 'media'),
-        body_type: String(input_params.body_type ?? 'normal'),
-        style: String(input_params.style ?? 'casual'),
-        extra_details: input_params.extra_details ? String(input_params.extra_details) : undefined,
+      const { url, text } = await generateModelGoogle({
+        gender: String(normalizedInputParams.gender ?? 'feminino'),
+        age_range: String(normalizedInputParams.age_range ?? '20-30'),
+        skin_tone: String(normalizedInputParams.skin_tone ?? 'media'),
+        body_type: String(normalizedInputParams.body_type ?? 'normal'),
+        style: String(normalizedInputParams.style ?? 'casual'),
+        extra_details: normalizedInputParams.extra_details ? String(normalizedInputParams.extra_details) : undefined,
         assetId: asset.id,
         userId: user.id,
       })
       resultUrl = url
       extraData = { model_text: text }
     } else if (type === 'script') {
-      const { url, text } = await generateScript({
-        product: String(input_params.product ?? ''),
-        audience: String(input_params.audience ?? ''),
-        format: String(input_params.format ?? 'reels'),
-        hook_style: String(input_params.hook_style ?? 'problema'),
+      const { url, text } = await generateScriptGoogle({
+        product: String(normalizedInputParams.product ?? ''),
+        audience: String(normalizedInputParams.audience ?? ''),
+        format: String(normalizedInputParams.format ?? 'reels'),
+        hook_style: String(normalizedInputParams.hook_style ?? 'problema'),
         assetId: asset.id,
         userId: user.id,
       })
       resultUrl = url
       extraData = { script_text: text }
     } else if (type === 'voice') {
-      resultUrl = await generateVoice({
-        script: String(input_params.script ?? ''),
-        voice_id: String(input_params.voice_id ?? 'EXAVITQu4vr4xnSDxMaL'),
-        speed: Number(input_params.speed ?? 1.0),
+      resultUrl = await generateVoiceGoogle({
+        script: String(normalizedInputParams.script ?? ''),
+        voice_id: String(normalizedInputParams.voice_id ?? 'EXAVITQu4vr4xnSDxMaL'),
+        speed: Number(normalizedInputParams.speed ?? 1.0),
         assetId: asset.id,
         userId: user.id,
       })
     } else if (type === 'caption') {
-      const { url } = await generateCaption({
-        audio_url: String(input_params.audio_url ?? ''),
+      const { url } = await generateCaptionGoogle({
+        audio_url: String(normalizedInputParams.audio_url ?? ''),
         assetId: asset.id,
         userId: user.id,
       })
@@ -945,9 +1119,28 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      if (input_params.engine === 'veo') {
+      let sourceImageUrlForGeneration = sourceImageUrl
+      if (Boolean(normalizedInputParams.scene_change_requested)) {
+        sourceImageUrlForGeneration = await generateScene({
+          source_url: sourceImageUrl,
+          scene_prompt: String(normalizedInputParams.motion_prompt_raw ?? normalizedInputParams.motion_prompt ?? ''),
+          aspect_ratio: '9:16',
+          assetId: asset.id,
+          userId: user.id,
+        })
+        normalizedInputParams = {
+          ...normalizedInputParams,
+          source_image_url: sourceImageUrlForGeneration,
+          scene_change_blocked: false,
+          video_scene_presolved: true,
+          video_scene_prepass_asset_url: sourceImageUrlForGeneration,
+          video_scene_prepass_engine: 'scene:generateScene',
+        }
+      }
+
+      if (normalizedInputParams.engine === 'veo') {
         await startVeo3DirectGoogle({
-          source_image_url: sourceImageUrl,
+          source_image_url: sourceImageUrlForGeneration,
           motion_prompt:    String(normalizedInputParams.motion_prompt_normalized ?? normalizedInputParams.motion_prompt ?? ''),
           model_prompt: normalizedInputParams.model_prompt ? String(normalizedInputParams.model_prompt) : undefined,
           motion_prompt_raw: String(normalizedInputParams.motion_prompt_raw ?? normalizedInputParams.motion_prompt ?? ''),
@@ -962,10 +1155,21 @@ export async function POST(req: NextRequest) {
           quality:          String(input_params.quality ?? '720p'),
           assetId:          asset.id,
           userId:           user.id,
+          strict_source_fidelity: String(normalizedInputParams.source_fidelity_mode ?? '') === 'strict',
+          source_visible_item_manifest: Array.isArray(normalizedInputParams.source_visible_item_manifest)
+            ? normalizedInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
+            : [],
+          source_text_logo_lock: Boolean(normalizedInputParams.source_text_logo_lock),
+          source_color_lock: Boolean(normalizedInputParams.source_color_lock),
+          inputParamsPatch: {
+            video_scene_presolved: Boolean(normalizedInputParams.video_scene_presolved),
+            video_scene_prepass_asset_url: String(normalizedInputParams.video_scene_prepass_asset_url ?? ''),
+            video_scene_prepass_engine: String(normalizedInputParams.video_scene_prepass_engine ?? ''),
+          },
         })
       } else {
         await startVideoGeneration({
-          source_image_url: sourceImageUrl,
+          source_image_url: sourceImageUrlForGeneration,
           motion_prompt: String(normalizedInputParams.motion_prompt_normalized ?? normalizedInputParams.motion_prompt ?? ''),
           duration: Number(input_params.duration ?? 5),
           model_prompt: normalizedInputParams.model_prompt ? String(normalizedInputParams.model_prompt) : undefined,
@@ -980,6 +1184,17 @@ export async function POST(req: NextRequest) {
           assetId: asset.id,
           userId: user.id,
           appUrl,
+          strict_source_fidelity: String(normalizedInputParams.source_fidelity_mode ?? '') === 'strict',
+          source_visible_item_manifest: Array.isArray(normalizedInputParams.source_visible_item_manifest)
+            ? normalizedInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
+            : [],
+          source_text_logo_lock: Boolean(normalizedInputParams.source_text_logo_lock),
+          source_color_lock: Boolean(normalizedInputParams.source_color_lock),
+          inputParamsPatch: {
+            video_scene_presolved: Boolean(normalizedInputParams.video_scene_presolved),
+            video_scene_prepass_asset_url: String(normalizedInputParams.video_scene_prepass_asset_url ?? ''),
+            video_scene_prepass_engine: String(normalizedInputParams.video_scene_prepass_engine ?? ''),
+          },
         })
       }
       return NextResponse.json({ asset: { ...responseAsset, status: 'processing' } }, { status: 201 })
@@ -992,10 +1207,82 @@ export async function POST(req: NextRequest) {
       const voiceId = String(normalizedInputParams.voice_id ?? 'EXAVITQu4vr4xnSDxMaL')
       const speed = Number(normalizedInputParams.speed ?? 1.0)
       const quality = String(normalizedInputParams.quality ?? '720p')
-      const promptOverride = String(normalizedInputParams.talking_video_prompt_final ?? '')
+      const appUrl = resolveAppUrl(req)
+      let promptOverride = String(normalizedInputParams.talking_video_prompt_final ?? '')
+      const normalizedSpeechText = String(
+        normalizedInputParams.speech_text_normalized
+          ?? normalizedInputParams.speech_text
+          ?? '',
+      )
       let pipelineAttempts = asRecord(normalizedInputParams.pipeline_attempts)
+      const shouldGenerateVoiceTrack = normalizedSpeechText.length > 0
+      let sourceImageUrlForGeneration = sourceImageUrl
 
-      if (talkingMode === 'exact_speech') {
+      if (
+        Boolean(normalizedInputParams.talking_video_scene_presolve_required)
+        && !Boolean(normalizedInputParams.talking_video_scene_presolved)
+      ) {
+        sourceImageUrlForGeneration = await generateScene({
+          source_url: sourceImageUrl,
+          scene_prompt: String(
+            normalizedInputParams.visual_prompt_raw
+              ?? normalizedInputParams.visual_prompt
+              ?? normalizedInputParams.idea_prompt_raw
+              ?? normalizedInputParams.idea_prompt
+              ?? '',
+          ),
+          aspect_ratio: '9:16',
+          assetId: asset.id,
+          userId,
+          mode: 'talking_video',
+          requested_scene_change: Boolean(normalizedInputParams.requested_scene_change),
+          requested_wardrobe_change: Boolean(normalizedInputParams.requested_wardrobe_change),
+          source_visible_item_manifest: Array.isArray(normalizedInputParams.source_visible_item_manifest)
+            ? normalizedInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
+            : [],
+          require_exact_text_logo: Boolean(normalizedInputParams.source_text_logo_lock),
+          require_exact_color: Boolean(normalizedInputParams.source_color_lock),
+        })
+
+        const refreshedTalkingPolicy = prepareTalkingVideoPrompt({
+          mode: talkingMode,
+          ideaPrompt: String(normalizedInputParams.idea_prompt_raw ?? normalizedInputParams.idea_prompt ?? ''),
+          speechText: String(normalizedInputParams.speech_text_input_raw ?? normalizedInputParams.speech_text_raw ?? normalizedInputParams.speech_text ?? ''),
+          expressionDirection: String(normalizedInputParams.expression_direction_input_raw ?? normalizedInputParams.expression_direction ?? ''),
+          visualPrompt: String(normalizedInputParams.visual_prompt_input_raw ?? normalizedInputParams.visual_prompt_raw ?? normalizedInputParams.visual_prompt ?? ''),
+          requestedSceneChange: Boolean(normalizedInputParams.requested_scene_change),
+          requestedWardrobeChange: Boolean(normalizedInputParams.requested_wardrobe_change),
+          sourceAsset: {
+            type: 'scene',
+            input_params: {
+              force_strict_source_fidelity: String(normalizedInputParams.source_fidelity_mode ?? '') === 'strict',
+              preserve_all_visible_source_items: Boolean(normalizedInputParams.preserve_all_visible_source_items),
+              source_visible_item_manifest: Array.isArray(normalizedInputParams.source_visible_item_manifest)
+                ? normalizedInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
+                : [],
+              source_text_logo_lock: Boolean(normalizedInputParams.source_text_logo_lock),
+              source_color_lock: Boolean(normalizedInputParams.source_color_lock),
+            },
+          },
+        })
+
+        promptOverride = refreshedTalkingPolicy.finalPrompt
+        normalizedInputParams = {
+          ...normalizedInputParams,
+          source_image_url: sourceImageUrlForGeneration,
+          talking_video_original_source_image_url: sourceImageUrl,
+          talking_video_scene_presolved: true,
+          talking_video_scene_prepass_asset_url: sourceImageUrlForGeneration,
+          talking_video_scene_prepass_engine: 'scene:generateScene',
+          talking_video_prompt_final: promptOverride,
+        }
+
+        await admin.from('studio_assets').update({
+          input_params: normalizedInputParams,
+        }).eq('id', asset.id)
+      }
+
+      async function generateTalkingVoiceTrack() {
         let selectedChunkText = String(
           normalizedInputParams.speech_text_chunk_normalized
             ?? normalizedInputParams.speech_text_normalized
@@ -1033,12 +1320,12 @@ export async function POST(req: NextRequest) {
           }).eq('id', asset.id)
 
           generatedVoiceUrl = await withStageRetry(
-            () => generateVoice({
+            () => generateVoiceGoogle({
               script: selectedChunkText,
               voice_id: voiceId,
               speed,
               assetId: `${asset.id}-voice`,
-              userId: user.id,
+              userId,
             }),
             { attempts: 2 },
           )
@@ -1090,47 +1377,96 @@ export async function POST(req: NextRequest) {
             })
           : ''
 
+        return {
+          selectedChunkText,
+          remainingSpeechText,
+          generatedVoiceUrl,
+          actualSpeechSeconds,
+          continuationIdeaPrompt,
+        }
+      }
+
+      if (talkingMode === 'exact_speech') {
+        const voiceTrack = await generateTalkingVoiceTrack()
         pipelineAttempts = incrementTalkingPipelineAttempts(pipelineAttempts, 'veo_generating')
-        await startVeo3DirectGoogle({
-          source_image_url: sourceImageUrl,
+        await startTalkingVideoMotionGeneration({
+          source_image_url: sourceImageUrlForGeneration,
           motion_prompt: String(normalizedInputParams.visual_prompt_normalized ?? normalizedInputParams.visual_prompt ?? ''),
           prompt_override: promptOverride,
           generate_audio: false,
           duration: 8,
           quality,
           assetId: asset.id,
-          userId: user.id,
+          userId,
+          appUrl,
+          strict_source_fidelity: String(normalizedInputParams.source_fidelity_mode ?? '') === 'strict',
+          source_visible_item_manifest: Array.isArray(normalizedInputParams.source_visible_item_manifest)
+            ? normalizedInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
+            : [],
+          source_text_logo_lock: Boolean(normalizedInputParams.source_text_logo_lock),
+          source_color_lock: Boolean(normalizedInputParams.source_color_lock),
           inputParamsPatch: {
             generated_voice_asset_id: `${asset.id}-voice`,
-            generated_voice_url: generatedVoiceUrl,
-            actual_speech_seconds: actualSpeechSeconds,
-            speech_text_chunk: selectedChunkText,
-            speech_text_chunk_normalized: selectedChunkText,
-            speech_text_remaining: remainingSpeechText,
-            speech_text_remaining_normalized: remainingSpeechText,
-            estimated_chunk_seconds: estimateTalkingSpeechDurationSeconds({ text: selectedChunkText, speed }),
-            estimated_remaining_speech_seconds: estimateTalkingSpeechDurationSeconds({ text: remainingSpeechText, speed }),
-            talking_video_chunked: Boolean(remainingSpeechText),
-            continuation_available: Boolean(remainingSpeechText),
-            continuation_idea_prompt: continuationIdeaPrompt,
+            generated_voice_url: voiceTrack.generatedVoiceUrl,
+            actual_speech_seconds: voiceTrack.actualSpeechSeconds,
+            speech_text_chunk: voiceTrack.selectedChunkText,
+            speech_text_chunk_normalized: voiceTrack.selectedChunkText,
+            speech_text_remaining: voiceTrack.remainingSpeechText,
+            speech_text_remaining_normalized: voiceTrack.remainingSpeechText,
+            estimated_chunk_seconds: estimateTalkingSpeechDurationSeconds({ text: voiceTrack.selectedChunkText, speed }),
+            estimated_remaining_speech_seconds: estimateTalkingSpeechDurationSeconds({ text: voiceTrack.remainingSpeechText, speed }),
+            talking_video_chunked: Boolean(voiceTrack.remainingSpeechText),
+            continuation_available: Boolean(voiceTrack.remainingSpeechText),
+            continuation_idea_prompt: voiceTrack.continuationIdeaPrompt,
             pipeline_stage: 'veo_generating',
             pipeline_attempts: pipelineAttempts,
+            talking_video_delivery_mode: 'silent_veo_plus_lipsync',
           },
         })
       } else {
+        const voiceTrack = shouldGenerateVoiceTrack
+          ? await generateTalkingVoiceTrack()
+          : null
         pipelineAttempts = incrementTalkingPipelineAttempts(pipelineAttempts, 'veo_generating')
-        await startVeo3DirectGoogle({
-          source_image_url: sourceImageUrl,
+        await startTalkingVideoMotionGeneration({
+          source_image_url: sourceImageUrlForGeneration,
           motion_prompt: String(normalizedInputParams.visual_prompt_normalized ?? normalizedInputParams.visual_prompt ?? ''),
           prompt_override: promptOverride,
-          generate_audio: true,
+          generate_audio: false,
           duration: 8,
           quality,
           assetId: asset.id,
-          userId: user.id,
+          userId,
+          appUrl,
+          strict_source_fidelity: String(normalizedInputParams.source_fidelity_mode ?? '') === 'strict',
+          source_visible_item_manifest: Array.isArray(normalizedInputParams.source_visible_item_manifest)
+            ? normalizedInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
+            : [],
+          source_text_logo_lock: Boolean(normalizedInputParams.source_text_logo_lock),
+          source_color_lock: Boolean(normalizedInputParams.source_color_lock),
           inputParamsPatch: {
             pipeline_stage: 'veo_generating',
             pipeline_attempts: pipelineAttempts,
+            generated_voice_asset_id: voiceTrack ? `${asset.id}-voice` : '',
+            generated_voice_url: voiceTrack?.generatedVoiceUrl ?? '',
+            actual_speech_seconds: voiceTrack?.actualSpeechSeconds ?? null,
+            speech_text_chunk: voiceTrack?.selectedChunkText ?? String(normalizedInputParams.speech_text_chunk ?? ''),
+            speech_text_chunk_normalized: voiceTrack?.selectedChunkText ?? String(normalizedInputParams.speech_text_chunk_normalized ?? normalizedInputParams.speech_text_chunk ?? ''),
+            speech_text_remaining: voiceTrack?.remainingSpeechText ?? String(normalizedInputParams.speech_text_remaining ?? ''),
+            speech_text_remaining_normalized: voiceTrack?.remainingSpeechText ?? String(normalizedInputParams.speech_text_remaining_normalized ?? normalizedInputParams.speech_text_remaining ?? ''),
+            talking_video_chunked: voiceTrack ? Boolean(voiceTrack.remainingSpeechText) : Boolean(normalizedInputParams.talking_video_chunked),
+            continuation_available: voiceTrack ? Boolean(voiceTrack.remainingSpeechText) : Boolean(normalizedInputParams.continuation_available),
+            continuation_idea_prompt: voiceTrack?.continuationIdeaPrompt ?? String(normalizedInputParams.continuation_idea_prompt ?? ''),
+            estimated_chunk_seconds: voiceTrack
+              ? estimateTalkingSpeechDurationSeconds({ text: voiceTrack.selectedChunkText, speed })
+              : Number(normalizedInputParams.estimated_chunk_seconds ?? 0),
+            estimated_remaining_speech_seconds: voiceTrack
+              ? estimateTalkingSpeechDurationSeconds({ text: voiceTrack.remainingSpeechText, speed })
+              : Number(normalizedInputParams.estimated_remaining_speech_seconds ?? 0),
+            talking_video_delivery_mode: voiceTrack
+              ? 'silent_veo_plus_lipsync'
+              : 'silent_veo_only',
+            audio_generation_requested: false,
           },
         })
       }
@@ -1193,9 +1529,9 @@ export async function POST(req: NextRequest) {
       resultUrl = composeResult.url
       extraData = { ...extraData, ...(composeResult.extraData ?? {}) }
     } else if (type === 'music') {
-      resultUrl = await generateMusic({
-        prompt: String(input_params.prompt ?? ''),
-        source_image_url: input_params.source_image_url ? String(input_params.source_image_url) : undefined,
+      resultUrl = await generateMusicGoogle({
+        prompt: String(normalizedInputParams.prompt ?? ''),
+        source_image_url: normalizedInputParams.source_image_url ? String(normalizedInputParams.source_image_url) : undefined,
         assetId: asset.id,
         userId: user.id
       })

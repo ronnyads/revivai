@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Layers, Sparkles } from 'lucide-react'
+import { Layers, Sparkles, ChevronDown } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import {
   StudioFieldLabel,
@@ -75,69 +75,29 @@ function getDefaultFittingPose(category: string): string {
   }
 }
 
-function SelectionGrid({
+function CompactSelect({
+  value,
+  onChange,
   options,
-  selectedValue,
-  onSelect,
-  columns = 'grid-cols-2',
 }: {
   options: { value: string; label: string; hint?: string }[]
-  selectedValue: string
-  onSelect: (value: string) => void
-  columns?: string
+  value: string
+  onChange: (value: string) => void
 }) {
   return (
-    <div className={`grid gap-2 ${columns}`}>
-      {options.map((option) => {
-        const selected = selectedValue === option.value
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onSelect(option.value)}
-            className={`rounded-[16px] border px-3 py-2 text-left transition-all ${
-              selected
-                ? 'border-orange-400/40 bg-orange-500/12 text-white shadow-[0_0_0_1px_rgba(251,146,60,0.12)]'
-                : 'border-white/8 bg-[#0C0E10] text-white/66 hover:border-white/14 hover:text-white'
-            }`}
-          >
-            <span className="block text-[10px] font-semibold">{option.label}</span>
-            {option.hint ? <span className="mt-0.5 block text-[9px] text-white/38">{option.hint}</span> : null}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-function PillGroup({
-  options,
-  selectedValue,
-  onSelect,
-}: {
-  options: { value: string; label: string }[]
-  selectedValue: string
-  onSelect: (value: string) => void
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((option) => {
-        const selected = selectedValue === option.value
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onSelect(option.value)}
-            className={`rounded-full border px-3 py-1.5 text-[9px] font-medium transition-all ${
-              selected
-                ? 'border-orange-400/40 bg-orange-500/14 text-white'
-                : 'border-white/8 bg-white/[0.03] text-white/62 hover:border-white/16 hover:text-white'
-            }`}
-          >
-            {option.label}
-          </button>
-        )
-      })}
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full appearance-none rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 pr-9 text-[11px] text-white outline-none transition-colors focus:border-orange-400/30"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.hint ? `${option.label} - ${option.hint}` : option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/38" />
     </div>
   )
 }
@@ -182,6 +142,7 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
   const [fittingPosePreset, setFittingPosePreset] = useState(String(initial.fitting_pose_preset ?? getDefaultFittingPose(initialFittingCategory || 'tops')))
   const [fittingEnergyPreset, setFittingEnergyPreset] = useState(String(initial.fitting_energy_preset ?? 'natural'))
   const [smartPrompt, setSmartPrompt] = useState(String(initial.smart_prompt ?? ''))
+  const [productPromptPreset, setProductPromptPreset] = useState('')
 
   const hasPortrait = !!portraitUrl.trim()
   const isProductVariant = variant === 'product'
@@ -224,16 +185,16 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
       hideHeader
       layout="split"
       mediaColumnClassName="space-y-0"
-      controlsColumnClassName="grid grid-cols-2 items-start gap-3 space-y-0"
+      controlsColumnClassName="grid grid-cols-2 items-start gap-2.5 space-y-0"
       action={
         <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/72">
           {cost} CR
         </span>
       }
       media={
-        <StudioPanel title={isProductVariant ? 'Modelo + produto' : 'Modelo + refs'}>
+        <StudioPanel title={isProductVariant ? 'Modelo + produto' : 'Modelo + refs'} compact>
           {isProductVariant ? (
-            <div className="grid gap-3 grid-cols-2">
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
                 {hasPortrait ? (
                   <div className="group relative overflow-hidden rounded-[16px] border border-white/8 bg-black/20">
@@ -254,7 +215,7 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
                     label="Modelo"
                     accept="image/*"
                     compact
-                    frameClassName="aspect-[4/5] min-h-[220px]"
+                    frameClassName="aspect-[4/5] min-h-[184px]"
                   />
                 )}
               </div>
@@ -278,13 +239,13 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
                     label="Produto"
                     accept="image/*"
                     compact
-                    frameClassName="aspect-[4/5] min-h-[220px]"
+                    frameClassName="aspect-[4/5] min-h-[184px]"
                   />
                 )}
               </div>
             </div>
           ) : (
-            <div className="grid gap-3 grid-cols-[190px_minmax(0,1fr)]">
+            <div className="grid grid-cols-[172px_minmax(0,1fr)] gap-2.5">
               <div>
                 {hasPortrait ? (
                   <div className="group relative overflow-hidden rounded-[16px] border border-white/8 bg-black/20">
@@ -305,41 +266,41 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
                     label="Modelo"
                     accept="image/*"
                     compact
-                    frameClassName="aspect-[4/5] min-h-[220px]"
+                    frameClassName="aspect-[4/5] min-h-[190px]"
                   />
                 )}
               </div>
 
               <div className="space-y-2">
-                <div className="rounded-[16px] border border-white/8 bg-black/10 p-2">
+                <div className="rounded-[16px] border border-white/8 bg-black/10 p-1.5">
                   <ImageUpload
                     value={referenceUrls[0]}
                     onChange={(url) => setReferenceAt(0, url)}
                     label="Look principal"
                     accept="image/*"
                     compact
-                    frameClassName="aspect-[16/9] min-h-[132px]"
+                    frameClassName="aspect-[16/9] min-h-[112px]"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-[16px] border border-white/8 bg-black/10 p-2">
+                  <div className="rounded-[16px] border border-white/8 bg-black/10 p-1.5">
                     <ImageUpload
                       value={referenceUrls[1]}
                       onChange={(url) => setReferenceAt(1, url)}
                       label="Ref 2"
                       accept="image/*"
                       compact
-                      frameClassName="aspect-[4/5] min-h-[138px]"
+                      frameClassName="aspect-[4/5] min-h-[112px]"
                     />
                   </div>
-                  <div className="rounded-[16px] border border-white/8 bg-black/10 p-2">
+                  <div className="rounded-[16px] border border-white/8 bg-black/10 p-1.5">
                     <ImageUpload
                       value={referenceUrls[2]}
                       onChange={(url) => setReferenceAt(2, url)}
                       label="Ref 3"
                       accept="image/*"
                       compact
-                      frameClassName="aspect-[4/5] min-h-[138px]"
+                      frameClassName="aspect-[4/5] min-h-[112px]"
                     />
                   </div>
                 </div>
@@ -351,45 +312,32 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
       }
       controls={
         <>
-          <div className="col-span-2">
-            <StudioPanel title="Quadro">
-              <StudioFieldLabel>Formato</StudioFieldLabel>
-              <SelectionGrid
-                options={ASPECT_RATIO_PRESETS}
-                selectedValue={aspectRatio}
-                onSelect={setAspectRatio}
-                columns="grid-cols-4"
-              />
+          <div className={isProductVariant ? 'col-span-1' : 'col-span-2'}>
+            <StudioPanel title="Configuracao" compact>
+              <div className={`grid gap-3 ${isProductVariant ? '' : 'sm:grid-cols-3'}`}>
+                <div>
+                  <StudioFieldLabel>Formato</StudioFieldLabel>
+                  <CompactSelect value={aspectRatio} onChange={setAspectRatio} options={ASPECT_RATIO_PRESETS} />
+                </div>
+
+                {!isProductVariant ? (
+                  <>
+                    <div>
+                      <StudioFieldLabel>Pose</StudioFieldLabel>
+                      <CompactSelect value={fittingPosePreset} onChange={setFittingPosePreset} options={FITTING_POSE_PRESETS} />
+                    </div>
+                    <div>
+                      <StudioFieldLabel>Energia</StudioFieldLabel>
+                      <CompactSelect value={fittingEnergyPreset} onChange={setFittingEnergyPreset} options={FITTING_ENERGY_PRESETS} />
+                    </div>
+                  </>
+                ) : null}
+              </div>
             </StudioPanel>
           </div>
 
-          {!isProductVariant ? (
-            <div className="col-span-1">
-              <StudioPanel title="Look">
-                <div className="space-y-3">
-                  <div>
-                    <StudioFieldLabel>Pose</StudioFieldLabel>
-                    <PillGroup
-                      options={FITTING_POSE_PRESETS}
-                      selectedValue={fittingPosePreset}
-                      onSelect={setFittingPosePreset}
-                    />
-                  </div>
-                  <div>
-                    <StudioFieldLabel>Energia</StudioFieldLabel>
-                    <PillGroup
-                      options={FITTING_ENERGY_PRESETS}
-                      selectedValue={fittingEnergyPreset}
-                      onSelect={setFittingEnergyPreset}
-                    />
-                  </div>
-                </div>
-              </StudioPanel>
-            </div>
-          ) : null}
-
-          <div className="col-span-1">
-            <StudioPanel title={isProductVariant ? 'Direcao' : 'Ajuste'}>
+          <div className={isProductVariant ? 'col-span-1' : 'col-span-2'}>
+            <StudioPanel title={isProductVariant ? 'Direcao' : 'Ajuste'} compact>
               <div className="space-y-3">
                 {isProductVariant ? (
                   <div>
@@ -406,11 +354,27 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
                     >
                       Presets
                     </StudioFieldLabel>
-                    <PillGroup
-                      options={PRODUCT_PROMPT_CHIPS}
-                      selectedValue=""
-                      onSelect={(value) => applyProductPromptChip(value)}
-                    />
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <CompactSelect
+                        value={productPromptPreset}
+                        onChange={setProductPromptPreset}
+                        options={[
+                          { value: '', label: 'Escolha um preset rapido' },
+                          ...PRODUCT_PROMPT_CHIPS,
+                        ]}
+                      />
+                      <button
+                        type="button"
+                        disabled={!productPromptPreset}
+                        onClick={() => {
+                          applyProductPromptChip(productPromptPreset)
+                          setProductPromptPreset('')
+                        }}
+                        className="rounded-[16px] border border-white/10 bg-white/[0.04] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/72 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Adicionar
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex justify-end">
@@ -432,7 +396,7 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
                       ? 'Ex: sorriso leve, produto na altura do peito, rotulo visivel.'
                       : 'Ex: pose frontal, mostrar melhor bolsa e oculos.'
                   }
-                  rows={isProductVariant ? 5 : 8}
+                  rows={isProductVariant ? 4 : 5}
                   className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-orange-400/30"
                 />
                 <StudioHint tone="warning">

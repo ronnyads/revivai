@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { GoogleGenAIError, fetchGoogleModelCatalog, getGoogleGenAIPolicy } from '@/lib/googleGenai'
+
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
-  if (!apiKey) return NextResponse.json({ error: 'GOOGLE_API_KEY não configurada' }, { status: 500 })
+  const policy = getGoogleGenAIPolicy()
 
-  const [r1, r2] = await Promise.all([
-    fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=200`),
-    fetch(`https://generativelanguage.googleapis.com/v1alpha/models?key=${apiKey}&pageSize=200`),
-  ])
+  let r1: Response
+  let r2: Response
+
+  try {
+    ;[r1, r2] = await Promise.all([
+      fetchGoogleModelCatalog({ apiVersion: 'v1beta', feature: 'debug-gemini-model-catalog' }),
+      fetchGoogleModelCatalog({ apiVersion: 'v1alpha', feature: 'debug-gemini-model-catalog' }),
+    ])
+  } catch (error) {
+    const status = error instanceof GoogleGenAIError ? (error.status ?? 503) : 500
+    const code = error instanceof GoogleGenAIError ? error.code : 'unknown_google_genai_error'
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: message, code, policy }, { status })
+  }
 
   const [d1, d2] = await Promise.all([r1.json(), r2.json()])
 
@@ -23,7 +34,6 @@ export async function GET(req: NextRequest) {
   const v1beta = fmt(d1, 'v1beta')
   const v1alpha = fmt(d2, 'v1alpha')
 
-  // Modelos que suportam geração de imagem (pelo nome ou método)
   const imageModels = [...v1beta, ...v1alpha].filter(m =>
     m.name.includes('image') ||
     m.name.includes('imagen') ||
@@ -34,6 +44,7 @@ export async function GET(req: NextRequest) {
   )
 
   return NextResponse.json({
+    policy,
     image_capable: imageModels,
     v1beta_error: d1.error ?? null,
     v1alpha_error: d2.error ?? null,

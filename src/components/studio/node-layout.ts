@@ -66,18 +66,18 @@ export function getStudioNodeCardWidth(
   }
 
   if (visualState === 'active') {
-    if (type === 'compose') return 940
-    if (type === 'scene' || type === 'video') return 760
-    if (type === 'talking_video') return 700
-    if (type === 'image' || type === 'look_split') return 740
-    if (type === 'model') return 550
-    if (EXPANDED_NODE_TYPES.has(type)) return 520
-    if (ACTIVE_NODE_TYPES.has(type)) return 480
-    return 430
+    if (type === 'compose') return 960
+    if (type === 'scene' || type === 'video') return 780
+    if (type === 'talking_video') return 720
+    if (type === 'image' || type === 'look_split') return 760
+    if (type === 'model') return 570
+    if (EXPANDED_NODE_TYPES.has(type)) return 540
+    if (ACTIVE_NODE_TYPES.has(type)) return 500
+    return 450
   }
 
-  if (type === 'compose') return 390
-  if (EXPANDED_NODE_TYPES.has(type) || ACTIVE_NODE_TYPES.has(type)) return 360
+  if (type === 'compose') return 410
+  if (EXPANDED_NODE_TYPES.has(type) || ACTIVE_NODE_TYPES.has(type)) return 380
 
-  return 336
+  return 352
 }

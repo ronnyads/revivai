@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { GoogleGenAIError, fetchGoogleStreamGenerateContent } from '@/lib/googleGenai'
 import { createClient } from '@/lib/supabase/server'
 
 const SYSTEM_PROMPTS: Record<string, string> = {
@@ -7,8 +8,6 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 }
 
 const GEMINI_MODEL = 'gemini-2.5-flash'
-const GEMINI_API = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent`
-
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -39,7 +38,7 @@ export async function POST(req: NextRequest) {
   }))
 
   const geminiBody = {
-    system_instruction: { parts: [{ text: SYSTEM_PROMPTS[agentType] ?? SYSTEM_PROMPTS.ugc }] },
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPTS[agentType] ?? SYSTEM_PROMPTS.ugc }] },
     contents: [
       ...geminiHistory,
       { role: 'user', parts: [{ text: message }] },
@@ -47,13 +46,20 @@ export async function POST(req: NextRequest) {
     generationConfig: { temperature: 0.9, maxOutputTokens: 1024 },
   }
 
-  console.log('[chat] key present:', !!process.env.GEMINI_API_KEY, 'model:', GEMINI_MODEL)
-
-  const geminiRes = await fetch(`${GEMINI_API}?key=${process.env.GEMINI_API_KEY}&alt=sse`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(geminiBody),
-  })
+  let geminiRes: Response
+  try {
+    geminiRes = await fetchGoogleStreamGenerateContent({
+      model: GEMINI_MODEL,
+      feature: 'studio-chat',
+      body: geminiBody,
+    })
+  } catch (error) {
+    const status = error instanceof GoogleGenAIError ? (error.status ?? 503) : 500
+    const code = error instanceof GoogleGenAIError ? error.code : 'unknown_google_genai_error'
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('[chat] Google GenAI routing error:', code, message)
+    return NextResponse.json({ error: message, code }, { status })
+  }
 
   if (!geminiRes.ok || !geminiRes.body) {
     const err = await geminiRes.text()

@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { assertDirectGeminiAllowed } from '@/lib/googleGenai'
 
 const DEFAULT_RETRY_PROMPT = `Restore this photograph with minimal intervention. Focus only on removing visible damage marks, dust, and scratches. Do NOT change faces, expressions, composition, or overall appearance. Preserve everything as close to the original as possible.`
 
@@ -15,6 +16,7 @@ async function tryRestoreWithModel(
   prompt: string,
   persona?: string | null,
 ): Promise<Buffer> {
+  assertDirectGeminiAllowed({ feature: 'photo-restore-gemini', model })
   const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
   if (!apiKey) throw new Error('GOOGLE_API_KEY / GEMINI_API_KEY não configurada')
 

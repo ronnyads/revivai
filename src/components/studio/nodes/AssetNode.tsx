@@ -490,7 +490,7 @@ function AssetNode({ data, selected }: NodeProps) {
         }
       : meta
 
-  const inputHandles = INPUT_HANDLES[asset.type] ?? []
+  const inputHandles = useMemo(() => INPUT_HANDLES[asset.type] ?? [], [asset.type])
   const [collapsed, setCollapsed] = useState(() => asset.status === 'done' || (!asset.isLocal && asset.status === 'idle'))
   const [doneEditorOpen, setDoneEditorOpen] = useState(false)
   const hasDoneResult = asset.status === 'done' && Boolean(asset.result_url)
@@ -571,29 +571,29 @@ function AssetNode({ data, selected }: NodeProps) {
               <p className={`truncate text-[14px] font-semibold tracking-tight ${displayMeta.color}`}>{displayMeta.label}</p>
               <StatusPill status={asset.status} />
             </div>
-            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-white/72">{displayMeta.hint}</p>
+            <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-white/82">{displayMeta.hint}</p>
           </div>
         </button>
 
         <div className="flex shrink-0 items-center gap-1.5">
-          <span className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/88">
+          <span className="rounded-full border border-white/12 bg-white/[0.08] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">
             {asset.credits_cost} CR
           </span>
           <button
             type="button"
             onClick={() => onDuplicate(asset.id)}
             title="Duplicar card"
-            className="flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-white/75 transition-colors hover:border-white/10 hover:bg-white/[0.06] hover:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#54D6F6]/24 bg-[#0D171B] text-cyan-100 transition-colors hover:border-[#54D6F6]/40 hover:bg-[#112329] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#54D6F6]/45"
           >
-            <CopyPlus size={14} />
+            <CopyPlus size={15} />
           </button>
           <button
             type="button"
             onClick={() => onDelete(asset.id)}
             title="Excluir card"
-            className="flex h-8 w-8 items-center justify-center rounded-xl border border-transparent text-white/75 transition-colors hover:border-red-500/18 hover:bg-red-500/10 hover:text-red-200"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/82 transition-colors hover:border-red-500/24 hover:bg-red-500/10 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
           >
-            <Trash2 size={14} />
+            <Trash2 size={15} />
           </button>
         </div>
       </div>
@@ -615,16 +615,16 @@ function AssetNode({ data, selected }: NodeProps) {
             <ResultPreview type={asset.type} url={asset.result_url!} params={asset.input_params} donePreview />
             {asset.type === 'talking_video' && talkingVideoContinuationDraft ? (
               <div className="rounded-[18px] border border-cyan-500/18 bg-[#0D171B] p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100">restante pronto para continuar</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-white/68">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-100">restante pronto para continuar</p>
+                <p className="mt-1 text-[12px] leading-relaxed text-white/80">
                   Este primeiro video entregou a parte inicial da fala. Se quiser, criamos outro card ja com o texto restante preenchido.
                 </p>
               </div>
             ) : null}
             {asset.type === 'compose' && provadorContinuationDraft ? (
               <div className="rounded-[18px] border border-cyan-500/18 bg-[#0D171B] p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100">proximo passo do look preparado</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-white/68">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-100">proximo passo do look preparado</p>
+                <p className="mt-1 text-[12px] leading-relaxed text-white/80">
                   Este resultado estabilizou a base principal do look. Se quiser, continuamos com {provadorRemainingCategories.join(', ') || 'a proxima peca'} em outro card ja preenchido.
                 </p>
               </div>
@@ -633,7 +633,7 @@ function AssetNode({ data, selected }: NodeProps) {
               <button
                 type="button"
                 onClick={() => setDoneEditorOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.06] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/92 transition-colors hover:border-white/24 hover:bg-white/[0.08] hover:text-white"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/14 bg-white/[0.08] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:border-white/24 hover:bg-white/[0.11] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
               >
                 <Pencil size={12} />
                 Editar
@@ -641,7 +641,7 @@ function AssetNode({ data, selected }: NodeProps) {
               <button
                 type="button"
                 onClick={() => setDoneEditorOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.06] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/92 transition-colors hover:border-white/24 hover:bg-white/[0.08] hover:text-white"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/14 bg-white/[0.08] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:border-white/24 hover:bg-white/[0.11] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
               >
                 <RotateCcw size={12} />
                 Regenerar
@@ -650,8 +650,8 @@ function AssetNode({ data, selected }: NodeProps) {
                 <button
                   type="button"
                   onClick={() => downloadAsset(asset)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#54D6F6]/24 bg-[#0D171B] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white transition-colors hover:border-[#54D6F6]/40 hover:text-white"
-                >
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#54D6F6]/24 bg-[#0D171B] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:border-[#54D6F6]/40 hover:bg-[#102025] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#54D6F6]/35"
+              >
                   <Download size={12} />
                   Download
                 </button>
@@ -660,8 +660,8 @@ function AssetNode({ data, selected }: NodeProps) {
                 <button
                   type="button"
                   onClick={() => onDuplicate(asset.id, talkingVideoContinuationDraft)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100 transition-colors hover:border-cyan-400/36 hover:text-white"
-                >
+                  className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/24 bg-cyan-500/12 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100 transition-colors hover:border-cyan-400/40 hover:bg-cyan-500/16 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/30"
+              >
                   <ArrowRight size={12} />
                   Continuar restante
                 </button>
@@ -670,8 +670,8 @@ function AssetNode({ data, selected }: NodeProps) {
                 <button
                   type="button"
                   onClick={() => onDuplicate(asset.id, provadorContinuationDraft)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100 transition-colors hover:border-cyan-400/36 hover:text-white"
-                >
+                  className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/24 bg-cyan-500/12 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100 transition-colors hover:border-cyan-400/40 hover:bg-cyan-500/16 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/30"
+              >
                   <ArrowRight size={12} />
                   Continuar look
                 </button>
@@ -709,7 +709,7 @@ function AssetNode({ data, selected }: NodeProps) {
             <button
               type="button"
               onClick={() => setDoneEditorOpen(false)}
-              className="rounded-full border border-white/12 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/88 transition-colors hover:border-white/24 hover:text-white"
+              className="rounded-full border border-white/14 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/92 transition-colors hover:border-white/24 hover:text-white"
             >
               Voltar ao preview
             </button>
@@ -717,14 +717,14 @@ function AssetNode({ data, selected }: NodeProps) {
             <button
               type="button"
               onClick={() => setCollapsed(true)}
-              className="rounded-full border border-white/12 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/88 transition-colors hover:border-white/24 hover:text-white"
+              className="rounded-full border border-white/14 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/92 transition-colors hover:border-white/24 hover:text-white"
             >
               Recolher
             </button>
           ) : <div />}
-          <div className="flex items-center justify-center gap-2 text-white/58">
+          <div className="flex items-center justify-center gap-2 text-white/74">
           <GripHorizontal size={15} />
-          <span className="text-[10px] uppercase tracking-[0.24em]">drag node</span>
+          <span className="text-[11px] uppercase tracking-[0.2em]">drag node</span>
           </div>
         </div>
       </div>
@@ -775,10 +775,10 @@ function HandleTag({
       />
 
       <span
-        className={`pointer-events-none absolute top-1/2 whitespace-nowrap rounded-full border px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] transition-all ${
+        className={`pointer-events-none absolute top-1/2 whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] transition-all ${
           selected
-            ? 'border-white/12 bg-[#0C1114] text-white/76 opacity-100'
-            : 'border-white/8 bg-[#0C1114]/94 text-white/42 opacity-0 group-hover/handle:opacity-100'
+            ? 'border-white/14 bg-[#0C1114] text-white/88 opacity-100'
+            : 'border-white/10 bg-[#0C1114]/94 text-white/70 opacity-0 group-hover/handle:opacity-100'
         } ${isLeft ? 'right-[20px]' : 'left-[20px]'}`}
         style={{ transform: 'translateY(-50%)' }}
       >
@@ -792,7 +792,7 @@ function StatusPill({ status }: { status: StudioAsset['status'] }) {
   const meta = STATUS_META[status]
 
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] ${meta.className}`}>
+    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${meta.className}`}>
       {meta.label}
     </span>
   )
@@ -805,14 +805,14 @@ function LockedPlanState() {
         <Lock size={18} className="text-white/50" />
       </div>
       <div>
-        <p className="text-sm font-semibold text-white/78">Disponivel em planos pagos</p>
-        <p className="mt-1 text-[11px] leading-relaxed text-white/42">Video, animacao e lip sync ficam liberados a partir do plano Rookie.</p>
+        <p className="text-base font-semibold text-white/92">Disponivel em planos pagos</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-white/68">Video, animacao e lip sync ficam liberados a partir do plano Rookie.</p>
       </div>
       <a
         href="/#precos"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 rounded-full border border-[#54D6F6]/18 bg-[#0D171B] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#8EDDED] transition-colors hover:border-[#54D6F6]/34 hover:text-white"
+        className="inline-flex items-center gap-1.5 rounded-full border border-[#54D6F6]/18 bg-[#0D171B] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8EDDED] transition-colors hover:border-[#54D6F6]/34 hover:text-white"
       >
         Ver planos
       </a>
@@ -837,12 +837,12 @@ function CollapsedIdleShell({
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/74">modo compacto</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">modo compacto</p>
           <p className="mt-1 text-sm font-medium text-white/92">
             {summaryTokens.length > 0 ? 'Card pronto para abrir e gerar.' : 'Abra para configurar este card.'}
           </p>
         </div>
-        <span className="rounded-full border border-[#54D6F6]/24 bg-[#0D171B] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white">
+        <span className="rounded-full border border-[#54D6F6]/24 bg-[#0D171B] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">
           Abrir
         </span>
       </div>
@@ -850,19 +850,19 @@ function CollapsedIdleShell({
       <div className="mt-3 flex flex-wrap gap-1.5">
         {summaryTokens.length > 0 ? (
           summaryTokens.map((token) => (
-            <span key={token} className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] text-white/88">
+            <span key={token} className="rounded-full border border-white/12 bg-white/[0.08] px-2.5 py-1 text-[11px] text-white/92">
               {token}
             </span>
           ))
         ) : (
-          <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] text-white/66">
+          <span className="rounded-full border border-white/12 bg-white/[0.08] px-2.5 py-1 text-[11px] text-white/74">
             Nenhum campo principal preenchido
           </span>
         )}
       </div>
 
       {connectedInputLabels.length > 0 ? (
-        <p className="mt-3 text-[11px] text-white/72">Entradas prontas: {connectedInputLabels.join(', ')}</p>
+        <p className="mt-3 text-[12px] text-white/82">Entradas prontas: {connectedInputLabels.join(', ')}</p>
       ) : null}
     </button>
   )
@@ -883,16 +883,16 @@ function OpenCardSummary({
     <div className="rounded-[22px] border border-white/8 bg-white/[0.03] px-3 py-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/74">configuracao ativa</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">configuracao ativa</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {chips.length > 0 ? (
               chips.map((token) => (
-                <span key={token} className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-medium text-white/88">
+                <span key={token} className="rounded-full border border-white/12 bg-white/[0.08] px-2.5 py-1 text-[11px] font-medium text-white/92">
                   {token}
                 </span>
               ))
             ) : (
-              <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-medium text-white/66">
+              <span className="rounded-full border border-white/12 bg-white/[0.08] px-2.5 py-1 text-[11px] font-medium text-white/74">
                 Campos principais ainda vazios
               </span>
             )}
@@ -900,22 +900,15 @@ function OpenCardSummary({
         </div>
 
         <div className="min-w-0 lg:max-w-[240px]">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/70">entradas</p>
-          <p className="mt-1 text-[11px] leading-relaxed text-white/76">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">entradas</p>
+          <p className="mt-1 text-[12px] leading-relaxed text-white/82">
             {connectedInputLabels.length > 0 ? connectedInputLabels.join(', ') : 'Sem entradas conectadas no momento.'}
           </p>
-          {nextStep ? <p className="mt-2 text-[10px] leading-relaxed text-white/90">{nextStep}</p> : null}
+          {nextStep ? <p className="mt-2 text-[11px] leading-relaxed text-white/92">{nextStep}</p> : null}
         </div>
       </div>
     </div>
   )
-}
-
-function NextStepHint({ type }: { type: AssetType }) {
-  const hint = NEXT_STEPS[type]
-  if (!hint) return null
-
-  return <span className={`rounded-full border px-2.5 py-1 text-[10px] font-medium ${hint.chip}`}>{hint.text}</span>
 }
 
 function ResultPreview({

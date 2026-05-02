@@ -3,6 +3,7 @@ export const maxDuration = 120
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { finalizeTalkingVideoBaseGeneration } from '@/lib/studio'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
 import { getLogicalStudioAssetType } from '@/lib/studioAssetType'
 
@@ -32,6 +33,11 @@ async function persistToStorage(
   } catch {
     return url
   }
+}
+
+function resolveAppUrl() {
+  const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
+  return process.env.NEXT_PUBLIC_APP_URL ?? vercelUrl ?? 'http://localhost:3000'
 }
 
 export async function POST(req: NextRequest) {
@@ -94,6 +100,32 @@ export async function POST(req: NextRequest) {
     const currentInputParams = asRecord(current?.input_params)
     const logicalType = getLogicalStudioAssetType(current?.type, currentInputParams)
     const permanentUrl = await persistToStorage(admin, rawUrl, userId, assetId)
+    const currentEngine = typeof currentInputParams.engine === 'string' ? currentInputParams.engine : ''
+
+    if (logicalType === 'talking_video' && currentEngine !== 'sync-lipsync') {
+      const finalized = await finalizeTalkingVideoBaseGeneration({
+        admin,
+        assetId,
+        userId,
+        finalUrl: permanentUrl,
+        appUrl: resolveAppUrl(),
+        currentInputParams,
+      })
+
+      if (finalized.status === 'processing') {
+        console.log(`[studio/webhook] talking_video ${assetId} avancou para: ${finalized.message ?? 'processing'}`)
+        return NextResponse.json({ ok: true })
+      }
+
+      if (finalized.status === 'error') {
+        console.log(`[studio/webhook] talking_video ${assetId} falhou no pos-processamento: ${finalized.error}`)
+        return NextResponse.json({ ok: true })
+      }
+
+      console.log(`[studio/webhook] talking_video ${assetId} concluido apos pos-processamento: ${finalized.resultUrl ?? permanentUrl}`)
+      return NextResponse.json({ ok: true })
+    }
+
     const nextInputParams = logicalType === 'talking_video'
       ? {
           ...currentInputParams,

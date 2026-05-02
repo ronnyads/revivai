@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Video, Link2, User, Clapperboard } from 'lucide-react'
+import { Video, Link2, User, Clapperboard, ChevronDown } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import {
   StudioFieldLabel,
@@ -18,6 +18,59 @@ interface Props {
 }
 
 const AUDIO_EXTS = /\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i
+const ENGINE_OPTIONS = [
+  { value: 'veo', label: 'Google Veo' },
+  { value: 'kling', label: 'Kling AI' },
+]
+const QUALITY_OPTIONS = [
+  { value: '720p', label: '720p' },
+  { value: '1080p', label: '1080p HQ' },
+]
+const DURATION_OPTIONS = [
+  { value: '5', label: '5 segundos' },
+  { value: '10', label: '10 segundos' },
+]
+const VIDEO_SCENE_PRESETS = [
+  { value: 'none', label: 'Sem preset', prompt: '' },
+  { value: 'podcast', label: 'Podcast', prompt: 'estudio de podcast premium, microfone visivel, mesa clean, luz quente controlada, atmosfera intimista' },
+  { value: 'beach', label: 'Praia', prompt: 'praia ensolarada, brisa suave, mar ao fundo, luz natural leve, atmosfera relaxada' },
+  { value: 'office', label: 'Escritorio', prompt: 'escritorio contemporaneo, mesa organizada, luz suave de janela, atmosfera profissional premium' },
+]
+
+function joinPromptParts(parts: string[]) {
+  return parts
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part, index, array) => array.indexOf(part) === index)
+    .join(', ')
+}
+
+function CompactSelect({
+  value,
+  onChange,
+  options,
+}: {
+  value: string
+  onChange: (value: string) => void
+  options: Array<{ value: string; label: string }>
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full appearance-none rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 pr-9 text-[11px] text-white outline-none transition-colors focus:border-blue-400/30"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/38" />
+    </div>
+  )
+}
 
 function resolveImageUrl(params: Record<string, unknown>): string {
   const continuation = String(params.continuation_frame ?? '')
@@ -45,6 +98,10 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
   const [duration, setDuration] = useState<5 | 10>(([5, 10].includes(Number(initial.duration)) ? Number(initial.duration) : 5) as 5 | 10)
   const [engine, setEngine] = useState(String(initial.engine ?? 'veo'))
   const [quality, setQuality] = useState(String(initial.quality ?? '720p'))
+  const [scenePreset, setScenePreset] = useState('none')
+  const selectedEngineLabel = ENGINE_OPTIONS.find((option) => option.value === engine)?.label ?? 'Motor'
+  const selectedScenePreset = VIDEO_SCENE_PRESETS.find((option) => option.value === scenePreset) ?? VIDEO_SCENE_PRESETS[0]
+  const finalMotionPrompt = joinPromptParts([selectedScenePreset.prompt, motion])
 
   const baseCost = engine === 'veo' ? CREDIT_COST.video_veo : CREDIT_COST.video
   const cost = quality === '1080p' ? baseCost * 2 : baseCost
@@ -62,7 +119,7 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
       ]}
       media={
         <>
-          <StudioPanel title="Base">
+          <StudioPanel title="Base" compact>
             {!isContinuation ? (
               <ImageUpload value={imageUrl} onChange={setImageUrl} label="Imagem fonte" accept="image/*" preview />
             ) : (
@@ -72,7 +129,7 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
             )}
           </StudioPanel>
 
-          <StudioPanel title="Origem">
+          <StudioPanel title="Origem" compact>
             <div className="space-y-2">
               {initial.model_prompt && !isContinuation ? (
                 <div className="flex items-center gap-2 rounded-[16px] border border-indigo-500/20 bg-indigo-500/10 px-3 py-2.5 text-[10px] font-semibold text-indigo-200">
@@ -80,7 +137,7 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
                 </div>
               ) : null}
               <div className="rounded-[16px] border border-blue-500/14 bg-blue-500/[0.06] px-3 py-2.5">
-                <p className="text-[10px] font-semibold text-white">{engine === 'veo' ? 'Google Veo' : 'Kling AI'}</p>
+                <p className="text-[10px] font-semibold text-white">{selectedEngineLabel}</p>
                 <p className="mt-1 text-[9px] leading-relaxed text-white/44">
                   {engine === 'veo' ? 'Mais cinematografico.' : 'Melhor para sequencia e repeticao.'}
                 </p>
@@ -91,56 +148,55 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
       }
       controls={
         <>
-          <StudioPanel title="Motor">
+          <StudioPanel title="Configuracao" compact>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <StudioFieldLabel>Tecnologia</StudioFieldLabel>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: 'veo', label: 'Google Veo' },
-                    { value: 'kling', label: 'Kling AI' },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setEngine(option.value)}
-                      className={`rounded-[16px] border px-3 py-2.5 text-[10px] font-semibold transition-all ${
-                        engine === option.value
-                          ? 'border-blue-400/30 bg-blue-500/12 text-white'
-                          : 'border-white/8 bg-[#0B0D0F] text-white/46 hover:border-white/14 hover:text-white'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <CompactSelect value={engine} onChange={setEngine} options={ENGINE_OPTIONS} />
               </div>
               <div>
                 <StudioFieldLabel>Resolucao</StudioFieldLabel>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { value: '720p', label: '720p' },
-                    { value: '1080p', label: '1080p HQ' },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setQuality(option.value)}
-                      className={`rounded-[16px] border px-3 py-2.5 text-[10px] font-semibold transition-all ${
-                        quality === option.value
-                          ? 'border-blue-400/30 bg-blue-500/12 text-white'
-                          : 'border-white/8 bg-[#0B0D0F] text-white/46 hover:border-white/14 hover:text-white'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <CompactSelect value={quality} onChange={setQuality} options={QUALITY_OPTIONS} />
               </div>
             </div>
+
+            <div className="mt-3">
+              <StudioFieldLabel>Cenario preset</StudioFieldLabel>
+              <CompactSelect
+                value={scenePreset}
+                onChange={setScenePreset}
+                options={VIDEO_SCENE_PRESETS.map((option) => ({ value: option.value, label: option.label }))}
+              />
+            </div>
+
+            <div className="mt-3">
+              <StudioFieldLabel>Duracao</StudioFieldLabel>
+              {engine === 'veo' ? (
+                <div className="flex items-center justify-between rounded-[16px] border border-blue-500/18 bg-blue-500/10 px-3 py-2.5">
+                  <span className="text-[10px] font-semibold text-blue-200">8 segundos</span>
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/46">fixo</span>
+                </div>
+              ) : (
+                <CompactSelect
+                  value={String(duration)}
+                  onChange={(value) => setDuration(Number(value) as 5 | 10)}
+                  options={DURATION_OPTIONS}
+                />
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center justify-between rounded-[16px] border border-blue-500/14 bg-blue-500/[0.06] px-3 py-2.5">
+              <span className="text-[10px] font-semibold text-blue-200">{selectedEngineLabel}</span>
+              <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/46">{cost} CR</span>
+            </div>
+            {selectedScenePreset.value !== 'none' ? (
+              <div className="mt-2">
+                <StudioHint>Preset aplicado. O Studio monta a pre-cena e depois anima o frame em um unico fluxo.</StudioHint>
+              </div>
+            ) : null}
           </StudioPanel>
 
-          <StudioPanel title="Movimento">
+          <StudioPanel title="Movimento" compact>
             <StudioFieldLabel>Direcao de movimento</StudioFieldLabel>
             <textarea
               value={motion}
@@ -150,7 +206,7 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
                   ? 'Ex: olha para a camera, sorri de leve, respiracao natural.'
                   : 'Ex: leve push-in, sorriso suave, pequeno giro de rosto, levantar levemente o produto.'
               }
-              rows={4}
+              rows={3}
               className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-blue-400/30"
             />
             <div className="mt-2 space-y-1.5">
@@ -158,35 +214,9 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
                 Use este campo para micro-movimento, expressao e camera. O video preserva modelo, produto, roupa e fundo do frame base.
               </StudioHint>
               <StudioHint tone="warning">
-                Nao troca cenario aqui. Para ambiente novo, use Cena Livre e depois anime o frame final em Video.
+                Se pedir ambiente novo, o Studio resolve uma pre-cena invisivel antes de animar. Para controle total do frame, use Cena Livre.
               </StudioHint>
             </div>
-          </StudioPanel>
-
-          <StudioPanel title="Duracao">
-            {engine === 'veo' ? (
-              <div className="flex items-center justify-between rounded-[16px] border border-blue-500/18 bg-blue-500/10 px-3 py-2.5">
-                <span className="text-[10px] font-semibold text-blue-200">8 segundos</span>
-                <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/46">fixo</span>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {[5, 10].map((seconds) => (
-                  <button
-                    key={seconds}
-                    type="button"
-                    onClick={() => setDuration(seconds as 5 | 10)}
-                    className={`rounded-[16px] border px-3 py-2.5 text-[10px] font-semibold transition-all ${
-                      duration === seconds
-                        ? 'border-blue-400/30 bg-blue-500/12 text-white'
-                        : 'border-white/8 bg-[#0B0D0F] text-white/46 hover:border-white/14 hover:text-white'
-                    }`}
-                  >
-                    {seconds}s
-                  </button>
-                ))}
-              </div>
-            )}
           </StudioPanel>
 
           <StudioPrimaryButton
@@ -196,7 +226,7 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
               onGenerate({
                 source_image_url: imageUrl,
                 continuation_frame: isContinuation ? imageUrl : undefined,
-                motion_prompt: motion,
+                motion_prompt: finalMotionPrompt,
                 duration,
                 engine,
                 quality,
