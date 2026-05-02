@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Film, Sparkles, User } from 'lucide-react'
 import { CREDIT_COST } from '@/constants/studio'
+import { getPreviewMediaUrl } from '@/lib/mediaUrl'
 import ImageUpload from './ImageUpload'
 import WebcamRecorder from './WebcamRecorder'
 
@@ -24,6 +25,7 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
 
   const portraitUrl = uploadedPortraitUrl || connectedPortraitUrl
   const drivingUrl = recordedDrivingUrl || connectedDrivingUrl
+  const drivingPreviewUrl = getPreviewMediaUrl(drivingUrl)
   const hasPortrait = !!portraitUrl.trim()
   const hasDriving = !!drivingUrl.trim()
   const cost = CREDIT_COST.animate
@@ -100,13 +102,13 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
             <div className="relative aspect-square overflow-hidden rounded-2xl border border-white/5 ring-4 ring-black/20 bg-zinc-950">
               <video
                 key={drivingUrl}
-                src={drivingUrl}
+                src={drivingPreviewUrl}
                 className="h-full w-full object-cover"
                 playsInline
                 muted
                 autoPlay
                 loop
-                preload="auto"
+                preload="metadata"
                 onLoadedMetadata={(event) => {
                   const video = event.currentTarget
                   const targetTime = Math.min(0.15, Math.max((video.duration || 0) - 0.01, 0))

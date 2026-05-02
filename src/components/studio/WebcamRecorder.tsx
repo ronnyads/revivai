@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Camera, Square, CheckCircle, RotateCcw, Loader2, Upload, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { getPreviewMediaUrl } from '@/lib/mediaUrl'
 
 type Phase = 'idle' | 'preview' | 'countdown' | 'recording' | 'recorded' | 'uploading'
 
@@ -144,12 +145,13 @@ export default function WebcamRecorder({ value, onChange }: Props) {
 
   const pct = Math.min((elapsed / MAX_SECONDS) * 100, 100)
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+  const uploadedPreviewUrl = getPreviewMediaUrl(value)
 
   // Already has a recorded URL
   if (value) {
     return (
       <div className="flex flex-col gap-2">
-        <video src={value} controls className="w-full rounded-xl max-h-40" playsInline />
+        <video src={uploadedPreviewUrl} controls className="w-full rounded-xl max-h-40" playsInline preload="metadata" />
         <button
           onClick={() => { onChange(''); setPhase('idle') }}
           className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-500 hover:text-red-400 border border-zinc-700 py-1.5 rounded-xl transition-colors"

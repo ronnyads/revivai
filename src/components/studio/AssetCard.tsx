@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, Music, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2, User, Film, Camera, Scissors } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
+import { getPreviewMediaUrl } from '@/lib/mediaUrl'
 import ImageGenerator from './ImageGenerator'
 import ScriptGenerator from './ScriptGenerator'
 import VoiceGenerator from './VoiceGenerator'
@@ -208,11 +209,12 @@ export default function AssetCard({ asset, stepNumber, onDelete, onRetry, onGene
 
 // ── Result preview by type ─────────────────────────────────────────────────
 function ResultPreview({ type, url, params }: { type: AssetType; url: string; params: Record<string, unknown> }) {
+  const mediaPreviewUrl = getPreviewMediaUrl(url)
   if (type === 'image' || type === 'upscale' || type === 'face') {
     return <img src={url} alt="Resultado" className="w-full rounded-xl object-cover max-h-64" />
   }
   if (type === 'video' || type === 'talking_video' || type === 'join') {
-    return <video src={url} controls className="w-full rounded-xl max-h-64" playsInline />
+    return <video src={mediaPreviewUrl} controls className="w-full rounded-xl max-h-64" playsInline preload="metadata" />
   }
   if (type === 'voice' || type === 'music') {
     return <audio src={url} controls className="w-full" />

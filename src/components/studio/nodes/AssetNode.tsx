@@ -29,6 +29,7 @@ import {
   ZoomIn,
 } from 'lucide-react'
 import { AssetType, StudioAsset } from '@/types'
+import { getPreviewMediaUrl } from '@/lib/mediaUrl'
 import ComposeCard from '../ComposeCard'
 import FaceGenerator from '../FaceGenerator'
 import ImageGenerator from '../ImageGenerator'
@@ -927,6 +928,7 @@ function ResultPreview({
     : 'overflow-hidden rounded-[22px] border border-white/8 bg-black/20'
   const imageAspectClass = donePreview ? 'aspect-[4/5] w-full' : ''
   const videoAspectClass = donePreview ? 'aspect-[9/16] w-full' : ''
+  const mediaPreviewUrl = getPreviewMediaUrl(url)
 
   if (type === 'model') {
     return (
@@ -994,7 +996,7 @@ function ResultPreview({
     return (
       <div className={visualFrameClass}>
         <div className={videoAspectClass}>
-          <video src={url} controls className={`w-full ${donePreview ? 'h-full object-contain' : 'max-h-[360px] object-contain'}`} playsInline />
+          <video src={mediaPreviewUrl} controls className={`w-full ${donePreview ? 'h-full object-contain' : 'max-h-[360px] object-contain'}`} playsInline preload="metadata" />
         </div>
       </div>
     )
