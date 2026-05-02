@@ -1,3 +1,8 @@
+const PUBLIC_ENV = {
+  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+} as const
+
 function normalizeEnvValue(value: string | undefined) {
   if (!value) return ''
 
@@ -12,6 +17,10 @@ function normalizeEnvValue(value: string | undefined) {
   return trimmed
 }
 
+function getPublicEnvValue(name: keyof typeof PUBLIC_ENV) {
+  return normalizeEnvValue(PUBLIC_ENV[name])
+}
+
 function ensureEnv(name: string) {
   const value = normalizeEnvValue(process.env[name])
   if (!value) {
@@ -21,8 +30,32 @@ function ensureEnv(name: string) {
   return value
 }
 
-function ensureUrl(name: string) {
-  const rawValue = ensureEnv(name)
+export function getSupabasePublicEnv() {
+  const url = getPublicEnvValue('NEXT_PUBLIC_SUPABASE_URL')
+  const anonKey = getPublicEnvValue('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+
+  if (!url) {
+    throw new Error('Missing required environment variable: NEXT_PUBLIC_SUPABASE_URL')
+  }
+
+  if (!anonKey) {
+    throw new Error('Missing required environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  }
+
+  return {
+    url: ensureUrlValue(url, 'NEXT_PUBLIC_SUPABASE_URL'),
+    anonKey,
+  }
+}
+
+export function getSupabaseAdminEnv() {
+  return {
+    ...getSupabasePublicEnv(),
+    serviceRoleKey: ensureEnv('SUPABASE_SERVICE_ROLE_KEY'),
+  }
+}
+
+function ensureUrlValue(rawValue: string, name: string) {
   const normalizedValue = /^https?:\/\//i.test(rawValue)
     ? rawValue
     : `https://${rawValue.replace(/^\/+/, '')}`
@@ -37,18 +70,4 @@ function ensureUrl(name: string) {
   }
 
   return normalizedValue
-}
-
-export function getSupabasePublicEnv() {
-  return {
-    url: ensureUrl('NEXT_PUBLIC_SUPABASE_URL'),
-    anonKey: ensureEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
-  }
-}
-
-export function getSupabaseAdminEnv() {
-  return {
-    ...getSupabasePublicEnv(),
-    serviceRoleKey: ensureEnv('SUPABASE_SERVICE_ROLE_KEY'),
-  }
 }
