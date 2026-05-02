@@ -68,7 +68,7 @@ export function normalizeStudioEngineInputParams(params: {
         engine: 'google',
       }
     case 'talking_video': {
-      const requestedMode = String(input.talking_video_mode ?? 'exact_speech') === 'veo_natural'
+      const requestedMode = String(input.talking_video_mode ?? 'veo_natural') === 'veo_natural'
         ? 'veo_natural'
         : 'exact_speech'
       return {
@@ -98,7 +98,7 @@ export function resolveStudioAssetEnginePolicy(params: {
 }): StudioAssetEnginePolicy {
   const input = params.inputParams
   const legacyAllowed = isLegacyFallbackAllowed()
-  const talkingMode = String(input.talking_video_mode ?? 'exact_speech') === 'veo_natural'
+  const talkingMode = String(input.talking_video_mode ?? 'veo_natural') === 'veo_natural'
     ? 'veo_natural'
     : 'exact_speech'
   const isComposeFitting = params.type === 'compose' && String(input.compose_variant ?? 'fitting') === 'fitting'
@@ -232,32 +232,29 @@ export function resolveStudioAssetEnginePolicy(params: {
     animate: {
       assetType: 'animate',
       providerFamily: 'google_cloud',
-      billingRoute: 'vertex_veo_pending',
-      runtimeEngine: 'vertex_veo_pending',
-      runtimeModel: 'animate_mapping_pending',
-      targetEngine: 'vertex_veo_pending',
-      targetModel: 'animate_mapping_pending',
-      parityStatus: 'gap',
+      billingRoute: 'vertex_veo_predict_long_running',
+      runtimeEngine: 'vertex_veo',
+      runtimeModel: 'veo-3.1-generate-preview',
+      targetEngine: 'vertex_veo',
+      targetModel: 'veo-3.1-generate-preview',
+      parityStatus: 'ready',
       legacyFallbackAllowed: legacyAllowed,
       legacyFallbackUsed: false,
-      reasonCode: 'parity_gap_requires_migration',
-      notes: 'Animate ainda dependia de fila externa.',
     },
     compose: {
       assetType: 'compose',
       providerFamily: 'google_cloud',
-      billingRoute: isComposeFitting ? 'vertex_vto_plus_imagen_pending' : 'vertex_imagen_compose_pending',
-      runtimeEngine: isComposeFitting ? 'vertex_vto_plus_imagen_pending' : 'vertex_imagen_compose_pending',
-      runtimeModel: isComposeFitting ? 'virtual-try-on-001 + imagen pending' : 'imagen compose pending',
-      targetEngine: isComposeFitting ? 'vertex_vto_plus_imagen' : 'vertex_imagen_compose',
-      targetModel: isComposeFitting ? 'virtual-try-on-001 + imagen capability' : 'imagen capability',
-      parityStatus: 'gap',
+      billingRoute: isComposeFitting ? 'vertex_vto_predict' : 'vertex_imagen_compose_pending',
+      runtimeEngine: isComposeFitting ? 'vertex_vto' : 'vertex_imagen_compose_pending',
+      runtimeModel: isComposeFitting ? 'virtual-try-on-001' : 'imagen compose pending',
+      targetEngine: isComposeFitting ? 'vertex_vto' : 'vertex_imagen_compose',
+      targetModel: isComposeFitting ? 'virtual-try-on-001' : 'imagen capability',
+      parityStatus: isComposeFitting ? 'ready' : 'partial',
       legacyFallbackAllowed: legacyAllowed,
       legacyFallbackUsed: false,
-      reasonCode: 'parity_gap_requires_migration',
-      notes: isComposeFitting
-        ? 'Provador ainda estava misto entre Gemini image e pipelines legadas.'
-        : 'Compose de produto ainda exigia limpeza das rotas antigas.',
+      ...(isComposeFitting ? {} : {
+        notes: 'Compose produto usa fallback interno até Imagen compose estar disponível.',
+      }),
     },
     lipsync: {
       assetType: 'lipsync',
@@ -338,16 +335,14 @@ export function resolveStudioAssetEnginePolicy(params: {
     scene: {
       assetType: 'scene',
       providerFamily: 'google_cloud',
-      billingRoute: 'vertex_imagen_scene_pending',
-      runtimeEngine: 'vertex_imagen_scene_pending',
-      runtimeModel: 'scene_mapping_pending',
-      targetEngine: 'vertex_imagen_scene',
-      targetModel: 'imagen_capability_reference_edit',
-      parityStatus: 'gap',
+      billingRoute: 'vertex_generate_content',
+      runtimeEngine: 'vertex_gemini',
+      runtimeModel: 'gemini-2.5-flash',
+      targetEngine: 'vertex_gemini',
+      targetModel: 'gemini-2.5-flash',
+      parityStatus: 'ready',
       legacyFallbackAllowed: legacyAllowed,
       legacyFallbackUsed: false,
-      reasonCode: 'parity_gap_requires_migration',
-      notes: 'Cena Livre ainda dependia de Gemini image preview/Fal fallback.',
     },
     look_split: {
       assetType: 'look_split',

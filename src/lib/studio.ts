@@ -5824,6 +5824,59 @@ async function composeSceneWhiteStudioFitting(params: {
     return urlData.publicUrl
   }
 
+  // Primary: Vertex VTO (virtual-try-on-001) — usa créditos Vertex AI
+  try {
+    console.log(`[studio] fitting vto | trying=vertex:virtual-try-on-001 mode=${referenceMode} refs=${referenceInlines.length}`)
+    const vtoItems: SegmentedFittingItem[] = referenceInlines.map((ref, idx) => ({
+      imageBuffer: ref.buffer,
+      mimeType: ref.mimeType,
+      bbox: { left: 0, top: 0, width: 1, height: 1, area: 1 },
+      profile: {
+        category: explicitCategoryHint ?? params.fitting_category ?? params.vton_category ?? 'garment',
+        has_text_logo: false,
+        deformation_risk: 'low' as const,
+        shape_complexity: 'medium' as const,
+        placement_suggestion: 'wear',
+        key_features: [],
+      },
+      category: explicitCategoryHint ?? params.fitting_category ?? params.vton_category ?? 'garment',
+      description: `reference item ${idx + 1}`,
+      priority: idx,
+    }))
+    const vtoResult = await callVertexVirtualTryOn({
+      portraitBuffer: portraitInline.buffer,
+      portraitMimeType: portraitInline.mimeType,
+      items: vtoItems,
+      fittingRoute: referenceInlines.length > 1 ? 'vertex-vto-look' : 'vertex-vto-wear',
+      executionMode: referenceInlines.length > 1 ? 'multi-ref-batch' : 'single-photo-whole-look',
+    })
+    if (vtoResult.imageBase64) {
+      const vtoBuffer = Buffer.from(vtoResult.imageBase64, 'base64')
+      const vtoPublicUrl = await uploadSceneWhiteStudioBuffer(vtoBuffer)
+      return {
+        url: vtoPublicUrl,
+        extraData: {
+          fitting_engine: 'vertex_vto',
+          fitting_route: 'vertex_vto',
+          fitting_primary_route: 'vertex_vto',
+          provador_engine: 'vertex_vto',
+          billing_route: 'vertex_vto_predict',
+          stage1_engine: 'vertex:virtual-try-on-001',
+          stage2_engine: 'none',
+          fallback_used: false,
+          white_studio_lock: true,
+          sovereign_mode: 'strict',
+          fitting_reference_mode: referenceMode,
+          submitted_item_categories: referencePlan.categories,
+          submitted_item_manifest: referencePlan.manifest,
+        },
+      }
+    }
+    console.warn('[studio] fitting vto | no image returned, falling back to gemini chain')
+  } catch (vtoError: unknown) {
+    console.warn(`[studio] fitting vto | error, falling back to gemini chain: ${vtoError instanceof Error ? vtoError.message : String(vtoError)}`)
+  }
+
   const attemptOne = await runGeminiWhiteStudioAttempt(finalPrompt, 'attempt-1')
   if (!attemptOne.buffer) {
     const failureState = resolveSceneWhiteStudioFailureState(lastGeminiError)
@@ -10725,28 +10778,25 @@ export async function generateScene(params: {
 
   for (const model of geminiChain) {
     try {
-      console.log(`[scene] Tentando ${model} para asset ${params.assetId} (${imageParts.length} referÃªncia(s))`)
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${googleApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [
-              { text: geminiPrompt },
-              ...imageParts,
-            ]}],
-            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
-          }),
-        }
-      )
+      console.log(`[scene] Tentando ${model} via Vertex para asset ${params.assetId} (${imageParts.length} referência(s))`)
+      const res = await fetchGoogleGenerateContent({
+        model,
+        feature: 'scene_generation',
+        body: {
+          contents: [{ role: 'user', parts: [
+            { text: geminiPrompt },
+            ...imageParts,
+          ]}],
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        },
+      })
       if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
       const data = await res.json()
       const parts = data.candidates?.[0]?.content?.parts ?? []
       const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
       if (!imgPart?.inlineData?.data) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
       photoBuffer = Buffer.from(imgPart.inlineData.data, 'base64')
-      console.log(`[scene] Gemini sucesso: ${model}`)
+      console.log(`[scene] Vertex sucesso: ${model}`)
       break
     } catch (e: any) {
       lastGeminiError = e.message

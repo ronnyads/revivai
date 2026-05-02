@@ -116,11 +116,10 @@ export function getGoogleGenAIPolicy(): GoogleGenAIPolicy {
 export function isVertexGenerateContentModelSupported(model: string): boolean {
   const normalized = model.trim().toLowerCase()
   if (!normalized) return false
-  if (normalized.includes('image')) return false
-  if (normalized.includes('imagen')) return false
+  if (normalized.startsWith('imagen')) return false  // imagen usa predict, não generateContent
   if (normalized.includes('lyria')) return false
   if (normalized.includes('veo')) return false
-  return /^gemini-(1\.5|2(\.0|\.5)?)/.test(normalized)
+  return normalized.startsWith('gemini-')
 }
 
 export function assertDirectGeminiAllowed(params: { feature: string; model?: string }) {
