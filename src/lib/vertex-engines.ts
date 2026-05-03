@@ -80,8 +80,10 @@ const PROMPT_MODE_DEFAULTS: Record<PromptGenerationMode, VertexEngineProfile> = 
 export const VERTEX_ANALYSIS_MODEL_ID = 'gemini-2.5-flash'
 export const VERTEX_QC_MODEL_ID = 'gemini-2.5-flash'
 export const VERTEX_RESTORE_PRIMARY_MODEL_ID = 'imagen-3.0-capability-001'
-// Motor original de geração de imagem (Gemini) — usado como fallback quando Imagen 3 falha
-export const VERTEX_RESTORE_FALLBACK_MODEL_ID = 'gemini-2.0-flash-exp-image-generation'
+// Motor de edição de imagem (image-to-image) — recomendado pelo Google como
+// substituto de TODOS os modelos Imagen para edição, incluindo imagen-4.0-ultra.
+// Suporta inpainting, remoção de objetos, expansão e restauração.
+export const VERTEX_RESTORE_FALLBACK_MODEL_ID = 'gemini-2.5-flash-image'
 export const VERTEX_IDENTITY_SCENE_PRIMARY_MODEL_ID = 'imagen-3.0-capability-001'
 export const VERTEX_IDENTITY_SCENE_FALLBACK_MODEL_ID = 'gemini-2.5-flash-image'
 export const VERTEX_IMAGE_EDIT_MODEL_ID = VERTEX_RESTORE_FALLBACK_MODEL_ID
