@@ -305,12 +305,61 @@ async function fetchVertexPredictAction(
   return response
 }
 
+function extractPredictEndpointFromOperationName(operationName: string): string | null {
+  const match = operationName.match(
+    /^(projects\/[^/]+\/locations\/[^/]+\/(?:endpoints\/[^/]+|publishers\/[^/]+\/models\/[^/]+))\/operations\/[^/]+$/,
+  )
+  return match?.[1] ?? null
+}
+
+async function fetchVertexPredictOperation(params: {
+  operationName: string
+  feature: string
+}): Promise<Response> {
+  const vertex = await resolveVertexProjectConfig(params.feature)
+  const endpoint = extractPredictEndpointFromOperationName(params.operationName)
+
+  if (!endpoint) {
+    throw new GoogleGenAIError({
+      code: 'vertex_unavailable',
+      message: `Could not derive predict endpoint from operationName for feature=${params.feature}: ${params.operationName}`,
+      provider: 'vertex',
+      feature: params.feature,
+      model: params.operationName,
+      status: 503,
+    })
+  }
+
+  const url = `https://aiplatform.googleapis.com/v1/${endpoint}:fetchPredictOperation`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${vertex.accessToken}`,
+      'Content-Type': 'application/json',
+      'x-revivai-google-feature': params.feature,
+    },
+    body: JSON.stringify({
+      operationName: params.operationName,
+    }),
+  })
+
+  if (!response.ok && response.status >= 400) {
+    const errorText = await response.text()
+    maybePromoteVertexQuotaError(errorText, params.feature, params.operationName)
+  }
+
+  console.log(
+    `[google-genai] provider=vertex action=fetchPredictOperation feature=${params.feature} operation=${params.operationName} endpoint=${endpoint}`,
+  )
+  return response
+}
+
 async function fetchVertexOperation(params: {
   operationName: string
   feature: string
 }): Promise<Response> {
   const vertex = await resolveVertexProjectConfig(params.feature)
-  const url = `https://${vertex.location}-aiplatform.googleapis.com/v1/${params.operationName}`
+  const url = `https://aiplatform.googleapis.com/v1/${params.operationName}`
   const response = await fetch(url, {
     method: 'GET',
     headers: {
@@ -420,6 +469,9 @@ export async function fetchGoogleOperation(params: {
 }): Promise<Response> {
   const policy = resolvePolicy()
   if (policy.provider === 'vertex' && params.operationName.startsWith('projects/')) {
+    if (extractPredictEndpointFromOperationName(params.operationName)) {
+      return fetchVertexPredictOperation(params)
+    }
     return fetchVertexOperation(params)
   }
 
