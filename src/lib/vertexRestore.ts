@@ -104,9 +104,30 @@ function extractTextCandidate(payload: any): string {
 }
 
 function extractGenerateContentImageBase64(payload: any): string | null {
-  const parts = payload?.candidates?.[0]?.content?.parts ?? []
-  const imagePart = parts.find((part: any) => typeof part?.inlineData?.data === 'string')
-  return typeof imagePart?.inlineData?.data === 'string' ? imagePart.inlineData.data : null
+  // Format 1: Vertex AI standard — candidates[0].content.parts[] with inlineData (camelCase)
+  const parts: any[] = payload?.candidates?.[0]?.content?.parts ?? []
+  for (const part of parts) {
+    // camelCase (AI Studio / direct SDK)
+    if (typeof part?.inlineData?.data === 'string') return part.inlineData.data
+    // snake_case (Vertex AI REST API response)
+    if (typeof part?.inline_data?.data === 'string') return part.inline_data.data
+    // fileData / file_data with base64
+    if (typeof part?.fileData?.fileUri === 'string') continue // URL, not base64 – skip
+    if (typeof part?.blob === 'string') return part.blob
+  }
+
+  // Format 2: Vertex AI predict wrapper — predictions[0].bytesBase64Encoded or image.bytesBase64Encoded
+  const prediction = payload?.predictions?.[0]
+  if (prediction) {
+    if (typeof prediction?.bytesBase64Encoded === 'string') return prediction.bytesBase64Encoded
+    if (typeof prediction?.image?.bytesBase64Encoded === 'string') return prediction.image.bytesBase64Encoded
+  }
+
+  // Format 3: top-level base64 (rare edge case)
+  if (typeof payload?.base64 === 'string') return payload.base64
+
+  console.warn('[vertex-restore] extractGenerateContentImageBase64: no image found in payload keys:', Object.keys(payload ?? {}))
+  return null
 }
 
 function extractPredictImageBase64(payload: any): string | null {
@@ -700,7 +721,11 @@ async function restorePhotoWithGeminiImageModel(params: {
   prompt: string
 }): Promise<{ buffer: Buffer; modelId: string }> {
   const fallbackModel = VERTEX_RESTORE_FALLBACK_MODEL_ID
-  const fallback = await fetchGoogleGenerateContent({
+
+  // Vertex AI REST API uses snake_case for generationConfig fields.
+  // responseModalities (camelCase) is the AI Studio / direct SDK format.
+  // We send both to be safe across Vertex and direct paths.
+  const fallbackResponse = await fetchGoogleGenerateContent({
     model: fallbackModel,
     feature: 'restore-render-gemini-fallback',
     body: {
@@ -708,22 +733,31 @@ async function restorePhotoWithGeminiImageModel(params: {
         role: 'user',
         parts: [
           { text: params.prompt },
-          { inlineData: { mimeType: 'image/jpeg', data: params.cleanBuffer.toString('base64') } },
+          { inline_data: { mime_type: 'image/jpeg', data: params.cleanBuffer.toString('base64') } },
         ],
       }],
       generationConfig: {
         responseModalities: ['IMAGE', 'TEXT'],
+        response_modalities: ['IMAGE', 'TEXT'],
       },
     },
   })
 
-  if (!fallback.ok) {
-    throw new Error(`Gemini direct model failed: ${await fallback.text()}`)
+  if (!fallbackResponse.ok) {
+    const errText = await fallbackResponse.text()
+    throw new Error(`Gemini direct model failed (${fallbackResponse.status}): ${errText}`)
   }
 
-  const fallbackPayload = await fallback.json()
+  const fallbackPayload = await fallbackResponse.json()
+  console.log('[vertex-restore] Gemini fallback raw candidate count:', fallbackPayload?.candidates?.length ?? 0)
+
   const fallbackBase64 = extractGenerateContentImageBase64(fallbackPayload)
-  if (!fallbackBase64) throw new Error('Gemini direct model returned no image')
+  if (!fallbackBase64) {
+    const candidate = fallbackPayload?.candidates?.[0]
+    const finishReason = candidate?.finishReason ?? 'unknown'
+    const partTypes = (candidate?.content?.parts ?? []).map((p: any) => Object.keys(p).join('+'))
+    throw new Error(`Gemini direct model returned no image — finishReason=${finishReason} partTypes=${partTypes.join(',')}`)
+  }
 
   return { buffer: Buffer.from(fallbackBase64, 'base64'), modelId: fallbackModel }
 }
