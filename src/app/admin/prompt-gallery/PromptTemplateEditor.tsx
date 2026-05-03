@@ -14,6 +14,7 @@ import {
   updatePromptTemplate,
 } from './actions'
 import type { PromptGalleryTemplate } from '@/lib/prompt-gallery'
+import { listVertexEngineConfigs } from '@/lib/vertex-engines'
 
 const fieldControlClass =
   'h-10 w-full rounded-[12px] border border-white/10 bg-[#101010] px-3 text-sm text-white shadow-inner shadow-black/20 outline-none transition-colors focus:border-[#54D6F6]/45 focus:bg-[#11191B]'
@@ -202,7 +203,15 @@ const EMPTY_TEMPLATE: PromptGalleryTemplate = {
   usageLabel: 'Envie sua foto e gere no mesmo estilo.',
   identityLock: true,
   outfitSource: 'identity',
+  engineProfile: 'vertex_imagen4_ultra',
 }
+
+const PROMPT_ENGINE_OPTIONS = listVertexEngineConfigs([
+  'vertex_imagen4_ultra',
+  'vertex_imagen4',
+  'vertex_imagen4_fast',
+  'vertex_vto',
+])
 
 export function CategoryManager({
   categories,
@@ -529,6 +538,9 @@ export default function PromptTemplateEditor({
             <span className="rounded-full bg-[#0C171A] px-2.5 py-1 text-[10px] text-[#54D6F6]">
               {template.creditCost} cr
             </span>
+            <span className="rounded-full bg-[#0C171A] px-2.5 py-1 text-[10px] text-[#54D6F6]">
+              {PROMPT_ENGINE_OPTIONS.find((item) => item.profile === template.engineProfile)?.label ?? template.engineProfile}
+            </span>
           </div>
           <p className="mt-1 text-sm text-white/65">{template.category}</p>
           <p className="mt-1 text-[11px] text-white/42">
@@ -726,6 +738,19 @@ function PromptTemplateForm({
                   <option value="true">Ativo</option>
                   <option value="false">Desligado</option>
                 </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className={labelClass}>Motor Vertex</label>
+                <select name="engine_profile" defaultValue={template.engineProfile} className={fieldControlClass}>
+                  {PROMPT_ENGINE_OPTIONS.map((engine) => (
+                    <option key={engine.profile} value={engine.profile}>
+                      {engine.label} - {engine.qualityHint}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-[11px] leading-relaxed text-white/38">
+                  Escolha o perfil canônico do Vertex para este preset. O runtime grava o modelo real usado em cada geracao.
+                </p>
               </div>
               <div className="sm:col-span-2">
                 <label className={labelClass}>Fonte da roupa</label>

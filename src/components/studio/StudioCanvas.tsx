@@ -119,6 +119,19 @@ function buildClientAssetError(input: {
   }
 }
 
+function normalizeProcessingAssetState<T extends StudioAsset>(asset: T): T {
+  const errorMessage = typeof asset.error_msg === 'string' ? asset.error_msg.trim() : ''
+  if (asset.status === 'processing' && errorMessage) {
+    return {
+      ...asset,
+      status: 'error',
+      error_msg: errorMessage,
+    }
+  }
+
+  return asset
+}
+
 const CREDIT_COST: Record<AssetType, number> = {
   image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, talking_video: 50, model: 8, render: 1, animate: 50, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12, look_split: 6,
 }
@@ -593,6 +606,30 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     setAssets(prev => prev.map(a => a.id === id ? { ...a, input_params: { ...a.input_params, ...params } } : a))
   }, [])
 
+  const refreshAssetFromServer = useCallback(async (assetId: string, fallback?: Partial<StudioAsset>) => {
+    try {
+      const response = await fetch(`/api/studio/assets/${assetId}`)
+      if (response.ok) {
+        const payload = await response.json()
+        if (payload?.asset) {
+          const normalizedAsset = normalizeProcessingAssetState(payload.asset as StudioAsset)
+          setAssets(prev => prev.map(asset => asset.id === assetId ? { ...asset, ...normalizedAsset } : asset))
+          return
+        }
+      }
+    } catch {
+      // Fall through to the local fallback below.
+    }
+
+    if (fallback) {
+      setAssets(prev => prev.map(asset => (
+        asset.id === assetId
+          ? normalizeProcessingAssetState({ ...asset, ...fallback })
+          : asset
+      )))
+    }
+  }, [])
+
   const startPolling = useCallback((assetId: string) => {
     if (pollingRef.current.has(assetId)) return
 
@@ -611,30 +648,34 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         if (!res.ok) { stopPolling(); return } // 404 = asset deletado
         const { asset } = await res.json()
         if (!asset) { stopPolling(); return }
+        const normalizedAsset = normalizeProcessingAssetState(asset as StudioAsset)
 
         // Se completou pelo webhook/route
-        if (asset.status === 'done' || asset.status === 'error') {
+        if (normalizedAsset.status === 'done' || normalizedAsset.status === 'error') {
           stopPolling()
-          setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...asset } : a))
+          setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...normalizedAsset } : a))
           return
         }
 
         // Se ainda está em processamento e é um tipo que aceita /sync (Google Veo não tem webhook)
-        if (asset.status === 'processing' && typeof asset.input_params === 'object' && asset.input_params?.prediction_id) {
+        if (normalizedAsset.status === 'processing' && typeof normalizedAsset.input_params === 'object' && normalizedAsset.input_params?.prediction_id) {
           try {
             const syncRes = await fetch(`/api/studio/assets/${assetId}/sync`, { method: 'POST' })
-            if (syncRes.ok) {
-              const syncData = await syncRes.json()
-              if (syncData.status === 'done' || syncData.status === 'error') {
-                // Recupera asset atualizado com as urls convertidas
-                const updatedRes = await fetch(`/api/studio/assets/${assetId}`)
-                const { asset: updatedAsset } = await updatedRes.json()
-                if (updatedAsset) {
-                  stopPolling()
-                  setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...updatedAsset } : a))
-                  return
-                }
-              }
+            const syncData = await syncRes.json().catch(() => null) as {
+              status?: 'processing' | 'done' | 'error'
+              error?: string
+              result_url?: string | null
+            } | null
+
+            if (syncData?.status === 'done' || syncData?.status === 'error') {
+              stopPolling()
+              await refreshAssetFromServer(
+                assetId,
+                syncData.status === 'error'
+                  ? { status: 'error', error_msg: syncData.error ?? 'Falha ao sincronizar o asset.' }
+                  : { status: 'done', result_url: syncData.result_url ?? null },
+              )
+              return
             }
           } catch { /* ignora erro silencioso no sync */ }
         }
@@ -650,7 +691,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     // Primeira tentativa após 3s
     const timer = setTimeout(() => poll(0), 3000)
     pollingRef.current.set(assetId, timer as unknown as ReturnType<typeof setInterval>)
-  }, [])
+  }, [refreshAssetFromServer])
 
   // Expõe startPolling via ref para que undoDeleteAsset possa usá-lo sem dep circular
   startPollingRef.current = startPolling
@@ -824,9 +865,10 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     onDelete: handleDelete,
     onGenerate: handleGenerate,
     onUpdateParams: handleUpdateParams,
+    onRefreshAsset: refreshAssetFromServer,
     onDuplicate: handleDuplicate,
     userPlan,
-  }), [handleDelete, handleGenerate, handleUpdateParams, handleDuplicate, userPlan])
+  }), [handleDelete, handleGenerate, handleUpdateParams, refreshAssetFromServer, handleDuplicate, userPlan])
 
   // ── React Flow state ─────────────────────────────────────────────────────
   const [nodes, setNodes, onNodesChange] = useNodesState(buildNodes(assets, nodeCallbacks, selectedNodeIds.length > 0))
@@ -1844,7 +1886,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 export default function StudioCanvas(props: Props) {
   return (
     <ReactFlowProvider>
-      <StudioCanvasInner {...props} />
+      <StudioCanvasInner {...props} initialAssets={props.initialAssets.map((asset) => normalizeProcessingAssetState(asset))} />
     </ReactFlowProvider>
   )
 }

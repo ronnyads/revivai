@@ -1,19 +1,33 @@
 'use client'
-import { useState, useRef } from 'react'
-import { updateMode, deleteMode as deleteModeAction } from './actions'
+
+import { useRef, useState } from 'react'
+import { updateMode } from './actions'
+import { getVertexEngineConfig, inferRestoreEngineProfile } from '@/lib/vertex-engines'
 
 interface Mode {
-  id: string; name: string; description: string; icon: string
-  prompt: string; model: string; is_active: boolean; sort_order: number
-  example_before_url?: string | null; example_after_url?: string | null
-  persona?: string | null; retry_prompt?: string | null; qc_threshold?: number
+  id: string
+  name: string
+  description: string
+  icon: string
+  prompt: string
+  model: string
+  engine_profile?: string | null
+  is_active: boolean
+  sort_order: number
+  example_before_url?: string | null
+  example_after_url?: string | null
+  persona?: string | null
+  retry_prompt?: string | null
+  qc_threshold?: number
   badge?: string | null
 }
 
 function ImageUploadField({ name, label, currentUrl }: {
-  name: string; label: string; currentUrl?: string | null
+  name: string
+  label: string
+  currentUrl?: string | null
 }) {
-  const [url, setUrl]           = useState(currentUrl ?? '')
+  const [url, setUrl] = useState(currentUrl ?? '')
   const [uploading, setUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -22,17 +36,19 @@ function ImageUploadField({ name, label, currentUrl }: {
     try {
       const { createClient } = await import('@/lib/supabase/client')
       const supabase = createClient()
-      const ext  = file.name.split('.').pop() || 'jpg'
+      const ext = file.name.split('.').pop() || 'jpg'
       const path = `mode-examples/${Date.now()}_${name}.${ext}`
       const { error } = await supabase.storage.from('photos').upload(path, file, {
         contentType: file.type || 'image/jpeg',
         upsert: true,
       })
       if (error) throw error
-      const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path)
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('photos').getPublicUrl(path)
       setUrl(publicUrl)
-    } catch (e: any) {
-      alert(`Erro ao enviar imagem: ${e.message}`)
+    } catch (error: any) {
+      alert(`Erro ao enviar imagem: ${error.message}`)
     } finally {
       setUploading(false)
     }
@@ -41,7 +57,6 @@ function ImageUploadField({ name, label, currentUrl }: {
   return (
     <div>
       <label className="text-xs text-white/40 mb-1 block">{label}</label>
-      {/* Hidden input carries the Supabase URL to the server action */}
       <input type="hidden" name={`${name}_url`} value={url} readOnly />
       <div
         onClick={() => !uploading && inputRef.current?.click()}
@@ -69,9 +84,9 @@ function ImageUploadField({ name, label, currentUrl }: {
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={e => {
-          const f = e.target.files?.[0]
-          if (f) handleFile(f)
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          if (file) handleFile(file)
         }}
       />
     </div>
@@ -84,10 +99,15 @@ export default function ModeEditor({ mode, models, deleteMode }: {
   deleteMode: (id: string) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
+  const engineProfile = inferRestoreEngineProfile({
+    explicitProfile: mode.engine_profile,
+    legacyModel: mode.model,
+    modeName: mode.name,
+  })
+  const engine = getVertexEngineConfig(engineProfile)
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-      {/* Header */}
       <div className="flex items-center gap-4 px-6 py-4">
         <span className="text-2xl">{mode.icon}</span>
         <div className="flex-1">
@@ -101,26 +121,32 @@ export default function ModeEditor({ mode, models, deleteMode }: {
             </span>
           </div>
           <p className="text-xs text-white/40">{mode.description}</p>
-          <p className="text-[11px] text-white/20 font-mono mt-0.5">{mode.model}</p>
+          <p className="text-[11px] text-white/20 mt-0.5">{engine.restorePresetLabel}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setOpen(o => !o)} className="text-xs px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white/60 rounded-lg transition-colors">
+          <button onClick={() => setOpen((current) => !current)} className="text-xs px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white/60 rounded-lg transition-colors">
             {open ? 'Fechar' : 'Editar'}
           </button>
-          <button onClick={() => { if (confirm('Deletar este modo?')) deleteMode(mode.id) }}
-            className="text-xs px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors">
+          <button
+            onClick={() => { if (confirm('Deletar este modo?')) deleteMode(mode.id) }}
+            className="text-xs px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+          >
             Deletar
           </button>
         </div>
       </div>
 
-      {/* Edit form */}
       {open && (
-        <form action={async (fd) => { await updateMode(mode.id, fd); setOpen(false) }}
-          className="border-t border-white/10 px-6 py-5 flex flex-col gap-4 bg-white/[0.03]">
+        <form
+          action={async (formData) => {
+            await updateMode(mode.id, formData)
+            setOpen(false)
+          }}
+          className="border-t border-white/10 px-6 py-5 flex flex-col gap-4 bg-white/[0.03]"
+        >
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="text-xs text-white/40 mb-1 block">Ícone</label>
+              <label className="text-xs text-white/40 mb-1 block">Icone</label>
               <input name="icon" defaultValue={mode.icon} className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
             </div>
             <div className="col-span-2">
@@ -129,25 +155,26 @@ export default function ModeEditor({ mode, models, deleteMode }: {
             </div>
           </div>
           <div>
-            <label className="text-xs text-white/40 mb-1 block">Badge <span className="text-white/20">(ex: Recomendado, Premium, Mais rápido — deixe vazio para nenhum)</span></label>
+            <label className="text-xs text-white/40 mb-1 block">Badge <span className="text-white/20">(ex: Recomendado, Premium, Mais rapido)</span></label>
             <input name="badge" defaultValue={mode.badge ?? ''} placeholder="Ex: Recomendado" className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
-              <label className="text-xs text-white/40 mb-1 block">Descrição</label>
+              <label className="text-xs text-white/40 mb-1 block">Descricao</label>
               <input name="description" defaultValue={mode.description} className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
             </div>
             <div>
-              <label className="text-xs text-white/40 mb-1 block">Limiar QC <span className="text-white/20">(0–100)</span></label>
+              <label className="text-xs text-white/40 mb-1 block">Limiar QC <span className="text-white/20">(0-100)</span></label>
               <input name="qc_threshold" type="number" min={0} max={100} step={5} defaultValue={mode.qc_threshold ?? 70} className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs text-white/40 mb-1 block">Modelo Gemini</label>
-              <select name="model" defaultValue={mode.model} className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30">
-                {models.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              <label className="text-xs text-white/40 mb-1 block">Preset interno</label>
+              <select name="engine_profile" defaultValue={engineProfile} className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30">
+                {models.map((model) => <option key={model.value} value={model.value}>{model.label}</option>)}
               </select>
+              <p className="mt-2 text-[11px] text-white/30">{engine.restorePresetSummary}</p>
             </div>
             <div>
               <label className="text-xs text-white/40 mb-1 block">Status</label>
@@ -159,10 +186,10 @@ export default function ModeEditor({ mode, models, deleteMode }: {
           </div>
           <div>
             <label className="text-xs text-white/40 mb-1 block">Persona do Agente <span className="text-white/20">(system instruction)</span></label>
-            <textarea name="persona" defaultValue={mode.persona ?? ''} rows={5} placeholder="Ex: Você é um restaurador de fotos com 30 anos de experiência..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
+            <textarea name="persona" defaultValue={mode.persona ?? ''} rows={5} placeholder="Ex: Voce e um restaurador de fotos com 30 anos de experiencia..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
           </div>
           <div>
-            <label className="text-xs text-white/40 mb-1 block">Prompt Gemini <span className="text-white/20">(tarefa)</span></label>
+            <label className="text-xs text-white/40 mb-1 block">Prompt de restauracao</label>
             <textarea name="prompt" defaultValue={mode.prompt} rows={8} required className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
           </div>
           <div>
@@ -170,11 +197,11 @@ export default function ModeEditor({ mode, models, deleteMode }: {
             <textarea name="retry_prompt" defaultValue={mode.retry_prompt ?? ''} rows={4} placeholder="Prompt conservador para segunda tentativa..." className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-white/30 resize-y font-mono" />
           </div>
           <div className="border-t border-white/10 pt-4">
-            <p className="text-xs text-white/40 mb-3 uppercase tracking-widest">Exemplo de Restauração</p>
-            <p className="text-xs text-white/20 mb-3">Clique nas áreas abaixo para enviar as imagens — o upload acontece direto para o storage, sem passar pelo servidor.</p>
+            <p className="text-xs text-white/40 mb-3 uppercase tracking-widest">Exemplo de Restauracao</p>
+            <p className="text-xs text-white/20 mb-3">Clique nas areas abaixo para enviar as imagens. O upload acontece direto para o storage.</p>
             <div className="grid grid-cols-2 gap-4">
               <ImageUploadField name="example_before" label="Antes" currentUrl={mode.example_before_url} />
-              <ImageUploadField name="example_after"  label="Depois" currentUrl={mode.example_after_url} />
+              <ImageUploadField name="example_after" label="Depois" currentUrl={mode.example_after_url} />
             </div>
           </div>
           <div className="flex gap-3">

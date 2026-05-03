@@ -6,6 +6,7 @@ import { CheckCircle2, ChevronDown, Download, ImagePlus, Loader2, LockKeyhole, S
 import {
   type ClientPromptGalleryTemplate,
 } from '@/lib/prompt-gallery'
+import { getPromptEngineBadge } from '@/lib/vertex-engines'
 
 const INPUT_LABELS = {
   single_image: ['Sua foto'],
@@ -116,6 +117,13 @@ export default function PromptGalleryContent({ initialTemplates }: { initialTemp
   )
 }
 
+type PromptGalleryErrorState = {
+  code?: string
+  debugId?: string
+  message: string
+  refunded?: boolean
+}
+
 function GenerationCard({ template }: { template: ClientPromptGalleryTemplate }) {
   const labels = INPUT_LABELS[template.inputMode]
   const [setupOpen, setSetupOpen] = useState(false)
@@ -125,7 +133,7 @@ function GenerationCard({ template }: { template: ClientPromptGalleryTemplate })
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
   const [generating, setGenerating] = useState(false)
   const [resultUrl, setResultUrl] = useState('')
-  const [generateError, setGenerateError] = useState('')
+  const [generateError, setGenerateError] = useState<PromptGalleryErrorState | null>(null)
 
   async function uploadAt(index: number, file: File) {
     setUploadingIndex(index)
@@ -165,7 +173,8 @@ function GenerationCard({ template }: { template: ClientPromptGalleryTemplate })
     }
 
     setGenerating(true)
-    setGenerateError('')
+    setGenerateError(null)
+    setResultUrl('')
 
     try {
       const response = await fetch('/api/prompt-gallery/generate', {
@@ -179,13 +188,26 @@ function GenerationCard({ template }: { template: ClientPromptGalleryTemplate })
 
       const data = await response.json().catch(() => ({}))
       if (!response.ok || !data?.resultUrl) {
-        throw new Error(data?.error ?? 'Nao foi possivel gerar a imagem.')
+        const apiMessage = typeof data?.error === 'string' ? data.error : 'Nao foi possivel gerar a imagem.'
+        const apiCode = typeof data?.code === 'string' ? data.code : undefined
+        const apiDebugId = typeof data?.debugId === 'string' ? data.debugId : undefined
+        const refunded = data?.refunded === true
+
+        setGenerateError({
+          code: apiCode,
+          debugId: apiDebugId,
+          refunded,
+          message: refunded
+            ? `${apiMessage} Seus creditos foram devolvidos automaticamente.`
+            : apiMessage,
+        })
+        return
       }
 
       setResultUrl(String(data.resultUrl))
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Nao foi possivel gerar a imagem.'
-      setGenerateError(message)
+      setGenerateError({ message })
     } finally {
       setGenerating(false)
     }
@@ -213,6 +235,9 @@ function GenerationCard({ template }: { template: ClientPromptGalleryTemplate })
           </span>
           <span className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 font-label text-[9px] uppercase tracking-[0.18em] text-white/58">
             {template.requiredImagesCount} imagem(ns)
+          </span>
+          <span className="rounded-full border border-[#54D6F6]/18 bg-[#0C171A] px-2.5 py-1 font-label text-[9px] uppercase tracking-[0.18em] text-[#54D6F6]">
+            {getPromptEngineBadge(template.engineProfile)}
           </span>
           {template.identityLock ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-[#54D6F6]/18 bg-[#0C171A] px-2.5 py-1 font-label text-[9px] uppercase tracking-[0.18em] text-[#54D6F6]">
@@ -305,7 +330,9 @@ function GenerationCard({ template }: { template: ClientPromptGalleryTemplate })
             </p>
             {generateError ? (
               <p className="rounded-[18px] border border-red-500/20 bg-red-500/10 px-4 py-3 text-center text-xs leading-relaxed text-red-200">
-                {generateError}
+                {generateError.message}
+                {generateError.code ? ` (${generateError.code})` : ''}
+                {generateError.debugId ? ` Codigo: ${generateError.debugId}.` : ''}
               </p>
             ) : null}
           </div>

@@ -63,8 +63,21 @@ const CREDIT_COST: Record<AssetType, number> = {
   image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, talking_video: 50, model: 8, render: 1, animate: 50, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12, look_split: 6,
 }
 
+function normalizeProcessingAssetState<T extends StudioAsset>(asset: T): T {
+  const errorMessage = typeof asset.error_msg === 'string' ? asset.error_msg.trim() : ''
+  if (asset.status === 'processing' && errorMessage) {
+    return {
+      ...asset,
+      status: 'error',
+      error_msg: errorMessage,
+    }
+  }
+
+  return asset
+}
+
 export default function BoardClient({ project, initialAssets, userCredits }: Props) {
-  const [assets,       setAssets]       = useState<StudioAsset[]>(initialAssets)
+  const [assets,       setAssets]       = useState<StudioAsset[]>(() => initialAssets.map((asset) => normalizeProcessingAssetState(asset)))
   const [credits,      setCredits]      = useState(userCredits)
   const [title,        setTitle]        = useState(project.title)
   const [editing,      setEditing]      = useState(false)
@@ -85,10 +98,37 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
         }
         const { asset } = await res.json()
         if (!asset) return
-        if (asset.status === 'done' || asset.status === 'error') {
+        const normalizedAsset = normalizeProcessingAssetState(asset as StudioAsset)
+
+        if (normalizedAsset.status === 'done' || normalizedAsset.status === 'error') {
           clearInterval(pollingRef.current.get(assetId))
           pollingRef.current.delete(assetId)
-          setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...asset } : a))
+          setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...normalizedAsset } : a))
+          return
+        }
+
+        if (normalizedAsset.status === 'processing' && typeof normalizedAsset.input_params === 'object' && normalizedAsset.input_params?.prediction_id) {
+          const syncRes = await fetch(`/api/studio/assets/${assetId}/sync`, { method: 'POST' })
+          const syncData = await syncRes.json().catch(() => null) as {
+            status?: 'processing' | 'done' | 'error'
+            error?: string
+            result_url?: string | null
+          } | null
+
+          if (syncData?.status === 'done' || syncData?.status === 'error') {
+            clearInterval(pollingRef.current.get(assetId))
+            pollingRef.current.delete(assetId)
+            setAssets(prev => prev.map(a => (
+              a.id === assetId
+                ? normalizeProcessingAssetState({
+                    ...a,
+                    ...(syncData.status === 'error'
+                      ? { status: 'error' as const, error_msg: syncData.error ?? 'Falha ao sincronizar o asset.' }
+                      : { status: 'done' as const, result_url: syncData.result_url ?? a.result_url ?? null }),
+                  })
+                : a
+            )))
+          }
         }
       } catch { /* silencioso */ }
     }, 3000)
@@ -97,9 +137,10 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
 
   useEffect(() => {
     assets.filter(a => a.status === 'processing').forEach(a => startPolling(a.id))
+    const pollingMap = pollingRef.current
     return () => {
-      pollingRef.current.forEach(interval => clearInterval(interval))
-      pollingRef.current.clear()
+      pollingMap.forEach(interval => clearInterval(interval))
+      pollingMap.clear()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 

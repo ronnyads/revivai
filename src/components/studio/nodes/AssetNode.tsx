@@ -355,6 +355,7 @@ export interface AssetNodeData {
   onDelete: (id: string) => void
   onGenerate: (type: AssetType, params: Record<string, unknown>, existingId: string) => void
   onUpdateParams: (id: string, params: Record<string, unknown>) => void
+  onRefreshAsset?: (id: string, fallback?: Partial<StudioAsset>) => Promise<void>
   onDuplicate: (id: string, overrides?: Record<string, unknown>) => void
   [key: string]: unknown
 }
@@ -473,6 +474,7 @@ function AssetNode({ data, selected }: NodeProps) {
     onDelete,
     onGenerate,
     onUpdateParams,
+    onRefreshAsset,
     onDuplicate,
   } = data as AssetNodeData
 
@@ -610,9 +612,14 @@ function AssetNode({ data, selected }: NodeProps) {
             createdAt={asset.created_at}
             assetId={asset.id}
             pipelineStage={typeof asset.input_params.pipeline_stage === 'string' ? asset.input_params.pipeline_stage : undefined}
+            onRefreshAsset={onRefreshAsset}
           />
         ) : asset.status === 'error' ? (
-          <ErrorCard asset={asset} onGenerate={(paramsOverride) => onGenerate(asset.type, paramsOverride ?? asset.input_params, asset.id)} />
+          <ErrorCard
+            asset={asset}
+            onGenerate={(paramsOverride) => onGenerate(asset.type, paramsOverride ?? asset.input_params, asset.id)}
+            onRefreshAsset={onRefreshAsset}
+          />
         ) : isDonePreview ? (
           <div className="space-y-3">
             <ResultPreview type={asset.type} url={asset.result_url!} params={asset.input_params} donePreview />
@@ -1191,7 +1198,15 @@ type GuidedNextAction = {
   regenerate_params?: Record<string, unknown>
 }
 
-function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: (paramsOverride?: Record<string, unknown>) => void }) {
+function ErrorCard({
+  asset,
+  onGenerate,
+  onRefreshAsset,
+}: {
+  asset: StudioAsset
+  onGenerate: (paramsOverride?: Record<string, unknown>) => void
+  onRefreshAsset?: (id: string, fallback?: Partial<StudioAsset>) => Promise<void>
+}) {
   const [syncing, setSyncing] = useState(false)
   const [message, setMessage] = useState('')
   const hasPrediction = !!(asset.input_params as { prediction_id?: unknown }).prediction_id
@@ -1237,13 +1252,18 @@ function ErrorCard({ asset, onGenerate }: { asset: StudioAsset; onGenerate: (par
 
     try {
       const response = await fetch(`/api/studio/assets/${asset.id}/sync`, { method: 'POST' })
-      const data = await response.json()
+      const data = await response.json().catch(() => null) as {
+        status?: 'processing' | 'done' | 'error'
+        error?: string
+        result_url?: string | null
+      } | null
 
-      if (data.status === 'done') {
-        setMessage('Resultado encontrado. Recarregando...')
-        setTimeout(() => window.location.reload(), 1200)
-      } else if (data.status === 'error') {
+      if (data?.status === 'done') {
+        setMessage('Resultado encontrado. Atualizando card...')
+        await onRefreshAsset?.(asset.id, { status: 'done', result_url: data.result_url ?? asset.result_url ?? null })
+      } else if (data?.status === 'error') {
         setMessage(data.error ?? 'Falha ao sincronizar')
+        await onRefreshAsset?.(asset.id, { status: 'error', error_msg: data.error ?? 'Falha ao sincronizar' })
       } else {
         setMessage('Ainda em processamento no provedor.')
       }
@@ -1344,11 +1364,13 @@ function ProcessingCard({
   createdAt,
   assetId,
   pipelineStage,
+  onRefreshAsset,
 }: {
   type: AssetType
   createdAt: string
   assetId: string
   pipelineStage?: string
+  onRefreshAsset?: (id: string, fallback?: Partial<StudioAsset>) => Promise<void>
 }) {
   const estimated = ESTIMATED[type] ?? 30
   const baseLabel = PROCESSING_LABELS[type] ?? 'Gerando com IA...'
@@ -1392,16 +1414,20 @@ function ProcessingCard({
 
     try {
       const response = await fetch(`/api/studio/assets/${assetId}/sync`, { method: 'POST' })
-      const data = await response.json()
+      const data = await response.json().catch(() => null) as {
+        status?: 'processing' | 'done' | 'error'
+        error?: string
+        result_url?: string | null
+      } | null
 
-      if (data.status === 'done') {
-        setSyncMessage('Pronto. Recarregando...')
-        setTimeout(() => window.location.reload(), 1400)
-      } else if (data.status === 'error') {
+      if (data?.status === 'done') {
+        setSyncMessage('Pronto. Atualizando card...')
+        await onRefreshAsset?.(assetId, { status: 'done', result_url: data.result_url ?? null })
+      } else if (data?.status === 'error') {
         setSyncMessage(data.error ?? 'Erro ao sincronizar')
-        setTimeout(() => window.location.reload(), 2200)
+        await onRefreshAsset?.(assetId, { status: 'error', error_msg: data.error ?? 'Erro ao sincronizar' })
       } else {
-        setSyncMessage(`Status atual: ${data.status}`)
+        setSyncMessage(`Status atual: ${data?.status ?? 'processing'}`)
       }
     } catch {
       setSyncMessage('Nao foi possivel atualizar agora.')

@@ -2,6 +2,7 @@ export type PromptTemplateFormat = 'JSON' | 'TEXT'
 export type PromptGenerationMode = 'identity_scene' | 'product_model' | 'virtual_tryon'
 export type PromptInputMode = 'single_image' | 'person_and_product'
 export type PromptOutfitSource = 'identity' | 'template'
+export type PromptEngineProfile = 'vertex_imagen4_ultra' | 'vertex_imagen4' | 'vertex_imagen4_fast' | 'vertex_vto'
 
 export const PENDING_GENERATION_STORAGE_KEY = 'revivai-pending-generation-template'
 export const HERO_SELFIE_TEMPLATE_ID = 'alpha-fitness-elite'
@@ -24,6 +25,7 @@ export interface PromptGalleryTemplate {
   usageLabel: string
   identityLock: boolean
   outfitSource: PromptOutfitSource
+  engineProfile: PromptEngineProfile
 }
 
 export type ClientPromptGalleryTemplate = Omit<PromptGalleryTemplate, 'prompt'>
@@ -40,6 +42,7 @@ export interface PendingPromptGenerationSession {
   usageLabel: string
   identityLock: boolean
   outfitSource: PromptOutfitSource
+  engineProfile: PromptEngineProfile
   uploadedUrls: string[]
 }
 
@@ -61,6 +64,7 @@ export interface PromptTemplateRow {
   usage_label: string | null
   identity_lock: boolean | null
   outfit_source: string | null
+  engine_profile: string | null
 }
 
 export interface PromptCategoryRow {
@@ -96,6 +100,7 @@ const DEFAULT_SCENE_PRESET = {
   usageLabel: 'Envie sua foto e gere no mesmo estilo.',
   identityLock: true,
   outfitSource: 'identity' as const,
+  engineProfile: 'vertex_imagen4_ultra' as const,
 }
 
 const DEFAULT_PRODUCT_PRESET = {
@@ -106,10 +111,28 @@ const DEFAULT_PRODUCT_PRESET = {
   usageLabel: 'Envie a foto da modelo e do produto.',
   identityLock: true,
   outfitSource: 'identity' as const,
+  engineProfile: 'vertex_imagen4' as const,
+}
+
+const DEFAULT_VTO_PRESET = {
+  generationMode: 'virtual_tryon' as const,
+  inputMode: 'person_and_product' as const,
+  requiredImagesCount: 2,
+  creditCost: 12,
+  usageLabel: 'Envie a foto da pessoa e a peca para vestir virtualmente.',
+  identityLock: true,
+  outfitSource: 'identity' as const,
+  engineProfile: 'vertex_vto' as const,
 }
 
 function normalizeOutfitSource(value: string | null | undefined): PromptOutfitSource {
   return value === 'template' ? 'template' : 'identity'
+}
+
+function inferPresetFromGenerationMode(generationMode: PromptGenerationMode) {
+  if (generationMode === 'virtual_tryon') return DEFAULT_VTO_PRESET
+  if (generationMode === 'product_model') return DEFAULT_PRODUCT_PRESET
+  return DEFAULT_SCENE_PRESET
 }
 
 function inferPresetFromCategory(category: string | null | undefined) {
@@ -131,9 +154,25 @@ function normalizeInputMode(value: string | null | undefined, generationMode: Pr
   return generationMode === 'product_model' || generationMode === 'virtual_tryon' ? 'person_and_product' : 'single_image'
 }
 
+function normalizeEngineProfile(
+  value: string | null | undefined,
+  generationMode: PromptGenerationMode,
+): PromptEngineProfile {
+  if (
+    value === 'vertex_imagen4_ultra' ||
+    value === 'vertex_imagen4' ||
+    value === 'vertex_imagen4_fast' ||
+    value === 'vertex_vto'
+  ) {
+    return value
+  }
+
+  return inferPresetFromGenerationMode(generationMode).engineProfile
+}
+
 function buildTemplate(
-  template: Omit<PromptGalleryTemplate, 'generationMode' | 'inputMode' | 'requiredImagesCount' | 'creditCost' | 'usageLabel' | 'identityLock' | 'outfitSource'> &
-    Partial<Pick<PromptGalleryTemplate, 'generationMode' | 'inputMode' | 'requiredImagesCount' | 'creditCost' | 'usageLabel' | 'identityLock' | 'outfitSource'>>,
+  template: Omit<PromptGalleryTemplate, 'generationMode' | 'inputMode' | 'requiredImagesCount' | 'creditCost' | 'usageLabel' | 'identityLock' | 'outfitSource' | 'engineProfile'> &
+    Partial<Pick<PromptGalleryTemplate, 'generationMode' | 'inputMode' | 'requiredImagesCount' | 'creditCost' | 'usageLabel' | 'identityLock' | 'outfitSource' | 'engineProfile'>>,
 ): PromptGalleryTemplate {
   const preset = inferPresetFromCategory(template.category)
   return {
@@ -145,6 +184,7 @@ function buildTemplate(
     usageLabel: template.usageLabel ?? preset.usageLabel,
     identityLock: template.identityLock ?? preset.identityLock,
     outfitSource: template.outfitSource ?? preset.outfitSource,
+    engineProfile: template.engineProfile ?? preset.engineProfile,
   }
 }
 
@@ -170,6 +210,7 @@ export const DEFAULT_PROMPT_TEMPLATES: PromptGalleryTemplate[] = [
     creditCost: 12,
     usageLabel: 'Envie 1 foto da pessoa. O sistema troca o sujeito da selfie pela referencia enviada.',
     identityLock: true,
+    engineProfile: 'vertex_imagen4_ultra',
   }),
   buildTemplate({
     id: 'cyber-vogue-editorial',
@@ -305,9 +346,7 @@ export function normalizePromptTemplate(row: PromptTemplateRow): PromptGalleryTe
     row.input_mode ?? canonicalOverride.inputMode,
     generationMode,
   )
-  const inferredPreset = generationMode === 'product_model' || generationMode === 'virtual_tryon'
-    ? DEFAULT_PRODUCT_PRESET
-    : DEFAULT_SCENE_PRESET
+  const inferredPreset = inferPresetFromGenerationMode(generationMode)
 
   return {
     id: row.id,
@@ -328,6 +367,10 @@ export function normalizePromptTemplate(row: PromptTemplateRow): PromptGalleryTe
     usageLabel: row.usage_label ?? canonicalOverride.usageLabel ?? inferredPreset.usageLabel,
     identityLock: row.identity_lock ?? canonicalOverride.identityLock ?? inferredPreset.identityLock,
     outfitSource: normalizeOutfitSource(row.outfit_source ?? canonicalOverride.outfitSource ?? inferredPreset.outfitSource),
+    engineProfile: normalizeEngineProfile(
+      row.engine_profile ?? canonicalOverride.engineProfile ?? inferredPreset.engineProfile,
+      generationMode,
+    ),
   } satisfies PromptGalleryTemplate
 }
 

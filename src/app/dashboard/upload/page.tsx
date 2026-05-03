@@ -27,6 +27,8 @@ type Diagnosis = {
   icon: string
   confidence: number
   model: string
+  engineLabel?: string
+  runtimeModelId?: string
 }
 type Mode = {
   id: string
@@ -34,6 +36,8 @@ type Mode = {
   description: string
   icon: string
   model: string
+  engine_profile?: string
+  engine_label?: string
   example_before_url: string | null
   example_after_url: string | null
   badge: string | null
@@ -265,7 +269,7 @@ export default function UploadPage() {
               <div className="rounded-[18px] border border-white/10 bg-white/5 p-3 md:rounded-[24px] md:p-4">
                 <p className="font-label text-[9px] uppercase tracking-[0.2em] text-[#54D6F6] md:text-[10px] md:tracking-[0.26em]">algoritmos</p>
                 <p className="mt-2 text-xl font-semibold text-white md:text-2xl">{modes.length || '--'}</p>
-                <p className="mt-1 hidden text-xs text-[#7D8B90] sm:block">modelos carregados</p>
+                <p className="mt-1 hidden text-xs text-[#7D8B90] sm:block">modos ativos</p>
               </div>
               <div className="rounded-[18px] border border-white/10 bg-white/5 p-3 md:rounded-[24px] md:p-4">
                 <p className="font-label text-[9px] uppercase tracking-[0.2em] text-[#54D6F6] md:text-[10px] md:tracking-[0.26em]">status</p>
@@ -288,11 +292,11 @@ export default function UploadPage() {
                 <div className="panel-card rounded-[28px] border border-white/6 bg-[#111111]/92 p-4 md:rounded-[32px] md:p-6">
                   <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                     <div>
-                      <p className="font-label text-[10px] uppercase tracking-[0.32em] text-[#54D6F6]">seleção de algoritmo</p>
+                      <p className="font-label text-[10px] uppercase tracking-[0.32em] text-[#54D6F6]">seleção de modo</p>
                       <h2 className="mt-2 text-2xl font-semibold text-white">Escolha o modo de restauração</h2>
                     </div>
                     <p className="max-w-xl text-sm leading-relaxed text-[#7D8B90]">
-                      Cada motor ataca um tipo de degradação diferente. A seleção abaixo define o comportamento do pipeline antes do upload.
+                      Cada modo ajusta a estratégia de restauração, o cuidado com identidades e o tom do resultado final antes do upload.
                     </p>
                   </div>
 
@@ -383,7 +387,7 @@ export default function UploadPage() {
                     </div>
                   ) : (
                     <div className="mt-6 rounded-[24px] border border-white/10 bg-white/[0.03] px-5 py-8 text-sm text-[#8FA7AD] md:rounded-[28px] md:px-6 md:py-10">
-                      Carregando os modelos disponíveis para a restauração.
+                      Carregando os modos disponíveis para a restauração.
                     </div>
                   )}
                 </div>
@@ -448,9 +452,9 @@ export default function UploadPage() {
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-3 md:gap-4">
                   <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4 md:rounded-[24px]">
-                    <p className="font-label text-[10px] uppercase tracking-[0.24em] text-[#54D6F6]">modelo</p>
+                    <p className="font-label text-[10px] uppercase tracking-[0.24em] text-[#54D6F6]">modo ativo</p>
                     <p className="mt-2 text-sm text-white">{diagnosis?.label || activeMode?.name || 'Analisando'}</p>
-                    <p className="mt-2 text-xs text-[#7D8B90]">{diagnosis?.model || activeMode?.model || 'Pipeline automático'}</p>
+                    <p className="mt-2 text-xs text-[#7D8B90]">{activeMode?.description || 'Fluxo premium gerenciado pelo ReviVai.'}</p>
                   </div>
                   <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4 md:rounded-[24px]">
                     <p className="font-label text-[10px] uppercase tracking-[0.24em] text-[#54D6F6]">confiança</p>
@@ -519,7 +523,7 @@ export default function UploadPage() {
                       <p className="font-label text-[10px] uppercase tracking-[0.32em] text-[#54D6F6]">sumário operacional</p>
                       <div className="mt-6 space-y-4">
                         <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">
-                          <p className="font-label text-[10px] uppercase tracking-[0.24em] text-[#7D8B90]">modelo aplicado</p>
+                          <p className="font-label text-[10px] uppercase tracking-[0.24em] text-[#7D8B90]">modo aplicado</p>
                           <p className="mt-2 text-white">{diagnosis?.label || activeMode?.name || 'Pipeline premium'}</p>
                         </div>
                         <div className="rounded-[24px] border border-white/10 bg-black/20 p-4">

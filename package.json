@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "repair:guided-motion": "node scripts/repair-guided-motion-assets.mjs"
   },
   "dependencies": {
     "@fal-ai/serverless-client": "^0.15.0",

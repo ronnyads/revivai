@@ -25,6 +25,7 @@ function collectGenerationFields(formData: FormData) {
     usage_label: String(formData.get('usage_label') ?? '').trim(),
     identity_lock: formData.get('identity_lock') === 'true',
     outfit_source: formData.get('outfit_source') === 'template' ? 'template' : 'identity',
+    engine_profile: String(formData.get('engine_profile') ?? 'vertex_imagen4_ultra').trim(),
   }
 }
 
@@ -161,6 +162,7 @@ export async function duplicatePromptTemplate(id: string) {
     usage_label: String(existing.usage_label ?? '').trim(),
     identity_lock: Boolean(existing.identity_lock ?? true),
     outfit_source: String(existing.outfit_source ?? 'identity') === 'template' ? 'template' : 'identity',
+    engine_profile: String(existing.engine_profile ?? 'vertex_imagen4_ultra').trim(),
     updated_at: new Date().toISOString(),
   })
 
@@ -299,6 +301,7 @@ export async function seedPromptTemplates() {
       usage_label: item.usageLabel,
       identity_lock: item.identityLock,
       outfit_source: item.outfitSource,
+      engine_profile: item.engineProfile,
     })),
   )
   assertMutationSucceeded(error, 'Nao foi possivel criar a biblioteca inicial.')

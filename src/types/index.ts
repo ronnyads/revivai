@@ -15,6 +15,10 @@ export interface Photo {
   restored_url?: string | null
   status: 'pending' | 'processing' | 'done' | 'error'
   model_used?: string
+  engine_profile?: string | null
+  analysis_model_id?: string | null
+  render_model_id?: string | null
+  upscale_model_id?: string | null
   diagnosis?: string
   created_at: string
   colorization_url?: string | null
