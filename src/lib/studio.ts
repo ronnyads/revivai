@@ -852,16 +852,16 @@ export async function generateUpscale(params: {
             { text: prompt },
             { inlineData: { mimeType: 'image/jpeg', data: base64 } },
           ]}],
-          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] } as any,
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] } as any,
         }),
       }
     )
     if (!res.ok) throw new Error(`${model}: ${res.status}`)
     const data = await res.json()
     const parts = data.candidates?.[0]?.content?.parts ?? []
-    const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
-    if (!imgPart?.inlineData?.data) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
-    return imgPart.inlineData.data as string
+    const imgPart = parts.find((p: any) => (p.inlineData?.mimeType || p.inline_data?.mime_type)?.startsWith('image/'))
+    if (!(imgPart?.inlineData?.data || imgPart?.inline_data?.data)) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
+    return (imgPart.inlineData?.data || imgPart.inline_data?.data) as string
   }
 
   async function clarityUpscale(imageUrl: string): Promise<string> {
@@ -4469,7 +4469,7 @@ async function callGeminiSinglePhotoFittingRescue(params: {
         { text: params.promptText },
       ],
     }],
-    generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+    generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
   })
 
   for (const model of rescueModels) {
@@ -4484,8 +4484,8 @@ async function callGeminiSinglePhotoFittingRescue(params: {
 
     const json = await res.json()
     const parts = json.candidates?.[0]?.content?.parts ?? []
-    const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-    if (imgPart?.inlineData?.data) return imgPart.inlineData.data as string
+    const imgPart = parts.find((part: any) => (part.inlineData?.mimeType || part.inline_data?.mime_type)?.startsWith('image/'))
+    if ((imgPart?.inlineData?.data || imgPart?.inline_data?.data)) return (imgPart.inlineData?.data || imgPart.inline_data?.data) as string
   }
 
   return null
@@ -5789,17 +5789,17 @@ async function composeSceneWhiteStudioFitting(params: {
           feature: 'compose_fitting_white_studio',
           body: {
             contents: [{ role: 'user', parts }],
-            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+            generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
           },
         })
         if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
         const data = await res.json()
-        const imagePart = (data.candidates?.[0]?.content?.parts ?? []).find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-        if (!imagePart?.inlineData?.data) {
+        const imagePart = (data.candidates?.[0]?.content?.parts ?? []).find((part: any) => (part.inlineData?.mimeType || part.inline_data?.mime_type)?.startsWith('image/'))
+        if (!(imagePart?.inlineData?.data || imagePart?.inline_data?.data)) {
           throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
         }
         console.log(`[studio] fitting scene_white_studio success=${model} stage=${stageLabel} via=vertex`)
-        return { buffer: Buffer.from(imagePart.inlineData.data, 'base64'), modelUsed: model, lastError: '' }
+        return { buffer: Buffer.from((imagePart.inlineData?.data || imagePart.inline_data?.data), 'base64'), modelUsed: model, lastError: '' }
       } catch (error: any) {
         attemptLastError = error.message
         lastGeminiError = error.message
@@ -7199,7 +7199,7 @@ async function composeDedicatedFittingScene(params: {
 
     const requestBody = {
       contents: [{ role: 'user', parts }],
-      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+      generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
     }
 
     for (const model of holdModels) {
@@ -7213,8 +7213,8 @@ async function composeDedicatedFittingScene(params: {
         if (!res.ok) continue
         const json = await res.json()
         const responseParts = json.candidates?.[0]?.content?.parts ?? []
-        const imgPart = responseParts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-        if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+        const imgPart = responseParts.find((part: any) => (part.inlineData?.mimeType || part.inline_data?.mime_type)?.startsWith('image/'))
+        if ((imgPart?.inlineData?.data || imgPart?.inline_data?.data)) return { imageBase64: (imgPart.inlineData?.data || imgPart.inline_data?.data) as string, modelUsed: model }
       } catch { /* continue */ }
     }
 
@@ -7229,7 +7229,7 @@ async function composeDedicatedFittingScene(params: {
     const provadorModels = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview']
     const requestBody = {
       contents: [{ role: 'user', parts: params.parts }],
-      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+      generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
     }
 
     for (const model of provadorModels) {
@@ -7243,8 +7243,8 @@ async function composeDedicatedFittingScene(params: {
         if (!res.ok) continue
         const json = await res.json()
         const responseParts = json.candidates?.[0]?.content?.parts ?? []
-        const imgPart = responseParts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-        if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+        const imgPart = responseParts.find((part: any) => (part.inlineData?.mimeType || part.inline_data?.mime_type)?.startsWith('image/'))
+        if ((imgPart?.inlineData?.data || imgPart?.inline_data?.data)) return { imageBase64: (imgPart.inlineData?.data || imgPart.inline_data?.data) as string, modelUsed: model }
       } catch { /* continue */ }
     }
 
@@ -7394,7 +7394,7 @@ async function composeDedicatedFittingScene(params: {
             { text: prompt },
           ],
         }],
-        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
       }
 
       for (const model of ACCESSORY_GEMINI_MODEL_CHAIN) {
@@ -7408,9 +7408,9 @@ async function composeDedicatedFittingScene(params: {
           if (!res.ok) continue
           const json = await res.json()
           const parts = json.candidates?.[0]?.content?.parts ?? []
-          const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-          if (imgPart?.inlineData?.data) {
-            return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+          const imgPart = parts.find((part: any) => (part.inlineData?.mimeType || part.inline_data?.mime_type)?.startsWith('image/'))
+          if ((imgPart?.inlineData?.data || imgPart?.inline_data?.data)) {
+            return { imageBase64: (imgPart.inlineData?.data || imgPart.inline_data?.data) as string, modelUsed: model }
           }
         } catch { /* continue */ }
       }
@@ -7896,7 +7896,7 @@ FULL LOOK REBUILD RESCUE:
             { text: promptText },
           ],
         }],
-        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
       })
 
       for (const model of holdModels) {
@@ -7910,8 +7910,8 @@ FULL LOOK REBUILD RESCUE:
           if (!res.ok) continue
           const json = await res.json()
           const parts = json.candidates?.[0]?.content?.parts ?? []
-          const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-          if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+          const imgPart = parts.find((part: any) => (part.inlineData?.mimeType || part.inline_data?.mime_type)?.startsWith('image/'))
+          if ((imgPart?.inlineData?.data || imgPart?.inline_data?.data)) return { imageBase64: (imgPart.inlineData?.data || imgPart.inline_data?.data) as string, modelUsed: model }
         } catch { /* continue */ }
       }
 
@@ -7943,7 +7943,7 @@ FULL LOOK REBUILD RESCUE:
             { text: promptText },
           ],
         }],
-        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
       })
 
       for (const model of ACCESSORY_GEMINI_MODEL_CHAIN) {
@@ -7957,9 +7957,9 @@ FULL LOOK REBUILD RESCUE:
           if (!res.ok) continue
           const json = await res.json()
           const parts = json.candidates?.[0]?.content?.parts ?? []
-          const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-          if (imgPart?.inlineData?.data) {
-            return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+          const imgPart = parts.find((part: any) => (part.inlineData?.mimeType || part.inline_data?.mime_type)?.startsWith('image/'))
+          if ((imgPart?.inlineData?.data || imgPart?.inline_data?.data)) {
+            return { imageBase64: (imgPart.inlineData?.data || imgPart.inline_data?.data) as string, modelUsed: model }
           }
         } catch { /* continue */ }
       }
@@ -8226,7 +8226,7 @@ FULL LOOK REBUILD RESCUE:
               { text: promptText },
             ],
           }],
-          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
         })
 
         for (const model of holdModels) {
@@ -8240,8 +8240,8 @@ FULL LOOK REBUILD RESCUE:
             if (!res.ok) continue
             const json = await res.json()
             const parts = json.candidates?.[0]?.content?.parts ?? []
-            const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-            if (imgPart?.inlineData?.data) return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+            const imgPart = parts.find((part: any) => (part.inlineData?.mimeType || part.inline_data?.mime_type)?.startsWith('image/'))
+            if ((imgPart?.inlineData?.data || imgPart?.inline_data?.data)) return { imageBase64: (imgPart.inlineData?.data || imgPart.inline_data?.data) as string, modelUsed: model }
           } catch { /* continue */ }
         }
 
@@ -8369,7 +8369,7 @@ FULL LOOK REBUILD RESCUE:
             { text: promptText },
           ],
         }],
-        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
       })
 
       for (const model of ACCESSORY_GEMINI_MODEL_CHAIN) {
@@ -8383,9 +8383,9 @@ FULL LOOK REBUILD RESCUE:
           if (!res.ok) continue
           const json = await res.json()
           const parts = json.candidates?.[0]?.content?.parts ?? []
-          const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-          if (imgPart?.inlineData?.data) {
-            return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+          const imgPart = parts.find((part: any) => (part.inlineData?.mimeType || part.inline_data?.mime_type)?.startsWith('image/'))
+          if ((imgPart?.inlineData?.data || imgPart?.inline_data?.data)) {
+            return { imageBase64: (imgPart.inlineData?.data || imgPart.inline_data?.data) as string, modelUsed: model }
           }
         } catch { /* continue */ }
       }
@@ -8554,7 +8554,7 @@ FULL LOOK REBUILD RESCUE:
             { text: promptText },
           ],
         }],
-        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
       })
 
       for (const model of EDITORIAL_FINISHER_GEMINI_MODEL_CHAIN) {
@@ -8568,9 +8568,9 @@ FULL LOOK REBUILD RESCUE:
           if (!res.ok) continue
           const json = await res.json()
           const parts = json.candidates?.[0]?.content?.parts ?? []
-          const imgPart = parts.find((part: any) => part.inlineData?.mimeType?.startsWith('image/'))
-          if (imgPart?.inlineData?.data) {
-            return { imageBase64: imgPart.inlineData.data as string, modelUsed: model }
+          const imgPart = parts.find((part: any) => (part.inlineData?.mimeType || part.inline_data?.mime_type)?.startsWith('image/'))
+          if ((imgPart?.inlineData?.data || imgPart?.inline_data?.data)) {
+            return { imageBase64: (imgPart.inlineData?.data || imgPart.inline_data?.data) as string, modelUsed: model }
           }
         } catch { /* continue */ }
       }
@@ -8983,6 +8983,8 @@ export async function composeProductScene(params: {
   guided_overlay_references?: unknown[]
   compose_mode?:  string   // 'try-on' (default), 'overlay', 'prompt'
   compose_variant?: string
+  engine_profile?: string
+  model_override?: string
   position?:      string
   product_scale?: number
   aspect_ratio?:  string
@@ -9262,7 +9264,7 @@ export async function composeProductScene(params: {
             { text: promptText },
           ],
         }],
-        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
       })
       for (const model of COMPOSE_MODELS) {
         console.log(`[studio] Vertex compose trying: ${model}`)
@@ -9275,10 +9277,10 @@ export async function composeProductScene(params: {
           if (!res.ok) { console.warn(`[studio] ${model} falhou (${res.status})`); continue }
           const json = await res.json()
           const parts = json.candidates?.[0]?.content?.parts ?? []
-          const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
-          if (imgPart?.inlineData?.data) {
+          const imgPart = parts.find((p: any) => (p.inlineData?.mimeType || p.inline_data?.mime_type)?.startsWith('image/'))
+          if ((imgPart?.inlineData?.data || imgPart?.inline_data?.data)) {
             console.log(`[studio] Vertex compose OK | model=${model}`)
-            return imgPart.inlineData.data as string
+            return (imgPart.inlineData?.data || imgPart.inline_data?.data) as string
           }
           console.warn(`[studio] ${model} sem imagem | finishReason=${json.candidates?.[0]?.finishReason}`)
         } catch (e: any) {
@@ -10301,15 +10303,15 @@ export async function generateAngles(params: {
               { text: geminiPrompt },
               { inlineData: { mimeType, data: base64Image } },
             ]}],
-            generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+            generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
           },
         })
         if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
         const data = await res.json()
         const parts = data.candidates?.[0]?.content?.parts ?? []
-        const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
-        if (!imgPart?.inlineData?.data) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
-        photoBuffer = Buffer.from(imgPart.inlineData.data, 'base64')
+        const imgPart = parts.find((p: any) => (p.inlineData?.mimeType || p.inline_data?.mime_type)?.startsWith('image/'))
+        if (!(imgPart?.inlineData?.data || imgPart?.inline_data?.data)) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
+        photoBuffer = Buffer.from((imgPart.inlineData?.data || imgPart.inline_data?.data), 'base64')
         console.log(`[angles] Vertex sucesso: ${model}`)
         geminiSuccess = true
         break
@@ -10442,7 +10444,7 @@ export async function generateMusic(params: {
   const partsArray = data.candidates?.[0]?.content?.parts || []
   for (const part of partsArray) {
     if (part.inlineData) {
-      audioData = Buffer.from(part.inlineData.data, 'base64')
+      audioData = Buffer.from((part.inlineData?.data || part.inline_data?.data), 'base64')
       break
     }
   }
@@ -10900,15 +10902,15 @@ export async function generateScene(params: {
             { text: geminiPrompt },
             ...imageParts,
           ]}],
-          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
         },
       })
       if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
       const data = await res.json()
       const parts = data.candidates?.[0]?.content?.parts ?? []
-      const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
-      if (!imgPart?.inlineData?.data) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
-      photoBuffer = Buffer.from(imgPart.inlineData.data, 'base64')
+      const imgPart = parts.find((p: any) => (p.inlineData?.mimeType || p.inline_data?.mime_type)?.startsWith('image/'))
+      if (!(imgPart?.inlineData?.data || imgPart?.inline_data?.data)) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
+      photoBuffer = Buffer.from((imgPart.inlineData?.data || imgPart.inline_data?.data), 'base64')
       console.log(`[scene] Vertex sucesso: ${model}`)
       break
     } catch (e: any) {
@@ -10996,7 +10998,9 @@ export async function generatePresetIdentityScene(params: {
   assetId: string
   userId: string
   outfit_source?: 'identity' | 'template'
-}) {
+  engine_profile?: string
+  model_override?: string
+}): Promise<{ url: string; modelUsed: string; strategyUsed: string }> {
   const admin = createAdminClient()
   const googleApiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
   if (!googleApiKey) throw new Error('GOOGLE_API_KEY nÃ£o configurada no servidor')
@@ -11103,15 +11107,15 @@ export async function generatePresetIdentityScene(params: {
         feature: 'preset_scene_generation',
         body: {
           contents: [{ role: 'user', parts: [{ text: geminiPrompt }, ...imageParts] }],
-          generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+          generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
         },
       })
       if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
       const data = await res.json()
       const parts = data.candidates?.[0]?.content?.parts ?? []
-      const imgPart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'))
-      if (!imgPart?.inlineData?.data) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
-      photoBuffer = Buffer.from(imgPart.inlineData.data, 'base64')
+      const imgPart = parts.find((p: any) => (p.inlineData?.mimeType || p.inline_data?.mime_type)?.startsWith('image/'))
+      if (!(imgPart?.inlineData?.data || imgPart?.inline_data?.data)) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
+      photoBuffer = Buffer.from((imgPart.inlineData?.data || imgPart.inline_data?.data), 'base64')
       console.log(`[preset-scene] Vertex sucesso: ${model}`)
       break
     } catch (e: any) {
@@ -11178,6 +11182,10 @@ export async function generatePresetIdentityScene(params: {
   if (uploadError) throw new Error(`Upload falhou: ${uploadError.message}`)
 
   const { data: urlData } = admin.storage.from('studio').getPublicUrl(filePath)
-  return urlData.publicUrl
+  return {
+    url: urlData.publicUrl,
+    modelUsed: 'gemini-3.1-flash',
+    strategyUsed: 'preset_identity'
+  }
 }
 
