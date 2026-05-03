@@ -11184,7 +11184,7 @@ export async function generatePresetIdentityScene(params: {
   const { data: urlData } = admin.storage.from('studio').getPublicUrl(filePath)
   return {
     url: urlData.publicUrl,
-    modelUsed: 'gemini-3.1-flash',
+    modelUsed: photoBuffer ? 'gemini-1.5' : 'flux-dev',
     strategyUsed: 'preset_identity'
   }
 }
