@@ -10887,8 +10887,8 @@ export async function generateScene(params: {
     ...extraData.map(d => ({ inlineData: d })),
   ]
 
-  let photoBuffer: Buffer | null = null
-  const geminiChain = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
+  let photoBuffer: Uint8Array | null = null
+  const geminiChain = ['gemini-1.5-pro-002', 'gemini-1.5-flash-002']
   let lastGeminiError = ''
 
   for (const model of geminiChain) {
@@ -10910,7 +10910,7 @@ export async function generateScene(params: {
       const parts = data.candidates?.[0]?.content?.parts ?? []
       const imgPart = parts.find((p: any) => (p.inlineData?.mimeType || p.inline_data?.mime_type)?.startsWith('image/'))
       if (!(imgPart?.inlineData?.data || imgPart?.inline_data?.data)) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
-      photoBuffer = Buffer.from((imgPart.inlineData?.data || imgPart.inline_data?.data), 'base64')
+      photoBuffer = new Uint8Array(Buffer.from((imgPart.inlineData?.data || imgPart.inline_data?.data), 'base64'))
       console.log(`[scene] Vertex sucesso: ${model}`)
       break
     } catch (e: any) {
@@ -10974,7 +10974,7 @@ export async function generateScene(params: {
 
     const imageRes = await fetch(fluxUrl)
     if (!imageRes.ok) throw new Error(`Download do fallback Flux falhou: ${imageRes.status}`)
-    photoBuffer = Buffer.from(await imageRes.arrayBuffer())
+    photoBuffer = new Uint8Array(await imageRes.arrayBuffer())
     console.log(`[scene] Fallback Flux sucesso para asset ${params.assetId}`)
   }
 
@@ -11095,8 +11095,8 @@ export async function generatePresetIdentityScene(params: {
     ...identityData.map((item) => ({ inlineData: item })),
   ]
 
-  let photoBuffer: Buffer | null = null
-  const geminiChain = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
+  let photoBuffer: Uint8Array | null = null
+  const geminiChain = ['gemini-1.5-pro-002', 'gemini-1.5-flash-002']
   let lastGeminiError = ''
 
   for (const model of geminiChain) {
@@ -11115,7 +11115,7 @@ export async function generatePresetIdentityScene(params: {
       const parts = data.candidates?.[0]?.content?.parts ?? []
       const imgPart = parts.find((p: any) => (p.inlineData?.mimeType || p.inline_data?.mime_type)?.startsWith('image/'))
       if (!(imgPart?.inlineData?.data || imgPart?.inline_data?.data)) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
-      photoBuffer = Buffer.from((imgPart.inlineData?.data || imgPart.inline_data?.data), 'base64')
+      photoBuffer = new Uint8Array(Buffer.from((imgPart.inlineData?.data || imgPart.inline_data?.data), 'base64'))
       console.log(`[preset-scene] Vertex sucesso: ${model}`)
       break
     } catch (e: any) {
@@ -11170,7 +11170,7 @@ export async function generatePresetIdentityScene(params: {
 
     const imageRes = await fetch(fluxUrl)
     if (!imageRes.ok) throw new Error(`Download do fallback Flux PuLID falhou: ${imageRes.status}`)
-    photoBuffer = Buffer.from(await imageRes.arrayBuffer())
+    photoBuffer = new Uint8Array(await imageRes.arrayBuffer())
     console.log(`[preset-scene] Fallback Flux PuLID sucesso para asset ${params.assetId}`)
   }
 
