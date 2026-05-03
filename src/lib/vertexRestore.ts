@@ -516,36 +516,13 @@ async function restorePhotoWithImagenEditModel(params: {
   if (!response.ok) {
     const imagenErrorText = await response.text()
     console.warn(`[vertex-restore] Imagen edit failed (${response.status}), attempting Gemini fallback: ${imagenErrorText}`)
-
-    // Fallback: Gemini 2.5 Flash com geração de imagem (modelo que funcionava antes)
     const fallbackModel = VERTEX_RESTORE_FALLBACK_MODEL_ID
-    const fallback = await fetchGoogleGenerateContent({
-      model: fallbackModel,
-      feature: 'restore-render-gemini-fallback',
-      body: {
-        contents: [{
-          role: 'user',
-          parts: [
-            { text: params.prompt },
-            { inlineData: { mimeType: 'image/jpeg', data: params.cleanBuffer.toString('base64') } },
-          ],
-        }],
-        generationConfig: {
-          responseModalities: ['IMAGE', 'TEXT'],
-        },
-      },
+    const fallback = await restorePhotoWithGeminiImageModel({
+      cleanBuffer: params.cleanBuffer,
+      prompt: params.prompt,
     })
-
-    if (!fallback.ok) {
-      throw new Error(`Vertex restore falhou em ambos os motores — Imagen: ${imagenErrorText}`)
-    }
-
-    const fallbackPayload = await fallback.json()
-    const fallbackBase64 = extractGenerateContentImageBase64(fallbackPayload)
-    if (!fallbackBase64) throw new Error('Gemini fallback retornou sem imagem')
-
     console.log(`[vertex-restore] Gemini fallback bem-sucedido | model=${fallbackModel}`)
-    return { buffer: Buffer.from(fallbackBase64, 'base64'), modelId: fallbackModel }
+    return fallback
   }
 
   const payload = await response.json()
@@ -684,9 +661,21 @@ export async function restorePhotoWithVertex(params: {
     restoreStrategy: mask.reason === 'mask_ready' && mask.maskBuffer ? 'imagen_mask_edit' : 'imagen_reference',
   }
 
-  if (!diagnostics.maskUsed) {
-    diagnostics.fallbackReason = mask.reason
-    console.warn(`[vertex-restore] mask unavailable, testing Imagen reference mode | reason=${mask.reason}`)
+  const hasPhysicalDamage = params.analysis.has_scratches || params.analysis.has_tears_or_holes || params.analysis.has_mold_or_stains
+  const isBypassImagen = !hasPhysicalDamage || !diagnostics.maskUsed
+
+  if (isBypassImagen) {
+    diagnostics.restoreStrategy = 'gemini_direct'
+    diagnostics.fallbackUsed = true
+    diagnostics.fallbackReason = !hasPhysicalDamage ? 'no_physical_damage' : mask.reason
+    console.log(`[vertex-restore] bypassing Imagen -> routing directly to Gemini | reason=${diagnostics.fallbackReason}`)
+    
+    const fallback = await restorePhotoWithGeminiImageModel({
+      cleanBuffer: params.cleanBuffer,
+      prompt: primaryInstruction,
+    })
+    
+    return { buffer: fallback.buffer, diagnostics, modelId: fallback.modelId }
   }
 
   console.log(
@@ -704,6 +693,39 @@ export async function restorePhotoWithVertex(params: {
     diagnostics,
     modelId: restored.modelId,
   }
+}
+
+async function restorePhotoWithGeminiImageModel(params: {
+  cleanBuffer: Buffer
+  prompt: string
+}): Promise<{ buffer: Buffer; modelId: string }> {
+  const fallbackModel = VERTEX_RESTORE_FALLBACK_MODEL_ID
+  const fallback = await fetchGoogleGenerateContent({
+    model: fallbackModel,
+    feature: 'restore-render-gemini-fallback',
+    body: {
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: params.prompt },
+          { inlineData: { mimeType: 'image/jpeg', data: params.cleanBuffer.toString('base64') } },
+        ],
+      }],
+      generationConfig: {
+        responseModalities: ['IMAGE', 'TEXT'],
+      },
+    },
+  })
+
+  if (!fallback.ok) {
+    throw new Error(`Gemini direct model failed: ${await fallback.text()}`)
+  }
+
+  const fallbackPayload = await fallback.json()
+  const fallbackBase64 = extractGenerateContentImageBase64(fallbackPayload)
+  if (!fallbackBase64) throw new Error('Gemini direct model returned no image')
+
+  return { buffer: Buffer.from(fallbackBase64, 'base64'), modelId: fallbackModel }
 }
 
 export async function maybeUpscaleRestorationWithVertex(params: {
