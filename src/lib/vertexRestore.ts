@@ -245,6 +245,9 @@ function resolveRestoreMaskProfile(params: {
   }
 }
 
+// ─── Camera Quality Signature (shared with prompt-gallery) ────────────────────
+const CINEMA_QUALITY_SIGNATURE = 'Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, subtle film grain, 8K commercial detail, ultra-sharp facial micro-detail, natural skin texture, correct shadows and perspective, no watermark.'
+
 function buildRestorationInstructions(
   profile: VertexEngineProfile,
   prompt: string,
@@ -252,31 +255,64 @@ function buildRestorationInstructions(
   modeName?: string | null,
   maskProfile?: RestoreMaskProfileName,
 ): string {
-  const profileInstruction =
-    profile === 'vertex_imagen4_fast'
-      ? 'Use a minimal and conservative retouching strategy. Preserve every healthy region untouched.'
-      : profile === 'vertex_imagen4'
-        ? 'Use a balanced and faithful restoration strategy with measured cleanup.'
-        : 'Use the highest-fidelity restoration strategy available while preserving the person exactly.'
-
   const normalizedModeName = String(modeName ?? '').toLowerCase()
-  const modeInstruction =
-    maskProfile === 'document-repair' || /document|rg|cpf|passaporte/.test(normalizedModeName)
-      ? 'This is a document-oriented restoration. Clean background contamination, scanning residue, stains, edge noise and contrast issues while preserving the exact face and official-photo realism.'
-      : maskProfile === 'balanced-portrait' || /grupo|fam(í|i)lia/.test(normalizedModeName)
-        ? 'This is a family or group restoration. Protect every face aggressively and only repair clear physical damage around people.'
-        : maskProfile === 'surface-clean'
-          ? 'This is a light-touch cleanup. Remove only dust, small scratches and light marks. Do not reconstruct aggressively.'
-          : 'This is a premium deep restoration. Repair obvious cracks, stains, damaged paper areas, blur-softened damaged regions and severe surface wear in a visible but identity-safe way.'
+
+  // ── Quality tier instruction ────────────────────────────────────────────────
+  const qualityTier =
+    profile === 'vertex_imagen4_fast'
+      ? 'CONSERVATIVE TIER: Apply minimal intervention. Preserve every healthy pixel. Remove only clearly visible dust particles, tiny scratches and isolated stains. Do not reconstruct.'
+      : profile === 'vertex_imagen4'
+        ? 'BALANCED TIER: Apply measured restoration. Clean scratches, stains, blur and digital noise. Rebuild only regions with explicit visible damage. Preserve all healthy areas untouched.'
+        : 'PREMIUM TIER: Apply maximum fidelity restoration. Reconstruct all damaged regions with surgical precision. Rebuild grain, skin micro-texture, fabric detail and environmental depth as if the photo had just been taken on a professional medium-format camera.'
+
+  // ── Photo-type / mask-profile instruction ──────────────────────────────────
+  const contextInstruction =
+    maskProfile === 'document-repair' || /document|rg|cpf|passaporte|identidade/.test(normalizedModeName)
+      ? `DOCUMENT RESTORATION PROTOCOL:
+- Clean background contamination, scanning residue, edge noise, foxing marks and paper stains.
+- Restore contrast to official-document standard: clear white/neutral background, sharp uniform edges.
+- Preserve the exact face, bone structure, skin tone and every biometric detail with zero alteration.
+- Do NOT soften, beautify, rejuvenate or alter the face in any way. Exact identity lock.
+- Remove dust without touching the face ellipse region.`
+
+      : maskProfile === 'balanced-portrait' || /grupo|fam(í|i)lia|familia/.test(normalizedModeName)
+        ? `GROUP / FAMILY RESTORATION PROTOCOL:
+- Identify every face in the scene and apply a zero-touch identity protection lock on each one.
+- Repair only regions clearly outside face zones: background tears, paper cracks, border damage, sky stains.
+- Rebuild textures of clothing, furniture, floors and vegetation that are damaged — without touching faces.
+- Restore overall brightness balance and color consistency across the group scene.
+- If the image is grayscale or sepia, enhance tonal range without colorizing.`
+
+      : maskProfile === 'surface-clean'
+        ? `LIGHT CLEANUP PROTOCOL:
+- Remove visible dust particles, thin scratches, light surface marks and minor compression artifacts.
+- Sharpen softly blurred regions while preserving original photographic character.
+- Do not reconstruct, do not fill in missing areas, do not alter faces or clothing.
+- Minimal intervention: the output should look like a scanned and cleaned original, not a repainted image.`
+
+      : `PREMIUM DEEP-RESTORE PROTOCOL:
+- Analyze every region of the photograph for physical damage: cracks, paper tears, mold stains, water marks, chemical fading, silver mirroring, foxing, blur from camera shake, digital compression blocks and grain noise.
+- Repair each damaged zone with high confidence, reconstructing realistic photographic texture as if shot on ${CINEMA_QUALITY_SIGNATURE}
+- Zones to restore with maximum quality:
+  * SKIN: Reconstruct pores, fine wrinkles, skin tone consistency. Preserve age. Do NOT smooth or beautify.
+  * EYES: Restore iris detail, natural catchlight, eyelid texture. Preserve gaze direction exactly.
+  * HAIR: Recover individual strand detail, volume and natural highlights from the source lighting.
+  * CLOTHING: Restore fabric texture, weave pattern, folds and natural drape.
+  * BACKGROUND: Fill damaged background zones with contextually correct environment continuation.
+  * LIGHTING: Maintain original lighting direction and mood. Do not add light sources or shadows.
+- Preserve with absolute fidelity: face geometry, age, expression, pose, body proportions, composition, framing, clothing type, background story.
+- DO NOT: beautify faces, whiten teeth, slim bodies, add jewelry, change outfit, alter pose, change expressions, invent people, change background.`
+
+  // ── Negative guard ─────────────────────────────────────────────────────────
+  const negativeGuard = 'HARD RULES — NEVER: add new people, change faces, alter clothing type, change composition, colorize grayscale unless explicitly requested, make skin plastic or smooth, remove natural wrinkles or age marks, add backgrounds that were not in the original.'
 
   return [
-    persona?.trim() ? `System persona: ${persona.trim()}` : '',
-    'You are restoring an existing historical family photograph on Vertex AI.',
-    profileInstruction,
-    modeInstruction,
-    'Preserve identity, age, face geometry, expression, pose, composition, wardrobe, background, lighting, grain and historical character.',
-    'Repair only visible physical damage, paper wear, scratches, cracks, mold marks, stains and surface defects that belong to the damaged photograph.',
-    'Do not beautify faces, do not repaint healthy skin, do not invent jewelry, do not alter clothing, and do not change pose or composition.',
+    persona?.trim() ? `SYSTEM PERSONA: ${persona.trim()}` : '',
+    'TASK: You are a master photographic restoration specialist working on Vertex AI.',
+    qualityTier,
+    contextInstruction,
+    negativeGuard,
+    'QUALITY OUTPUT STANDARD: ' + CINEMA_QUALITY_SIGNATURE,
     prompt.trim(),
   ]
     .filter(Boolean)

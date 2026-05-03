@@ -17,10 +17,10 @@ import {
   restorePhotoWithVertex,
 } from '@/lib/vertexRestore'
 
-const DOCUMENT_PROMPT = 'Restore this identity document photograph. Preserve the exact facial features and identity of the person. Use a clean white or neutral background. Apply zero beautification or artistic enhancement. Conservative minimal-intervention approach only.'
-const GROUP_PROMPT = 'Restore this group photograph. Preserve every person unique facial identity precisely. Do not alter faces, expressions, age, or relative proportions between people. Remove only physical damage, scratches, stains and blur while keeping human features exactly as they are.'
-const CONSERVATIVE_PROMPT = 'Restore this photograph with minimal intervention. Remove only clearly visible damage marks, dust, scratches and stains. Do not change faces, expressions, composition or overall appearance.'
-const ULTRA_CONSERVATIVE_PROMPT = 'Remove only dust and scratches from this photograph. Preserve all other details exactly as they are, including faces, expressions, clothing, background and composition.'
+const DOCUMENT_PROMPT = 'Restore this identity document photograph. Preserve the exact facial features, bone structure, skin tone and identity of the person with zero modification. Clean background contamination, paper stains, scanning residue and edge noise only. White or neutral background, sharp uniform edges. Do not beautify, rejuvenate or alter the face in any way. Identity lock is absolute.'
+const GROUP_PROMPT = 'Restore this group photograph. Lock the identity and facial geometry of every person in the scene. Do not touch any face region. Remove only physical damage outside face zones: background tears, paper cracks, border stains, mold marks, sky fading. Rebuild clothing texture, flooring and environmental background in damaged areas. Preserve relative proportions, expressions and composition exactly.'
+const CONSERVATIVE_PROMPT = 'Restore this photograph with minimal intervention. Remove only clearly visible damage marks, dust particles, thin scratches and isolated stains. Sharpen softly blurred regions while preserving photographic character. Do not change faces, expressions, composition or overall appearance. Output should look like a professionally cleaned original scan.'
+const ULTRA_CONSERVATIVE_PROMPT = 'Remove only dust and thin surface scratches from this photograph. Preserve all details exactly as they are: faces, expressions, clothing, background, grain, color balance and composition. Minimal touch, maximal authenticity.'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
   const modeId = formData.get('modeId') as string | null
   let modeName = 'Restauracao Geral'
-  let modePrompt = 'Restore this old photograph. Remove scratches, dust, and damage while preserving all original details, faces, and composition.'
+  let modePrompt = 'Perform a premium deep restoration of this photograph. Identify and repair all physical damage including scratches, cracks, paper tears, mold stains, water marks, chemical fading, blur, grain noise and compression artifacts. Restore skin texture with natural pores and wrinkles preserved. Recover eye iris detail and hair strand definition. Rebuild damaged clothing fabric and background environment with contextually accurate reconstruction. Maintain original lighting direction, mood, composition, framing, and all facial identities exactly. Do not beautify, do not alter expressions, do not colorize unless original was in color.'
   let modeLegacyModel = 'restore-managed-by-engine-profile'
   let modePersona: string | null = null
   let modeRetryPrompt: string | null = null
