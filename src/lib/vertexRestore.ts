@@ -81,7 +81,7 @@ export interface VertexRestoreDiagnostics {
   maskProfile: RestoreMaskProfileName
   maskUsed: boolean
   primaryModelId: string
-  restoreStrategy: 'imagen_mask_edit' | 'imagen_reference'
+  restoreStrategy: 'imagen_mask_edit' | 'imagen_reference' | 'gemini_direct'
 }
 
 function normalizeJsonText(text: string): string {
