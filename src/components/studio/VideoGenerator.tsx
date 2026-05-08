@@ -9,7 +9,12 @@ import {
   StudioPanel,
   StudioPrimaryButton,
 } from './StudioFormShell'
-import { CREDIT_COST } from '@/constants/studio'
+import { STUDIO_ASPECT_RATIO_PRESETS } from './aspectRatio'
+import {
+  getVideoGenerationCost,
+  normalizeStudioVideoQuality,
+  type StudioVideoQuality,
+} from '@/constants/studio'
 
 interface Props {
   initial: Record<string, unknown>
@@ -17,24 +22,28 @@ interface Props {
 }
 
 const AUDIO_EXTS = /\.(mp3|wav|ogg|m4a|aac)(\?.*)?$/i
-const ENGINE_OPTIONS = [
-  { value: 'veo', label: 'Google Veo' },
-  { value: 'kling', label: 'Kling AI' },
-]
 const QUALITY_OPTIONS = [
-  { value: '720p', label: '720p' },
-  { value: '1080p', label: '1080p HQ' },
+  { value: '720p', label: '720p - 75 CR' },
+  { value: '1080p', label: '1080p HQ - 100 CR' },
 ]
-const DURATION_OPTIONS = [
-  { value: '5', label: '5 segundos' },
-  { value: '10', label: '10 segundos' },
-]
+const VIDEO_FORMAT_OPTIONS = STUDIO_ASPECT_RATIO_PRESETS
+  .filter((option) => option.value !== '1:1')
+  .map((option) => ({
+    value: option.value,
+    label: `${option.label} - ${option.hint}`,
+  }))
 const VIDEO_SCENE_PRESETS = [
   { value: 'none', label: 'Sem preset', prompt: '' },
   { value: 'podcast', label: 'Podcast', prompt: 'estudio de podcast premium, microfone visivel, mesa clean, luz quente controlada, atmosfera intimista' },
   { value: 'beach', label: 'Praia', prompt: 'praia ensolarada, brisa suave, mar ao fundo, luz natural leve, atmosfera relaxada' },
   { value: 'office', label: 'Escritorio', prompt: 'escritorio contemporaneo, mesa organizada, luz suave de janela, atmosfera profissional premium' },
 ]
+
+function normalizeVideoAspectRatio(value: unknown) {
+  const normalized = String(value ?? '').trim()
+  if (normalized === '4:5' || normalized === '16:9') return normalized
+  return '9:16'
+}
 
 function joinPromptParts(parts: string[]) {
   return parts
@@ -82,9 +91,9 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
     source_image_url: initial.source_image_url ?? '',
     continuation_frame: initial.continuation_frame ?? '',
     motion_prompt: initial.motion_prompt ?? '',
-    duration: initial.duration ?? 5,
-    engine: initial.engine ?? 'veo',
-    quality: initial.quality ?? '720p',
+    duration: initial.duration ?? 8,
+    quality: normalizeStudioVideoQuality(initial.quality),
+    aspect_ratio: normalizeVideoAspectRatio(initial.aspect_ratio),
   })
 
   return <VideoGeneratorBody key={syncKey} initial={initial} onGenerate={onGenerate} />
@@ -93,17 +102,16 @@ export default function VideoGenerator({ initial, onGenerate }: Props) {
 function VideoGeneratorBody({ initial, onGenerate }: Props) {
   const isContinuation = !!initial.continuation_frame && !AUDIO_EXTS.test(String(initial.continuation_frame))
   const [imageUrl, setImageUrl] = useState(resolveImageUrl(initial))
-  const [motion, setMotion] = useState(String(initial.motion_prompt ?? ''))
-  const [duration, setDuration] = useState<5 | 10>(([5, 10].includes(Number(initial.duration)) ? Number(initial.duration) : 5) as 5 | 10)
-  const [engine, setEngine] = useState(String(initial.engine ?? 'veo'))
-  const [quality, setQuality] = useState(String(initial.quality ?? '720p'))
+  const [videoBrief, setVideoBrief] = useState(String(initial.motion_prompt ?? ''))
+  const [quality, setQuality] = useState<StudioVideoQuality>(normalizeStudioVideoQuality(initial.quality))
+  const [aspectRatio, setAspectRatio] = useState(normalizeVideoAspectRatio(initial.aspect_ratio))
   const [scenePreset, setScenePreset] = useState('none')
-  const selectedEngineLabel = ENGINE_OPTIONS.find((option) => option.value === engine)?.label ?? 'Motor'
+  const [sceneLivre, setSceneLivre] = useState(false)
+  const duration = 8
   const selectedScenePreset = VIDEO_SCENE_PRESETS.find((option) => option.value === scenePreset) ?? VIDEO_SCENE_PRESETS[0]
-  const finalMotionPrompt = joinPromptParts([selectedScenePreset.prompt, motion])
-
-  const baseCost = engine === 'veo' ? CREDIT_COST.video_veo : CREDIT_COST.video
-  const cost = quality === '1080p' ? baseCost * 2 : baseCost
+  const selectedFormat = STUDIO_ASPECT_RATIO_PRESETS.find((option) => option.value === aspectRatio)
+  const finalVideoBrief = joinPromptParts([selectedScenePreset.prompt, videoBrief])
+  const cost = getVideoGenerationCost(quality)
 
   return (
     <StudioFormShell
@@ -116,8 +124,9 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
       mediaColumnClassName="space-y-2.5"
       controlsColumnClassName="space-y-2.5"
       chips={[
-        { label: engine === 'veo' ? 'Google Veo' : 'Kling AI', tone: 'blue' },
-        { label: quality === '1080p' ? '1080p' : isContinuation ? 'Continuacao' : '720p', tone: quality === '1080p' ? 'warning' : 'neutral' },
+        { label: sceneLivre ? 'Cena Livre' : 'Google Veo', tone: sceneLivre ? 'violet' : 'blue' },
+        { label: selectedFormat?.label ?? aspectRatio, tone: 'neutral' },
+        { label: `${quality} - ${cost} CR`, tone: quality === '1080p' ? 'warning' : 'neutral' },
       ]}
       media={
         <>
@@ -139,9 +148,12 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
                 </div>
               ) : null}
               <div className="rounded-[16px] border border-blue-500/14 bg-blue-500/[0.06] px-3 py-2.5">
-                <p className="text-[10px] font-semibold text-white">{selectedEngineLabel}</p>
+                <p className="text-[10px] font-semibold text-white">Google Veo</p>
                 <p className="mt-1 text-[9px] leading-relaxed text-white/44">
-                  {engine === 'veo' ? 'Mais cinematografico.' : 'Melhor para sequencia e repeticao.'}
+                  Segue melhor o briefing visual mantendo fidelidade da imagem-base.
+                </p>
+                <p className="mt-1 text-[9px] leading-relaxed text-white/34">
+                  Se o brief incluir dialogo, este card usa fala nativa do Veo. Para audio exato ou lipsync externo, use Video com Fala.
                 </p>
               </div>
             </div>
@@ -154,12 +166,24 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <StudioFieldLabel>Tecnologia</StudioFieldLabel>
-                <CompactSelect value={engine} onChange={setEngine} options={ENGINE_OPTIONS} />
+                <div className="flex items-center justify-between rounded-[16px] border border-blue-500/18 bg-blue-500/10 px-3 py-2.5">
+                  <span className="text-[10px] font-semibold text-blue-200">Google Veo</span>
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/46">ativo</span>
+                </div>
               </div>
               <div>
-                <StudioFieldLabel>Resolucao</StudioFieldLabel>
-                <CompactSelect value={quality} onChange={setQuality} options={QUALITY_OPTIONS} />
+                <StudioFieldLabel>Qualidade</StudioFieldLabel>
+                <CompactSelect value={quality} onChange={(value) => setQuality(normalizeStudioVideoQuality(value))} options={QUALITY_OPTIONS} />
               </div>
+            </div>
+
+            <div className="mt-3">
+              <StudioFieldLabel>Formato de destino</StudioFieldLabel>
+              <CompactSelect
+                value={aspectRatio}
+                onChange={setAspectRatio}
+                options={VIDEO_FORMAT_OPTIONS}
+              />
             </div>
 
             <div className="mt-3">
@@ -173,39 +197,44 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
 
             <div className="mt-3">
               <StudioFieldLabel>Duracao</StudioFieldLabel>
-              {engine === 'veo' ? (
-                <div className="flex items-center justify-between rounded-[16px] border border-blue-500/18 bg-blue-500/10 px-3 py-2.5">
-                  <span className="text-[10px] font-semibold text-blue-200">8 segundos</span>
-                  <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/46">fixo</span>
-                </div>
-              ) : (
-                <CompactSelect
-                  value={String(duration)}
-                  onChange={(value) => setDuration(Number(value) as 5 | 10)}
-                  options={DURATION_OPTIONS}
-                />
-              )}
+              <div className="flex items-center justify-between rounded-[16px] border border-blue-500/18 bg-blue-500/10 px-3 py-2.5">
+                <span className="text-[10px] font-semibold text-blue-200">8 segundos</span>
+                <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/46">fixo</span>
+              </div>
             </div>
 
             <div className="mt-3 flex items-center justify-between rounded-[16px] border border-blue-500/14 bg-blue-500/[0.06] px-3 py-2.5">
-              <span className="text-[10px] font-semibold text-blue-200">{selectedEngineLabel}</span>
+              <span className="text-[10px] font-semibold text-blue-200">{selectedFormat?.label ?? 'Formato'}</span>
               <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/46">{cost} CR</span>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between rounded-[16px] border border-purple-500/20 bg-purple-500/10 px-3 py-2.5">
+              <div>
+                <p className="text-[10px] font-semibold text-purple-200">Cena Livre</p>
+                <p className="text-[9px] text-white/44">Muda cena e roupa mantendo o modelo</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSceneLivre((v) => !v)}
+                className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${sceneLivre ? 'bg-purple-500' : 'bg-white/12'}`}
+              >
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${sceneLivre ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </button>
             </div>
           </StudioPanel>
 
-          <StudioPanel title="Movimento" compact>
-            <StudioFieldLabel>Direcao de movimento</StudioFieldLabel>
+          <StudioPanel title="Brief" compact>
+            <StudioFieldLabel>Brief do video</StudioFieldLabel>
             <textarea
-              value={motion}
-              onChange={(event) => setMotion(event.target.value)}
-              placeholder={
-                isContinuation
-                  ? 'Ex: olha para a camera, sorri de leve, respiracao natural.'
-                  : 'Ex: leve push-in, sorriso suave, pequeno giro de rosto, levantar levemente o produto.'
-              }
-              rows={2}
+              value={videoBrief}
+              onChange={(event) => setVideoBrief(event.target.value)}
+              placeholder="Ex: trocar para jaqueta preta, deixar a expressao mais confiante, camera aproximando devagar, ambiente noturno com luz neon. Para fala nativa, use uma secao DIALOGUE: com a frase."
+              rows={3}
               className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-blue-400/30"
             />
+            <p className="mt-2 text-[9px] leading-relaxed text-white/34">
+              O card Video aceita roteiro com fala nativa do Veo quando voce escrever a fala no brief. Se precisar de voz externa ou lipsync exato, gere pelo card Video com Fala.
+            </p>
           </StudioPanel>
 
           <StudioPrimaryButton
@@ -215,10 +244,12 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
               onGenerate({
                 source_image_url: imageUrl,
                 continuation_frame: isContinuation ? imageUrl : undefined,
-                motion_prompt: finalMotionPrompt,
+                motion_prompt: finalVideoBrief,
                 duration,
-                engine,
+                engine: 'veo',
                 quality,
+                aspect_ratio: aspectRatio,
+                scene_livre: sceneLivre,
               })
             }
           >

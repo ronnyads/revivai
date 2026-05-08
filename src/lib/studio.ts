@@ -1,8 +1,13 @@
 // FORCE_REBUILD_ID: 2716873455033918919
 import { VertexAI } from '@google-cloud/vertexai'
 import { GoogleAuth } from 'google-auth-library'
+import type { FfmpegCommand } from 'fluent-ffmpeg'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
+import {
+  VERTEX_IDENTITY_SCENE_FALLBACK_MODEL_ID,
+  VERTEX_IDENTITY_SCENE_PRIMARY_MODEL_ID,
+} from '@/lib/vertex-engines'
 import { AssetType } from '@/types'
 import { extractLastFrame as extractVideoFrame, extractVideoReferenceInsights, saveLastFrame } from './videoUtils'
 import { assessCompositionQuality, CompositionQuality, ProductProfile } from '@/lib/openai'
@@ -81,6 +86,749 @@ async function studioScopedFetch(input: RequestInfo | URL, init?: RequestInit): 
 
 const fetch = studioScopedFetch
 
+const DEFAULT_SCENE_VERTEX_FALLBACK_MODEL_CHAIN = [
+  VERTEX_IDENTITY_SCENE_FALLBACK_MODEL_ID,
+] as const
+
+const SUPPORTED_GEMINI_IMAGE_ASPECT_RATIOS = new Set([
+  '1:1',
+  '3:4',
+  '4:5',
+  '9:16',
+  '16:9',
+])
+
+function normalizeGeminiImageAspectRatio(aspectRatio?: string): string {
+  const normalized = typeof aspectRatio === 'string' ? aspectRatio.trim() : ''
+  return SUPPORTED_GEMINI_IMAGE_ASPECT_RATIOS.has(normalized) ? normalized : '9:16'
+}
+
+function buildGeminiImageGenerationConfig(aspectRatio?: string) {
+  const normalizedAspectRatio = normalizeGeminiImageAspectRatio(aspectRatio)
+  return {
+    responseModalities: ['IMAGE', 'TEXT'],
+    response_modalities: ['IMAGE', 'TEXT'],
+    imageConfig: {
+      aspectRatio: normalizedAspectRatio,
+      personGeneration: 'ALLOW_ALL',
+    },
+  }
+}
+
+const SCENE_ENVIRONMENT_CHANGE_PATTERNS = [
+  /\b(trocar|mudar|substituir|colocar|levar|passar|transformar|move|put|set)\b.{0,64}\b(cenario|cenario|fundo|ambiente|background|location|setting|praia|beach|podcast|microfone|escritorio|escrit[oó]rio|office|quarto|hotel|cafe|caf[eé]|restaurante|rua|street|studio|estudio)\b/i,
+  /\b(agora|coloca|deixa)\b.{0,28}\b(no|na|em)\b.{0,28}\b(praia|beach|podcast|escritorio|escrit[oó]rio|office|quarto|hotel|cafe|caf[eé]|restaurante|rua|street|studio|estudio)\b/i,
+  /\b(background|backdrop|cenario|cenario|ambiente|location|setting)\b/i,
+]
+
+const SCENE_WARDROBE_CHANGE_PATTERNS = [
+  /\b(trocar|mudar|substituir|colocar|usar|vestir|deixar com)\b.{0,64}\b(roupa|look|outfit|jaqueta|blazer|vestido|dress|camiseta|camisa|shirt|blusa|calca|calça|pants|saia|skirt|sapato|shoes|tenis|t[eê]nis|salto|heels|terno|suit|elegante)\b/i,
+  /\b(com|wearing|usar|vestir)\b.{0,32}\b(roupa|look|outfit|blazer|vestido|dress|camisa|shirt|terno|suit|elegante)\b/i,
+]
+
+const SCENE_BODY_REFRAME_PATTERNS = [
+  /\b(corpo completo|full body|inteira|mostrar o corpo todo|mostrar mais do corpo|enquadramento aberto|abrir enquadramento|zoom out|plano aberto|head to toe|dos p[eé]s a cabeca|dos pes a cabeca)\b/i,
+]
+
+const SCENE_IDENTITY_CHANGE_PATTERNS = [
+  /\b(change face|new face|different person|trocar modelo|mudar modelo|mais jovem|younger|mais velha|older|mais magra|thinner|mais forte|muscular|new identity|nova pessoa|outra pessoa|trocar rosto|mudar rosto|rejuvenescer|rejuvenesce)\b/i,
+]
+
+const SCENE_PROTECTED_ELEMENT_CHANGE_PATTERNS = [
+  /\b(trocar|mudar|substituir|replace|swap|remove|remover|tirar|hide|ocultar)\b.{0,64}\b(logo|texto|text|branding|rotulo|r[oó]tulo|label|cor|color|produto|product|item|objeto|object|acessorio|accessory|prop)\b/i,
+  /\b(change color|trocar cor|mudar cor|recolor|recolorir|different color|nova cor|other colorway|novo tom)\b/i,
+]
+
+function detectScenePromptPattern(prompt: string, patterns: readonly RegExp[]): boolean {
+  return patterns.some((pattern) => pattern.test(prompt))
+}
+
+function buildSceneVertexFallbackModelChain(modelOverride?: string): string[] {
+  const normalizedOverride = typeof modelOverride === 'string' ? modelOverride.trim() : ''
+  const preferredModels = normalizedOverride.startsWith('gemini-') && /(image|preview)/i.test(normalizedOverride)
+    ? [normalizedOverride]
+    : []
+
+  return [...new Set([...preferredModels, ...DEFAULT_SCENE_VERTEX_FALLBACK_MODEL_CHAIN])]
+}
+
+function extractPredictImageBase64(payload: {
+  predictions?: Array<{
+    bytesBase64Encoded?: string
+    image?: { bytesBase64Encoded?: string }
+    referenceImage?: { bytesBase64Encoded?: string }
+  }>
+} | null | undefined): string | null {
+  const prediction = payload?.predictions?.[0]
+  if (!prediction) return null
+
+  return prediction?.bytesBase64Encoded
+    ?? prediction?.image?.bytesBase64Encoded
+    ?? prediction?.referenceImage?.bytesBase64Encoded
+    ?? null
+}
+
+export type ScenePromptPolicy = {
+  normalizedPrompt: string
+  requestedSceneChange: boolean
+  requestedWardrobeChange: boolean
+  requestedBodyReframe: boolean
+  requestedIdentityChange: boolean
+  requestedProductChange: boolean
+  shouldBlockProtectedElementChange: boolean
+  allowReferenceSwap: boolean
+  swapReferenceCount: number
+  swapTask: 'none' | 'wardrobe_swap' | 'full_outfit_replace' | 'top_only_swap' | 'bottom_only_swap' | 'product_swap'
+  strictSourceFidelity: boolean
+  sourceVisibleItemManifest: string[]
+  editMode:
+    | 'strict_preserve'
+    | 'scene_only'
+    | 'wardrobe_only'
+    | 'product_only'
+    | 'scene_and_wardrobe'
+    | 'scene_and_product'
+    | 'wardrobe_and_product'
+    | 'scene_wardrobe_and_product'
+    | 'reframe_only'
+    | 'scene_and_reframe'
+    | 'wardrobe_and_reframe'
+    | 'scene_wardrobe_and_reframe'
+    | 'product_and_reframe'
+    | 'scene_product_and_reframe'
+    | 'wardrobe_product_and_reframe'
+    | 'scene_wardrobe_product_and_reframe'
+  finalPrompt: string
+  negativePrompt: string
+}
+
+const FULL_OUTFIT_REPLACEMENT_PATTERNS = [
+  /\b(vestido|dress|gown|look completo|full outfit|outfit completo|macacao|macac[aã]o|jumpsuit|replace all clothing|trocar toda a roupa|trocar o look inteiro|look inteiro)\b/i,
+]
+
+const TOP_ONLY_SWAP_PATTERNS = [
+  /\b(top|upper body|parte de cima|blusa|camisa|camiseta|shirt|blazer|jaqueta|bodice|corset)\b/i,
+]
+
+const BOTTOM_ONLY_SWAP_PATTERNS = [
+  /\b(bottom|lower body|parte de baixo|saia|skirt|calca|calça|pants|shorts|trousers)\b/i,
+]
+
+function inferSceneSwapTask(params: {
+  normalizedPrompt: string
+  requestedWardrobeChange: boolean
+  requestedProductChange: boolean
+}): ScenePromptPolicy['swapTask'] {
+  if (params.requestedProductChange && !params.requestedWardrobeChange) return 'product_swap'
+  if (!params.requestedWardrobeChange) return 'none'
+  if (detectScenePromptPattern(params.normalizedPrompt, FULL_OUTFIT_REPLACEMENT_PATTERNS)) return 'full_outfit_replace'
+  if (detectScenePromptPattern(params.normalizedPrompt, TOP_ONLY_SWAP_PATTERNS) && !detectScenePromptPattern(params.normalizedPrompt, BOTTOM_ONLY_SWAP_PATTERNS)) {
+    return 'top_only_swap'
+  }
+  if (detectScenePromptPattern(params.normalizedPrompt, BOTTOM_ONLY_SWAP_PATTERNS) && !detectScenePromptPattern(params.normalizedPrompt, TOP_ONLY_SWAP_PATTERNS)) {
+    return 'bottom_only_swap'
+  }
+  return 'wardrobe_swap'
+}
+
+export function prepareScenePromptPolicy(params: {
+  scenePrompt: string
+  aspectRatio?: string
+  mode?: 'generic' | 'talking_video' | 'video'
+  requestedSceneChange?: boolean
+  requestedWardrobeChange?: boolean
+  requestedBodyReframe?: boolean
+  sourceVisibleItemManifest?: string[]
+  requireExactTextLogo?: boolean
+  requireExactColor?: boolean
+  strictSourceFidelity?: boolean
+  referenceSwapCount?: number
+  suppressWardrobePromptDetection?: boolean
+  suppressProductPromptDetection?: boolean
+}): ScenePromptPolicy {
+  const normalizedPrompt = normalizeTalkingWhitespace(params.scenePrompt)
+  const sourceVisibleItemManifest = dedupeNormalizedStrings(params.sourceVisibleItemManifest ?? []).slice(0, 16)
+  const requestedSceneChange =
+    Boolean(params.requestedSceneChange)
+    || detectScenePromptPattern(normalizedPrompt, SCENE_ENVIRONMENT_CHANGE_PATTERNS)
+  const requestedWardrobeChange =
+    Boolean(params.requestedWardrobeChange)
+    || (!params.suppressWardrobePromptDetection && detectScenePromptPattern(normalizedPrompt, SCENE_WARDROBE_CHANGE_PATTERNS))
+  const requestedBodyReframe =
+    Boolean(params.requestedBodyReframe)
+    || detectScenePromptPattern(normalizedPrompt, SCENE_BODY_REFRAME_PATTERNS)
+  const requestedIdentityChange = detectScenePromptPattern(normalizedPrompt, SCENE_IDENTITY_CHANGE_PATTERNS)
+  const requestedProductChange =
+    (!params.suppressProductPromptDetection && detectScenePromptPattern(normalizedPrompt, SCENE_PROTECTED_ELEMENT_CHANGE_PATTERNS))
+    || (!params.suppressProductPromptDetection && detectProductSovereigntyConflicts(normalizedPrompt).length > 0)
+  const swapReferenceCount = Math.max(0, Number(params.referenceSwapCount ?? 0))
+  const allowReferenceSwap = swapReferenceCount > 0 && (requestedWardrobeChange || requestedProductChange)
+  const shouldBlockProtectedElementChange = requestedProductChange && !allowReferenceSwap
+  const strictSourceFidelity = params.strictSourceFidelity ?? true
+  const swapTask = inferSceneSwapTask({
+    normalizedPrompt,
+    requestedWardrobeChange,
+    requestedProductChange,
+  })
+
+  let editMode: ScenePromptPolicy['editMode'] = 'strict_preserve'
+  if (requestedSceneChange && requestedWardrobeChange && requestedProductChange && requestedBodyReframe) editMode = 'scene_wardrobe_product_and_reframe'
+  else if (requestedSceneChange && requestedWardrobeChange && requestedProductChange) editMode = 'scene_wardrobe_and_product'
+  else if (requestedSceneChange && requestedWardrobeChange && requestedBodyReframe) editMode = 'scene_wardrobe_and_reframe'
+  else if (requestedSceneChange && requestedProductChange && requestedBodyReframe) editMode = 'scene_product_and_reframe'
+  else if (requestedWardrobeChange && requestedProductChange && requestedBodyReframe) editMode = 'wardrobe_product_and_reframe'
+  else if (requestedSceneChange && requestedWardrobeChange) editMode = 'scene_and_wardrobe'
+  else if (requestedSceneChange && requestedProductChange) editMode = 'scene_and_product'
+  else if (requestedWardrobeChange && requestedProductChange) editMode = 'wardrobe_and_product'
+  else if (requestedSceneChange && requestedBodyReframe) editMode = 'scene_and_reframe'
+  else if (requestedWardrobeChange && requestedBodyReframe) editMode = 'wardrobe_and_reframe'
+  else if (requestedProductChange && requestedBodyReframe) editMode = 'product_and_reframe'
+  else if (requestedSceneChange) editMode = 'scene_only'
+  else if (requestedWardrobeChange) editMode = 'wardrobe_only'
+  else if (requestedProductChange) editMode = 'product_only'
+  else if (requestedBodyReframe) editMode = 'reframe_only'
+
+  const approvedChanges = [
+    requestedSceneChange ? 'background/environment only' : '',
+    requestedWardrobeChange ? 'wardrobe/clothing only' : '',
+    requestedProductChange ? 'product/object swap only when backed by the provided extra reference images' : '',
+    requestedBodyReframe ? 'camera reframing/expansion to show more of the body only' : '',
+  ].filter(Boolean)
+
+  const visibleItemInstruction = sourceVisibleItemManifest.length > 0
+    ? `Mandatory visible items to preserve exactly: ${sourceVisibleItemManifest.join(', ')}.`
+    : ''
+
+  const aspectLabel: Record<string, string> = {
+    '9:16': 'vertical 9:16 portrait',
+    '1:1': 'square 1:1',
+    '4:5': 'vertical 4:5 portrait',
+    '16:9': 'horizontal 16:9 landscape',
+    '3:4': 'vertical 3:4 portrait',
+  }
+
+  const ratioInstruction = `Compose the output in ${aspectLabel[params.aspectRatio ?? '9:16'] ?? 'vertical 9:16 portrait'} format.`
+  const changeBrief = normalizedPrompt || 'No explicit redesign requested. Preserve the source exactly.'
+  const strictDefaultInstruction = requestedWardrobeChange
+    ? 'Default rule: preserve the source image unless the approved clothing replacement explicitly requires a change.'
+    : strictSourceFidelity
+      ? 'Default rule: preserve everything from the source unless a change is explicitly approved below.'
+      : 'Preserve the source as closely as possible and avoid any unrequested redesign.'
+  const sceneAnchorInstruction = requestedSceneChange || requestedBodyReframe
+    ? 'Reference image [1] is the identity master and the primary scene/composition anchor unless the user explicitly requests a scene or framing change.'
+    : 'Reference image [1] is the identity master and the primary scene/composition anchor.'
+  const motionContinuityInstruction =
+    params.mode === 'talking_video' || params.mode === 'video'
+      ? 'This output will feed a motion pipeline, so preserve stable anatomy, stable edges, and compositional continuity for downstream animation.'
+      : 'Deliver a production-ready still image with stable anatomy and realistic continuity.'
+  const hasPrimarySwapReference = swapReferenceCount >= 1
+  const hasDetailSwapReference = swapReferenceCount >= 2
+  const additionalDetailReferenceCount = Math.max(0, swapReferenceCount - 2)
+  const swapReferenceInstruction = allowReferenceSwap
+    ? [
+        sceneAnchorInstruction,
+        hasPrimarySwapReference && requestedWardrobeChange
+          ? 'Reference image [2] is the approved wardrobe reference. It controls the clothing design only.'
+          : '',
+        hasPrimarySwapReference && requestedProductChange && !requestedWardrobeChange
+          ? 'Reference image [2] is the approved product/object reference. It controls only the requested product/object replacement.'
+          : '',
+        hasDetailSwapReference
+          ? 'Reference image [3] is an optional garment-detail support reference. It may refine texture, straps, hem, print continuity, finishing, back view, or fabric behavior of the same garment from reference [2]. It must never override identity, pose, body, or background from reference [1]. If reference [2] and reference [3] conflict, reference [2] wins and reference [3] is detail-only.'
+          : '',
+        additionalDetailReferenceCount > 0
+          ? `Reference images [4+] are auxiliary detail references only. They may support fine garment or product details but never override identity from [1] or the primary design from [2].`
+          : '',
+        'Use swap references only as garment/product references. Never copy their body, skin, head, face, neck, hands, bust, legs, pose, mannequin structure, hanger shape, background, or lighting into the output.',
+        'Do not paste, overlay, merge, or composite the wardrobe/product reference as a second person, mannequin, torso, or cutout.',
+      ].join(' ')
+    : ''
+  const taskInstruction = swapTask === 'full_outfit_replace'
+    ? hasPrimarySwapReference
+      ? 'This is a full outfit replacement. Remove all visible source clothing and replace it with the wardrobe from reference [2]. Do not preserve any visible part of the original outfit. Do not create a hybrid outfit. Do not combine source clothing with the wardrobe reference.'
+      : 'This is a full outfit replacement. Remove all visible source clothing and replace it according to the approved clothing brief. Do not preserve any visible part of the original outfit. Do not create a hybrid outfit.'
+    : swapTask === 'top_only_swap'
+      ? 'Replace only the upper-body garment on person [1]. Preserve the lower-body clothing exactly as in the source image.'
+      : swapTask === 'bottom_only_swap'
+        ? 'Replace only the lower-body garment on person [1]. Preserve the upper-body clothing exactly as in the source image.'
+        : swapTask === 'wardrobe_swap'
+          ? 'Replace only the explicitly requested garment on person [1]. Do not create a hybrid outfit and do not preserve unintended source clothing in the swapped region.'
+          : swapTask === 'product_swap'
+            ? 'Replace only the approved product/object from the swap reference. Preserve clothing, identity, body, and all unrelated source elements.'
+            : 'Keep all non-approved elements from the source unchanged.'
+  const garmentReferenceTypeInstruction = requestedWardrobeChange && hasPrimarySwapReference
+    ? swapTask === 'full_outfit_replace'
+      ? 'Reference image [2] is a complete garment construction reference, not a fabric or texture reference. Do not transfer only the print. Recreate the full garment structure from reference [2].'
+      : 'Reference image [2] is a garment construction reference, not a fabric-only reference. Transfer the actual garment design, not just the print or color palette.'
+    : ''
+  const garmentFidelityInstruction = requestedWardrobeChange
+    ? hasPrimarySwapReference
+      ? 'Preserve the garment category, silhouette, neckline, straps, sleeves if any, seams, fit, color palette, print, fabric behavior, construction, length, and key details from reference [2]. The final clothing must look like the same garment naturally worn by person [1].'
+      : 'Follow the clothing brief with high fidelity while preserving identity, anatomy, and scene anchor from reference image [1]. Do not create a hybrid outfit or leave unintended source clothing visible in the changed area.'
+    : ''
+  const strictCompositionLockInstruction = requestedWardrobeChange && (swapTask === 'full_outfit_replace' || swapTask === 'wardrobe_swap')
+    ? [
+        'Strict composition lock:',
+        'Keep the original crop, camera distance, framing, body visibility, and composition from reference image [1].',
+        'Do not zoom in.',
+        'Do not crop closer.',
+        'Do not turn the image into a face portrait.',
+        'Do not expand or recompose the scene.',
+        'The final image must show the same visible body area as reference [1], unless the user explicitly requests reframing.',
+      ].join(' ')
+    : ''
+  const productFidelityInstruction = requestedProductChange && !requestedWardrobeChange
+    ? 'Preserve the product/object category, silhouette, branding, colorway, materials, proportions, and key visible details from reference [2]. The final object must look like the same product naturally integrated with person [1] or the source scene.'
+    : ''
+
+  const negativePromptParts = [
+    'different person',
+    'different face',
+    'identity drift',
+    'copied face from reference [2]',
+    'copied body from reference [2]',
+    'copied pose from reference [2]',
+    'copied mannequin',
+    'copied hanger',
+    'younger',
+    'older',
+    'thinner',
+    'heavier',
+    'beauty filter',
+    'glamour retouch',
+    'plastic skin',
+    'cartoon',
+    'illustration',
+    'stylized',
+    'extra fingers',
+    'extra limbs',
+    'deformed anatomy',
+    'deformed hands',
+    'floating hands',
+    'watermark',
+    'text overlay',
+    'pasted dress cutout',
+    'overlay clothing',
+    'composited second person',
+    'mannequin artifact',
+    'invented props',
+    'invented accessories',
+  ]
+
+  if (!requestedSceneChange) {
+    negativePromptParts.push('different background', 'different location', 'new environment')
+  }
+
+  if (!requestedWardrobeChange) {
+    negativePromptParts.push('different outfit', 'new clothes', 'new accessories', 'recolored clothing')
+  }
+  if (requestedWardrobeChange) {
+    negativePromptParts.push(
+      'hybrid outfit',
+      'mixed outfit',
+      'source clothing still visible',
+      'partial source outfit preserved',
+      'fabric-only transfer',
+      'print-only transfer',
+      'floral texture pasted onto wrong garment',
+      'wrong garment',
+      'wrong neckline',
+      'wrong straps',
+      'wrong silhouette',
+      'wrong length',
+      'wrong print',
+      'wrong fabric',
+      'wrong construction',
+    )
+  }
+  if (swapTask === 'full_outfit_replace') {
+    negativePromptParts.push(
+      'original top visible',
+      'original skirt visible',
+      'original outfit visible',
+      'turquoise top still visible',
+      'invented neckline',
+      'halter neckline',
+      'tied neck',
+      'neck bow',
+      'bib dress',
+      'apron dress',
+      'blouse',
+      'tank top',
+      'crop top',
+      'missing thin shoulder straps',
+      'missing sweetheart neckline',
+      'missing ruched bust',
+      'missing fitted bodice',
+      'missing flared skirt',
+      'missing front slit',
+      'close-up portrait',
+      'zoomed in',
+      'changed framing',
+      'changed camera distance',
+      'recomposed image',
+      'missing lower body',
+      'missing skirt',
+    )
+  }
+
+  if (!requestedProductChange && params.requireExactTextLogo) {
+    negativePromptParts.push('changed logo', 'changed branding', 'changed label', 'changed printed text')
+  }
+  if (requestedProductChange && !requestedWardrobeChange) {
+    negativePromptParts.push('wrong product', 'wrong packaging', 'wrong held object')
+  }
+
+  if (!requestedWardrobeChange && !requestedProductChange && params.requireExactColor) {
+    negativePromptParts.push('recolor', 'different color palette', 'changed product color')
+  }
+
+  if (requestedBodyReframe) {
+    negativePromptParts.push('cropped feet', 'cropped legs', 'missing hands', 'missing limbs')
+  } else {
+    negativePromptParts.push('expanded canvas', 'invented body parts')
+  }
+
+  const finalPrompt = [
+    requestedWardrobeChange
+      ? 'You are a source-sovereign photorealistic image editor specialized in real-person wardrobe replacement.'
+      : requestedProductChange
+        ? 'You are a source-sovereign photorealistic image editor specialized in real-person product/object replacement.'
+        : allowReferenceSwap
+          ? 'You are a source-sovereign image editor working from a real-person identity reference plus approved swap references.'
+          : 'You are a source-sovereign image editor working from one or more reference photos of the same real person.',
+    strictDefaultInstruction,
+    'Inputs:',
+    sceneAnchorInstruction,
+    allowReferenceSwap && hasPrimarySwapReference && requestedWardrobeChange ? 'Reference image [2] = the approved wardrobe reference.' : '',
+    allowReferenceSwap && hasPrimarySwapReference && requestedProductChange && !requestedWardrobeChange ? 'Reference image [2] = the approved product/object reference.' : '',
+    allowReferenceSwap && hasDetailSwapReference ? 'Reference image [3] = optional garment-detail support reference.' : '',
+    requestedWardrobeChange
+      ? hasPrimarySwapReference
+        ? 'Task: Perform a wardrobe swap on person [1] using the clothing from reference [2].'
+        : 'Task: Perform a wardrobe change on person [1] following the user brief while preserving identity and scene anchor from reference image [1].'
+      : requestedProductChange
+        ? 'Task: Perform a product/object swap on person [1] or within the source scene using the product/object from reference [2].'
+        : 'Task: Edit the source image conservatively, preserving identity and source sovereignty.',
+    approvedChanges.length > 0
+      ? `Approved changes only: ${approvedChanges.join('; ')}.`
+      : 'Approved changes only: none beyond fidelity-preserving cleanup.',
+    `Change brief: ${changeBrief}.`,
+    'Identity rule:',
+    'Preserve exactly the same person from reference image [1], including face, facial structure, age appearance, skin tone, hair, body proportions, hands, pose logic, and real-world identity.',
+    'Do not beautify, rejuvenate, slim, enlarge, restyle, or reinterpret the subject.',
+    'Scene rule:',
+    requestedSceneChange || requestedBodyReframe
+      ? 'Keep the background, environment, composition, camera feel, and crop anchored to reference image [1], except for the explicit scene or framing change requested by the user.'
+      : 'Keep the background, environment, composition, camera feel, and crop as close as possible to reference image [1].',
+    swapReferenceInstruction,
+    requestedWardrobeChange ? 'Wardrobe sovereignty rule: Reference image [2] controls only the clothing design. Use it as a garment-only reference, never as an identity or body reference.' : '',
+    requestedProductChange && !requestedWardrobeChange ? 'Product sovereignty rule: Reference image [2] controls only the approved product/object replacement. Use it as a product-only reference, never as an identity or body reference.' : '',
+    taskInstruction,
+    garmentReferenceTypeInstruction,
+    garmentFidelityInstruction,
+    productFidelityInstruction,
+    'Reference isolation rule:',
+    requestedWardrobeChange
+      ? 'Do not copy or inherit the body, face, head, neck, hands, bust, legs, pose, mannequin structure, hanger shape, background, or lighting from reference image [2] or [3].'
+      : requestedProductChange
+        ? 'Do not copy or inherit the body, face, pose, background, or lighting from the product/object reference.'
+        : '',
+    'Anti-composite rule:',
+    requestedWardrobeChange
+      ? 'Do not paste, overlay, merge, or composite reference image [2] as a second person, mannequin, torso, or dress cutout.'
+      : requestedProductChange
+        ? 'Do not paste the product reference as a flat sticker or duplicate scene layer.'
+        : '',
+    'Fit and realism rule:',
+    requestedWardrobeChange
+      ? 'Integrate the garment naturally onto person [1] with correct fit, scale, perspective, shadows, folds, seams, tension, drape, occlusion, and body contact. Respect hair occlusion and body overlap from the source image.'
+      : requestedProductChange
+        ? 'Integrate the product/object naturally with correct scale, perspective, contact, shadows, reflections, and occlusion.'
+        : '',
+    visibleItemInstruction,
+    strictCompositionLockInstruction,
+    !requestedProductChange && params.requireExactTextLogo ? 'Any visible logo, printed text, label, or branding must remain exactly identical to the source unless the request is rejected upstream.' : '',
+    !requestedWardrobeChange && !requestedProductChange && params.requireExactColor ? 'Visible colors and color relationships must remain exactly identical to the source unless wardrobe change is explicitly approved.' : '',
+    'Preservation rule:',
+    'Keep all non-clothing and non-product elements from reference image [1] unchanged unless explicitly requested otherwise.',
+    'Crop rule:',
+    requestedBodyReframe
+      ? 'Only expand framing as explicitly requested. Do not invent extra body parts, new pose logic, or copied limbs from swap references.'
+      : 'Keep the original crop and composition as close as possible to the source. Only render the visible portion of the garment or product that fits the source framing.',
+    'Conflict rule:',
+    'If the brief is vague, choose the most conservative interpretation and preserve the source.',
+    'If the user brief conflicts with identity preservation, preserve identity first.',
+    requestedWardrobeChange ? 'If the user brief conflicts with garment fidelity, preserve the garment design from reference [2] while keeping the subject from [1].' : '',
+    motionContinuityInstruction,
+    'Output:',
+    'Photorealistic commercial image, natural perspective, realistic lighting, stable anatomy, no watermarks, no text overlay.',
+    ratioInstruction,
+  ].filter(Boolean).join(' ')
+
+  return {
+    normalizedPrompt,
+    requestedSceneChange,
+    requestedWardrobeChange,
+    requestedBodyReframe,
+    requestedIdentityChange,
+    requestedProductChange,
+    shouldBlockProtectedElementChange,
+    allowReferenceSwap,
+    swapReferenceCount,
+    swapTask,
+    strictSourceFidelity,
+    sourceVisibleItemManifest,
+    editMode,
+    finalPrompt,
+    negativePrompt: Array.from(new Set(negativePromptParts)).join(', '),
+  }
+}
+
+async function generateSceneImageViaVertexFallback(params: {
+  assetId: string
+  feature: 'scene_generation' | 'preset_scene_generation'
+  logPrefix: 'scene' | 'preset-scene'
+  prompt: string
+  imageParts: Array<{ inlineData: { mimeType: string; data: string } }>
+  aspectRatio?: string
+  modelOverride?: string
+}): Promise<{ modelUsed: string; photoBuffer: Uint8Array }> {
+  const modelChain = buildSceneVertexFallbackModelChain(params.modelOverride)
+  let lastVertexError = 'Nenhum modelo Vertex tentado.'
+  type GeminiImagePart = {
+    inlineData?: { mimeType?: string; data?: string }
+    inline_data?: { mime_type?: string; data?: string }
+  }
+
+  for (const model of modelChain) {
+    try {
+      console.log(`[${params.logPrefix}] Tentando ${model} via Vertex para asset ${params.assetId} (${params.imageParts.length} referencia(s))`)
+      const res = await fetchGoogleGenerateContent({
+        model,
+        feature: params.feature,
+        body: {
+          contents: [{ role: 'user', parts: [{ text: params.prompt }, ...params.imageParts] }],
+          generationConfig: buildGeminiImageGenerationConfig(params.aspectRatio),
+        },
+      })
+      if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
+      const data = await res.json()
+      const parts = (data.candidates?.[0]?.content?.parts ?? []) as GeminiImagePart[]
+      const imagePart = parts.find((part) => (part.inlineData?.mimeType || part.inline_data?.mime_type)?.startsWith('image/'))
+      const imageBase64 = imagePart?.inlineData?.data || imagePart?.inline_data?.data
+      if (!imageBase64) {
+        throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
+      }
+
+      console.log(`[${params.logPrefix}] Vertex sucesso: ${model}`)
+      return {
+        modelUsed: model,
+        photoBuffer: new Uint8Array(Buffer.from(imageBase64, 'base64')),
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      lastVertexError = message
+      console.warn(`[${params.logPrefix}] ${model} falhou: ${message}`)
+    }
+  }
+
+  throw new Error(`Vertex scene pipeline falhou para ${params.logPrefix}. Ultimo erro: ${lastVertexError}`)
+}
+
+async function generateSceneImageViaImagenCapability(params: {
+  assetId: string
+  feature: 'scene_generation' | 'preset_scene_generation'
+  logPrefix: 'scene' | 'preset-scene'
+  promptPolicy: ScenePromptPolicy
+  references: Array<{ mimeType: string; data: string }>
+  aspectRatio?: string
+  modelOverride?: string
+}): Promise<{ modelUsed: string; photoBuffer: Uint8Array }> {
+  const normalizedOverride = typeof params.modelOverride === 'string' ? params.modelOverride.trim() : ''
+  const modelUsed = normalizedOverride.startsWith('imagen-')
+    ? normalizedOverride
+    : VERTEX_IDENTITY_SCENE_PRIMARY_MODEL_ID
+
+  console.log(
+    `[${params.logPrefix}] Tentando ${modelUsed} via Vertex predict para asset ${params.assetId} (${params.references.length} referencia(s)) | mode=${params.promptPolicy.editMode}`,
+  )
+
+  const referenceImages = params.references.map((reference, index) => ({
+    referenceType: 'REFERENCE_TYPE_RAW',
+    referenceId: index + 1,
+    referenceImage: {
+      mimeType: reference.mimeType,
+      bytesBase64Encoded: reference.data,
+    },
+  }))
+
+  const response = await fetchGooglePredict({
+    model: modelUsed,
+    feature: params.feature,
+    body: {
+      instances: [
+        {
+          prompt: params.promptPolicy.finalPrompt,
+          referenceImages,
+        },
+      ],
+      parameters: {
+        sampleCount: 1,
+        aspectRatio: normalizeGeminiImageAspectRatio(params.aspectRatio),
+        personGeneration: 'ALLOW_ALL',
+        outputOptions: {
+          mimeType: 'image/jpeg',
+          compressionQuality: 92,
+        },
+        negativePrompt: params.promptPolicy.negativePrompt,
+      },
+    },
+  })
+
+  const payload = await response.json()
+  const imageBase64 = extractPredictImageBase64(payload)
+  if (!imageBase64) {
+    throw new Error(`${modelUsed} sem imagem no predict`)
+  }
+
+  console.log(`[${params.logPrefix}] Vertex predict sucesso: ${modelUsed}`)
+  return {
+    modelUsed,
+    photoBuffer: new Uint8Array(Buffer.from(imageBase64, 'base64')),
+  }
+}
+
+export async function generateSceneVertexOnly(params: {
+  source_url: string
+  extra_source_urls?: string[]
+  scene_prompt: string
+  aspect_ratio?: string
+  assetId: string
+  userId: string
+  mode?: 'generic' | 'talking_video' | 'video'
+  requested_scene_change?: boolean
+  requested_wardrobe_change?: boolean
+  requested_body_reframe?: boolean
+  source_visible_item_manifest?: string[]
+  require_exact_text_logo?: boolean
+  require_exact_color?: boolean
+  strict_source_fidelity?: boolean
+  model_override?: string
+}): Promise<{ url: string; modelUsed: string; strategyUsed: string }> {
+  const admin = createAdminClient()
+
+  if (!params.source_url?.startsWith('http')) throw new Error('URL da imagem fonte invalida')
+
+  const sourceVisibleItemManifest = dedupeNormalizedStrings(params.source_visible_item_manifest ?? []).slice(0, 16)
+  const initialExtraUrls = (params.extra_source_urls ?? []).slice(0, 5)
+  const initialPromptPolicy = prepareScenePromptPolicy({
+    scenePrompt: params.scene_prompt,
+    aspectRatio: params.aspect_ratio,
+    mode: params.mode,
+    requestedSceneChange: params.requested_scene_change,
+    requestedWardrobeChange: params.requested_wardrobe_change,
+    requestedBodyReframe: params.requested_body_reframe,
+    sourceVisibleItemManifest,
+    requireExactTextLogo: params.require_exact_text_logo,
+    requireExactColor: params.require_exact_color,
+    strictSourceFidelity: params.strict_source_fidelity ?? true,
+    referenceSwapCount: initialExtraUrls.length,
+  })
+
+  if (initialPromptPolicy.requestedIdentityChange) {
+    throw new Error('Cena Livre preserva exatamente a mesma modelo. Remova qualquer pedido de trocar rosto, idade, corpo ou identidade.')
+  }
+
+  if (initialPromptPolicy.shouldBlockProtectedElementChange) {
+    throw new Error('Cena Livre so troca produto, logo, texto, cor ou objeto quando voce envia uma referencia extra aprovada para essa troca.')
+  }
+
+  async function fetchInlineData(url: string) {
+    const response = await fetch(url)
+    if (!response.ok) throw new Error(`Download falhou: ${response.status}`)
+    const mimeType = response.headers.get('content-type') || 'image/jpeg'
+    const data = Buffer.from(await response.arrayBuffer()).toString('base64')
+    return { mimeType, data }
+  }
+
+  const primaryData = await fetchInlineData(params.source_url)
+  const extraData = await Promise.all(
+    initialExtraUrls.map((url) => fetchInlineData(url).catch(() => null)),
+  ).then((result) => result.filter(Boolean) as { mimeType: string; data: string }[])
+
+  const hasMultiple = extraData.length > 0
+  const promptPolicy = prepareScenePromptPolicy({
+    scenePrompt: params.scene_prompt,
+    aspectRatio: params.aspect_ratio,
+    mode: params.mode,
+    requestedSceneChange: initialPromptPolicy.requestedSceneChange,
+    requestedWardrobeChange: initialPromptPolicy.requestedWardrobeChange,
+    requestedBodyReframe: params.requested_body_reframe,
+    sourceVisibleItemManifest,
+    requireExactTextLogo: params.require_exact_text_logo,
+    requireExactColor: params.require_exact_color,
+    strictSourceFidelity: params.strict_source_fidelity ?? true,
+    referenceSwapCount: extraData.length,
+  })
+
+  console.log(
+    `[scene] policy asset=${params.assetId} refs=${hasMultiple ? extraData.length + 1 : 1} mode=${promptPolicy.editMode} swap_task=${promptPolicy.swapTask} scene_change=${promptPolicy.requestedSceneChange} wardrobe_change=${promptPolicy.requestedWardrobeChange} product_change=${promptPolicy.requestedProductChange} body_reframe=${promptPolicy.requestedBodyReframe} swap_refs=${promptPolicy.swapReferenceCount}`,
+  )
+
+  if (promptPolicy.shouldBlockProtectedElementChange) {
+    throw new Error('Cena Livre so troca produto, logo, texto, cor ou objeto quando voce envia uma referencia extra aprovada para essa troca.')
+  }
+
+  const imageParts = [
+    { inlineData: primaryData },
+    ...extraData.map((item) => ({ inlineData: item })),
+  ]
+
+  const references = [primaryData, ...extraData]
+  let vertexResult: { modelUsed: string; photoBuffer: Uint8Array }
+  let strategyUsed = 'vertex_imagen_capability_predict'
+
+  try {
+    vertexResult = await generateSceneImageViaImagenCapability({
+      assetId: params.assetId,
+      feature: 'scene_generation',
+      logPrefix: 'scene',
+      promptPolicy,
+      references,
+      aspectRatio: params.aspect_ratio,
+      modelOverride: params.model_override,
+    })
+  } catch (primaryError: unknown) {
+    const primaryMessage = primaryError instanceof Error ? primaryError.message : String(primaryError)
+    console.warn(`[scene] Imagen capability falhou para asset ${params.assetId}: ${primaryMessage}`)
+    vertexResult = await generateSceneImageViaVertexFallback({
+      assetId: params.assetId,
+      feature: 'scene_generation',
+      logPrefix: 'scene',
+      prompt: promptPolicy.finalPrompt,
+      imageParts,
+      aspectRatio: params.aspect_ratio,
+      modelOverride: params.model_override,
+    })
+    strategyUsed = 'vertex_generate_content_fallback'
+  }
+
+  const fileName = `scene-${params.assetId}-${Date.now()}.jpg`
+  const filePath = `${params.userId}/${fileName}`
+  const { error: uploadError } = await admin.storage
+    .from('studio')
+    .upload(filePath, vertexResult.photoBuffer, { contentType: 'image/jpeg', upsert: true })
+  if (uploadError) throw new Error(`Upload falhou: ${uploadError.message}`)
+
+  const { data: urlData } = admin.storage.from('studio').getPublicUrl(filePath)
+  return {
+    url: urlData.publicUrl,
+    modelUsed: vertexResult.modelUsed,
+    strategyUsed,
+  }
+}
+
 // â”€â”€ Prompt helper â€” lÃª da tabela studio_prompts, usa fallback hardcoded â”€â”€â”€â”€â”€
 async function getStudioPrompt(
   admin: ReturnType<typeof createAdminClient>,
@@ -126,12 +874,12 @@ export async function generateImage(params: {
     clonado:    'UGC style ad photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, authentic, real person face, photorealistic, 8k, ',
     produto:    'professional product photography, shot on film, shot on Phase One IQ4 150MP, Zeiss Milvus 100mm f/2M lens, clean background, studio lighting, hyper-realistic, 8k resolution, ',
     logo:       'professional logo design, clean vector style, transparent background, minimalist, ',
-    mascote:    '3D animated mascot, anthropomorphic character, cinematic lighting, highly detailed 3D render, Pixar style, ',
-    cartoon:    'Cartoon Network style, 2D flat animation, vibrant colors, bold outlines, stylized character design, solid color background, ',
+    mascote:    'stylized 3D animated mascot, Disney Pixar inspired family-film character, rounded shapes, expressive face, oversized readable eyes, premium 3D materials, polished shading, global illumination, cinematic color styling, no photorealism, no live action, ',
+    cartoon:    '2D cartoon illustration, bold outlines, flat graphic shapes, clean color blocks, stylized character design, no 3D rendering, no photorealism, ',
     aleatoria:  'lifestyle photography, natural light, aspirational, photorealism, cinematic lighting, ',
   }
   const styleKey = `image_style_${params.style}`
-  const stylePrefix = await getStudioPrompt(admin, styleKey, STYLE_FALLBACKS[params.style] ?? STYLE_FALLBACKS.lifestyle)
+  const stylePrefix = await getStudioPrompt(admin, styleKey, STYLE_FALLBACKS[params.style] ?? STYLE_FALLBACKS.aleatoria)
 
   // O prompt principal
   const basePrompt = params.model_prompt
@@ -139,17 +887,23 @@ export async function generateImage(params: {
     : stylePrefix + params.prompt
 
   // Sulfixo varia se for mascote/cartoon (nÃ£o usar 'real person' em desenhos)
-  const isMascotOrCartoon = ['mascote', 'personagem_cartoon'].includes(params.style)
+  const isMascot = params.style === 'mascote'
+  const isCartoon2D = ['personagem_cartoon', 'cartoon'].includes(params.style)
+  const isMascotOrCartoon = isMascot || isCartoon2D
   
   // Suffixos de realismo via Admin
-  const realismKey = isMascotOrCartoon ? `image_realism_${params.style}` : 'image_realism_realista'
-  const realismFallback = params.style === 'mascote'
-    ? "hyper-detailed 3D render, perfectly consistent character, 8k resolution, cinematic lighting, vibrant colors."
-    : params.style === 'personagem_cartoon'
-      ? "2D flat cartoon illustration, no 3d elements, vector art, smooth lines, clean colors, cartoon aesthetics."
+  const realismKeys = isMascot
+    ? ['image_realism_mascote']
+    : isCartoon2D
+      ? ['image_realism_cartoon', 'image_realism_personagem_cartoon']
+      : ['image_realism_realista']
+  const realismFallback = isMascot
+    ? "feature-film quality stylized 3D character render, Disney Pixar inspired appeal, sculpted forms, soft subsurface shading, expressive eyes, appealing smile, polished materials, toy-like readability, vibrant but tasteful colors, cinematic rim light, absolutely not photorealistic, absolutely not live action, absolutely not a real human photo."
+    : isCartoon2D
+      ? "2D flat cartoon illustration, no 3d elements, vector art, smooth lines, clean colors, cartoon aesthetics, absolutely not photorealistic."
       : "RAW photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, film grain, natural depth of field, not illustrated, not cartoon, real photography."
       
-  const realismSuffix = await getStudioPrompt(admin, realismKey, realismFallback)
+  const realismSuffix = await getStudioPromptFromCandidates(admin, realismKeys, realismFallback)
   const finalPrompt = `${basePrompt}. ${realismSuffix}`
 
   let tempUrl = ''
@@ -302,8 +1056,8 @@ export async function generateImageGoogle(params: {
     clonado: 'UGC style ad photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, authentic, real person face, photorealistic, 8k, ',
     produto: 'professional product photography, shot on film, shot on Phase One IQ4 150MP, Zeiss Milvus 100mm f/2M lens, clean background, studio lighting, hyper-realistic, 8k resolution, ',
     logo: 'professional logo design, clean vector style, transparent background, minimalist, ',
-    mascote: '3D animated mascot, anthropomorphic character, cinematic lighting, highly detailed 3D render, Pixar style, ',
-    cartoon: 'Cartoon Network style, 2D flat animation, vibrant colors, bold outlines, stylized character design, solid color background, ',
+    mascote: 'stylized 3D animated mascot, Disney Pixar inspired family-film character, rounded shapes, expressive face, oversized readable eyes, premium 3D materials, polished shading, global illumination, cinematic color styling, no photorealism, no live action, ',
+    cartoon: '2D cartoon illustration, bold outlines, flat graphic shapes, clean color blocks, stylized character design, no 3D rendering, no photorealism, ',
     aleatoria: 'lifestyle photography, natural light, aspirational, photorealism, cinematic lighting, ',
   }
   const stylePrefix = await getStudioPrompt(
@@ -314,13 +1068,21 @@ export async function generateImageGoogle(params: {
   const basePrompt = params.model_prompt
     ? `${params.model_prompt}. ${stylePrefix}${params.prompt}`
     : stylePrefix + params.prompt
-  const isMascotOrCartoon = ['mascote', 'personagem_cartoon', 'cartoon'].includes(params.style)
-  const realismSuffix = await getStudioPrompt(
+  const isMascot = params.style === 'mascote'
+  const isCartoon2D = ['personagem_cartoon', 'cartoon'].includes(params.style)
+  const isMascotOrCartoon = isMascot || isCartoon2D
+  const realismSuffix = await getStudioPromptFromCandidates(
     admin,
-    isMascotOrCartoon ? `image_realism_${params.style}` : 'image_realism_realista',
-    isMascotOrCartoon
-      ? '2D/3D stylized commercial art with clean edges, premium rendering, high detail.'
-      : 'RAW photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, film grain, natural depth of field.',
+    isMascot
+      ? ['image_realism_mascote']
+      : isCartoon2D
+        ? ['image_realism_cartoon', 'image_realism_personagem_cartoon']
+        : ['image_realism_realista'],
+    isMascot
+      ? 'feature-film quality stylized 3D character render, Disney Pixar inspired appeal, sculpted forms, soft subsurface shading, expressive eyes, appealing smile, polished materials, toy-like readability, vibrant but tasteful colors, cinematic rim light, absolutely not photorealistic, absolutely not live action, absolutely not a real human photo.'
+      : isCartoon2D
+        ? '2D flat cartoon illustration, no 3d elements, vector art, smooth lines, clean colors, cartoon aesthetics, absolutely not photorealistic.'
+        : 'RAW photo, shot on film, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, hyper-realistic, 8k resolution, highly detailed, photorealism, cinematic lighting, film grain, natural depth of field.',
   )
   const finalPrompt = `${basePrompt}. ${realismSuffix}`
   const projectId = process.env.VERTEX_PROJECT_ID || 'project-9e7b4eec-0111-46d8-ae0'
@@ -337,13 +1099,32 @@ export async function generateImageGoogle(params: {
       parameters: {
         sampleCount: 1,
         aspectRatio: params.aspect_ratio || '9:16',
-        personGeneration: isMascotOrCartoon ? undefined : 'allow_adult',
+        personGeneration: isMascotOrCartoon ? undefined : 'allow_all',
         negativePrompt: [
           'watermark',
           'text overlay',
           'extra limbs',
           'cropped body',
           'distorted face',
+          ...(isMascot
+            ? [
+                'photorealistic human',
+                'live action',
+                'real skin pores',
+                'DSLR photo',
+                'film grain photography',
+                'real human anatomy texture',
+                'uncanny realism',
+              ]
+            : []),
+          ...(isCartoon2D
+            ? [
+                '3d render',
+                'realistic shading',
+                'photorealistic human',
+                'live action',
+              ]
+            : []),
         ].join(', '),
       },
     }),
@@ -376,11 +1157,12 @@ export async function generateScriptGoogle(params: {
   userId: string
 }) {
   const admin = createAdminClient()
-  const formatGuideStr = await getStudioPrompt(admin, 'script_format_guide', JSON.stringify({
+  const defaultFormatGuide = {
     reels: 'Reels/TikTok (15-30 segundos, hook nos primeiros 3s)',
-    story: 'Stories (ate 15 segundos por slide, 3 slides)',
     feed: 'Feed/anuncio (30-60 segundos, mais elaborado)',
-  }))
+    youtube: 'YouTube horizontal (45-90 segundos, narrativa mais desenvolvida e demonstracao visual clara)',
+  }
+  const formatGuideStr = await getStudioPrompt(admin, 'script_format_guide', JSON.stringify(defaultFormatGuide))
   const hookGuideStr = await getStudioPrompt(admin, 'script_hook_guide', JSON.stringify({
     problema: 'comece identificando um problema real do publico',
     resultado: 'comece mostrando o resultado incrivel primeiro',
@@ -388,9 +1170,9 @@ export async function generateScriptGoogle(params: {
     historia: 'comece com uma mini historia pessoal',
   }))
 
-  let formatGuide: Record<string, string> = {}
+  let formatGuide: Record<string, string> = { ...defaultFormatGuide }
   let hookGuide: Record<string, string> = {}
-  try { formatGuide = JSON.parse(formatGuideStr) as Record<string, string> } catch {}
+  try { formatGuide = { ...defaultFormatGuide, ...(JSON.parse(formatGuideStr) as Record<string, string>) } } catch {}
   try { hookGuide = JSON.parse(hookGuideStr) as Record<string, string> } catch {}
 
   const response = await fetchGoogleGenerateContent({
@@ -573,7 +1355,7 @@ export async function generateModelGoogle(params: {
       parameters: {
         sampleCount: 1,
         aspectRatio: '9:16',
-        personGeneration: 'allow_adult',
+        personGeneration: 'allow_all',
         negativePrompt: 'outdoor, street, city, building, trees, nature, bokeh background, blurred background, environment, park, cafe, wall, colorful background, gradient background, dark background, window, curtain, interior room',
       },
     }),
@@ -1015,7 +1797,7 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
             parameters: {
               sampleCount: 1,
               aspectRatio: '9:16',
-              personGeneration: 'allow_adult',
+              personGeneration: 'allow_all',
               negativePrompt,
             }
           })
@@ -1114,9 +1896,13 @@ Output: one dense English paragraph (3-5 sentences). No names. Pure visual descr
 }
 
 // â”€â”€ Video â€” Kling AI via Fal AI (async â€” usa webhook) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const VIDEO_LOCK_POLICY = 'preserve-model-product-scene-v1'
-const VIDEO_MOTION_FALLBACK =
-  'subtle natural motion only, gentle breathing, soft blink, tiny head turn, stable hands, slight camera push-in'
+const VIDEO_LOCK_POLICY = 'preserve-everything-unless-explicit-video-v2'
+const VIDEO_DEFAULT_USER_REQUEST =
+  'No explicit edit requested. Preserve all original elements.'
+const VIDEO_FIXED_MOTION_RULES =
+  'Subtle cinematic micro-motion only: breathing, blinking, tiny posture/head/eye shifts, stable anatomy and hands, smooth camera push-in. No exaggerated motion, warping, or face distortion.'
+const VIDEO_FIXED_MOTION_RULES_COMPACT =
+  'Natural cinematic micro-motion only: subtle breathing, blinking, tiny posture shifts, stable anatomy and hands, smooth push-in.'
 
 const VIDEO_SCENE_CHANGE_PATTERNS = [
   /\b(em|na|no|numa|num|inside|at|in front of|on a|from a)\s+(cafeteria|cafe|cozinha|kitchen|praia|beach|rua|street|cidade|city|paris|londres|london|dubai|tokyo|roma|rome|floresta|forest|hotel|escritorio|office|quarto|bedroom|banheiro|bathroom|restaurante|restaurant|mall|shopping|studio|estudio)\b/i,
@@ -1126,18 +1912,933 @@ const VIDEO_SCENE_CHANGE_PATTERNS = [
 ]
 
 const VIDEO_PROMPT_BLOCKLIST: Array<{ pattern: RegExp; label: string }> = [
-  { pattern: /\b(background|fundo|cenario|ambiente|location|setting|cityscape|skyline|landmark|praia|beach|cozinha|kitchen|restaurante|restaurant|cafe|office|escritorio|hotel|forest|floresta)\b/i, label: 'scenario' },
-  { pattern: /\b(change outfit|new outfit|trocar roupa|mudar roupa|jaqueta|jacket|vestido|dress|camiseta|shirt|calca|pants|heels|sapato|shoes|hat|bone|look novo)\b/i, label: 'wardrobe change' },
-  { pattern: /\b(new product|trocar produto|mudar produto|replace product|outra caneca|another mug|outro item|another item)\b/i, label: 'product change' },
-  { pattern: /\b(change face|new face|different person|trocar modelo|mudar modelo|younger|mais jovem|thinner|mais magra|prettier|mais bonita)\b/i, label: 'identity change' },
-  { pattern: /\b(add prop|novo objeto|segurando flores|holding flowers|carro|car|bolsa extra|extra prop|champagne|phone in hand)\b/i, label: 'extra props' },
-  { pattern: /\b(runway|editorial set|cinematic scene|dramatic scene|action scene|fight scene|dance choreography|explosion|sci-fi|fantasy world)\b/i, label: 'reenactment' },
+  { pattern: /\b(change face|new face|different person|trocar modelo|mudar modelo|younger|mais jovem|thinner|mais magra|prettier|mais bonita|nova pessoa|outra pessoa)\b/i, label: 'identity change' },
+  { pattern: /\b(add prop|novo objeto|extra prop|add object|phone in hand|holding flowers|segurando flores|champagne|carro|car)\b/i, label: 'extra props' },
+]
+
+function normalizeVideoUserRequest(value: string | undefined) {
+  return normalizeTalkingWhitespace(value ?? '')
+}
+
+const VIDEO_SCENE_PREPASS_SECTION_ALIASES: Array<{ key: string; aliases: string[] }> = [
+  { key: 'location', aliases: ['location', 'localizacao', 'localizacao', 'cenario', 'cenario', 'ambiente', 'setting'] },
+  { key: 'main_goal', aliases: ['main goal', 'objetivo principal'] },
+  { key: 'character', aliases: ['character', 'personagem'] },
+  { key: 'action', aliases: ['action', 'acao', 'acao'] },
+  { key: 'camera', aliases: ['camera'] },
+  { key: 'dialogue', aliases: ['dialogue', 'dialogo', 'dialogo', 'fala'] },
+  { key: 'speech_guidance', aliases: ['important lip sync rules', 'lip sync rules', 'speech guidance'] },
+  { key: 'subtitle', aliases: ['subtitle rule', 'caption rule'] },
+  { key: 'performance', aliases: ['performance tone', 'tone', 'tom'] },
+  { key: 'motion', aliases: ['motion rules', 'motion', 'regras de movimento', 'movimento'] },
+  { key: 'visual', aliases: ['visual style', 'style', 'estilo visual'] },
+  { key: 'negative', aliases: ['negative rules'] },
+  { key: 'final_feeling', aliases: ['final feeling'] },
+  { key: 'lighting', aliases: ['lighting', 'iluminacao', 'iluminacao', 'light'] },
+  { key: 'expression', aliases: ['expression', 'expressao', 'expressao'] },
+  { key: 'duration', aliases: ['duration', 'duracao', 'duracao'] },
+  { key: 'format', aliases: ['format', 'formato'] },
+]
+
+const VIDEO_SCENE_PREPASS_SECTION_LABELS = VIDEO_SCENE_PREPASS_SECTION_ALIASES
+  .flatMap((entry) => entry.aliases)
+  .sort((left, right) => right.length - left.length)
+
+const VIDEO_SCENE_PREPASS_SECTION_PATTERN = new RegExp(
+  `\\b(${VIDEO_SCENE_PREPASS_SECTION_LABELS.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s*:\\s*([\\s\\S]*?)(?=\\b(?:${VIDEO_SCENE_PREPASS_SECTION_LABELS.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s*:|$)`,
+  'gi',
+)
+
+const VIDEO_DIALOGUE_SECTION_PATTERN =
+  /\b(?:dialogue|dialogo|fala)(?:\s+(?:in|em)\s+([^:\n]+))?\s*:\s*([\s\S]*?)(?=\b(?:important lip sync rules|lip sync rules|subtitle rule|performance tone|motion rules|visual style|negative rules|final feeling|camera|action|location|character)\s*:|$)/i
+
+export type VideoPromptMode = 'silent_visual' | 'native_speech_script'
+
+type VideoPromptAnalysis = {
+  promptMode: VideoPromptMode
+  normalizedPrompt: string
+  veoUserRequest: string
+  speechInstruction: string
+  dialogueLanguage: string
+  dialogueLine: string
+}
+
+function normalizeVideoScenePrepassSectionLabel(label: string) {
+  const normalized = normalizeTalkingWhitespace(label).toLowerCase()
+  return VIDEO_SCENE_PREPASS_SECTION_ALIASES.find((entry) => entry.aliases.includes(normalized))?.key ?? normalized
+}
+
+function sanitizeVideoScenePrepassCamera(value: string) {
+  return value
+    .split(/[.;]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .filter((segment) => !/\b(dolly|push-?in|zoom|tracking|handheld|camera move|camera movement|movimento de camera|movimento da camera|motion)\b/i.test(segment))
+    .filter((segment) => /\b(close-?up|medium|full[- ]body|portrait|framing|frame|shot|plano|enquadramento|waist[- ]up|wide)\b/i.test(segment))
+    .join('. ')
+}
+
+function sanitizeVideoScenePrepassAction(value: string) {
+  return value
+    .split(/[.;]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .filter((segment) => !/\b(walk|walking|walks|toward the camera|towards the camera|move(?:ment)?|moves?|gesture|gestures|pauses?|rhythm|dolly|push-?in|zoom)\b/i.test(segment))
+    .filter((segment) => /\b(holding|segurando|tablet|phone|produto|product|smile|sorriso|half-smile|eyebrow|sobrancelha|eye contact|olhar|confident|playful|pose|posture|head tilt|tilts? (?:her|his) head)\b/i.test(segment))
+    .join('. ')
+}
+
+function compactVideoSectionText(value: string, options?: { maxSentences?: number; maxChars?: number }) {
+  const maxSentences = options?.maxSentences ?? 2
+  const maxChars = options?.maxChars ?? 220
+  const sentences = value
+    .split(/(?<=[.!?])\s+|\s*\*\s*/)
+    .map((segment) => normalizeTalkingWhitespace(segment))
+    .filter(Boolean)
+  const compact = sentences.slice(0, maxSentences).join(' ')
+  if (compact.length <= maxChars) return compact
+  return `${compact.slice(0, Math.max(0, maxChars - 1)).trimEnd()}…`
+}
+
+function extractVideoDialogueSection(rawPrompt: string) {
+  const match = rawPrompt.match(VIDEO_DIALOGUE_SECTION_PATTERN)
+  return {
+    language: normalizeTalkingWhitespace(match?.[1] ?? ''),
+    content: normalizeTalkingWhitespace(match?.[2] ?? ''),
+  }
+}
+
+function extractVideoDialogueLanguage(rawPrompt: string) {
+  const value = extractVideoDialogueSection(rawPrompt).language
+  if (!value) return ''
+  if (/portugu[eê]s brasileiro|brazilian portuguese/i.test(value)) return 'Brazilian Portuguese'
+  if (/portugu[eê]s/i.test(value)) return 'Portuguese'
+  if (/english|ingles|ingl[eê]s/i.test(value)) return 'English'
+  return value
+}
+
+function extractVideoDialogueLine(rawPrompt: string, dialogueSectionValue: string) {
+  const cleanedSection = normalizeTalkingWhitespace(dialogueSectionValue)
+    .replace(/^[“"'`]+/, '')
+    .replace(/[”"'`]+$/, '')
+    .trim()
+  if (cleanedSection) return compactVideoSectionText(cleanedSection, { maxSentences: 1, maxChars: 140 })
+
+  const quoted = rawPrompt.match(/[“"]([^”"]{4,220})[”"]/)
+  if (quoted?.[1]) return normalizeTalkingWhitespace(quoted[1])
+
+  const compactSection = compactVideoSectionText(dialogueSectionValue, { maxSentences: 1, maxChars: 140 })
+  return compactSection
+}
+
+function deriveVideoVeoUserBrief(userRequest?: string) {
+  const normalizedPrompt = normalizeVideoUserRequest(userRequest)
+  if (!normalizedPrompt) return VIDEO_DEFAULT_USER_REQUEST
+
+  const sections = new Map<string, string>()
+  for (const match of normalizedPrompt.matchAll(VIDEO_SCENE_PREPASS_SECTION_PATTERN)) {
+    const key = normalizeVideoScenePrepassSectionLabel(match[1] ?? '')
+    const value = normalizeTalkingWhitespace(match[2] ?? '')
+    if (key && value && !sections.has(key)) sections.set(key, value)
+  }
+
+  const location = compactVideoSectionText(sections.get('location') ?? '', { maxSentences: 1, maxChars: 84 })
+  const action = compactVideoSectionText(sections.get('action') ?? '', { maxSentences: 2, maxChars: 110 })
+  const camera = compactVideoSectionText(sections.get('camera') ?? '', { maxSentences: 2, maxChars: 84 })
+  const performance = compactVideoSectionText(sections.get('performance') ?? sections.get('expression') ?? '', { maxSentences: 1, maxChars: 48 })
+  const visual = compactVideoSectionText(sections.get('visual') ?? '', { maxSentences: 1, maxChars: 64 })
+  const dialogueSection = extractVideoDialogueSection(normalizedPrompt)
+  const dialogueLanguage = extractVideoDialogueLanguage(normalizedPrompt)
+  const dialogueLine = extractVideoDialogueLine(
+    normalizedPrompt,
+    dialogueSection.content || (sections.get('dialogue') ?? ''),
+  )
+  const fallbackBrief = buildVideoScenePrepassFallbackBrief(normalizedPrompt)
+
+  return [
+    location ? `${location}.` : '',
+    action ? `${action}.` : '',
+    camera ? `${camera}.` : '',
+    dialogueLine
+      ? `${dialogueLanguage ? `${dialogueLanguage} only: ` : 'Exact line: '}"${compactVideoSectionText(dialogueLine, { maxSentences: 1, maxChars: 84 })}".`
+      : '',
+    performance ? `${performance}.` : '',
+    visual ? `${visual}.` : '',
+    !location && !action && !camera && !dialogueLine && !performance && !visual && fallbackBrief
+      ? `${compactVideoSectionText(fallbackBrief, { maxSentences: 2, maxChars: 180 })}.`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+function extractVideoPromptSections(normalizedPrompt: string) {
+  const sections = new Map<string, string>()
+  for (const match of normalizedPrompt.matchAll(VIDEO_SCENE_PREPASS_SECTION_PATTERN)) {
+    const key = normalizeVideoScenePrepassSectionLabel(match[1] ?? '')
+    const value = normalizeTalkingWhitespace(match[2] ?? '')
+    if (key && value && !sections.has(key)) sections.set(key, value)
+  }
+  return sections
+}
+
+function extractVideoQuotedSpeechFallback(rawPrompt: string) {
+  const match = rawPrompt.match(
+    /\b(?:say|says|speaks?|spoken|voiceover|voice over|narration|dialogue|line|fala|diz|falando)\b[^"\n\r]{0,120}["â€œ]([^"â€]{4,220})["â€]/i,
+  )
+  return normalizeTalkingWhitespace(match?.[1] ?? '')
+}
+
+function extractVideoDialogueLineStrict(
+  rawPrompt: string,
+  dialogueSectionValue: string,
+  options?: { allowQuotedFallback?: boolean },
+) {
+  const finalizeDialogueLine = (value: string) => {
+    const normalized = normalizeTalkingWhitespace(value)
+    if (normalized.length <= 260) return normalized
+    return `${normalized.slice(0, 259).trimEnd()}...`
+  }
+  const cleanedSection = normalizeTalkingWhitespace(dialogueSectionValue)
+    .replace(/^[â€œ"'`]+/, '')
+    .replace(/[â€"'`]+$/, '')
+    .trim()
+  if (cleanedSection) return finalizeDialogueLine(cleanedSection)
+
+  if (options?.allowQuotedFallback !== false) {
+    const quotedFallback = extractVideoQuotedSpeechFallback(rawPrompt)
+    if (quotedFallback) return finalizeDialogueLine(quotedFallback)
+  }
+
+  return finalizeDialogueLine(dialogueSectionValue)
+}
+
+function buildVideoLiteralRequestLine(
+  label: string,
+  value: string,
+  options?: { maxSentences?: number; maxChars?: number },
+) {
+  const compact = compactVideoSectionText(value, {
+    maxSentences: options?.maxSentences ?? 2,
+    maxChars: options?.maxChars ?? 180,
+  })
+  return compact ? `${label}: ${compact}.` : ''
+}
+
+function hasVideoNativeSpeechIntent(params: {
+  normalizedPrompt: string
+  sections: Map<string, string>
+  dialogueSection: { language: string; content: string }
+}) {
+  if (params.dialogueSection.content || params.sections.get('dialogue')) return true
+
+  const hasSpeechVerb = /\b(say|says|speaks?|spoken|dialogue|speech|voiceover|voice over|narration|lip sync|lipsync|fala|diz|falando)\b/i
+    .test(params.normalizedPrompt)
+  const hasLanguageSignal = /\b(brazilian portuguese|portuguese|english|spanish|french|german|italian|japanese)\b/i
+    .test(params.normalizedPrompt)
+  const quotedSpeechFallback = extractVideoQuotedSpeechFallback(params.normalizedPrompt)
+  return Boolean(hasSpeechVerb && (hasLanguageSignal || quotedSpeechFallback))
+}
+
+function analyzeVideoPrompt(userRequest?: string): VideoPromptAnalysis {
+  const normalizedPrompt = normalizeVideoUserRequest(userRequest)
+  if (!normalizedPrompt) {
+    return {
+      promptMode: 'silent_visual',
+      normalizedPrompt,
+      veoUserRequest: VIDEO_DEFAULT_USER_REQUEST,
+      speechInstruction: '',
+      dialogueLanguage: '',
+      dialogueLine: '',
+    }
+  }
+
+  const sections = extractVideoPromptSections(normalizedPrompt)
+  const dialogueSection = extractVideoDialogueSection(normalizedPrompt)
+  const promptMode: VideoPromptMode = hasVideoNativeSpeechIntent({
+    normalizedPrompt,
+    sections,
+    dialogueSection,
+  })
+    ? 'native_speech_script'
+    : 'silent_visual'
+  const dialogueLanguage = extractVideoDialogueLanguage(normalizedPrompt)
+  const dialogueLine = extractVideoDialogueLineStrict(
+    normalizedPrompt,
+    dialogueSection.content || (sections.get('dialogue') ?? ''),
+    { allowQuotedFallback: promptMode !== 'native_speech_script' || !dialogueSection.content },
+  )
+
+  if (promptMode === 'silent_visual') {
+    return {
+      promptMode,
+      normalizedPrompt,
+      veoUserRequest: deriveVideoVeoUserBrief(normalizedPrompt),
+      speechInstruction: '',
+      dialogueLanguage,
+      dialogueLine,
+    }
+  }
+
+  const subtitleRule = sections.get('subtitle') ?? ''
+  const speechGuidance = sections.get('speech_guidance') ?? ''
+  const nativeRequest = [
+    buildVideoLiteralRequestLine('Location', sections.get('location') ?? '', { maxSentences: 2, maxChars: 180 }),
+    buildVideoLiteralRequestLine('Character', sections.get('character') ?? '', { maxSentences: 2, maxChars: 180 }),
+    buildVideoLiteralRequestLine('Action', sections.get('action') ?? '', { maxSentences: 4, maxChars: 300 }),
+    buildVideoLiteralRequestLine('Camera', sections.get('camera') ?? '', { maxSentences: 3, maxChars: 220 }),
+    buildVideoLiteralRequestLine('Performance tone', sections.get('performance') ?? sections.get('expression') ?? '', { maxSentences: 2, maxChars: 140 }),
+    buildVideoLiteralRequestLine('Visual style', sections.get('visual') ?? '', { maxSentences: 2, maxChars: 180 }),
+    buildVideoLiteralRequestLine('Lighting mood', sections.get('lighting') ?? '', { maxSentences: 1, maxChars: 120 }),
+    buildVideoLiteralRequestLine('Main goal', sections.get('main_goal') ?? sections.get('final_feeling') ?? '', { maxSentences: 2, maxChars: 180 }),
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const speechInstruction = [
+    dialogueLanguage
+      ? `Generate native spoken audio in ${dialogueLanguage}.`
+      : 'Generate native spoken audio that matches the requested dialogue.',
+    dialogueLine ? `Exact spoken line: "${dialogueLine}".` : '',
+    'Keep the requested language and spoken line exact.',
+    speechGuidance
+      ? `Delivery guidance: ${compactVideoSectionText(speechGuidance, { maxSentences: 3, maxChars: 220 })}.`
+      : '',
+    subtitleRule
+      ? `${compactVideoSectionText(subtitleRule, { maxSentences: 3, maxChars: 160 })}.`
+      : 'Do not render subtitles, captions, or on-screen text.',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  return {
+    promptMode,
+    normalizedPrompt,
+    veoUserRequest: nativeRequest || deriveVideoVeoUserBrief(normalizedPrompt),
+    speechInstruction,
+    dialogueLanguage,
+    dialogueLine,
+  }
+}
+
+function buildVideoScenePrepassFallbackBrief(normalizedPrompt: string) {
+  let fallback = normalizedPrompt
+    .replace(VIDEO_SCENE_PREPASS_SECTION_PATTERN, ' ')
+    .replace(/["“”'][^"“”']+["“”']/g, ' ')
+    .replace(/\b(dialogue|dialogo|dialogo|fala)\b[^.]*$/gi, ' ')
+
+  fallback = fallback
+    .split(/[.;]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .filter((segment) => !/\b(duration|duracao|duracao|format|formato|dialogue|dialogo|dialogo|motion rules|regras de movimento)\b/i.test(segment))
+    .filter((segment) => !/\b(gentle breathing|soft blink|tiny head turn|realistic walking|cinematic pacing|acting pauses|smooth realistic walking|stable anatomy|realistic eye contact|commercial rhythm)\b/i.test(segment))
+    .join('. ')
+
+  return normalizeTalkingWhitespace(fallback)
+}
+
+export function deriveVideoScenePrepassPrompt(userRequest?: string) {
+  const normalizedPrompt = normalizeVideoUserRequest(userRequest)
+  if (!normalizedPrompt) {
+    return 'Create a single static photorealistic commercial keyframe that preserves the source image exactly. No text on screen, captions, or motion depiction.'
+  }
+
+  const sections = new Map<string, string>()
+  for (const match of normalizedPrompt.matchAll(VIDEO_SCENE_PREPASS_SECTION_PATTERN)) {
+    const key = normalizeVideoScenePrepassSectionLabel(match[1] ?? '')
+    const value = normalizeTalkingWhitespace(match[2] ?? '')
+    if (key && value && !sections.has(key)) sections.set(key, value)
+  }
+
+  const location = sections.get('location') ?? ''
+  const lighting = sections.get('lighting') ?? ''
+  const visual = sections.get('visual') ?? ''
+  const performance = sections.get('performance') ?? ''
+  const expression = sections.get('expression') ?? ''
+  const camera = sanitizeVideoScenePrepassCamera(sections.get('camera') ?? '')
+  const action = sanitizeVideoScenePrepassAction(sections.get('action') ?? '')
+  const fallbackBrief = buildVideoScenePrepassFallbackBrief(normalizedPrompt)
+
+  const promptParts = [
+    'Create a single static photorealistic commercial keyframe based on the source image.',
+    location ? `Environment: ${location}.` : '',
+    lighting ? `Lighting: ${lighting}.` : '',
+    visual ? `Visual style: ${visual}.` : '',
+    performance ? `Expression and mood: ${performance}.` : '',
+    expression ? `Expression: ${expression}.` : '',
+    action ? `Static pose cues: ${action}.` : '',
+    camera ? `Framing: ${camera}.` : '',
+    !location && !lighting && !visual && fallbackBrief ? `Scene brief: ${fallbackBrief}.` : '',
+    'Keep it as a still image suitable for downstream animation.',
+    'No text on screen, subtitles, captions, speech bubbles, or visible dialogue.',
+    'Do not depict walking cycles, multiple poses, motion blur, or sequential action.',
+  ]
+
+  return normalizeTalkingWhitespace(promptParts.filter(Boolean).join(' '))
+}
+
+function buildVideoDynamicLockInstructions(params: {
+  sourceVisibleItemManifest?: string[]
+  strictSourceFidelity?: boolean
+  sourceTextLogoLock?: boolean
+  sourceColorLock?: boolean
+  modelPrompt?: string
+}) {
+  const visibleItems = dedupeNormalizedStrings(params.sourceVisibleItemManifest ?? []).slice(0, 12)
+
+  return [
+    params.strictSourceFidelity
+      ? 'Use the source frame as the absolute visual anchor.'
+      : 'Stay highly faithful to the source frame.',
+    params.sourceTextLogoLock
+      ? 'Keep all visible logos, labels, and printed text unchanged and readable.'
+      : '',
+    params.sourceColorLock
+      ? 'Keep protected brand and product colors unchanged.'
+      : '',
+    visibleItems.length > 0
+      ? `Protected visible source elements: ${visibleItems.join(', ')}.`
+      : '',
+    params.modelPrompt?.trim()
+      ? `Identity reference: ${params.modelPrompt.trim().slice(0, 120)}.`
+      : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+function assembleStructuredVideoPromptSections(params: {
+  campaignContext?: string
+  userRequest: string
+  speechInstruction?: string
+  dynamicLocks?: string
+  sceneLivre?: boolean
+}) {
+  const sl = params.sceneLivre ?? false
+  const CHAR_LIMIT = sl ? 2000 : 880
+
+  const openingLine = sl
+    ? 'Using the source model as visual identity reference, generate a new commercial video in this new scene.'
+    : 'Animate this source frame into a short photorealistic commercial video.'
+
+  let campaignLine = params.campaignContext
+    ? `Campaign context: ${compactVideoSectionText(params.campaignContext, { maxSentences: 1, maxChars: 72 })}.`
+    : ''
+  let userRequestLine = `USER REQUEST: ${normalizeVideoUserRequest(params.userRequest) || VIDEO_DEFAULT_USER_REQUEST}`
+  let speechLine = params.speechInstruction
+    ? `SPEECH: ${normalizeTalkingWhitespace(params.speechInstruction)}`
+    : ''
+  const preservationLine = sl ? '' :
+    'PRESERVATION: Preserve everything unless explicitly requested. Apply requested edits only if they do not violate identity, mascot, product, logo, branding, or protected colors. Preserve identity, protected assets, framing, and visual continuity.'
+  let sourceLocksLine = sl ? '' : (params.dynamicLocks
+    ? `SOURCE LOCKS: ${compactVideoSectionText(params.dynamicLocks, { maxSentences: 4, maxChars: 260 })}`
+    : '')
+  let rulesLine = sl
+    ? 'RULES: Do not render subtitles, captions, on-screen text, or watermark.'
+    : 'RULES: Do not render subtitles, captions, on-screen text, or watermark. Do not alter wardrobe unless explicitly requested by the user. Preserve the original environment unless explicitly requested by the user.'
+  let motionLine = `MOTION: ${VIDEO_FIXED_MOTION_RULES}`
+
+  const buildPrompt = () =>
+    [
+      openingLine,
+      campaignLine,
+      userRequestLine,
+      speechLine,
+      preservationLine,
+      sourceLocksLine,
+      rulesLine,
+      motionLine,
+    ]
+      .filter(Boolean)
+      .join(' ')
+
+  let prompt = buildPrompt()
+  if (prompt.length <= CHAR_LIMIT) return prompt
+
+  campaignLine = ''
+  prompt = buildPrompt()
+  if (prompt.length <= CHAR_LIMIT) return prompt
+
+  if (sourceLocksLine) {
+    sourceLocksLine = `SOURCE LOCKS: ${compactVideoSectionText(params.dynamicLocks ?? '', { maxSentences: 2, maxChars: 160 })}`
+    prompt = buildPrompt()
+    if (prompt.length <= CHAR_LIMIT) return prompt
+  }
+
+  motionLine = `MOTION: ${VIDEO_FIXED_MOTION_RULES_COMPACT}`
+  prompt = buildPrompt()
+  if (prompt.length <= CHAR_LIMIT) return prompt
+
+  rulesLine = sl
+    ? 'RULES: No subtitles, captions, or on-screen text.'
+    : 'RULES: Do not render subtitles, captions, on-screen text, or watermark. Do not alter wardrobe or environment unless explicitly requested by the user.'
+  prompt = buildPrompt()
+  if (prompt.length <= CHAR_LIMIT) return prompt
+
+  const maxUserRequestChars = sl ? 900 : 420
+  userRequestLine = `USER REQUEST: ${compactVideoSectionText(params.userRequest, { maxSentences: 6, maxChars: maxUserRequestChars }) || VIDEO_DEFAULT_USER_REQUEST}`
+  prompt = buildPrompt()
+  if (prompt.length <= CHAR_LIMIT) return prompt
+
+  sourceLocksLine = ''
+  return buildPrompt()
+}
+
+function buildStructuredVideoPrompt(params: {
+  userRequest?: string
+  promptMode?: VideoPromptMode
+  speechInstruction?: string
+  sourceVisibleItemManifest?: string[]
+  strictSourceFidelity?: boolean
+  sourceTextLogoLock?: boolean
+  sourceColorLock?: boolean
+  modelPrompt?: string
+  campaignContext?: string
+  sceneLivre?: boolean
+}) {
+  const promptAnalysis = params.promptMode || params.speechInstruction !== undefined
+    ? null
+    : analyzeVideoPrompt(params.userRequest)
+  const finalUserRequest =
+    normalizeVideoUserRequest(promptAnalysis?.veoUserRequest ?? params.userRequest) || VIDEO_DEFAULT_USER_REQUEST
+  const speechInstruction = normalizeTalkingWhitespace(
+    promptAnalysis?.speechInstruction ?? params.speechInstruction ?? '',
+  )
+  const dynamicLocks = buildVideoDynamicLockInstructions(params)
+
+  return assembleStructuredVideoPromptSections({
+    campaignContext: params.campaignContext,
+    userRequest: finalUserRequest,
+    speechInstruction,
+    dynamicLocks,
+    sceneLivre: params.sceneLivre,
+  })
+}
+
+function buildDefaultVeoSafeTemplatePrompt(campaignContext: string) {
+  return [
+    'Animate this source frame into a short photorealistic commercial video.',
+    `Campaign context: ${campaignContext}.`,
+    'USER REQUEST: {{brief}}',
+    '{{speech_instruction}}',
+    'PRESERVATION: Preserve everything unless explicitly requested. Apply requested edits only if they do not violate identity, mascot, product, logo, branding, or protected colors. Preserve identity, protected assets, framing, and visual continuity.',
+    '{{dynamic_locks}}',
+    'RULES: Do not render subtitles, captions, on-screen text, or watermark. Do not alter wardrobe unless explicitly requested by the user. Preserve the original environment unless explicitly requested by the user.',
+    `MOTION: ${VIDEO_FIXED_MOTION_RULES}`,
+  ].join(' ')
+}
+
+type VeoPromptRiskLabel =
+  | 'financial_claim'
+  | 'medical_claim'
+  | 'real_person_reference'
+  | 'celebrity_reference'
+  | 'sexual_content'
+  | 'political_content'
+  | 'identity_realism'
+  | 'negative_prompt_heavy'
+
+type VeoPromptTemplateKey =
+  | 'generic_commercial'
+  | 'moda'
+  | 'produto'
+  | 'academia'
+  | 'clinica'
+  | 'podcast'
+  | 'restaurante'
+
+type VeoPromptRewriteStrategy =
+  | 'policy_safe_standard'
+  | 'policy_safe_compact'
+  | 'policy_safe_template'
+
+type VeoPromptSafetyPackage = {
+  originalPrompt: string
+  normalizedPrompt: string
+  sanitizedPrompt: string
+  riskLabels: VeoPromptRiskLabel[]
+  rewriteStrategy: VeoPromptRewriteStrategy
+  templateKey: VeoPromptTemplateKey
+  validationWarnings: string[]
+}
+
+const VEO_PROMPT_MAX_ATTEMPTS = 3
+
+const VEO_PROMPT_RISK_RULES: Array<{ label: VeoPromptRiskLabel; pattern: RegExp }> = [
+  { label: 'financial_claim', pattern: /\b(faturei|faturar|milh(?:[õo]es|oes)|milionario|milionario|viralizar|monetizar|ganhar dinheiro|ficar rico|lucrar|resultado garantido)\b/i },
+  { label: 'medical_claim', pattern: /\b(cura|curar|tratamento garantido|resultado clinico|resultado m[eé]dico|rejuvenesce|anti-idade|dentista|dentistas|cl[ií]nica(?:s)? odontol[oó]gica(?:s)?|medico|m[eé]dico|terapia)\b/i },
+  { label: 'real_person_reference', pattern: /\b(pessoa real|pare[çc]o real|sou real|imitar algu[eé]m|clone de algu[eé]m|clonagem|rost[oa] real|same person|real person)\b/i },
+  { label: 'celebrity_reference', pattern: /\b(celebridade|famos[oa]|influencer real|ator|atriz|cantor|cantora|parecida com)\b/i },
+  { label: 'sexual_content', pattern: /\b(sexy|sensual|nua|nu|lingerie|decote extremo|sedutora|provocante)\b/i },
+  { label: 'political_content', pattern: /\b(elei[çc][ãa]o|presidente|governo|partido|campanha pol[ií]tica|pol[ií]tico)\b/i },
+  { label: 'identity_realism', pattern: /\b(face|rosto|skin tone|tom de pele|age appearance|idade aparente|body proportions|propor[cç][õo]es do corpo|identity|identidade|hyper-realistic human clone)\b/i },
+  { label: 'negative_prompt_heavy', pattern: /\b(no sexual|no violence|no drugs|no toxic|sem nudez|sem viol[eê]ncia|sem drogas|sem pol[ií]tica)\b/i },
+]
+
+const VEO_PROMPT_SANITIZE_RULES: Array<{ pattern: RegExp; replacement: string }> = [
+  { pattern: /\bfaturei muito dinheiro\b/gi, replacement: 'participei de campanhas comerciais de alto impacto' },
+  { pattern: /\bviralizar e monetizar\b/gi, replacement: 'criar videos profissionais para campanhas comerciais' },
+  { pattern: /\bmonetizar\b/gi, replacement: 'fortalecer campanhas comerciais' },
+  { pattern: /\bviralizar\b/gi, replacement: 'ter alto potencial publicitario' },
+  { pattern: /\bpare[çc]o real\b/gi, replacement: 'sou uma personagem virtual hiper-realista' },
+  { pattern: /\bsou real\b/gi, replacement: 'sou uma personagem virtual ficcional' },
+  { pattern: /\bclonagem\b/gi, replacement: 'representacao virtual fiel' },
+  { pattern: /\bclone de algu[eé]m\b/gi, replacement: 'personagem virtual original' },
+  { pattern: /\bdentistas\b/gi, replacement: 'clinicas odontologicas em contexto publicitario neutro' },
+  { pattern: /\bcl[ií]nicas? odontol[oó]gicas?\b/gi, replacement: 'clinicas odontologicas em contexto publicitario neutro' },
+]
+
+const VEO_NEGATIVE_LIST_PATTERNS = [
+  /\bno sexual content\b/gi,
+  /\bno violence\b/gi,
+  /\bno drugs\b/gi,
+  /\bno toxic content\b/gi,
+  /\bsem nudez\b/gi,
+  /\bsem viol[eê]ncia\b/gi,
+  /\bsem drogas\b/gi,
+  /\bsem pol[ií]tica\b/gi,
+]
+
+const VEO_TEMPLATE_INFERENCE_RULES: Array<{ key: VeoPromptTemplateKey; pattern: RegExp }> = [
+  { key: 'moda', pattern: /\b(moda|fashion|vestido|look|outfit|passarela|cole[çc][ãa]o)\b/i },
+  { key: 'produto', pattern: /\b(produto|product|embalagem|packaging|garrafa|frasco|caixa|cosm[eé]tico|suplemento)\b/i },
+  { key: 'academia', pattern: /\b(academia|fitness|workout|treino|gym|muscula[cç][ãa]o)\b/i },
+  { key: 'clinica', pattern: /\b(cl[ií]nica|odontol[oó]gic|est[eé]tica|dermatologia|sa[uú]de)\b/i },
+  { key: 'podcast', pattern: /\b(podcast|microfone|estudio de conte[uú]do|studio de conteudo|entrevista)\b/i },
+  { key: 'restaurante', pattern: /\b(restaurante|restaurant|chef|mesa posta|gastronomia|food)\b/i },
+]
+
+const DEFAULT_VEO_SAFE_TEMPLATE_PROMPTS: Record<VeoPromptTemplateKey, string> = {
+  generic_commercial: buildDefaultVeoSafeTemplatePrompt('premium branded commercial'),
+  moda: buildDefaultVeoSafeTemplatePrompt('elegant fashion commercial'),
+  produto: buildDefaultVeoSafeTemplatePrompt('premium product commercial'),
+  academia: buildDefaultVeoSafeTemplatePrompt('safe fitness and wellness commercial'),
+  clinica: buildDefaultVeoSafeTemplatePrompt('neutral healthcare advertising context'),
+  podcast: buildDefaultVeoSafeTemplatePrompt('premium podcast studio commercial'),
+  restaurante: buildDefaultVeoSafeTemplatePrompt('elegant hospitality commercial'),
+}
+
+function classifyVeoPromptRisks(prompt: string): VeoPromptRiskLabel[] {
+  return VEO_PROMPT_RISK_RULES
+    .filter((rule) => rule.pattern.test(prompt))
+    .map((rule) => rule.label)
+}
+
+function inferVeoPromptTemplateKey(prompt: string): VeoPromptTemplateKey {
+  return VEO_TEMPLATE_INFERENCE_RULES.find((rule) => rule.pattern.test(prompt))?.key ?? 'generic_commercial'
+}
+
+function normalizeVeoPromptText(prompt: string) {
+  let normalized = normalizeTalkingWhitespace(prompt)
+  for (const pattern of VEO_NEGATIVE_LIST_PATTERNS) {
+    normalized = normalized.replace(pattern, 'family-friendly')
+  }
+  normalized = normalized.replace(/\b(no|sem)\s+[a-zà-ÿ-]+(?:\s+[a-zà-ÿ-]+){0,2}/gi, '')
+  return normalizeTalkingWhitespace(normalized)
+}
+
+function sanitizeVeoPromptBrief(prompt: string) {
+  let safe = normalizeVeoPromptText(prompt)
+  for (const rule of VEO_PROMPT_SANITIZE_RULES) {
+    safe = safe.replace(rule.pattern, rule.replacement)
+  }
+  safe = safe
+    .replace(/\b(celebridade|celebrity)\b/gi, 'personagem ficticia de marca')
+    .replace(/\b(promessa[s]? financeiras?|financial promises?)\b/gi, 'mensagens comerciais neutras')
+    .replace(/\b(promessa[s]? medicas?|medical claims?)\b/gi, 'mensagens comerciais seguras')
+  return normalizeTalkingWhitespace(safe)
+}
+
+const VIDEO_STRUCTURED_PROMPT_SECTION_LABELS = [
+  'Campaign context:',
+  'USER REQUEST:',
+  'SPEECH:',
+  'PRESERVATION:',
+  'SOURCE LOCKS:',
+  'RULES:',
+  'MOTION:',
+] as const
+
+function rewriteStructuredVideoPromptSection(
+  prompt: string,
+  label: typeof VIDEO_STRUCTURED_PROMPT_SECTION_LABELS[number],
+  replacementContent: string,
+) {
+  const boundary = VIDEO_STRUCTURED_PROMPT_SECTION_LABELS
+    .map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|')
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pattern = new RegExp(`${escapedLabel}\\s*([\\s\\S]*?)(?=(?:${boundary})|$)`, 'i')
+  return prompt.replace(
+    pattern,
+    replacementContent ? `${label} ${replacementContent} ` : '',
+  )
+}
+
+function compactStructuredVeoPrompt(prompt: string, warnings: string[]) {
+  const isCenaLivre = prompt.startsWith('Using the source model as visual identity reference')
+  const charLimit = isCenaLivre ? 2000 : 900
+  let compacted = normalizeTalkingWhitespace(prompt)
+  if (compacted.length <= charLimit) return compacted
+
+  warnings.push('prompt_truncated_for_policy_safety')
+  compacted = rewriteStructuredVideoPromptSection(compacted, 'Campaign context:', '')
+  if (compacted.length <= charLimit) return normalizeTalkingWhitespace(compacted)
+
+  compacted = rewriteStructuredVideoPromptSection(
+    compacted,
+    'SOURCE LOCKS:',
+    compactVideoSectionText(compacted.match(/SOURCE LOCKS:\s*([\s\S]*?)(?=(?:RULES:|MOTION:|$))/i)?.[1] ?? '', {
+      maxSentences: 2,
+      maxChars: 120,
+    }),
+  )
+  if (compacted.length <= charLimit) return normalizeTalkingWhitespace(compacted)
+
+  compacted = rewriteStructuredVideoPromptSection(compacted, 'MOTION:', VIDEO_FIXED_MOTION_RULES_COMPACT)
+  if (compacted.length <= charLimit) return normalizeTalkingWhitespace(compacted)
+
+  compacted = rewriteStructuredVideoPromptSection(
+    compacted,
+    'RULES:',
+    'Do not render subtitles, captions, on-screen text, or watermark. Do not alter wardrobe or environment unless explicitly requested by the user.',
+  )
+  if (compacted.length <= charLimit) return normalizeTalkingWhitespace(compacted)
+
+  const maxUserRequestChars = isCenaLivre ? 720 : 360
+  compacted = rewriteStructuredVideoPromptSection(
+    compacted,
+    'USER REQUEST:',
+    compactVideoSectionText(compacted.match(/USER REQUEST:\s*([\s\S]*?)(?=(?:SPEECH:|PRESERVATION:|SOURCE LOCKS:|RULES:|MOTION:|$))/i)?.[1] ?? '', {
+      maxSentences: 5,
+      maxChars: maxUserRequestChars,
+    }),
+  )
+  if (compacted.length <= charLimit) return normalizeTalkingWhitespace(compacted)
+
+  compacted = rewriteStructuredVideoPromptSection(compacted, 'SOURCE LOCKS:', '')
+  if (compacted.length <= charLimit) return normalizeTalkingWhitespace(compacted)
+
+  return `${compacted.slice(0, charLimit).trimEnd()}`
+}
+
+function finalValidateVeoPrompt(prompt: string, warnings: string[]) {
+  let validated = normalizeTalkingWhitespace(prompt)
+  const blockedTerms = [
+    /\bclonagem\b/gi,
+    /\bcelebridade\b/gi,
+    /\bcelebrity\b/gi,
+    /\bresultado garantido\b/gi,
+    /\bmedical claims?\b/gi,
+    /\bfinancial promises?\b/gi,
+  ]
+  for (const pattern of blockedTerms) {
+    if (pattern.test(validated)) {
+      warnings.push(`removed:${pattern.source}`)
+      validated = validated.replace(pattern, '')
+    }
+  }
+  if (validated.length > 900) {
+    validated = compactStructuredVeoPrompt(validated, warnings).trim()
+  }
+  return normalizeTalkingWhitespace(validated)
+}
+
+function buildVeoCompactSafePrompt(params: {
+  userRequest: string
+  promptMode?: VideoPromptMode
+  speechInstruction?: string
+  templateKey: VeoPromptTemplateKey
+  sourceVisibleItemManifest?: string[]
+  strictSourceFidelity?: boolean
+  sourceTextLogoLock?: boolean
+  sourceColorLock?: boolean
+}) {
+  const contextByTemplate: Record<VeoPromptTemplateKey, string> = {
+    generic_commercial: 'premium branded commercial',
+    moda: 'elegant fashion commercial',
+    produto: 'premium product commercial',
+    academia: 'safe fitness and wellness commercial',
+    clinica: 'neutral healthcare advertising context',
+    podcast: 'premium podcast studio commercial',
+    restaurante: 'elegant restaurant commercial',
+  }
+
+  return buildStructuredVideoPrompt({
+    userRequest: params.userRequest,
+    promptMode: params.promptMode,
+    speechInstruction: params.speechInstruction,
+    campaignContext: contextByTemplate[params.templateKey],
+    sourceVisibleItemManifest: params.sourceVisibleItemManifest,
+    strictSourceFidelity: params.strictSourceFidelity,
+    sourceTextLogoLock: params.sourceTextLogoLock,
+    sourceColorLock: params.sourceColorLock,
+  })
+}
+
+async function getVeoSafeTemplatePrompt(
+  admin: ReturnType<typeof createAdminClient>,
+  templateKey: VeoPromptTemplateKey,
+) {
+  const promptKey = `video_veo_safe_template_${templateKey}`
+  return getStudioPrompt(admin, promptKey, DEFAULT_VEO_SAFE_TEMPLATE_PROMPTS[templateKey])
+}
+
+function renderVeoSafeTemplate(template: string, params: { brief: string; speechInstruction?: string; dynamicLocks?: string }) {
+  return normalizeTalkingWhitespace(
+    template
+      .replace(/\{\{\s*brief\s*\}\}/gi, params.brief)
+      .replace(/\{\{\s*user_brief\s*\}\}/gi, params.brief)
+      .replace(/\{\{\s*speech_instruction\s*\}\}/gi, params.speechInstruction ?? '')
+      .replace(/\{\{\s*dynamic_locks\s*\}\}/gi, params.dynamicLocks ?? ''),
+  )
+}
+
+function normalizeVeoPromptAttemptHistory(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
+    .map((item) => ({ ...item }))
+}
+
+function appendVeoPromptAttemptHistory(
+  history: Record<string, unknown>[],
+  entry: Record<string, unknown>,
+) {
+  return [...history, entry]
+}
+
+export function isVeoGuidelineBlockMessage(message: string) {
+  return classifyVeoGuidelineBlockMessage(message) !== 'none'
+}
+
+export type VeoGuidelineBlockKind = 'none' | 'prompt' | 'input_image' | 'unknown'
+
+export function classifyVeoGuidelineBlockMessage(message: string): VeoGuidelineBlockKind {
+  const normalized = normalizeTalkingWhitespace(message).toLowerCase()
+  if (!normalized) return 'none'
+
+  if (
+    /\binput image\b.{0,80}\busage guidelines\b/i.test(normalized)
+    || /\bimage violates vertex ai'?s usage guidelines\b/i.test(normalized)
+  ) {
+    return 'input_image'
+  }
+
+  if (
+    /prompt could not be submitted/i.test(normalized)
+    || /\bprompt\b.{0,64}\bcontains words\b/i.test(normalized)
+    || /\brephras(?:e|ing) the prompt\b/i.test(normalized)
+  ) {
+    return 'prompt'
+  }
+
+  if (/usage guidelines|support codes?:/i.test(normalized)) {
+    return 'unknown'
+  }
+
+  return 'none'
+}
+
+export function extractVeoSupportCode(message: string) {
+  const match = message.match(/support codes?:\s*([0-9-]+)/i)
+  return match?.[1] ?? ''
+}
+
+async function buildVeoPromptSafetyPackage(params: {
+  admin: ReturnType<typeof createAdminClient>
+  originalPrompt: string
+  strategy: VeoPromptRewriteStrategy
+  strictSourceFidelity?: boolean
+  sourceVisibleItemManifest?: string[]
+  sourceTextLogoLock?: boolean
+  sourceColorLock?: boolean
+  sceneLivre?: boolean
+}): Promise<VeoPromptSafetyPackage> {
+  const originalPrompt = normalizeTalkingWhitespace(params.originalPrompt)
+  const promptAnalysis = analyzeVideoPrompt(originalPrompt)
+  const normalizedPrompt = normalizeVeoPromptText(
+    [promptAnalysis.veoUserRequest, promptAnalysis.speechInstruction].filter(Boolean).join(' '),
+  )
+  const riskLabels = classifyVeoPromptRisks(originalPrompt)
+  const templateKey = inferVeoPromptTemplateKey(normalizedPrompt)
+  const validationWarnings: string[] = []
+  const safeUserRequest = sanitizeVeoPromptBrief(promptAnalysis.veoUserRequest || VIDEO_DEFAULT_USER_REQUEST)
+  const safeSpeechInstruction = promptAnalysis.speechInstruction
+    ? sanitizeVeoPromptBrief(promptAnalysis.speechInstruction)
+    : ''
+
+  let sanitizedPrompt = ''
+  if (params.strategy === 'policy_safe_standard') {
+    sanitizedPrompt = buildVeoPolicySafeMotionPrompt({
+      userRequest: safeUserRequest,
+      promptMode: promptAnalysis.promptMode,
+      speechInstruction: safeSpeechInstruction,
+      sourceVisibleItemManifest: params.sourceVisibleItemManifest,
+      sourceTextLogoLock: params.sourceTextLogoLock,
+      sourceColorLock: params.sourceColorLock,
+      strictSourceFidelity: params.strictSourceFidelity,
+      sceneLivre: params.sceneLivre,
+    })
+  } else if (params.strategy === 'policy_safe_compact') {
+    sanitizedPrompt = buildVeoCompactSafePrompt({
+      userRequest: safeUserRequest,
+      promptMode: promptAnalysis.promptMode,
+      speechInstruction: safeSpeechInstruction,
+      templateKey,
+      sourceVisibleItemManifest: params.sourceVisibleItemManifest,
+      strictSourceFidelity: params.strictSourceFidelity,
+      sourceTextLogoLock: params.sourceTextLogoLock,
+      sourceColorLock: params.sourceColorLock,
+    })
+  } else {
+    const template = await getVeoSafeTemplatePrompt(params.admin, templateKey)
+    sanitizedPrompt = renderVeoSafeTemplate(template, {
+      brief: safeUserRequest,
+      speechInstruction: safeSpeechInstruction,
+      dynamicLocks: buildVideoDynamicLockInstructions({
+        sourceVisibleItemManifest: params.sourceVisibleItemManifest,
+        strictSourceFidelity: params.strictSourceFidelity,
+        sourceTextLogoLock: params.sourceTextLogoLock,
+        sourceColorLock: params.sourceColorLock,
+      }),
+    })
+  }
+
+  sanitizedPrompt = finalValidateVeoPrompt(sanitizedPrompt, validationWarnings)
+
+  return {
+    originalPrompt,
+    normalizedPrompt,
+    sanitizedPrompt,
+    riskLabels,
+    rewriteStrategy: params.strategy,
+    templateKey,
+    validationWarnings,
+  }
+}
+
+const PRODUCT_SOVEREIGN_CONFLICT_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /\b(trocar|mudar|substituir|replace|swap)\b.{0,48}\b(produto|product|item|caneca|mug|garrafa|bottle|frasco|caixa|box|embalagem|packaging|logo|branding|rotulo|r[oó]tulo|label)\b/i, label: 'product_swap' },
+  { pattern: /\b(novo|new|outro|outra|another|different)\s+(produto|product|item|caneca|mug|garrafa|bottle|frasco|caixa|box|embalagem|packaging|logo|rotulo|r[oó]tulo|label)\b/i, label: 'product_swap' },
+  { pattern: /\b(remove|remover|tirar|ocultar|hide|without|sem)\b.{0,32}\b(produto|product|logo|texto|text|branding|rotulo|r[oó]tulo|label|embalagem|packaging)\b/i, label: 'product_removal' },
+  { pattern: /\b(change color|trocar cor|mudar cor|recolor|recolorir|different color|nova cor|other colorway|novo tom)\b/i, label: 'product_recolor' },
+  { pattern: /\b(redesign|redesenhar|modernizar|modernize|premium-?ize|premiumizar|simplificar|simplify|clean up|limpar|repackage|reembalar|improve|melhorar|refinar)\b.{0,48}\b(produto|product|embalagem|packaging|logo|branding|rotulo|r[oó]tulo|label|frasco|bottle|caixa|box)\b/i, label: 'product_redesign' },
+  { pattern: /\b(produto|product|embalagem|packaging|logo|branding|rotulo|r[oó]tulo|label|frasco|bottle|caixa|box)\b.{0,48}\b(redesign|redesenhar|modernizar|modernize|premium-?ize|premiumizar|simplificar|simplify|clean up|limpar|repackage|reembalar|improve|melhorar|refinar)\b/i, label: 'product_redesign' },
+  { pattern: /\b(hero prop|mockup|objeto gen[eé]rico|generic object|placeholder product|somente a modelo|s[oó] a modelo|apenas a modelo|only the model|only the person|only the woman)\b/i, label: 'product_deprioritized' },
 ]
 
 export type VideoMotionPromptPolicy = {
   rawPrompt: string
   normalizedPrompt: string
+  promptMode: VideoPromptMode
+  audioMode: 'silent' | 'native_veo_audio'
+  dialogueLanguage: string
+  dialogueLine: string
   removedDirectives: string[]
+  productChangeRequested: boolean
+  protectedElementsPreserved: boolean
   sceneChangeRequested: boolean
   sceneChangeBlocked: boolean
   videoLockPolicy: string
@@ -1178,6 +2879,7 @@ export type TalkingVideoPromptPolicy = {
   expressionDirection: string
   speechSource: 'explicit' | 'quoted' | 'label' | 'heuristic' | 'missing'
   removedDirectives: string[]
+  productChangeRequested: boolean
   estimatedSpeechSeconds: number
   talkingVideoPolicy: string
   sceneFreedomLevel: TalkingVideoSceneFreedomLevel
@@ -1196,6 +2898,7 @@ export type TalkingVideoPromptPolicy = {
 export type TalkingVideoMotionStartParams = {
   source_image_url: string
   motion_prompt: string
+  aspect_ratio?: string
   model_prompt?: string
   motion_prompt_raw?: string
   motion_prompt_normalized?: string
@@ -1239,7 +2942,6 @@ const TALKING_VIDEO_POLICY =
 
 const TALKING_VIDEO_IDENTITY_BLOCKLIST: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\b(change face|new face|different person|trocar modelo|mudar modelo|mais jovem|younger|mais magra|thinner|new identity)\b/i, label: 'identity_change' },
-  { pattern: /\b(trocar produto|mudar produto|replace product|new product|outra caneca|outro item)\b/i, label: 'product_change' },
 ]
 
 const TALKING_VIDEO_SPEECH_SAFE_BLOCKLIST: Array<{ pattern: RegExp; label: string }> = [
@@ -1262,10 +2964,83 @@ function dedupeNormalizedStrings(values: Array<unknown>) {
   ))
 }
 
+function detectProductSovereigntyConflicts(prompt: string) {
+  const normalized = normalizeTalkingWhitespace(prompt)
+  if (!normalized) return []
+
+  return PRODUCT_SOVEREIGN_CONFLICT_PATTERNS
+    .filter((rule) => rule.pattern.test(normalized))
+    .map((rule) => rule.label)
+}
+
+const VIDEO_PROTECTED_PRESERVE_CLAUSE_PATTERNS = [
+  /\b(?:keep|preserve|maintain|leave)\b[^.!?\n\r]{0,120}\b(?:logo|text|texto|typography|tipografia|branding|brand colors?|colors?|colou?rs?|design|composition)\b[^.!?\n\r]{0,120}\b(?:exact|original|same|unchanged|preserved|intact)?[^.!?\n\r]*/gi,
+  /\b(?:exact|original|same)\b[^.!?\n\r]{0,64}\b(?:logo|text|texto|typography|tipografia|branding|brand colors?|colors?|colou?rs?|design|composition)\b[^.!?\n\r]{0,120}\b(?:preserved|unchanged|intact)?[^.!?\n\r]*/gi,
+]
+
+const VIDEO_PROTECTED_NEGATED_CHANGE_PATTERNS = [
+  /\b(?:do not|don't|never)\b[^.!?\n\r]{0,24}\b(?:change|replace|remove|hide|delete|alter|modify|redesign|rebrand|repackage|recolor|recolour|modernize|simplify)\b[^.!?\n\r]{0,120}\b(?:logo|text|texto|typography|tipografia|branding|brand colors?|colors?|colou?rs?|design|composition)\b[^.!?\n\r]*/gi,
+  /\b(?:logo|text|texto|typography|tipografia|branding|brand colors?|colors?|colou?rs?|design|composition)\b[^.!?\n\r]{0,120}\b(?:must|should)\s+remain\b[^.!?\n\r]{0,64}\b(?:same|unchanged|intact|preserved)\b[^.!?\n\r]*/gi,
+]
+
+const VIDEO_PROTECTED_CHANGE_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /\b(?:change|replace|swap|alter|modify)\b[^.!?\n\r]{0,120}\b(?:logo|text|texto|typography|tipografia|branding|brand identity|brand name|tagline|slogan|rotulo|r[oÃ³]tulo|label)\b/i, label: 'product_swap' },
+  { pattern: /\b(?:logo|text|texto|typography|tipografia|branding|brand identity|brand name|tagline|slogan|rotulo|r[oÃ³]tulo|label)\b[^.!?\n\r]{0,120}\b(?:change|replace|swap|alter|modify)\b/i, label: 'product_swap' },
+  { pattern: /\b(?:remove|hide|delete|erase)\b[^.!?\n\r]{0,120}\b(?:logo|text|texto|typography|tipografia|branding|brand identity|brand name|tagline|slogan|rotulo|r[oÃ³]tulo|label)\b/i, label: 'product_removal' },
+  { pattern: /\b(?:logo|text|texto|typography|tipografia|branding|brand identity|brand name|tagline|slogan|rotulo|r[oÃ³]tulo|label)\b[^.!?\n\r]{0,120}\b(?:remove|hide|delete|erase)\b/i, label: 'product_removal' },
+  { pattern: /\b(?:recolor|recolour|change(?:\s+the)?\s+colou?rs?|change(?:\s+the)?\s+brand\s+colou?rs?|change(?:\s+the)?\s+colors?|change(?:\s+the)?\s+brand\s+colors?)\b/i, label: 'product_recolor' },
+  { pattern: /\b(?:redesign|rebrand|repackage|modernize|simplify)\b[^.!?\n\r]{0,120}\b(?:logo|text|texto|typography|tipografia|branding|brand identity|brand name|design|composition)\b/i, label: 'product_redesign' },
+  { pattern: /\b(?:logo|text|texto|typography|tipografia|branding|brand identity|brand name|design|composition)\b[^.!?\n\r]{0,120}\b(?:redesign|rebrand|repackage|modernize|simplify)\b/i, label: 'product_redesign' },
+]
+
+function analyzeVideoProtectedElementIntent(prompt: string) {
+  const normalized = normalizeTalkingWhitespace(prompt)
+  if (!normalized) {
+    return {
+      conflictLabels: [] as string[],
+      protectedElementsPreserved: false,
+    }
+  }
+
+  const protectedElementsPreserved =
+    VIDEO_PROTECTED_PRESERVE_CLAUSE_PATTERNS.some((pattern) => pattern.test(normalized))
+    || VIDEO_PROTECTED_NEGATED_CHANGE_PATTERNS.some((pattern) => pattern.test(normalized))
+
+  let mutationProbe = normalized
+  for (const pattern of VIDEO_PROTECTED_PRESERVE_CLAUSE_PATTERNS) {
+    mutationProbe = mutationProbe.replace(pattern, ' ')
+  }
+  for (const pattern of VIDEO_PROTECTED_NEGATED_CHANGE_PATTERNS) {
+    mutationProbe = mutationProbe.replace(pattern, ' ')
+  }
+
+  const genericConflicts = detectProductSovereigntyConflicts(mutationProbe)
+  const explicitProtectedElementConflicts = VIDEO_PROTECTED_CHANGE_PATTERNS
+    .filter((rule) => rule.pattern.test(mutationProbe))
+    .map((rule) => rule.label)
+
+  return {
+    conflictLabels: Array.from(new Set([...genericConflicts, ...explicitProtectedElementConflicts])),
+    protectedElementsPreserved,
+  }
+}
+
 function inferTalkingVideoSourceVisualProfile(sourceAsset?: {
   type?: string
   input_params?: Record<string, unknown>
 }): SourceVisualFidelityProfile {
+  if (!sourceAsset) {
+    return {
+      productLockMode: 'none',
+      productVisibilityConfidence: 0.18,
+      strictSourceFidelity: false,
+      sourceTextLogoLock: false,
+      sourceColorLock: false,
+      preserveAllVisibleSourceItems: true,
+      sourceVisibleItemManifest: [],
+    }
+  }
+
   const inputParams = sourceAsset?.input_params ?? {}
   const sourceOrigin = typeof inputParams.source_origin === 'string' ? inputParams.source_origin : ''
   const composeVariant = typeof inputParams.compose_variant === 'string' ? inputParams.compose_variant : ''
@@ -1323,7 +3098,7 @@ function inferTalkingVideoSourceVisualProfile(sourceAsset?: {
     return withVisibleItems('strict', 0.84, true, true, true, true)
   }
 
-  return withVisibleItems('none', 0.18, false, false, false, true)
+  return withVisibleItems('strict', 0.8, true, true, true, true)
 }
 
 function isSoftSovereignAccessoryIssue(issue: string): boolean {
@@ -1385,6 +3160,11 @@ export function prepareTalkingVideoPrompt(params: {
   const speechTextNormalized = normalizeTalkingWhitespace(speechTextRaw)
   const visualPromptRaw = parsedIdea.visualPrompt
   const sourceVisualProfile = inferTalkingVideoSourceVisualProfile(params.sourceAsset)
+  const productConflictLabels = sourceVisualProfile.strictSourceFidelity
+    ? detectProductSovereigntyConflicts(
+        normalizeTalkingWhitespace([parsedIdea.ideaPrompt, visualPromptRaw].filter(Boolean).join(' ')),
+      )
+    : []
   const visualSegments = visualPromptRaw
     .split(/[\n,.;]+/)
     .map((segment) => segment.trim())
@@ -1434,10 +3214,10 @@ export function prepareTalkingVideoPrompt(params: {
 
   const productLockInstruction =
     sourceVisualProfile.productLockMode === 'strict'
-      ? 'LOCK PRODUCT STRICTLY: preserve the exact same product, label, logo, shape, color, scale, and visibility if a product is present in the source frame.'
+      ? 'CLIENT PRODUCT IS SOVEREIGN: if the source frame shows a client product or principal held object, preserve it literally and exactly as shown, including packaging, container shape, cap, label, logo, printed text, material, texture, reflections, wear, proportions, scale, orientation, and exact hand placement or scene placement. Never swap, redesign, simplify, premium-ize, relabel, recolor, crop away, hide, or replace it with a similar object.'
       : sourceVisualProfile.productLockMode === 'best_effort'
         ? 'LOCK PRODUCT BEST EFFORT: if a product is visible in the source frame, preserve its identity, logo, color, and overall shape without redesigning it.'
-        : 'If no product is clearly visible in the source frame, do not invent a hero product.'
+        : 'If no product is clearly visible in the source frame, do not invent a new hero product or replace the main visible object.'
 
   const visibleItemInstruction = sourceVisualProfile.preserveAllVisibleSourceItems
     ? sourceVisualProfile.sourceVisibleItemManifest.length > 0
@@ -1448,7 +3228,7 @@ export function prepareTalkingVideoPrompt(params: {
     ? 'WARDROBE CHANGE IS PRE-RESOLVED ONLY: if an approved new outfit is already visible in the current source frame, preserve that wardrobe exactly during animation. Do not restyle it again while generating motion.'
     : 'LOCK WARDROBE: preserve the exact same outfit, accessories, fit, colors, and visible styling from the current source frame.'
   const strictSourceInstruction = sourceVisualProfile.strictSourceFidelity
-    ? 'SOURCE FRAME IS SOVEREIGN: preserve the visible product, printed text, logo, labels, wardrobe, props, and overall frame composition literally from the reference image. Do not reinterpret or improve branding.'
+    ? 'SOURCE FRAME IS SOVEREIGN: preserve the visible product, principal object, printed text, logo, labels, wardrobe, props, and overall frame composition literally from the reference image. Do not reinterpret, improve, clean up, premium-ize, or genericize branding or product details.'
     : 'Stay visually faithful to the source frame.'
   const textLogoInstruction = sourceVisualProfile.sourceTextLogoLock
     ? 'LOCK TEXT AND LOGOS: any visible printed text, product logo, label, packaging copy, or branding in the source frame must remain exactly the same.'
@@ -1509,6 +3289,7 @@ export function prepareTalkingVideoPrompt(params: {
     expressionDirection,
     speechSource: parsedIdea.speechSource,
     removedDirectives: Array.from(removed),
+    productChangeRequested: productConflictLabels.length > 0,
     estimatedSpeechSeconds,
     talkingVideoPolicy: TALKING_VIDEO_POLICY,
     sceneFreedomLevel,
@@ -1607,23 +3388,25 @@ export function prepareLockedVideoMotionPrompt(params: {
     input_params?: Record<string, unknown>
   }
 }): VideoMotionPromptPolicy {
-  const rawPrompt = (params.motionPrompt ?? '').trim()
-  const segments = rawPrompt
-    .split(/[\n,.;]+/)
+  const rawUserRequest = normalizeVideoUserRequest(params.motionPrompt)
+  const sourceVisualProfile = inferTalkingVideoSourceVisualProfile(params.sourceAsset)
+  const protectedElementIntent = sourceVisualProfile.strictSourceFidelity
+    ? analyzeVideoProtectedElementIntent(rawUserRequest)
+    : {
+        conflictLabels: [] as string[],
+        protectedElementsPreserved: false,
+      }
+  const productConflictLabels = protectedElementIntent.conflictLabels
+  const segments = rawUserRequest
+    .split(/[\n.;]+/)
     .map((segment) => segment.trim())
     .filter(Boolean)
 
   const kept: string[] = []
   const removed = new Set<string>()
-  let sceneChangeRequested = false
+  const sceneChangeRequested = VIDEO_SCENE_CHANGE_PATTERNS.some((pattern) => pattern.test(rawUserRequest))
 
   for (const segment of segments) {
-    if (VIDEO_SCENE_CHANGE_PATTERNS.some((pattern) => pattern.test(segment))) {
-      sceneChangeRequested = true
-      removed.add('scenario')
-      continue
-    }
-
     const blockedRule = VIDEO_PROMPT_BLOCKLIST.find((rule) => rule.pattern.test(segment))
     if (blockedRule) {
       removed.add(blockedRule.label)
@@ -1633,51 +3416,33 @@ export function prepareLockedVideoMotionPrompt(params: {
     kept.push(segment)
   }
 
-  const normalizedPrompt = kept.join(', ')
-  const motionIntent = normalizedPrompt || VIDEO_MOTION_FALLBACK
-  const identityContext = params.modelPrompt?.trim()
-    ? `Identity reference: ${params.modelPrompt.trim().slice(0, 220)}.`
-    : ''
-  const sourceVisualProfile = inferTalkingVideoSourceVisualProfile(params.sourceAsset)
-  const visibleItemInstruction = sourceVisualProfile.preserveAllVisibleSourceItems
-    ? sourceVisualProfile.sourceVisibleItemManifest.length > 0
-      ? `LOCK ALL VISIBLE SOURCE ITEMS: preserve the exact same outfit, accessories, held objects, product details, props, and composition cues from the source frame. Mandatory visible items: ${sourceVisualProfile.sourceVisibleItemManifest.join(', ')}.`
-      : 'LOCK ALL VISIBLE SOURCE ITEMS: preserve the exact same outfit, accessories, held objects, product details, props, and composition cues from the source frame.'
-    : 'Keep the source frame visually coherent.'
-  const strictSourceInstruction = sourceVisualProfile.strictSourceFidelity
-    ? 'SOURCE FRAME IS SOVEREIGN: preserve the source frame literally. Do not reinterpret, redesign, beautify, simplify, recolor, premium-ize, or swap any visible element from the reference frame.'
-    : 'Stay highly faithful to the source frame.'
-  const textLogoInstruction = sourceVisualProfile.sourceTextLogoLock
-    ? 'LOCK TEXT AND LOGOS: any visible printed text, logo, label, packaging text, or branding in the source frame must remain exactly the same in wording, styling, placement, and legibility.'
-    : ''
-  const colorInstruction = sourceVisualProfile.sourceColorLock
-    ? 'LOCK COLORS: preserve the exact product colorway, text color, logo color, wardrobe colors, and visible prop colors from the source frame.'
-    : ''
-
-  const finalPrompt = [
-    'Animate this exact reference frame into a short video while preserving it with near-frozen fidelity.',
-    'LOCK PERSON AND IDENTITY: preserve the exact same person, face, hair, skin tone, body proportions, expression family, and age appearance.',
-    strictSourceInstruction,
-    visibleItemInstruction,
-    'LOCK PRODUCT: preserve the exact same product, label, logo, text, shape, color, texture, scale, and hand placement. Do not swap, redesign, simplify, or deform the product.',
-    textLogoInstruction,
-    colorInstruction,
-    'LOCK WARDROBE AND ANATOMY: preserve the exact outfit, accessories already present, body pose logic, and valid anatomy. Keep exactly two arms and two hands with stable fingers.',
-    'LOCK SCENE: preserve the exact same background, environment, framing, camera height, composition, and scenario. Do not move the person to a new location and do not replace the background.',
-    'ALLOW ONLY MICRO-MOTION: subtle breathing, soft blinking, tiny head turns, slight gaze shifts, gentle hand motion that keeps the product stable, natural hair or fabric movement, and restrained camera drift or push-in.',
-    'If any user request conflicts with these locks, ignore the conflicting part and keep fidelity to the source frame.',
-    identityContext,
-    `Motion direction: ${motionIntent}.`,
-  ]
-    .filter(Boolean)
-    .join(' ')
+  const normalizedPrompt = removed.size === 0
+    ? rawUserRequest
+    : kept.join('. ')
+  const promptAnalysis = analyzeVideoPrompt(normalizedPrompt)
+  const finalPrompt = buildStructuredVideoPrompt({
+    userRequest: promptAnalysis.veoUserRequest,
+    promptMode: promptAnalysis.promptMode,
+    speechInstruction: promptAnalysis.speechInstruction,
+    sourceVisibleItemManifest: sourceVisualProfile.sourceVisibleItemManifest,
+    strictSourceFidelity: sourceVisualProfile.strictSourceFidelity,
+    sourceTextLogoLock: sourceVisualProfile.sourceTextLogoLock,
+    sourceColorLock: sourceVisualProfile.sourceColorLock,
+    modelPrompt: params.modelPrompt,
+  })
 
   return {
-    rawPrompt,
+    rawPrompt: rawUserRequest,
     normalizedPrompt,
+    promptMode: promptAnalysis.promptMode,
+    audioMode: promptAnalysis.promptMode === 'native_speech_script' ? 'native_veo_audio' : 'silent',
+    dialogueLanguage: promptAnalysis.dialogueLanguage,
+    dialogueLine: promptAnalysis.dialogueLine,
     removedDirectives: Array.from(removed),
+    productChangeRequested: productConflictLabels.length > 0,
+    protectedElementsPreserved: protectedElementIntent.protectedElementsPreserved,
     sceneChangeRequested,
-    sceneChangeBlocked: sceneChangeRequested,
+    sceneChangeBlocked: false,
     videoLockPolicy: VIDEO_LOCK_POLICY,
     sourceFidelityMode: sourceVisualProfile.strictSourceFidelity
       ? 'strict'
@@ -1691,9 +3456,32 @@ export function prepareLockedVideoMotionPrompt(params: {
   }
 }
 
+function buildVeoPolicySafeMotionPrompt(params: {
+  userRequest: string
+  promptMode?: VideoPromptMode
+  speechInstruction?: string
+  sourceVisibleItemManifest?: string[]
+  sourceTextLogoLock?: boolean
+  sourceColorLock?: boolean
+  strictSourceFidelity?: boolean
+  sceneLivre?: boolean
+}): string {
+  return buildStructuredVideoPrompt({
+    userRequest: params.userRequest,
+    promptMode: params.promptMode,
+    speechInstruction: params.speechInstruction,
+    sourceVisibleItemManifest: params.sourceVisibleItemManifest,
+    strictSourceFidelity: params.strictSourceFidelity,
+    sourceTextLogoLock: params.sourceTextLogoLock,
+    sourceColorLock: params.sourceColorLock,
+    sceneLivre: params.sceneLivre,
+  })
+}
+
 export async function startVideoGeneration(params: {
   source_image_url: string
   motion_prompt: string
+  aspect_ratio?: string
   duration: number
   model_prompt?: string
   motion_prompt_raw?: string
@@ -1722,7 +3510,7 @@ export async function startVideoGeneration(params: {
   let config: any = {}
   try { config = JSON.parse(configStr) } catch { /* ignore */ }
 
-  const finalMotion = prepareLockedVideoMotionPrompt({
+  const finalVideoPrompt = prepareLockedVideoMotionPrompt({
     motionPrompt: params.motion_prompt,
     modelPrompt: params.model_prompt,
     sourceAsset: {
@@ -1748,9 +3536,9 @@ export async function startVideoGeneration(params: {
   let payload: any = {
     image_url: params.source_image_url,
     ...config,
-    prompt: finalMotion,
+    prompt: finalVideoPrompt,
     duration: requestedDuration,
-    aspect_ratio: '9:16',
+    aspect_ratio: params.aspect_ratio ?? '9:16',
     webhook_url: webhookUrl,
   }
 
@@ -1759,9 +3547,9 @@ export async function startVideoGeneration(params: {
     endpoint = `https://queue.fal.run/${FAL_VEO_PATH}`
     payload = {
       image_url: params.source_image_url,
-      prompt: finalMotion,
+      prompt: finalVideoPrompt,
       duration: config.veo_duration || `${requestedDuration}s`,
-      aspect_ratio: '9:16',
+      aspect_ratio: params.aspect_ratio ?? '9:16',
       webhook_url: webhookUrl,
       ...config
     }
@@ -1798,6 +3586,7 @@ export async function startVideoGeneration(params: {
     scene_change_blocked: params.scene_change_blocked ?? false,
     removed_directives: params.removed_directives ?? [],
     duration: requestedDuration,
+    aspect_ratio: params.aspect_ratio ?? '9:16',
     ...(params.inputParamsPatch ?? {}),
   })
 }
@@ -3355,6 +5144,71 @@ async function uploadGuidedSplitReferences(params: {
   return references
 }
 
+async function buildTransparentSegmentedItems(params: {
+  sourceBuffer: Buffer
+  items: SegmentedFittingItem[]
+  sourceIndex: number
+}): Promise<SegmentedFittingItem[]> {
+  const { normalizedBuffer, maskRaw, width, height } = await buildForegroundMaskArtifacts(params.sourceBuffer)
+
+  return Promise.all(params.items.map(async (item) => {
+    const transparentCrop = await cropTransparentSegmentedItem(normalizedBuffer, maskRaw, width, height, item.bbox)
+    return {
+      ...item,
+      imageBuffer: transparentCrop.imageBuffer,
+      mimeType: 'image/png',
+      sourceIndex: params.sourceIndex,
+    } satisfies SegmentedFittingItem
+  }))
+}
+
+async function buildWhiteStudioReferenceItems(params: {
+  referenceMode: FittingReferenceMode
+  referenceBuffers: Buffer[]
+  apiKey: string
+  explicitCategoryHint?: string
+}): Promise<SegmentedFittingItem[]> {
+  const allItems: SegmentedFittingItem[] = []
+
+  for (let index = 0; index < params.referenceBuffers.length; index += 1) {
+    const sourceBuffer = params.referenceBuffers[index]
+    const segmented = await segmentProductReference(
+      sourceBuffer,
+      params.apiKey,
+      index === 0 ? params.explicitCategoryHint : undefined,
+    )
+
+    const rankedItems = segmented.items
+      .filter((item) => isWearableFittingCategory(item.category) || isAccessoryCompatibleFittingCategory(item.category))
+      .slice(0, params.referenceMode === 'single-look-photo' ? 10 : 3)
+
+    const selectedItems = rankedItems.length > 0
+      ? rankedItems
+      : [await buildWholeReferenceItem(
+        sourceBuffer,
+        params.apiKey,
+        index === 0 ? params.explicitCategoryHint : undefined,
+        index,
+      )]
+
+    const transparentItems = await buildTransparentSegmentedItems({
+      sourceBuffer,
+      items: selectedItems.map((item) => ({ ...item, sourceIndex: index })),
+      sourceIndex: index,
+    })
+
+    allItems.push(...transparentItems)
+  }
+
+  return allItems
+    .sort((a, b) => {
+      if ((a.sourceIndex ?? 0) !== (b.sourceIndex ?? 0)) return (a.sourceIndex ?? 0) - (b.sourceIndex ?? 0)
+      if (b.priority !== a.priority) return b.priority - a.priority
+      return b.bbox.area - a.bbox.area
+    })
+    .slice(0, 12)
+}
+
 async function uploadGuidedAccessoryReferencesFromAnalyses(params: {
   analyses: AccessoryReferenceAnalysis[]
   assetId: string
@@ -3723,6 +5577,7 @@ function selectFittingItemsForLook(
   options?: {
     preferredCategories?: string[]
     includeAccessoryCategories?: string[]
+    allowDuplicateStructuralCategories?: string[]
   },
 ): {
   items: SegmentedFittingItem[]
@@ -3731,6 +5586,7 @@ function selectFittingItemsForLook(
 } {
   const preferredCategories = new Set(options?.preferredCategories ?? [])
   const includeAccessoryCategories = new Set(options?.includeAccessoryCategories ?? [])
+  const allowDuplicateStructuralCategories = new Set(options?.allowDuplicateStructuralCategories ?? [])
   const rankedItems = [...items].sort((a, b) => {
     const aPreferred = preferredCategories.has(a.category) ? 1 : 0
     const bPreferred = preferredCategories.has(b.category) ? 1 : 0
@@ -3745,7 +5601,10 @@ function selectFittingItemsForLook(
   for (const item of rankedItems) {
     if (!isStructuralBodyCategory(item.category)) continue
     if (selected.length >= maxItems) break
-    if (!canCombineBodyCategories(bodyCategories, item.category)) continue
+    const allowDuplicateStructuralCategory =
+      allowDuplicateStructuralCategories.has(item.category)
+      && bodyCategories.includes(item.category)
+    if (!allowDuplicateStructuralCategory && !canCombineBodyCategories(bodyCategories, item.category)) continue
 
     selected.push(item)
     bodyCategories.push(item.category)
@@ -3774,27 +5633,110 @@ function selectFittingItemsForLook(
   }
 }
 
-function validateSeparateReferenceItems(items: SegmentedFittingItem[]): string | null {
-  const bodyCategories: string[] = []
-  const accessoryZones = new Map<FittingZone, string>()
+function analyzeProvadorReferenceConflicts(items: SegmentedFittingItem[]): ProvadorReferenceConflictAnalysis {
+  const normalizedItems = items.filter(Boolean)
+  if (normalizedItems.length === 0) {
+    return {
+      mergeMode: 'none',
+      mergeResult: 'not_needed',
+      mergedReferenceCategories: [],
+      duplicateStructuralCategories: [],
+      conflictReasons: [],
+      userMessage: null,
+    }
+  }
 
-  for (const item of items) {
+  const bodyCategories: string[] = []
+  const duplicateStructuralCategories: string[] = []
+  const accessoryZones = new Map<FittingZone, string>()
+  const conflictReasons: string[] = []
+
+  for (const item of normalizedItems) {
     if (isStructuralBodyCategory(item.category)) {
-      if (!canCombineBodyCategories(bodyCategories, item.category)) {
-        return 'As referencias enviadas entram em conflito para o mesmo look. Envie 2-3 referencias separadas sem repetir a mesma peca principal.'
+      if (bodyCategories.includes(item.category)) {
+        duplicateStructuralCategories.push(item.category)
+        continue
       }
+
+      if (!canCombineBodyCategories(bodyCategories, item.category)) {
+        conflictReasons.push(`structural:${bodyCategories.join('+')}+${item.category}`)
+        return {
+          mergeMode: 'none',
+          mergeResult: 'truly_conflicting',
+          mergedReferenceCategories: dedupeNormalizedStrings(bodyCategories),
+          duplicateStructuralCategories: dedupeNormalizedStrings(duplicateStructuralCategories),
+          conflictReasons: dedupeNormalizedStrings(conflictReasons),
+          userMessage: 'As referencias enviadas disputam pecas estruturais diferentes do mesmo look. Envie refs complementares ou separe em cards diferentes.',
+        }
+      }
+
       bodyCategories.push(item.category)
       continue
     }
 
     const zone = getFittingZone(item.category)
-    if (accessoryZones.has(zone)) {
-      return 'As referencias extras repetem a mesma zona do corpo. Envie uma referencia por acessorio ou peca para cada area.'
+    const existingCategory = accessoryZones.get(zone)
+    if (existingCategory) {
+      conflictReasons.push(`accessory:${existingCategory}+${item.category}@${zone}`)
+      return {
+        mergeMode: 'none',
+        mergeResult: 'same_zone_unmergeable',
+        mergedReferenceCategories: dedupeNormalizedStrings(bodyCategories),
+        duplicateStructuralCategories: dedupeNormalizedStrings(duplicateStructuralCategories),
+        conflictReasons: dedupeNormalizedStrings(conflictReasons),
+        userMessage: 'As referencias extras repetem a mesma zona do corpo com acessorios diferentes. Envie uma referencia por acessorio em cada area.',
+      }
     }
     accessoryZones.set(zone, item.category)
   }
 
-  return null
+  const mergedReferenceCategories = dedupeNormalizedStrings([
+    ...bodyCategories,
+    ...Array.from(accessoryZones.values()),
+  ])
+  const dedupedDuplicateStructuralCategories = dedupeNormalizedStrings(duplicateStructuralCategories)
+
+  if (dedupedDuplicateStructuralCategories.length > 0) {
+    return {
+      mergeMode: 'same_zone_sovereign_merge',
+      mergeResult: 'same_zone_mergeable',
+      mergedReferenceCategories,
+      duplicateStructuralCategories: dedupedDuplicateStructuralCategories,
+      conflictReasons: [],
+      userMessage: null,
+    }
+  }
+
+  return {
+    mergeMode: 'none',
+    mergeResult: 'not_needed',
+    mergedReferenceCategories,
+    duplicateStructuralCategories: [],
+    conflictReasons: [],
+    userMessage: null,
+  }
+}
+
+async function getStudioPromptFromCandidates(
+  admin: ReturnType<typeof createAdminClient>,
+  keys: string[],
+  fallback: string,
+): Promise<string> {
+  for (const key of keys) {
+    try {
+      const { data } = await admin
+        .from('studio_prompts')
+        .select('value')
+        .eq('key', key)
+        .single()
+      const value = data?.value?.trim()
+      if (value) return value
+    } catch {
+      continue
+    }
+  }
+
+  return fallback
 }
 
 async function resolveVertexProjectConfig(): Promise<VertexProjectConfig> {
@@ -4394,7 +6336,7 @@ async function callVertexVirtualTryOn(params: {
     }],
     parameters: {
       sampleCount: 1,
-      personGeneration: 'allow_adult',
+      personGeneration: 'allow_all',
       safetySetting: 'block_medium_and_above',
       addWatermark: false,
       enhancePrompt: false,
@@ -5090,7 +7032,6 @@ export async function preflightProvadorPricing(params: {
     if (b.priority !== a.priority) return b.priority - a.priority
     return b.bbox.area - a.bbox.area
   })
-
   let fittingGroup = inferFittingGroup({
     requestedGroup: requestedFittingGroup,
     explicitCategoryHint,
@@ -5234,9 +7175,7 @@ export async function preflightProvadorPricing(params: {
   const effectiveFittingStrategy = fittingStrategy
   const pricingTier = getProvadorPricingTier({ fittingStrategy: effectiveFittingStrategy, editorialFinisherEligible, fittingRoute: predictedFittingRoute })
   const expectedVertexCallCount = 0
-  const expectedGeminiModelsTried = pricingTier === 'gemini_only_accessories'
-    ? ['gemini-3-pro-image-preview']
-    : ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview']
+  const expectedGeminiModelsTried = ['gemini-2.5-flash-image']
   const estimatedCostBreakdown = buildEstimatedProviderCostBreakdown({
     vertexCallCount: expectedVertexCallCount,
     geminiModelsTried: expectedGeminiModelsTried,
@@ -5289,6 +7228,18 @@ type SovereignProvadorReferencePlan = {
   categories: string[]
   manifest: string[]
   conflictReasons: string[]
+}
+
+type ProvadorReferenceMergeMode = 'none' | 'same_zone_sovereign_merge'
+type ProvadorReferenceMergeResult = 'not_needed' | 'same_zone_mergeable' | 'same_zone_unmergeable' | 'truly_conflicting'
+
+type ProvadorReferenceConflictAnalysis = {
+  mergeMode: ProvadorReferenceMergeMode
+  mergeResult: ProvadorReferenceMergeResult
+  mergedReferenceCategories: string[]
+  duplicateStructuralCategories: string[]
+  conflictReasons: string[]
+  userMessage: string | null
 }
 
 function buildSovereignProvadorReferencePlan(params: {
@@ -5643,6 +7594,7 @@ async function composeSceneWhiteStudioFitting(params: {
   const admin = createAdminClient()
   const apiKey = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY) ?? ''
   if (!apiKey) throw new Error('GOOGLE_API_KEY nao configurada')
+  const whiteStudioVertexModelChain = ['gemini-2.5-flash-image'] as const
 
   const rawReferenceUrls = Array.isArray(params.product_urls)
     ? params.product_urls.filter((url): url is string => typeof url === 'string' && url.startsWith('http'))
@@ -5656,10 +7608,6 @@ async function composeSceneWhiteStudioFitting(params: {
   const referenceMode: FittingReferenceMode = referenceUrls.length > 1 ? 'separate-references' : 'single-look-photo'
   const explicitCategoryHint = getExplicitFittingCategoryHint(params.fitting_category ?? params.vton_category)
   const guidedOverlayReferences = normalizeGuidedOverlayReferences(params.guided_overlay_references)
-  const referencePlan = buildSovereignProvadorReferencePlan({
-    explicitCategoryHint,
-    guidedOverlayReferences,
-  })
   const normalizedPrompt = normalizeFittingPrompt(params.smart_prompt)
   const ratioInstruction = getComposeAspectRatioInstruction(params.aspect_ratio)
   const poseInstruction = getFittingPoseInstruction(params.fitting_pose_preset)
@@ -5667,31 +7615,6 @@ async function composeSceneWhiteStudioFitting(params: {
   const userIntent = normalizedPrompt.intent
     ? `Light direction only: ${normalizedPrompt.intent}. Use it only for micro-pose, facial energy, gaze, or framing. Never let it change submitted item set, colors, logos, text, materials, structure, layering, or styling.`
     : 'No extra creative deviation. Prioritize literal submitted-item fidelity over styling.'
-
-  if (referencePlan.conflictReasons.length > 0) {
-    failGuidedFitting(
-      `Referencias soberanas conflitantes: ${referencePlan.conflictReasons.join(', ')}`,
-      {
-        fitting_engine: 'scene_white_studio',
-        fitting_route: 'scene_white_studio',
-        fitting_primary_route: 'scene_white_studio',
-        provador_engine: 'scene_white_studio',
-        pricing_strategy: 'white_studio_fixed',
-        pricing_tier: 'scene_white_studio',
-        white_studio_lock: true,
-        sovereign_mode: 'strict',
-        smart_prompt_policy: 'light_pose_only',
-        reference_conflict_policy: 'fail_on_same_zone_conflict',
-        fitting_reference_mode: referenceMode,
-        fitting_reference_mix_mode: referenceMode === 'single-look-photo' ? 'single-look-photo' : 'sovereign-complementary',
-        submitted_item_categories: referencePlan.categories,
-        submitted_item_manifest: referencePlan.manifest,
-        conflict_reasons: referencePlan.conflictReasons,
-        failure_state: 'scene_white_studio_reference_conflict',
-      },
-      'scene-white-studio:reference-conflict',
-    )
-  }
 
   async function fetchInlineData(url: string) {
     const response = await fetch(url)
@@ -5708,8 +7631,66 @@ async function composeSceneWhiteStudioFitting(params: {
 
   const portraitInline = await fetchInlineData(params.portrait_url)
   const referenceInlines = await Promise.all(referenceUrls.map((url) => fetchInlineData(url)))
-  const structuralSubmittedCategories = referencePlan.categories.filter((category) => isStructuralBodyCategory(category))
-  const wearableSubmittedCategories = referencePlan.categories.filter((category) => isWearableFittingCategory(category))
+  const detectedReferenceItems = await buildWhiteStudioReferenceItems({
+    referenceMode,
+    referenceBuffers: referenceInlines.map((reference) => reference.buffer),
+    apiKey,
+    explicitCategoryHint,
+  })
+  const sovereignReferenceInlines = detectedReferenceItems.map((item, index) => ({
+    mimeType: item.mimeType,
+    data: item.imageBuffer.toString('base64'),
+    label: referenceMode === 'single-look-photo'
+      ? `[SOVEREIGN ITEM CROP ${index + 1}] Reconstruct this exact submitted garment or accessory only. Ignore the original reference background entirely.`
+      : `[SOVEREIGN ITEM CROP ${index + 1}] Treat only this isolated submitted item as sovereign. Ignore the original reference background entirely.`,
+  }))
+  const referenceConflictAnalysis = analyzeProvadorReferenceConflicts(detectedReferenceItems)
+  const referencePlan = buildSovereignProvadorReferencePlan({
+    explicitCategoryHint,
+    guidedOverlayReferences,
+  })
+  const submittedReferenceCategories = dedupeNormalizedStrings([
+    ...referencePlan.categories,
+    ...detectedReferenceItems.map((item) => item.category),
+  ])
+  const submittedReferenceManifest = dedupeNormalizedStrings([
+    ...referencePlan.manifest,
+    ...detectedReferenceItems.map((item) => item.description),
+    ...submittedReferenceCategories,
+  ]).slice(0, 16)
+
+  if (
+    referenceConflictAnalysis.mergeResult === 'same_zone_unmergeable'
+    || referenceConflictAnalysis.mergeResult === 'truly_conflicting'
+  ) {
+    failGuidedFitting(
+      referenceConflictAnalysis.userMessage ?? 'As referencias enviadas entram em conflito para o mesmo look.',
+      {
+        fitting_engine: 'scene_white_studio',
+        fitting_route: 'scene_white_studio',
+        fitting_primary_route: 'scene_white_studio',
+        provador_engine: 'scene_white_studio',
+        pricing_strategy: 'white_studio_fixed',
+        pricing_tier: 'scene_white_studio',
+        white_studio_lock: true,
+        sovereign_mode: 'strict',
+        smart_prompt_policy: 'light_pose_only',
+        reference_conflict_policy: 'merge_same_zone_when_possible',
+        fitting_reference_mode: referenceMode,
+        fitting_reference_mix_mode: referenceMode === 'single-look-photo' ? 'single-look-photo' : 'sovereign-complementary',
+        submitted_item_categories: submittedReferenceCategories,
+        submitted_item_manifest: submittedReferenceManifest,
+        conflict_reasons: referenceConflictAnalysis.conflictReasons,
+        reference_merge_mode: referenceConflictAnalysis.mergeMode,
+        reference_merge_result: referenceConflictAnalysis.mergeResult,
+        merged_reference_categories: referenceConflictAnalysis.mergedReferenceCategories,
+        failure_state: 'scene_white_studio_reference_conflict',
+      },
+      'scene-white-studio:reference-conflict',
+    )
+  }
+  const structuralSubmittedCategories = submittedReferenceCategories.filter((category) => isStructuralBodyCategory(category))
+  const wearableSubmittedCategories = submittedReferenceCategories.filter((category) => isWearableFittingCategory(category))
   const submittedStructuralChecklist = structuralSubmittedCategories.length > 0
     ? `Submitted structural garment categories that must visibly replace the base outfit where relevant: ${structuralSubmittedCategories.join(', ')}.`
     : ''
@@ -5722,6 +7703,9 @@ async function composeSceneWhiteStudioFitting(params: {
   const singleLookWearRule = referenceMode === 'single-look-photo'
     ? 'If the sovereign reference is a full look photo, reconstruct that exact worn look on the model. Do not keep the base model outfit unchanged.'
     : 'If multiple submitted references define one outfit, combine them into one coherent worn look on the model. Do not keep the base model outfit unchanged in any replaced zone.'
+  const sameZoneMergeRule = referenceConflictAnalysis.mergeResult === 'same_zone_mergeable'
+    ? `SAME-ZONE MERGE LOCK: multiple references describe the same structural category (${referenceConflictAnalysis.duplicateStructuralCategories.join(', ')}). Treat them as one merged sovereign reference pack for that garment. Reconcile details conservatively, preserve literal branding/text/hardware/colors, and never invent hybrid design changes.`
+    : ''
 
   const promptLines = [
     'You are a source-sovereign fashion restoration compositor.',
@@ -5732,12 +7716,14 @@ async function composeSceneWhiteStudioFitting(params: {
       : 'Treat all submitted reference images as complementary sovereign references. Combine all compatible visible items into one single worn look on the base model without dropping any submitted item.',
     'SOVEREIGN ITEM LOCK: preserve submitted garments, footwear, bags, glasses, jewelry, props, printed text, logos, labels, hardware, materials, silhouettes, proportions, shape, trims, closures, and colors literally as submitted.',
     'Act like a restoration artist, not a stylist. Do not reinterpret, improve, beautify, simplify, premium-ize, recolor, resize, restyle, or swap any submitted item.',
+    'REFERENCE BACKGROUND RULE: ignore completely any background, room, street, floor, wall, or environment visible in submitted references. Only the isolated garment/item itself is sovereign.',
     explicitReplacementRule,
     singleLookWearRule,
+    sameZoneMergeRule,
     submittedStructuralChecklist,
     submittedWearableChecklist,
-    referencePlan.manifest.length > 0
-      ? `Submitted sovereign checklist: ${referencePlan.manifest.join(', ')}.`
+    submittedReferenceManifest.length > 0
+      ? `Submitted sovereign checklist: ${submittedReferenceManifest.join(', ')}.`
       : '',
     'If a submitted item has visible text, branding, logo, print, or packaging, keep it exactly identical. Do not change a single letter, mark, color, or placement.',
     'Keep every intentional submitted accessory or prop if it is visible in the reference. Do not omit items just because they are small.',
@@ -5750,7 +7736,7 @@ async function composeSceneWhiteStudioFitting(params: {
     'Output: photorealistic premium studio fashion photo, natural commercial lighting, no collage, no watermark, no text outside the submitted item itself.',
   ].filter(Boolean)
   const finalPrompt = promptLines.join(' ')
-  const geminiChain = ['gemini-3-pro-image-preview', 'gemini-3.1-flash-image-preview']
+  const geminiChain = [...whiteStudioVertexModelChain]
   const modelChainTried = new Set<string>()
   let lastGeminiError = ''
 
@@ -5767,18 +7753,14 @@ async function composeSceneWhiteStudioFitting(params: {
     for (const model of geminiChain) {
       modelChainTried.add(model)
       try {
-        console.log(`[studio] fitting scene_white_studio | trying=${model} stage=${stageLabel} mode=${referenceMode} refs=${referenceInlines.length}`)
+        console.log(`[studio] fitting scene_white_studio | trying=${model} stage=${stageLabel} mode=${referenceMode} refs=${sovereignReferenceInlines.length}`)
         const parts: Array<Record<string, unknown>> = [
           { text: '[BASE MODEL PHOTO] Preserve this person exactly.' },
           { inlineData: { mimeType: portraitInline.mimeType, data: portraitInline.data } },
         ]
 
-        referenceInlines.forEach((reference, index) => {
-          parts.push({
-            text: referenceMode === 'single-look-photo'
-              ? '[SOVEREIGN LOOK REFERENCE] Preserve every intentional visible item and object from this image.'
-              : `[SOVEREIGN LOOK REFERENCE ${index + 1}] Combine this reference faithfully into the final white-studio look.`,
-          })
+        sovereignReferenceInlines.forEach((reference) => {
+          parts.push({ text: reference.label })
           parts.push({ inlineData: { mimeType: reference.mimeType, data: reference.data } })
         })
 
@@ -5822,30 +7804,19 @@ async function composeSceneWhiteStudioFitting(params: {
   }
 
   // Primary: Vertex VTO (virtual-try-on-001) — usa créditos Vertex AI
-  try {
+  let sceneWhiteStudioVtoSkippedReason = ''
+  const vertexVtoEligible = referenceInlines.length === 1 && detectedReferenceItems.length === 1
+  if (!vertexVtoEligible) {
+    sceneWhiteStudioVtoSkippedReason = referenceInlines.length > 1 ? 'multi_ref_not_supported' : 'segmented_multi_item_not_supported'
+    console.log(`[studio] fitting vto | skipped=${sceneWhiteStudioVtoSkippedReason} mode=${referenceMode} refs=${referenceInlines.length} sovereign_items=${detectedReferenceItems.length}`)
+  } else try {
     console.log(`[studio] fitting vto | trying=vertex:virtual-try-on-001 mode=${referenceMode} refs=${referenceInlines.length}`)
-    const vtoItems: SegmentedFittingItem[] = referenceInlines.map((ref, idx) => ({
-      imageBuffer: ref.buffer,
-      mimeType: ref.mimeType,
-      bbox: { left: 0, top: 0, width: 1, height: 1, area: 1 },
-      profile: {
-        category: explicitCategoryHint ?? params.fitting_category ?? params.vton_category ?? 'garment',
-        has_text_logo: false,
-        deformation_risk: 'low' as const,
-        shape_complexity: 'medium' as const,
-        placement_suggestion: 'wear',
-        key_features: [],
-      },
-      category: explicitCategoryHint ?? params.fitting_category ?? params.vton_category ?? 'garment',
-      description: `reference item ${idx + 1}`,
-      priority: idx,
-    }))
     const vtoResult = await callVertexVirtualTryOn({
       portraitBuffer: portraitInline.buffer,
       portraitMimeType: portraitInline.mimeType,
-      items: vtoItems,
-      fittingRoute: referenceInlines.length > 1 ? 'vertex-vto-look' : 'vertex-vto-wear',
-      executionMode: referenceInlines.length > 1 ? 'multi-ref-batch' : 'single-photo-whole-look',
+      items: detectedReferenceItems,
+      fittingRoute: 'vertex-vto-wear',
+      executionMode: 'single-photo-whole-look',
     })
     if (vtoResult.imageBase64) {
       const vtoBuffer = Buffer.from(vtoResult.imageBase64, 'base64')
@@ -5864,8 +7835,15 @@ async function composeSceneWhiteStudioFitting(params: {
           white_studio_lock: true,
           sovereign_mode: 'strict',
           fitting_reference_mode: referenceMode,
-          submitted_item_categories: referencePlan.categories,
-          submitted_item_manifest: referencePlan.manifest,
+          submitted_item_categories: submittedReferenceCategories,
+          submitted_item_manifest: submittedReferenceManifest,
+          reference_conflict_policy: 'merge_same_zone_when_possible',
+          reference_merge_mode: referenceConflictAnalysis.mergeMode,
+          reference_merge_result: referenceConflictAnalysis.mergeResult,
+          merged_reference_categories: referenceConflictAnalysis.mergedReferenceCategories,
+          scene_white_studio_vto_skipped_reason: '',
+          scene_white_studio_model_used: 'virtual-try-on-001',
+          scene_white_studio_strategy_used: 'vertex_vto_predict',
         },
       }
     }
@@ -5874,8 +7852,68 @@ async function composeSceneWhiteStudioFitting(params: {
     console.warn(`[studio] fitting vto | error, falling back to gemini chain: ${vtoError instanceof Error ? vtoError.message : String(vtoError)}`)
   }
 
+  async function runSceneWhiteStudioAudit(buffer: Buffer) {
+    const audit = await auditSovereignWhiteStudioComposition({
+      apiKey,
+      portraitInline: { mimeType: portraitInline.mimeType, data: portraitInline.data },
+      referenceInlines: sovereignReferenceInlines.map((reference) => ({
+        mimeType: reference.mimeType,
+        data: reference.data,
+      })),
+      generatedBuffer: buffer,
+      referenceMode,
+    })
+
+    const blockingIssues = audit.missingOrDistortedItems.filter((issue) => isBlockingWhiteStudioIssue(issue, {
+      advisoryMode: true,
+      structuralCategories: structuralSubmittedCategories,
+    }))
+
+    return {
+      audit,
+      blockingIssues,
+      approved: audit.approved && blockingIssues.length === 0,
+    }
+  }
+
   const attemptOne = await runGeminiWhiteStudioAttempt(finalPrompt, 'attempt-1')
-  if (!attemptOne.buffer) {
+  let selectedWhiteStudioBuffer = attemptOne.buffer
+  let selectedWhiteStudioModel = attemptOne.modelUsed
+  let selectedWhiteStudioAudit: Awaited<ReturnType<typeof runSceneWhiteStudioAudit>> | null = null
+  let whiteStudioAuditRetryUsed = false
+
+  if (attemptOne.buffer) {
+    selectedWhiteStudioAudit = await runSceneWhiteStudioAudit(attemptOne.buffer)
+
+    if (!selectedWhiteStudioAudit.approved) {
+      const retryPrompt = [
+        finalPrompt,
+        'WHITE BACKGROUND ENFORCEMENT: the final image must use a perfectly pure white seamless studio background only.',
+        'Do not borrow, preserve, reinterpret, or echo any wall, floor, street, room, shadow shape, horizon, texture, or environmental color from any submitted reference.',
+        'Only the isolated garment/item is sovereign; the reference environment must be ignored completely.',
+        selectedWhiteStudioAudit.blockingIssues.length > 0
+          ? `Mandatory corrections: ${selectedWhiteStudioAudit.blockingIssues.join('; ')}.`
+          : '',
+        selectedWhiteStudioAudit.audit.notes.length > 0
+          ? `Audit notes: ${selectedWhiteStudioAudit.audit.notes.join('; ')}.`
+          : '',
+      ].filter(Boolean).join(' ')
+
+      const retryAttempt = await runGeminiWhiteStudioAttempt(retryPrompt, 'audit-retry')
+      if (retryAttempt.buffer) {
+        const retryAudit = await runSceneWhiteStudioAudit(retryAttempt.buffer)
+        whiteStudioAuditRetryUsed = true
+
+        if (retryAudit.approved || !selectedWhiteStudioAudit.approved) {
+          selectedWhiteStudioBuffer = retryAttempt.buffer
+          selectedWhiteStudioModel = retryAttempt.modelUsed
+          selectedWhiteStudioAudit = retryAudit
+        }
+      }
+    }
+  }
+
+  if (!selectedWhiteStudioBuffer) {
     const failureState = resolveSceneWhiteStudioFailureState(lastGeminiError)
 
     if (failureState === 'scene_white_studio_provider_unavailable') {
@@ -5910,6 +7948,11 @@ async function composeSceneWhiteStudioFitting(params: {
             scene_white_studio_model_chain_tried: Array.from(modelChainTried),
             scene_white_studio_last_provider_error: lastGeminiError,
             scene_white_studio_reference_mode: referenceMode,
+            scene_white_studio_vto_skipped_reason: sceneWhiteStudioVtoSkippedReason,
+            reference_conflict_policy: 'merge_same_zone_when_possible',
+            reference_merge_mode: referenceConflictAnalysis.mergeMode,
+            reference_merge_result: referenceConflictAnalysis.mergeResult,
+            merged_reference_categories: referenceConflictAnalysis.mergedReferenceCategories,
           },
         }
       } catch (fallbackError: unknown) {
@@ -5935,6 +7978,11 @@ async function composeSceneWhiteStudioFitting(params: {
             scene_white_studio_model_chain_tried: Array.from(modelChainTried),
             scene_white_studio_last_provider_error: lastGeminiError,
             scene_white_studio_reference_mode: referenceMode,
+            scene_white_studio_vto_skipped_reason: sceneWhiteStudioVtoSkippedReason,
+            reference_conflict_policy: 'merge_same_zone_when_possible',
+            reference_merge_mode: referenceConflictAnalysis.mergeMode,
+            reference_merge_result: referenceConflictAnalysis.mergeResult,
+            merged_reference_categories: referenceConflictAnalysis.mergedReferenceCategories,
           },
           fallbackFailure.studioRefundReason ?? 'scene-white-studio:legacy-fallback-failed',
         )
@@ -5957,28 +8005,34 @@ async function composeSceneWhiteStudioFitting(params: {
         white_studio_lock: true,
         sovereign_mode: 'strict',
         smart_prompt_policy: 'light_pose_only',
-        reference_conflict_policy: 'fail_on_same_zone_conflict',
+        reference_conflict_policy: 'merge_same_zone_when_possible',
         fitting_reference_mode: referenceMode,
         fitting_reference_mix_mode: referenceMode === 'single-look-photo' ? 'single-look-photo' : 'sovereign-complementary',
         required_all_submitted_items: true,
-        submitted_item_categories: referencePlan.categories,
-        submitted_item_manifest: referencePlan.manifest,
+        submitted_item_categories: submittedReferenceCategories,
+        submitted_item_manifest: submittedReferenceManifest,
         model_chain_tried: Array.from(modelChainTried),
         last_provider_error: lastGeminiError,
+        reference_merge_mode: referenceConflictAnalysis.mergeMode,
+        reference_merge_result: referenceConflictAnalysis.mergeResult,
+        merged_reference_categories: referenceConflictAnalysis.mergedReferenceCategories,
+        scene_white_studio_vto_skipped_reason: sceneWhiteStudioVtoSkippedReason,
+        scene_white_studio_model_used: '',
+        scene_white_studio_strategy_used: '',
         failure_state: failureState,
       },
       'scene-white-studio:provider-unavailable',
     )
   }
 
-  const publicUrl = await uploadSceneWhiteStudioBuffer(attemptOne.buffer)
+  const publicUrl = await uploadSceneWhiteStudioBuffer(selectedWhiteStudioBuffer)
 
   const extraData: Record<string, unknown> = {
     fitting_engine: 'scene_white_studio',
     fitting_route: 'scene_white_studio',
     fitting_primary_route: 'scene_white_studio',
     provador_engine: 'scene_white_studio',
-    stage1_engine: `gemini:${attemptOne.modelUsed}`,
+    stage1_engine: `gemini:${selectedWhiteStudioModel}`,
     stage2_engine: 'none',
     fitting_strategy: 'scene_white_studio',
     pricing_strategy: 'white_studio_fixed',
@@ -5988,13 +8042,13 @@ async function composeSceneWhiteStudioFitting(params: {
     provador_delivery_basis: 'direct_sovereign_generation',
     sovereign_mode: 'strict',
     smart_prompt_policy: 'light_pose_only',
-    reference_conflict_policy: 'fail_on_same_zone_conflict',
+    reference_conflict_policy: 'merge_same_zone_when_possible',
     model_chain_tried: Array.from(modelChainTried),
     white_studio_lock: true,
     required_all_submitted_items: true,
-    submitted_item_categories: referencePlan.categories,
+    submitted_item_categories: submittedReferenceCategories,
     submitted_non_fashion_items: [],
-    submitted_item_manifest: referencePlan.manifest,
+    submitted_item_manifest: submittedReferenceManifest,
     missing_or_distorted_items: [],
     advisory_missing_or_distorted_items: [],
     soft_missing_or_distorted_items: [],
@@ -6003,6 +8057,18 @@ async function composeSceneWhiteStudioFitting(params: {
     fitting_reference_mode: referenceMode,
     fitting_input_mode: referenceMode,
     fitting_reference_mix_mode: referenceMode === 'single-look-photo' ? 'single-look-photo' : 'sovereign-complementary',
+    reference_merge_mode: referenceConflictAnalysis.mergeMode,
+    reference_merge_result: referenceConflictAnalysis.mergeResult,
+    merged_reference_categories: referenceConflictAnalysis.mergedReferenceCategories,
+    scene_white_studio_vto_skipped_reason: sceneWhiteStudioVtoSkippedReason,
+    scene_white_studio_model_used: selectedWhiteStudioModel,
+    scene_white_studio_strategy_used: 'vertex_generate_content',
+    scene_white_studio_audit_approved: selectedWhiteStudioAudit?.approved ?? false,
+    scene_white_studio_audit_retry_used: whiteStudioAuditRetryUsed,
+    scene_white_studio_audit_blocking_issues: selectedWhiteStudioAudit?.blockingIssues ?? [],
+    scene_white_studio_audit_notes: selectedWhiteStudioAudit
+      ? [...selectedWhiteStudioAudit.audit.missingOrDistortedItems, ...selectedWhiteStudioAudit.audit.notes]
+      : [],
     generation_budget_profile: 'direct-sovereign-scene-white-studio',
     removed_directives: normalizedPrompt.removedDirectives,
   }
@@ -6111,6 +8177,16 @@ async function composeDedicatedFittingScene(params: {
     if (b.priority !== a.priority) return b.priority - a.priority
     return b.bbox.area - a.bbox.area
   })
+  const referenceConflictAnalysis = referenceMode === 'separate-references'
+    ? analyzeProvadorReferenceConflicts(detectedItems.filter((item) => isWearableFittingCategory(item.category)))
+    : {
+        mergeMode: 'none',
+        mergeResult: 'not_needed',
+        mergedReferenceCategories: dedupeNormalizedStrings(detectedItems.map((item) => item.category)),
+        duplicateStructuralCategories: [],
+        conflictReasons: [],
+        userMessage: null,
+      } satisfies ProvadorReferenceConflictAnalysis
 
   let fittingGroup = inferFittingGroup({
     requestedGroup: requestedFittingGroup,
@@ -6511,8 +8587,10 @@ async function composeDedicatedFittingScene(params: {
         }
       }
 
-      const conflictMessage = validateSeparateReferenceItems(wearableReferenceItems)
-      if (conflictMessage) {
+      if (
+        referenceConflictAnalysis.mergeResult === 'same_zone_unmergeable'
+        || referenceConflictAnalysis.mergeResult === 'truly_conflicting'
+      ) {
         const failureData = {
           fitting_group: fittingGroup,
           fitting_reference_mode: referenceMode,
@@ -6521,9 +8599,18 @@ async function composeDedicatedFittingScene(params: {
           detected_categories: wearableReferenceItems.map((item) => item.category),
           selected_item_categories: [],
           selected_item_zones: [],
+          reference_conflict_policy: 'merge_same_zone_when_possible',
+          reference_merge_mode: referenceConflictAnalysis.mergeMode,
+          reference_merge_result: referenceConflictAnalysis.mergeResult,
+          merged_reference_categories: referenceConflictAnalysis.mergedReferenceCategories,
+          failure_state: 'guided_reference_conflict',
         }
         console.warn(`[studio] fitting preflight conflict | categories=${wearableReferenceItems.map((item) => item.category).join(',')}`)
-        failGuidedFitting(conflictMessage, failureData, 'guided:compose-reference-conflict')
+        failGuidedFitting(
+          referenceConflictAnalysis.userMessage ?? 'As referencias enviadas entram em conflito para o mesmo look.',
+          failureData,
+          'guided:compose-reference-conflict',
+        )
       }
 
       if (wearableReferenceItems.length === 0) {
@@ -6538,7 +8625,9 @@ async function composeDedicatedFittingScene(params: {
         failGuidedFitting(buildFittingGroupMismatchMessage(fittingGroup), failureData, 'guided:compose-group-mismatch')
       }
 
-      const selectedLook = selectFittingItemsForLook(wearableReferenceItems, 3)
+      const selectedLook = selectFittingItemsForLook(wearableReferenceItems, 3, {
+        allowDuplicateStructuralCategories: referenceConflictAnalysis.duplicateStructuralCategories,
+      })
       selectedItems = selectedLook.items
       selectedZones = selectedLook.selectedZones
       omittedItemCount = selectedLook.omittedCount
@@ -6669,6 +8758,10 @@ async function composeDedicatedFittingScene(params: {
     segmented_items_count: detectedItems.length,
     omitted_item_count: omittedItemCount,
     detected_categories: detectedItems.map((item) => item.category),
+    reference_conflict_policy: 'merge_same_zone_when_possible',
+    reference_merge_mode: referenceConflictAnalysis.mergeMode,
+    reference_merge_result: referenceConflictAnalysis.mergeResult,
+    merged_reference_categories: referenceConflictAnalysis.mergedReferenceCategories,
     selected_item_categories: provadorRelevantItems.map((item) => item.category),
     selected_item_zones: selectedZones,
     structural_categories: provadorSelection.structuralCategories,
@@ -9672,9 +11765,171 @@ export async function joinVideos(params: {
   }
 }
 
-export async function startVeo3DirectGoogle(params: {
+export async function joinVideosRobust(params: {
+  video_urls: string[]
+  assetId: string
+  userId: string
+}) {
+  interface FfmpegCommandEvents {
+    on(event: 'end', listener: () => void): void
+    on(event: 'error', listener: (error: Error, stdout?: string, stderr?: string) => void): void
+    run(): void
+  }
+
+  const videoUrls = params.video_urls
+    .map((url) => String(url ?? '').trim())
+    .filter(Boolean)
+
+  if (videoUrls.length < 2) throw new Error('Minimo de 2 videos para unir')
+
+  const admin = createAdminClient()
+  const os = await import('os')
+  const path = await import('path')
+  const fs = await import('fs')
+  const childProcess = await import('child_process')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const ffmpegPath = require('ffmpeg-static') as string | null
+  if (!ffmpegPath) throw new Error('FFmpeg nao esta disponivel no servidor')
+  const ffmpegExecutable = ffmpegPath
+
+  const { default: ffmpeg } = await import('fluent-ffmpeg')
+  ffmpeg.setFfmpegPath(ffmpegExecutable)
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'studio-join-'))
+
+  async function runFfmpeg(command: FfmpegCommand, label: string) {
+    await new Promise<void>((resolve, reject) => {
+      const eventedCommand = command as unknown as FfmpegCommandEvents
+      eventedCommand.on('end', () => resolve())
+      eventedCommand.on('error', (error: Error, stdout?: string, stderr?: string) => {
+        const details = [error.message, stderr, stdout]
+          .map((value) => String(value ?? '').trim())
+          .filter(Boolean)
+          .join(' | ')
+        reject(new Error(`FFmpeg falhou em ${label}: ${details}`))
+      })
+      eventedCommand.run()
+    })
+  }
+
+  async function inputHasAudio(inputPath: string) {
+    return await new Promise<boolean>((resolve, reject) => {
+      const proc = childProcess.spawn(
+        ffmpegExecutable,
+        ['-hide_banner', '-i', inputPath],
+        { windowsHide: true },
+      )
+
+      let output = ''
+
+      proc.stdout.on('data', (chunk) => {
+        output += chunk.toString()
+      })
+      proc.stderr.on('data', (chunk) => {
+        output += chunk.toString()
+      })
+      proc.on('error', reject)
+      proc.on('close', () => {
+        resolve(/Stream #\d+:\d+(?:\[[^\]]+\])?.*Audio:/i.test(output))
+      })
+    })
+  }
+
+  async function normalizeClip(inputPath: string, index: number) {
+    const normalizedPath = path.join(tmpDir, `clip-normalized-${index}.mp4`)
+    const hasAudio = await inputHasAudio(inputPath)
+    const command = ffmpeg().input(inputPath)
+
+    if (!hasAudio) {
+      command.input('anullsrc=channel_layout=stereo:sample_rate=48000').inputFormat('lavfi')
+    }
+
+    command
+      .outputOptions([
+        '-map', '0:v:0',
+        ...(hasAudio ? ['-map', '0:a:0'] : ['-map', '1:a:0']),
+        '-c:v', 'libx264',
+        '-preset', 'veryfast',
+        '-crf', '21',
+        '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=30,setsar=1',
+        '-pix_fmt', 'yuv420p',
+        '-c:a', 'aac',
+        '-b:a', '160k',
+        '-ar', '48000',
+        '-ac', '2',
+        '-movflags', '+faststart',
+        '-shortest',
+      ])
+      .output(normalizedPath)
+
+    await runFfmpeg(command, `normalizacao do clipe ${index + 1}`)
+    return normalizedPath
+  }
+
+  try {
+    const localPaths: string[] = []
+    const normalizedPaths: string[] = []
+
+    for (let index = 0; index < videoUrls.length; index++) {
+      const url = videoUrls[index]
+      const response = await fetch(url)
+      if (!response.ok) {
+        throw new Error(`Falha ao baixar video ${index + 1}: ${response.status}`)
+      }
+
+      const localPath = path.join(tmpDir, `clip-original-${index}.mp4`)
+      fs.writeFileSync(localPath, Buffer.from(await response.arrayBuffer()))
+      localPaths.push(localPath)
+    }
+
+    for (let index = 0; index < localPaths.length; index++) {
+      normalizedPaths.push(await normalizeClip(localPaths[index], index))
+    }
+
+    const listPath = path.join(tmpDir, 'concat-list.txt')
+    const listContent = normalizedPaths
+      .map((filePath) => `file '${path.resolve(filePath).replace(/\\/g, '/')}'`)
+      .join('\n')
+    fs.writeFileSync(listPath, listContent, 'utf8')
+
+    const outputPath = path.join(tmpDir, 'joined.mp4')
+    const concatCommand = ffmpeg()
+      .input(listPath)
+      .inputOptions(['-f', 'concat', '-safe', '0'])
+      .outputOptions([
+        '-fflags', '+genpts',
+        '-c:v', 'libx264',
+        '-preset', 'veryfast',
+        '-crf', '21',
+        '-pix_fmt', 'yuv420p',
+        '-c:a', 'aac',
+        '-b:a', '160k',
+        '-ar', '48000',
+        '-ac', '2',
+        '-movflags', '+faststart',
+      ])
+      .output(outputPath)
+
+    await runFfmpeg(concatCommand, 'concatenacao final')
+
+    const finalBuffer = fs.readFileSync(outputPath)
+    const storagePath = `${params.userId}/${params.assetId}-joined.mp4`
+    const { error: uploadErr } = await admin.storage
+      .from('studio')
+      .upload(storagePath, finalBuffer, { contentType: 'video/mp4', upsert: true })
+    if (uploadErr) throw new Error(`Upload falhou: ${uploadErr.message}`)
+
+    const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(storagePath)
+    return publicUrl
+  } finally {
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ignora */ }
+  }
+}
+
+async function startVeo3DirectGoogleLegacy(params: {
   source_image_url: string
   motion_prompt:    string
+  aspect_ratio?:    string
   model_prompt?:    string
   motion_prompt_raw?: string
   motion_prompt_normalized?: string
@@ -9723,23 +11978,16 @@ export async function startVeo3DirectGoogle(params: {
 
   const base64Image = imgBuffer.toString('base64')
   const mimeType = 'image/jpeg'
-  const defaultMotionPrompt = await getStudioPrompt(admin, 'video_veo_default_prompt', VIDEO_MOTION_FALLBACK)
-  const finalMotion = params.prompt_override
-    ? params.prompt_override
-    : prepareLockedVideoMotionPrompt({
-      motionPrompt: params.motion_prompt || defaultMotionPrompt,
-      modelPrompt: params.model_prompt,
-      sourceAsset: {
-        type: 'video_source_frame',
-        input_params: {
-          source_visible_item_manifest: params.source_visible_item_manifest ?? [],
-          preserve_all_visible_source_items: true,
-          product_urls: params.strict_source_fidelity ? ['strict'] : [],
-          source_text_logo_lock: params.source_text_logo_lock ?? false,
-          source_color_lock: params.source_color_lock ?? false,
-        },
-      },
-    }).finalPrompt
+  const promptAnalysis = analyzeVideoPrompt(params.motion_prompt_normalized ?? params.motion_prompt ?? '')
+  const veoPolicySafePrompt = buildVeoPolicySafeMotionPrompt({
+    userRequest: promptAnalysis.veoUserRequest,
+    promptMode: promptAnalysis.promptMode,
+    speechInstruction: promptAnalysis.speechInstruction,
+    sourceVisibleItemManifest: params.source_visible_item_manifest,
+    sourceTextLogoLock: params.source_text_logo_lock,
+    sourceColorLock: params.source_color_lock,
+    strictSourceFidelity: params.strict_source_fidelity,
+  })
   function resolveVeoResolution(model: string) {
     const requested = params.quality === '1080p' ? '1080p' : '720p'
     if (/^veo-3\.0(?:-fast)?-generate(?:-preview|-001)?$/i.test(model) && requested === '1080p') return '720p'
@@ -9773,7 +12021,7 @@ export async function startVeo3DirectGoogle(params: {
   async function requestVeoOperation(model: string, generateAudio: boolean) {
     const resolution = resolveVeoResolution(model)
     const parameters: Record<string, unknown> = {
-      aspectRatio: '9:16',
+      aspectRatio: params.aspect_ratio ?? '9:16',
       durationSeconds,
       resolution,
     }
@@ -9788,7 +12036,7 @@ export async function startVeo3DirectGoogle(params: {
         feature: 'video_generation',
         body: {
           instances: [{
-            prompt: finalMotion,
+            prompt: veoPolicySafePrompt,
             image: { bytesBase64Encoded: base64Image, mimeType },
           }],
           parameters,
@@ -9871,6 +12119,7 @@ export async function startVeo3DirectGoogle(params: {
     motion_prompt: params.motion_prompt_raw ?? params.motion_prompt,
     motion_prompt_raw: params.motion_prompt_raw ?? params.motion_prompt,
     motion_prompt_normalized: params.motion_prompt_normalized ?? params.motion_prompt,
+    veo_prompt_strategy: 'policy_safe_compact',
     video_lock_policy: params.video_lock_policy ?? VIDEO_LOCK_POLICY,
     scene_change_requested: params.scene_change_requested ?? false,
     scene_change_blocked: params.scene_change_blocked ?? false,
@@ -9885,6 +12134,7 @@ export async function startVeo3DirectGoogle(params: {
     source_color_lock: params.source_color_lock ?? false,
     veo_model: usedModel,
     duration: durationSeconds,
+    aspect_ratio: params.aspect_ratio ?? '9:16',
     ...(params.inputParamsPatch ?? {}),
   })
 
@@ -9892,8 +12142,349 @@ export async function startVeo3DirectGoogle(params: {
 }
 
 // â”€â”€ Image-to-Image (Angles / Poses) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export async function startVeo3DirectGoogle(params: {
+  source_image_url: string
+  motion_prompt: string
+  aspect_ratio?: string
+  model_prompt?: string
+  motion_prompt_raw?: string
+  motion_prompt_normalized?: string
+  removed_directives?: string[]
+  video_lock_policy?: string
+  scene_change_requested?: boolean
+  scene_change_blocked?: boolean
+  duration?: number
+  quality?: string
+  assetId: string
+  userId: string
+  prompt_override?: string
+  generate_audio?: boolean
+  strict_source_fidelity?: boolean
+  source_visible_item_manifest?: string[]
+  source_text_logo_lock?: boolean
+  source_color_lock?: boolean
+  guideline_block_handling?: 'legacy' | 'video'
+  scene_livre?: boolean
+  inputParamsPatch?: Record<string, unknown>
+}) {
+  const hasVertex = !!process.env.GOOGLE_VERTEX_KEY && !!process.env.VERTEX_PROJECT_ID
+  const hasDirectKey = !!(process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)
+  if (!hasVertex && !hasDirectKey) {
+    throw new Error('Vertex AI (GOOGLE_VERTEX_KEY + VERTEX_PROJECT_ID) ou GOOGLE_API_KEY nao configurados')
+  }
+
+  const admin = createAdminClient()
+  let imgBuffer: Buffer
+
+  if (params.source_image_url.toLowerCase().includes('.mp4')) {
+    console.log('[studio] Detectado video como origem para Veo3. Extraindo ultimo frame...')
+    try {
+      imgBuffer = await extractVideoFrame(params.source_image_url)
+    } catch (e) {
+      console.error('[studio] Falha ao extrair frame on-the-fly:', e)
+      throw new Error('Nao foi possivel processar a continuacao: falha ao extrair frame do video anterior.')
+    }
+  } else {
+    const imgRes = await fetch(params.source_image_url)
+    if (!imgRes.ok) throw new Error('Falha ao baixar imagem fonte para Veo3 Google')
+    imgBuffer = Buffer.from(await imgRes.arrayBuffer())
+  }
+
+  const base64Image = imgBuffer.toString('base64')
+  const mimeType = 'image/jpeg'
+  const originalUserRequest = params.prompt_override
+    ? normalizeTalkingWhitespace(params.prompt_override)
+    : normalizeVideoUserRequest(params.motion_prompt_normalized || params.motion_prompt || '')
+  const existingAttemptHistory = normalizeVeoPromptAttemptHistory(params.inputParamsPatch?.veo_prompt_attempt_history)
+  const requestedRetryCount = Math.max(0, Number(params.inputParamsPatch?.veo_prompt_retry_count ?? 0))
+  const strategyChain: VeoPromptRewriteStrategy[] = ['policy_safe_standard', 'policy_safe_compact', 'policy_safe_template']
+  const wantsAudio = params.generate_audio ?? false
+  const durationSeconds = 8
+
+  function resolveVeoResolution(model: string) {
+    const requested = params.quality === '1080p' ? '1080p' : '720p'
+    if (/^veo-3\.0(?:-fast)?-generate(?:-preview|-001)?$/i.test(model) && requested === '1080p') return '720p'
+    return requested
+  }
+
+  function uniqueModelList(models: Array<string | undefined>) {
+    return models
+      .map((model) => String(model ?? '').trim())
+      .filter(Boolean)
+      .filter((model, index, array) => array.indexOf(model) === index)
+  }
+
+  const primaryModel = wantsAudio
+    ? (process.env.GOOGLE_VEO_AUDIO_MODEL ?? 'veo-3.1-generate-001')
+    : (process.env.GOOGLE_VEO_SILENT_MODEL ?? 'veo-3.1-generate-001')
+  const audioFallbackModels = wantsAudio
+    ? uniqueModelList([
+        process.env.GOOGLE_VEO_AUDIO_FALLBACK_MODEL,
+        'veo-3.1-fast-generate-001',
+        'veo-3.0-generate-001',
+        'veo-3.0-fast-generate-001',
+      ])
+    : []
+
+  async function requestVeoOperation(model: string, generateAudio: boolean, promptText: string) {
+    const parameters: Record<string, unknown> = {
+      aspectRatio: params.aspect_ratio ?? '9:16',
+      durationSeconds,
+      resolution: resolveVeoResolution(model),
+    }
+    if (generateAudio) parameters.generateAudio = true
+
+    try {
+      const res = await fetchGooglePredictLongRunning({
+        model,
+        feature: 'video_generation',
+        body: {
+          instances: [{
+            prompt: promptText,
+            image: { bytesBase64Encoded: base64Image, mimeType },
+          }],
+          parameters,
+        },
+      })
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '')
+        return { ok: false as const, status: res.status, errText }
+      }
+      return { ok: true as const, body: await res.json() }
+    } catch (error: any) {
+      const errText = error instanceof Error ? error.message : String(error)
+      const status = (error && typeof error === 'object' && 'status' in error) ? Number(error.status) || 503 : 503
+      return { ok: false as const, status, errText }
+    }
+  }
+
+  async function submitPromptWithModelFallback(promptText: string) {
+    let usedModel = primaryModel
+    let operationResponse = await requestVeoOperation(primaryModel, wantsAudio, promptText)
+    let audioDisabledFallbackReason = ''
+
+    if (!operationResponse.ok && wantsAudio) {
+      const fallbackReason = /generateAudio.+isn'?t supported by this model/i.test(operationResponse.errText)
+        ? 'generateAudio_unsupported'
+        : operationResponse.status === 404
+          ? 'model_not_found'
+          : operationResponse.status === 400 && /not found|unsupported/i.test(operationResponse.errText)
+            ? 'invalid_model'
+            : ''
+
+      if (fallbackReason) {
+        for (const fallbackAudioModel of audioFallbackModels) {
+          if (fallbackAudioModel === usedModel) continue
+          console.warn(`[studio] veo audio fallback | primary_model=${usedModel} fallback_model=${fallbackAudioModel} reason=${fallbackReason}`)
+          const fallbackResponse = await requestVeoOperation(fallbackAudioModel, true, promptText)
+          if (fallbackResponse.ok) {
+            usedModel = fallbackAudioModel
+            operationResponse = fallbackResponse
+            break
+          }
+          operationResponse = fallbackResponse
+          usedModel = fallbackAudioModel
+        }
+      }
+
+      if (!operationResponse.ok && fallbackReason) {
+        console.warn(`[studio] veo audio disabled fallback | requested_model=${usedModel} reason=${fallbackReason}`)
+        const silentModel = process.env.GOOGLE_VEO_SILENT_MODEL ?? usedModel
+        const silentResponse = await requestVeoOperation(silentModel, false, promptText)
+        if (silentResponse.ok) {
+          usedModel = silentModel
+          operationResponse = silentResponse
+          audioDisabledFallbackReason = fallbackReason
+        }
+      }
+    }
+
+    return { operationResponse, usedModel, audioDisabledFallbackReason }
+  }
+
+  const attemptHistory = [...existingAttemptHistory]
+  let finalPackage: VeoPromptSafetyPackage | null = null
+  let finalUsedModel = primaryModel
+  let finalAudioDisabledFallbackReason = ''
+  let finalBody: Record<string, unknown> | null = null
+  let lastGuidelineErrorMessage = ''
+  let lastGuidelineSupportCode = ''
+  let lastGuidelineBlockKind: VeoGuidelineBlockKind = 'none'
+  let lastTerminalStatus = 503
+  let lastTerminalErrorText = ''
+
+  for (let attemptIndex = requestedRetryCount; attemptIndex < VEO_PROMPT_MAX_ATTEMPTS; attemptIndex++) {
+    const strategy = strategyChain[Math.min(attemptIndex, strategyChain.length - 1)] ?? 'policy_safe_template'
+    const safetyPackage = await buildVeoPromptSafetyPackage({
+      admin,
+      originalPrompt: originalUserRequest || VIDEO_DEFAULT_USER_REQUEST,
+      strategy,
+      strictSourceFidelity: params.strict_source_fidelity,
+      sourceVisibleItemManifest: params.source_visible_item_manifest,
+      sourceTextLogoLock: params.source_text_logo_lock,
+      sourceColorLock: params.source_color_lock,
+      sceneLivre: params.scene_livre,
+    })
+    const { operationResponse, usedModel, audioDisabledFallbackReason } = await submitPromptWithModelFallback(safetyPackage.sanitizedPrompt)
+
+    if (operationResponse.ok) {
+      finalPackage = safetyPackage
+      finalUsedModel = usedModel
+      finalAudioDisabledFallbackReason = audioDisabledFallbackReason
+      finalBody = operationResponse.body as Record<string, unknown>
+      attemptHistory.push({
+        attempt: attemptIndex + 1,
+        strategy: safetyPackage.rewriteStrategy,
+        template_key: safetyPackage.templateKey,
+        risk_labels: safetyPackage.riskLabels,
+        validation_warnings: safetyPackage.validationWarnings,
+        sanitized_prompt: safetyPackage.sanitizedPrompt,
+        status: 'submitted',
+        created_at: new Date().toISOString(),
+      })
+      break
+    }
+
+    lastTerminalStatus = operationResponse.status
+    lastTerminalErrorText = operationResponse.errText
+    const guidelineBlockKind = params.guideline_block_handling === 'video'
+      ? classifyVeoGuidelineBlockMessage(operationResponse.errText)
+      : (isVeoGuidelineBlockMessage(operationResponse.errText) ? 'prompt' : 'none')
+    if (guidelineBlockKind !== 'none') {
+      lastGuidelineErrorMessage = operationResponse.errText
+      lastGuidelineSupportCode = extractVeoSupportCode(operationResponse.errText)
+      lastGuidelineBlockKind = guidelineBlockKind
+      attemptHistory.push({
+        attempt: attemptIndex + 1,
+        strategy: safetyPackage.rewriteStrategy,
+        template_key: safetyPackage.templateKey,
+        risk_labels: safetyPackage.riskLabels,
+        validation_warnings: safetyPackage.validationWarnings,
+        sanitized_prompt: safetyPackage.sanitizedPrompt,
+        status: 'blocked_immediate',
+        guideline_block_kind: guidelineBlockKind,
+        provider_error_message: operationResponse.errText.slice(0, 500),
+        provider_support_code: lastGuidelineSupportCode || null,
+        created_at: new Date().toISOString(),
+      })
+      if (params.guideline_block_handling === 'video' && guidelineBlockKind !== 'prompt') {
+        break
+      }
+      continue
+    }
+
+    console.error(`[Google AI Error] ${operationResponse.status}:`, operationResponse.errText)
+    throw new Error(`Erro na API do Google (${operationResponse.status}): ${operationResponse.errText.slice(0, 300)}`)
+  }
+
+  if (!finalBody || !finalPackage) {
+    const friendlyMessage = 'Ajustamos seu prompt automaticamente para compatibilidade com o Veo, mas o provedor ainda bloqueou o conteudo. Tente remover promessas de resultado, temas sensiveis ou referencias a pessoas reais.'
+    const imageBlockedMessage = 'O provedor de video bloqueou a imagem usada como base deste video. Tente outra imagem base ou gere uma nova cena antes de animar.'
+    const conservativeBlockMessage = 'O provedor de video bloqueou esta geracao. Tente ajustar o brief do video ou usar outra imagem base.'
+    const failure = new Error(friendlyMessage) as Error & {
+      studioFailureData?: Record<string, unknown>
+      studioRefundReason?: string
+    }
+    const baseFailureData = {
+      veo_prompt_original: originalUserRequest || VIDEO_DEFAULT_USER_REQUEST,
+      veo_prompt_normalized: normalizeVeoPromptText(originalUserRequest || VIDEO_DEFAULT_USER_REQUEST),
+      veo_prompt_sanitized: attemptHistory.length > 0 ? attemptHistory[attemptHistory.length - 1]?.sanitized_prompt ?? '' : '',
+      veo_prompt_strategy: 'policy_safe_terminal_block',
+      veo_prompt_template_key: attemptHistory.length > 0 ? attemptHistory[attemptHistory.length - 1]?.template_key ?? 'generic_commercial' : 'generic_commercial',
+      veo_prompt_risk_labels: classifyVeoPromptRisks(originalUserRequest || VIDEO_DEFAULT_USER_REQUEST),
+      veo_prompt_retry_count: Math.max(0, attemptHistory.length - 1),
+      veo_prompt_attempt_history: attemptHistory,
+      veo_guideline_block_kind: lastGuidelineBlockKind,
+      veo_blocked_source_image_url: params.source_image_url,
+      veo_provider_error_code: lastTerminalStatus,
+      veo_provider_error_message: lastGuidelineErrorMessage || lastTerminalErrorText,
+      veo_provider_support_code: lastGuidelineSupportCode || null,
+    }
+
+    if (params.guideline_block_handling === 'video' && lastGuidelineBlockKind === 'input_image') {
+      failure.message = imageBlockedMessage
+      failure.studioFailureData = {
+        ...baseFailureData,
+        public_error_code: 'imagem_base_bloqueada_pelo_provedor',
+        public_error_title: 'A imagem base nao pode ser animada',
+        public_error_message: imageBlockedMessage,
+      }
+      failure.studioRefundReason = 'video:veo-input-image-blocked'
+      throw failure
+    }
+
+    if (params.guideline_block_handling === 'video' && lastGuidelineBlockKind === 'unknown') {
+      failure.message = conservativeBlockMessage
+      failure.studioFailureData = {
+        ...baseFailureData,
+        public_error_code: 'falha_na_geracao',
+        public_error_title: 'Bloqueio do provedor de video',
+        public_error_message: conservativeBlockMessage,
+      }
+      failure.studioRefundReason = 'video:veo-guideline-unknown-blocked'
+      throw failure
+    }
+
+    failure.studioFailureData = {
+      ...baseFailureData,
+      public_error_code: 'prompt_safety_block',
+      public_error_title: 'Prompt bloqueado pelo provedor',
+      public_error_message: friendlyMessage,
+    }
+    failure.studioRefundReason = 'video:veo-prompt-safety-blocked'
+    throw failure
+  }
+
+  const operationName = typeof finalBody.name === 'string' ? finalBody.name : ''
+  if (!operationName) throw new Error('Google nao retornou o nome da operacao de video')
+
+  await mergeAssetInputParams(admin, params.assetId, {
+    ...(params.inputParamsPatch ?? {}),
+    prediction_id: operationName,
+    provider: 'google',
+    engine: 'veo',
+    source_image_url: params.source_image_url,
+    motion_prompt: params.motion_prompt_raw ?? params.motion_prompt,
+    motion_prompt_raw: params.motion_prompt_raw ?? params.motion_prompt,
+    motion_prompt_normalized: params.motion_prompt_normalized ?? params.motion_prompt,
+    veo_prompt_original: finalPackage.originalPrompt,
+    veo_prompt_normalized: finalPackage.normalizedPrompt,
+    veo_prompt_sanitized: finalPackage.sanitizedPrompt,
+    veo_prompt_strategy: finalPackage.rewriteStrategy,
+    veo_prompt_template_key: finalPackage.templateKey,
+    veo_prompt_risk_labels: finalPackage.riskLabels,
+    veo_prompt_retry_count: Math.max(0, attemptHistory.length - 1),
+    veo_prompt_attempt_history: attemptHistory,
+    veo_prompt_validation_warnings: finalPackage.validationWarnings,
+    veo_prompt_strategy_note: 'Prompt ajustado para compatibilidade com Veo.',
+    veo_provider_error_code: null,
+    veo_provider_error_message: null,
+    veo_provider_support_code: null,
+    veo_guideline_block_kind: null,
+    veo_blocked_source_image_url: null,
+    video_lock_policy: params.video_lock_policy ?? VIDEO_LOCK_POLICY,
+    scene_change_requested: params.scene_change_requested ?? false,
+    scene_change_blocked: params.scene_change_blocked ?? false,
+    removed_directives: params.removed_directives ?? [],
+    quality: resolveVeoResolution(finalUsedModel),
+    quality_requested: params.quality,
+    generate_audio: finalAudioDisabledFallbackReason ? false : wantsAudio,
+    audio_generation_fallback_reason: finalAudioDisabledFallbackReason || undefined,
+    source_fidelity_mode: params.strict_source_fidelity ? 'strict' : 'best_effort',
+    source_visible_item_manifest: params.source_visible_item_manifest ?? [],
+    source_text_logo_lock: params.source_text_logo_lock ?? false,
+    source_color_lock: params.source_color_lock ?? false,
+    veo_model: finalUsedModel,
+    duration: durationSeconds,
+    aspect_ratio: params.aspect_ratio ?? '9:16',
+  })
+
+  return operationName
+}
+
 function classifyTalkingVideoGoogleFallbackReason(error: unknown) {
   const message = error instanceof Error ? error.message : String(error)
+  if (isVeoGuidelineBlockMessage(message)) return ''
   if (!/Erro na API do Google \((403|429)\)/i.test(message)) return ''
   if (/PERMISSION_DENIED/i.test(message)) return 'google_permission_denied'
   if (/RESOURCE_EXHAUSTED/i.test(message)) return 'google_resource_exhausted'
@@ -9931,6 +12522,7 @@ export async function startTalkingVideoMotionGeneration(params: TalkingVideoMoti
         await startVideoGeneration({
           source_image_url: params.source_image_url,
           motion_prompt: params.motion_prompt,
+          aspect_ratio: params.aspect_ratio,
           duration: Number(params.duration ?? 8),
           model_prompt: params.model_prompt,
           motion_prompt_raw: params.motion_prompt_raw,
@@ -9975,13 +12567,26 @@ export async function finalizeTalkingVideoBaseGeneration(params: {
   const admin = params.admin ?? createAdminClient()
   let currentInputParams = asStudioRecord(params.currentInputParams)
   const talkingMode = typeof currentInputParams.talking_video_mode === 'string' ? currentInputParams.talking_video_mode : 'exact_speech'
+  const connectedAudioUrl = typeof currentInputParams.audio_url === 'string'
+    ? currentInputParams.audio_url.trim()
+    : ''
   const generatedVoiceUrl = typeof currentInputParams.generated_voice_url === 'string'
-    ? currentInputParams.generated_voice_url
+    ? currentInputParams.generated_voice_url.trim()
+    : ''
+  const talkingVideoDeliveryMode = typeof currentInputParams.talking_video_delivery_mode === 'string'
+    ? currentInputParams.talking_video_delivery_mode
     : ''
   const lastFrameUrl = await saveLastFrame(params.finalUrl, params.userId, params.assetId) || params.finalUrl
   const pipelineStage = typeof currentInputParams.pipeline_stage === 'string' ? currentInputParams.pipeline_stage : ''
   const strictSourceFidelity = String(currentInputParams.source_fidelity_mode ?? '') === 'strict'
   const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY
+  const shouldUseNativeVeoAudio = talkingVideoDeliveryMode === 'native_veo_audio' && !connectedAudioUrl
+  const lipsyncAudioUrl = connectedAudioUrl || generatedVoiceUrl
+  const lipsyncAudioSource = connectedAudioUrl
+    ? 'connected_audio'
+    : generatedVoiceUrl
+      ? 'generated_tts'
+      : 'none'
 
   if (strictSourceFidelity && apiKey) {
     const sourceFrameUrl = typeof currentInputParams.source_image_url === 'string' && currentInputParams.source_image_url.trim().length > 0
@@ -10027,6 +12632,7 @@ export async function finalizeTalkingVideoBaseGeneration(params: {
         await startTalkingVideoMotionGeneration({
           source_image_url: sourceFrameUrl,
           motion_prompt: String(currentInputParams.visual_prompt_normalized ?? currentInputParams.visual_prompt ?? ''),
+          aspect_ratio: String(currentInputParams.aspect_ratio ?? '9:16'),
           model_prompt: typeof currentInputParams.model_prompt === 'string' ? currentInputParams.model_prompt : undefined,
           motion_prompt_raw: String(currentInputParams.visual_prompt_raw ?? currentInputParams.visual_prompt ?? ''),
           motion_prompt_normalized: String(currentInputParams.visual_prompt_normalized ?? currentInputParams.visual_prompt ?? ''),
@@ -10042,7 +12648,7 @@ export async function finalizeTalkingVideoBaseGeneration(params: {
           assetId: params.assetId,
           userId: params.userId,
           appUrl: params.appUrl,
-          generate_audio: false,
+          generate_audio: shouldUseNativeVeoAudio,
           strict_source_fidelity: true,
           source_visible_item_manifest: Array.isArray(currentInputParams.source_visible_item_manifest)
             ? currentInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
@@ -10057,6 +12663,13 @@ export async function finalizeTalkingVideoBaseGeneration(params: {
             fidelity_warning_issues: fidelityAudit.warningIssues,
             fidelity_audit_notes: fidelityAudit.notes,
             pipeline_stage: 'veo_generating',
+            audio_generation_requested: shouldUseNativeVeoAudio,
+            talking_video_audio_source: shouldUseNativeVeoAudio
+              ? 'veo_native'
+              : currentInputParams.talking_video_audio_source,
+            talking_video_delivery_mode: shouldUseNativeVeoAudio
+              ? 'native_veo_audio'
+              : currentInputParams.talking_video_delivery_mode,
           },
         })
 
@@ -10099,7 +12712,27 @@ export async function finalizeTalkingVideoBaseGeneration(params: {
     }).eq('id', params.assetId)
   }
 
-  if (pipelineStage === 'veo_generating' && generatedVoiceUrl) {
+  if (pipelineStage === 'veo_generating' && talkingVideoDeliveryMode === 'native_veo_audio') {
+    await admin.from('studio_assets').update({
+      status: 'done',
+      result_url: params.finalUrl,
+      last_frame_url: lastFrameUrl || params.finalUrl,
+      error_msg: null,
+      input_params: {
+        ...currentInputParams,
+        pipeline_stage: 'completed',
+        talking_video_audio_source: currentInputParams.generate_audio === false ? 'none' : 'veo_native',
+        talking_video_delivery_mode: currentInputParams.generate_audio === false ? 'silent_veo_only' : 'native_veo_audio',
+      },
+    }).eq('id', params.assetId)
+
+    return {
+      status: 'done',
+      resultUrl: params.finalUrl,
+    }
+  }
+
+  if (pipelineStage === 'veo_generating' && lipsyncAudioUrl) {
     const pipelineAttempts = incrementTalkingPipelineAttempts(currentInputParams.pipeline_attempts, 'lipsyncing')
     await admin.from('studio_assets').update({
       status: 'processing',
@@ -10111,12 +12744,14 @@ export async function finalizeTalkingVideoBaseGeneration(params: {
         intermediate_video_url: params.finalUrl,
         pipeline_stage: 'lipsyncing',
         pipeline_attempts: pipelineAttempts,
+        talking_video_audio_source: lipsyncAudioSource,
+        talking_video_delivery_mode: 'external_audio_lipsync',
       },
     }).eq('id', params.assetId)
 
     await startLipsyncGeneration({
       face_url: params.finalUrl,
-      audio_url: generatedVoiceUrl,
+      audio_url: lipsyncAudioUrl,
       assetId: params.assetId,
       userId: params.userId,
       appUrl: params.appUrl,
@@ -10124,6 +12759,8 @@ export async function finalizeTalkingVideoBaseGeneration(params: {
         intermediate_video_url: params.finalUrl,
         pipeline_stage: 'lipsyncing',
         pipeline_attempts: pipelineAttempts,
+        talking_video_audio_source: lipsyncAudioSource,
+        talking_video_delivery_mode: 'external_audio_lipsync',
       },
     })
 
@@ -10138,12 +12775,12 @@ export async function finalizeTalkingVideoBaseGeneration(params: {
     await markStudioAssetFailed({
       admin,
       assetId: params.assetId,
-      errorMsg: 'Audio interno nao encontrado para iniciar o lipsync do talking video.',
+      errorMsg: 'Audio externo nao encontrado para iniciar o lipsync do talking video.',
       refundReason: 'sync:talking-video-missing-audio',
     })
     return {
       status: 'error',
-      error: 'Audio interno nao encontrado para o talking video.',
+      error: 'Audio externo nao encontrado para o talking video.',
     }
   }
 
@@ -10902,7 +13539,7 @@ export async function generateScene(params: {
             { text: geminiPrompt },
             ...imageParts,
           ]}],
-          generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
+          generationConfig: buildGeminiImageGenerationConfig(params.aspect_ratio),
         },
       })
       if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
@@ -11107,7 +13744,7 @@ export async function generatePresetIdentityScene(params: {
         feature: 'preset_scene_generation',
         body: {
           contents: [{ role: 'user', parts: [{ text: geminiPrompt }, ...imageParts] }],
-          generationConfig: { responseModalities: ['IMAGE', 'TEXT'], response_modalities: ['IMAGE', 'TEXT'] },
+          generationConfig: buildGeminiImageGenerationConfig(params.aspect_ratio),
         },
       })
       if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
