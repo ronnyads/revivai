@@ -54,7 +54,7 @@ import { getStudioAspectRatioFrameClass } from '../aspectRatio'
 import { buildTalkingVideoIdeaFromParts } from '@/lib/talkingVideoIdea'
 import { resolveStudioPublicError } from '@/lib/studioPublicErrors'
 
-const TYPE_META: Record<
+export const TYPE_META: Record<
   AssetType,
   { icon: React.ReactNode; label: string; color: string; chip: string; hint: string; output: string }
 > = {
@@ -471,18 +471,39 @@ function getProvadorContinuationDraft(inputParams: Record<string, unknown>) {
   return continuationParams
 }
 
+function CompactThumbnail({ url, type }: { url: string; type: AssetType }) {
+  const isVideo = ['video', 'talking_video', 'animate', 'lipsync', 'render', 'join'].includes(type)
+  const isText = ['script', 'caption'].includes(type)
+
+  if (isText) return null
+
+  if (isVideo) {
+    return (
+      <video
+        src={url}
+        className="h-10 w-10 rounded-lg object-cover border border-white/10"
+        muted
+        playsInline
+        preload="metadata"
+      />
+    )
+  }
+
+  return (
+    <img
+      src={url}
+      alt=""
+      className="h-10 w-10 rounded-lg object-cover border border-white/10"
+    />
+  )
+}
+
 function AssetNode({ data, selected }: NodeProps) {
   const {
     asset,
-    userPlan,
     onDelete,
-    onGenerate,
-    onUpdateParams,
-    onRefreshAsset,
     onDuplicate,
   } = data as AssetNodeData
-
-  const isVideoLocked = VIDEO_LOCKED_TYPES.includes(asset.type) && !PAID_PLANS.includes(userPlan ?? '')
   const meta = TYPE_META[asset.type]
   const composeVariant = asset.type === 'compose' ? String(asset.input_params.compose_variant ?? 'fitting') : ''
   const displayMeta =
@@ -498,54 +519,20 @@ function AssetNode({ data, selected }: NodeProps) {
       : meta
 
   const inputHandles = useMemo(() => INPUT_HANDLES[asset.type] ?? [], [asset.type])
-  const [collapsed, setCollapsed] = useState(() => asset.status === 'done' || (!asset.isLocal && asset.status === 'idle'))
-  const [doneEditorOpen, setDoneEditorOpen] = useState(false)
-  const hasDoneResult = asset.status === 'done' && Boolean(asset.result_url)
-  const isDonePreview = hasDoneResult && !doneEditorOpen
-  const isDoneEditing = hasDoneResult && doneEditorOpen
-  const effectiveCollapsed =
-    isDoneEditing
-      ? false
-      : isDonePreview
-      ? true
-      : selected || asset.status === 'processing' || asset.status === 'error'
-      ? false
-      : collapsed
-
-  const connectedInputLabels = useMemo(() => getConnectedInputLabels(asset, inputHandles), [asset, inputHandles])
-  const summaryTokens = useMemo(() => getSummaryTokens(asset, inputHandles), [asset, inputHandles])
-  const talkingVideoContinuationDraft = useMemo(
-    () => (asset.type === 'talking_video' ? getTalkingVideoContinuationDraft(asset.input_params) : null),
-    [asset.type, asset.input_params],
-  )
   const chainIndex = typeof asset.input_params.chain_index === 'number' ? asset.input_params.chain_index : null
   const chainTotal = typeof asset.input_params.chain_total === 'number' ? asset.input_params.chain_total : null
   const isChained = chainTotal !== null && chainTotal > 1
   const chainLabel = isChained ? `Parte ${(chainIndex ?? 0) + 1}/${chainTotal}` : null
-  const provadorContinuationDraft = useMemo(
-    () => (asset.type === 'compose' ? getProvadorContinuationDraft(asset.input_params) : null),
-    [asset.type, asset.input_params],
-  )
-  const provadorRemainingCategories = Array.isArray(asset.input_params.remaining_structural_categories)
-    ? asset.input_params.remaining_structural_categories.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-    : []
-  const cardWidth = getStudioNodeCardWidth(asset.type, {
-    status: asset.status,
-    collapsed: effectiveCollapsed,
-    selected,
-    donePreview: isDonePreview,
-  })
-  const showExpandedSummary = !LATERAL_EDITOR_TYPES.has(asset.type)
+  const isChainWaiting = asset.status === 'idle' && asset.input_params.pipeline_stage === 'chain_waiting'
+  const cardWidth = getStudioNodeCardWidth(asset.type, { status: asset.status, selected })
   return (
     <div
-      className={`group/node overflow-visible rounded-[26px] border transition-[width,box-shadow,opacity,transform,border-color,background-color] duration-200 ${
+      className={`group/node overflow-visible rounded-[20px] border transition-[box-shadow,border-color,background-color] duration-200 ${
         selected
-          ? 'border-[#54D6F6]/34 bg-[#0E1011]/97 shadow-[0_24px_80px_rgba(0,173,204,0.16)]'
+          ? 'border-[#54D6F6]/40 bg-[#0E1011]/97 shadow-[0_16px_48px_rgba(0,173,204,0.18)]'
           : asset.isNew
-            ? 'border-orange-400/35 bg-[#111111]/96 shadow-[0_22px_70px_rgba(249,115,22,0.18)]'
-            : 'border-white/8 bg-[#101112]/94 shadow-[0_18px_52px_rgba(0,0,0,0.34)]'
-      } opacity-100 ${
-        selected ? 'translate-y-[-2px]' : ''
+            ? 'border-orange-400/35 bg-[#111111]/96 shadow-[0_14px_40px_rgba(249,115,22,0.16)]'
+            : 'border-white/8 bg-[#101112]/94 shadow-[0_10px_32px_rgba(0,0,0,0.30)]'
       }`}
       style={{ width: cardWidth }}
     >
@@ -555,7 +542,7 @@ function AssetNode({ data, selected }: NodeProps) {
           id={handle.id}
           label={handle.label}
           side="left"
-          top={64 + index * 26}
+          top={44 + index * 24}
           selected={selected}
         />
       ))}
@@ -564,205 +551,68 @@ function AssetNode({ data, selected }: NodeProps) {
         id="output"
         label={displayMeta.output}
         side="right"
-        top={Math.max(96, 64 + Math.floor(inputHandles.length / 2) * 24)}
+        top={Math.max(56, 44 + Math.floor(inputHandles.length / 2) * 22)}
         selected={selected}
       />
 
-      <div className="flex items-start justify-between gap-3 border-b border-white/6 px-4 py-3">
-        <button
-          type="button"
-          onClick={() => setCollapsed((value) => !value)}
-          className="flex min-w-0 flex-1 items-start gap-3 text-left"
-        >
-          <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border ${displayMeta.chip}`}>
-            {displayMeta.icon}
+      {/* Compact header */}
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[12px] border ${displayMeta.chip}`}>
+          {displayMeta.icon}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className={`truncate text-[12px] font-semibold tracking-tight ${displayMeta.color}`}>{displayMeta.label}</p>
+            <StatusPill status={asset.status} />
           </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className={`truncate text-[14px] font-semibold tracking-tight ${displayMeta.color}`}>{displayMeta.label}</p>
-              <StatusPill status={asset.status} />
-            </div>
-            {displayMeta.hint ? (
-              <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-white/82">{displayMeta.hint}</p>
-            ) : null}
-          </div>
-        </button>
-
-        <div className="flex shrink-0 items-center gap-1.5">
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
           {chainLabel ? (
-            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-300">
+            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-cyan-300">
               {chainLabel}
             </span>
           ) : null}
-          <span className="rounded-full border border-white/12 bg-white/[0.08] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">
+          <span className="rounded-full border border-white/12 bg-white/[0.08] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-white">
             {asset.credits_cost} CR
           </span>
           <button
             type="button"
             onClick={() => onDuplicate(asset.id)}
-            title="Duplicar card"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#54D6F6]/24 bg-[#0D171B] text-cyan-100 transition-colors hover:border-[#54D6F6]/40 hover:bg-[#112329] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#54D6F6]/45"
+            title="Duplicar"
+            className="flex h-6 w-6 items-center justify-center rounded-lg border border-[#54D6F6]/20 bg-[#0D171B] text-cyan-200/70 transition-colors hover:text-white"
           >
-            <CopyPlus size={15} />
+            <CopyPlus size={11} />
           </button>
           <button
             type="button"
             onClick={() => onDelete(asset.id)}
-            title="Excluir card"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/82 transition-colors hover:border-red-500/24 hover:bg-red-500/10 hover:text-red-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30"
+            title="Excluir"
+            className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/8 bg-white/[0.03] text-white/50 transition-colors hover:border-red-500/20 hover:bg-red-500/8 hover:text-red-300"
           >
-            <Trash2 size={15} />
+            <Trash2 size={11} />
           </button>
         </div>
       </div>
 
-      <div className="px-4 py-4">
-        {isVideoLocked ? (
-          <LockedPlanState />
-        ) : asset.status === 'idle' && asset.input_params.pipeline_stage === 'chain_waiting' ? (
-          <div className="rounded-[16px] border border-cyan-500/14 bg-[#0A1419] px-4 py-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-400/80">{chainLabel}</p>
-            <p className="mt-1 text-[12px] leading-relaxed text-white/60">Aguardando a parte anterior concluir para gerar automaticamente...</p>
-          </div>
-        ) : asset.status === 'processing' ? (
-          <ProcessingCard
-            type={asset.type}
-            createdAt={asset.created_at}
-            assetId={asset.id}
-            pipelineStage={typeof asset.input_params.pipeline_stage === 'string' ? asset.input_params.pipeline_stage : undefined}
-            onRefreshAsset={onRefreshAsset}
-          />
-        ) : asset.status === 'error' ? (
-          <ErrorCard
-            asset={asset}
-            onGenerate={(paramsOverride) => onGenerate(asset.type, paramsOverride ?? asset.input_params, asset.id)}
-            onRefreshAsset={onRefreshAsset}
-          />
-        ) : isDonePreview ? (
-          <div className="space-y-3">
-            <ResultPreview type={asset.type} url={asset.result_url!} params={asset.input_params} donePreview />
-            {asset.type === 'talking_video' && isChained ? (
-              <div className="rounded-[18px] border border-cyan-500/18 bg-[#0D171B] p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-300">{chainLabel} concluída</p>
-                <p className="mt-1 text-[12px] leading-relaxed text-white/80">
-                  A próxima parte já está sendo gerada automaticamente no card ao lado.
-                </p>
-              </div>
-            ) : asset.type === 'talking_video' && talkingVideoContinuationDraft ? (
-              <div className="rounded-[18px] border border-cyan-500/18 bg-[#0D171B] p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-100">restante pronto para continuar</p>
-                <p className="mt-1 text-[12px] leading-relaxed text-white/80">
-                  Este primeiro video entregou a parte inicial da fala. Se quiser, criamos outro card ja com o texto restante preenchido.
-                </p>
-              </div>
-            ) : null}
-            {asset.type === 'compose' && provadorContinuationDraft ? (
-              <div className="rounded-[18px] border border-cyan-500/18 bg-[#0D171B] p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-100">proximo passo do look preparado</p>
-                <p className="mt-1 text-[12px] leading-relaxed text-white/80">
-                  Este resultado estabilizou a base principal do look. Se quiser, continuamos com {provadorRemainingCategories.join(', ') || 'a proxima peca'} em outro card ja preenchido.
-                </p>
-              </div>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setDoneEditorOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/14 bg-white/[0.08] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:border-white/24 hover:bg-white/[0.11] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
-              >
-                <Pencil size={12} />
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={() => setDoneEditorOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/14 bg-white/[0.08] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:border-white/24 hover:bg-white/[0.11] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
-              >
-                <RotateCcw size={12} />
-                Regenerar
-              </button>
-              {asset.type !== 'script' && asset.type !== 'caption' ? (
-                <button
-                  type="button"
-                  onClick={() => downloadAsset(asset)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#54D6F6]/24 bg-[#0D171B] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:border-[#54D6F6]/40 hover:bg-[#102025] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#54D6F6]/35"
-              >
-                  <Download size={12} />
-                  Download
-                </button>
-              ) : null}
-              {asset.type === 'talking_video' && !isChained && talkingVideoContinuationDraft ? (
-                <button
-                  type="button"
-                  onClick={() => onDuplicate(asset.id, talkingVideoContinuationDraft)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/24 bg-cyan-500/12 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100 transition-colors hover:border-cyan-400/40 hover:bg-cyan-500/16 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/30"
-              >
-                  <ArrowRight size={12} />
-                  Continuar restante
-                </button>
-              ) : null}
-              {asset.type === 'compose' && provadorContinuationDraft ? (
-                <button
-                  type="button"
-                  onClick={() => onDuplicate(asset.id, provadorContinuationDraft)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/24 bg-cyan-500/12 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-100 transition-colors hover:border-cyan-400/40 hover:bg-cyan-500/16 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/30"
-              >
-                  <ArrowRight size={12} />
-                  Continuar look
-                </button>
-              ) : null}
-            </div>
-            {asset.type === 'model' ? <ModelDoneActions asset={asset} onRegenerate={() => onGenerate(asset.type, asset.input_params, asset.id)} /> : null}
-          </div>
-        ) : effectiveCollapsed ? (
-          <CollapsedIdleShell
-            summaryTokens={summaryTokens}
-            connectedInputLabels={connectedInputLabels}
-            onOpen={() => setCollapsed(false)}
-          />
-        ) : (
-          <div className="space-y-4">
-            {showExpandedSummary ? (
-              <OpenCardSummary summaryTokens={summaryTokens} connectedInputLabels={connectedInputLabels} nextStep={NEXT_STEPS[asset.type]?.text} />
-            ) : null}
-            <FormForType
-              type={asset.type}
-              initialParams={asset.input_params}
-              onGenerate={(params) => {
-                setDoneEditorOpen(false)
-                onUpdateParams(asset.id, params)
-                onGenerate(asset.type, params, asset.id)
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-white/6 px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          {isDoneEditing ? (
-            <button
-              type="button"
-              onClick={() => setDoneEditorOpen(false)}
-              className="rounded-full border border-white/14 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/92 transition-colors hover:border-white/24 hover:text-white"
-            >
-              Voltar ao preview
-            </button>
-          ) : !isDonePreview ? (
-            <button
-              type="button"
-              onClick={() => setCollapsed(true)}
-              className="rounded-full border border-white/14 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/92 transition-colors hover:border-white/24 hover:text-white"
-            >
-              Recolher
-            </button>
-          ) : <div />}
-          <div className="flex items-center justify-center gap-2 text-white/74">
-          <GripHorizontal size={15} />
-          <span className="text-[11px] uppercase tracking-[0.2em]">drag node</span>
-          </div>
+      {/* Compact body */}
+      {isChainWaiting ? (
+        <div className="border-t border-white/5 px-3 pb-2.5 pt-2">
+          <p className="text-[10px] leading-relaxed text-cyan-400/70">Aguardando parte anterior...</p>
         </div>
-      </div>
+      ) : asset.status === 'processing' ? (
+        <div className="flex items-center gap-1.5 border-t border-white/5 px-3 pb-2.5 pt-2">
+          <Loader2 size={11} className="animate-spin text-[#54D6F6]" />
+          <span className="text-[10px] text-white/50">Gerando...</span>
+        </div>
+      ) : asset.status === 'error' ? (
+        <div className="border-t border-white/5 px-3 pb-2.5 pt-2">
+          <p className="text-[10px] text-red-400/80">Falha — veja no painel</p>
+        </div>
+      ) : asset.status === 'done' && asset.result_url ? (
+        <div className="border-t border-white/5 px-3 pb-2.5 pt-2">
+          <CompactThumbnail url={asset.result_url} type={asset.type} />
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -823,7 +673,7 @@ function HandleTag({
   )
 }
 
-function StatusPill({ status }: { status: StudioAsset['status'] }) {
+export function StatusPill({ status }: { status: StudioAsset['status'] }) {
   const meta = STATUS_META[status]
 
   return (
@@ -946,7 +796,7 @@ function OpenCardSummary({
   )
 }
 
-function ResultPreview({
+export function ResultPreview({
   type,
   url,
   params,
@@ -1179,7 +1029,7 @@ function ModelDoneActions({ asset, onRegenerate }: { asset: StudioAsset; onRegen
   )
 }
 
-function FormForType({
+export function FormForType({
   type,
   initialParams,
   onGenerate,
@@ -1223,7 +1073,7 @@ type GuidedNextAction = {
   regenerate_params?: Record<string, unknown>
 }
 
-function ErrorCard({
+export function ErrorCard({
   asset,
   onGenerate,
   onRefreshAsset,
@@ -1388,7 +1238,7 @@ function ErrorCard({
   )
 }
 
-function ProcessingCard({
+export function ProcessingCard({
   type,
   createdAt,
   assetId,
@@ -1512,7 +1362,7 @@ function ProcessingCard({
   )
 }
 
-function downloadAsset(asset: StudioAsset) {
+export function downloadAsset(asset: StudioAsset) {
   if (!asset.result_url) return
 
   const anchor = document.createElement('a')

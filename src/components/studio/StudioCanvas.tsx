@@ -18,6 +18,7 @@ import CanvasQuickAdd from './CanvasQuickAdd'
 import CampaignWizard, { WizardResult } from './CampaignWizard'
 import TemplateGallery, { WorkflowTemplate } from './TemplateGallery'
 import StudioChatPanel from './StudioChatPanel'
+import StudioSideEditor from './StudioSideEditor'
 import {
   getStudioNodeCardWidth,
   STUDIO_NODE_GRID_SPACING_X,
@@ -1170,6 +1171,11 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     userPlan,
   }), [handleDelete, handleGenerate, handleUpdateParams, refreshAssetFromServer, handleDuplicate, userPlan])
 
+  const selectedAsset = useMemo(
+    () => assets.find(a => a.id === selectedNodeIds[0]) ?? null,
+    [assets, selectedNodeIds],
+  )
+
   // ── React Flow state ─────────────────────────────────────────────────────
   const [nodes, setNodes, onNodesChange] = useNodesState(buildNodes(assets, nodeCallbacks, selectedNodeIds.length > 0))
   const [edges, setEdges, onEdgesChange] = useEdgesState<StudioCanvasEdge>(buildEdges(connections, selectedNodeIds))
@@ -2061,7 +2067,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         </defs>
       </svg>
 
-      <div className="flex-1">
+      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex-1">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -2117,6 +2124,16 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
             </div>
           )}
         </ReactFlow>
+      </div>
+      <StudioSideEditor
+        asset={selectedAsset}
+        userPlan={userPlan}
+        onGenerate={handleGenerate}
+        onUpdateParams={handleUpdateParams}
+        onDelete={handleDelete}
+        onDuplicate={handleDuplicate}
+        onRefreshAsset={refreshAssetFromServer}
+      />
       </div>
 
       {/* Dica de conexão */}
