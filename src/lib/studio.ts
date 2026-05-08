@@ -1928,22 +1928,22 @@ function normalizeVideoUserRequest(value: string | undefined) {
 }
 
 const VIDEO_SCENE_PREPASS_SECTION_ALIASES: Array<{ key: string; aliases: string[] }> = [
-  { key: 'location', aliases: ['location', 'localizacao', 'localizacao', 'cenario', 'cenario', 'ambiente', 'setting'] },
+  { key: 'location', aliases: ['location', 'localizacao', 'localização', 'cenario', 'cenário', 'ambiente', 'setting', 'cenário e locação', 'cenario e locacao'] },
   { key: 'main_goal', aliases: ['main goal', 'objetivo principal'] },
-  { key: 'character', aliases: ['character', 'personagem'] },
-  { key: 'action', aliases: ['action', 'acao', 'acao'] },
-  { key: 'camera', aliases: ['camera'] },
-  { key: 'dialogue', aliases: ['dialogue', 'dialogo', 'dialogo', 'fala'] },
-  { key: 'speech_guidance', aliases: ['important lip sync rules', 'lip sync rules', 'speech guidance'] },
+  { key: 'character', aliases: ['character', 'personagem', 'look', 'modelo', 'aparência', 'aparencia'] },
+  { key: 'action', aliases: ['action', 'acao', 'ação', 'movimento da modelo', 'movimento do modelo', 'movimento'] },
+  { key: 'camera', aliases: ['camera', 'câmera', 'camera movement', 'sensação da lente', 'sensacao da lente'] },
+  { key: 'dialogue', aliases: ['dialogue', 'dialogo', 'diálogo', 'fala'] },
+  { key: 'speech_guidance', aliases: ['important lip sync rules', 'lip sync rules', 'speech guidance', 'lip sync', 'direção de fala', 'direcao de fala', 'direção'] },
   { key: 'subtitle', aliases: ['subtitle rule', 'caption rule'] },
   { key: 'performance', aliases: ['performance tone', 'tone', 'tom'] },
-  { key: 'motion', aliases: ['motion rules', 'motion', 'regras de movimento', 'movimento'] },
-  { key: 'visual', aliases: ['visual style', 'style', 'estilo visual'] },
+  { key: 'motion', aliases: ['motion rules', 'motion', 'regras de movimento'] },
+  { key: 'visual', aliases: ['visual style', 'style', 'estilo visual', 'estilo'] },
   { key: 'negative', aliases: ['negative rules'] },
   { key: 'final_feeling', aliases: ['final feeling'] },
-  { key: 'lighting', aliases: ['lighting', 'iluminacao', 'iluminacao', 'light'] },
-  { key: 'expression', aliases: ['expression', 'expressao', 'expressao'] },
-  { key: 'duration', aliases: ['duration', 'duracao', 'duracao'] },
+  { key: 'lighting', aliases: ['lighting', 'iluminacao', 'iluminação', 'light'] },
+  { key: 'expression', aliases: ['expression', 'expressao', 'expressão'] },
+  { key: 'duration', aliases: ['duration', 'duracao', 'duração'] },
   { key: 'format', aliases: ['format', 'formato'] },
 ]
 
