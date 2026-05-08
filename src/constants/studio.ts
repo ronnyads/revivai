@@ -1,4 +1,9 @@
-import { AssetType } from '@/types'
+export type StudioVideoQuality = '720p' | '1080p'
+
+export const VIDEO_GENERATION_COST: Record<StudioVideoQuality, number> = {
+  '720p': 75,
+  '1080p': 100,
+}
 
 export const CREDIT_COST: Record<string, number> = {
   face:    0,   // upload, sem API
@@ -22,4 +27,12 @@ export const CREDIT_COST: Record<string, number> = {
   ugc_bundle: 60, // 8 variações cinematográficas (Imagen 3.0 Parallel)
   scene: 12,      // Cena Livre — modelo em qualquer ambiente (Gemini)
   look_split: 6,  // Separar Look - divide 1 foto em ate 3 referencias fieis
+}
+
+export function normalizeStudioVideoQuality(value: unknown): StudioVideoQuality {
+  return String(value ?? '').trim() === '1080p' ? '1080p' : '720p'
+}
+
+export function getVideoGenerationCost(value: unknown): number {
+  return VIDEO_GENERATION_COST[normalizeStudioVideoQuality(value)]
 }
