@@ -9,7 +9,6 @@ import {
   StudioFormShell,
   StudioPanel,
   StudioPrimaryButton,
-  StudioSummaryChip,
 } from './StudioFormShell'
 import WebcamRecorder from './WebcamRecorder'
 
@@ -91,44 +90,28 @@ export default function AnimateGenerator({ initial, onGenerate }: Props) {
       controlsColumnClassName="space-y-2.5"
       chips={[
         { label: 'foto base', tone: 'violet' },
-        { label: 'video referencia', tone: 'neutral' },
-        { label: '50 CR', tone: 'warning' },
+        { label: '50 CR', tone: 'neutral' },
       ]}
       media={
         <>
           <StudioPanel title="Base visual" compact>
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-1.5">
-                <StudioSummaryChip tone={hasPortrait ? 'violet' : 'neutral'}>
-                  {hasPortrait ? 'retrato pronto' : 'falta retrato'}
-                </StudioSummaryChip>
-                <StudioSummaryChip tone="neutral">cenario vem da foto</StudioSummaryChip>
-              </div>
-              <ImageUpload
-                value={uploadedPortraitUrl}
-                onChange={setUploadedPortraitUrl}
-                label={hasPortrait ? 'Trocar foto da pessoa' : 'Foto da pessoa'}
-                accept="image/*"
-                preview
-                compact
-                frameClassName="min-h-[120px]"
-              />
-            </div>
+            <ImageUpload
+              value={uploadedPortraitUrl}
+              onChange={setUploadedPortraitUrl}
+              label={hasPortrait ? 'Trocar foto da pessoa' : 'Foto da pessoa'}
+              accept="image/*"
+              preview
+              compact
+              frameClassName="min-h-[120px]"
+            />
           </StudioPanel>
         </>
       }
       controls={
         <>
           <StudioPanel title="Referencia" compact>
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-1.5">
-                <StudioSummaryChip tone={hasDriving ? 'success' : 'neutral'}>
-                  {hasDriving ? 'video pronto' : 'falta video'}
-                </StudioSummaryChip>
-                <StudioSummaryChip tone="neutral">30s max</StudioSummaryChip>
-              </div>
-              <WebcamRecorder value={drivingUrl} onChange={setRecordedDrivingUrl} compact hideLabel />
-            </div>
+            <StudioFieldLabel trailing={<span className="text-white/36">máx 30s</span>}>Video de movimento</StudioFieldLabel>
+            <WebcamRecorder value={drivingUrl} onChange={setRecordedDrivingUrl} compact hideLabel />
           </StudioPanel>
 
           <StudioPanel title="Direcao" compact>

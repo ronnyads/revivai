@@ -6,7 +6,6 @@ import ImageUpload from './ImageUpload'
 import {
   StudioFieldLabel,
   StudioFormShell,
-  StudioHint,
   StudioPanel,
   StudioPrimaryButton,
 } from './StudioFormShell'
@@ -142,9 +141,6 @@ export default function LookSplitGenerator({ initial, onGenerate }: Props) {
               placeholder="Ex: casaco + calca + chapeu."
               className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-cyan-400/30"
             />
-            <div className="mt-2">
-              <StudioHint>So ajuda a interpretar categorias. Nao estiliza o look.</StudioHint>
-            </div>
           </StudioPanel>
 
           <StudioPrimaryButton accent="cyan" disabled={!hasSource || loading} onClick={handleGenerate}>

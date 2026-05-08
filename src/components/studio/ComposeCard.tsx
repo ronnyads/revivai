@@ -398,13 +398,6 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
                   rows={isProductVariant ? 4 : 5}
                   className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-orange-400/30"
                 />
-                <StudioHint tone="warning">
-                  {isProductVariant
-                    ? 'Para ambiente custom, use Cena Livre.'
-                    : multiReferenceMode
-                      ? 'Nao muda modelagem, estampa ou ferragens. Se as refs forem inconciliaveis, avisamos qual peca travou.'
-                      : 'Nao muda modelagem, estampa ou ferragens das referencias.'}
-                </StudioHint>
               </div>
             </StudioPanel>
           </div>

@@ -126,7 +126,7 @@ function VideoGeneratorBody({ initial, onGenerate }: Props) {
       chips={[
         { label: sceneLivre ? 'Cena Livre' : 'Google Veo', tone: sceneLivre ? 'violet' : 'blue' },
         { label: selectedFormat?.label ?? aspectRatio, tone: 'neutral' },
-        { label: `${quality} - ${cost} CR`, tone: quality === '1080p' ? 'warning' : 'neutral' },
+        { label: `${quality} - ${cost} CR`, tone: 'neutral' },
       ]}
       media={
         <>
