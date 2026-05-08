@@ -55,12 +55,15 @@ export function normalizeStudioEngineInputParams(params: {
   const legacyAllowed = isLegacyFallbackAllowed()
 
   switch (params.type) {
-    case 'video':
+    case 'video': {
+      const requestedEngine = typeof input.engine === 'string' ? input.engine : undefined
+      const resolvedEngine = requestedEngine === 'grok' ? 'grok' : 'veo'
       return {
         ...input,
-        requested_engine: typeof input.engine === 'string' ? input.engine : undefined,
-        engine: 'veo',
+        requested_engine: requestedEngine,
+        engine: resolvedEngine,
       }
+    }
     case 'model':
       return {
         ...input,

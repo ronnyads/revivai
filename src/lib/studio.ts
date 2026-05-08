@@ -1543,6 +1543,40 @@ export async function generateVoice(params: {
   return publicUrl
 }
 
+export async function generateVoiceGrok(params: {
+  script: string
+  voice_id: string
+  assetId: string
+  userId: string
+}) {
+  const admin = createAdminClient()
+  const apiKey = process.env.XAI_API_KEY
+  if (!apiKey) throw new Error('XAI_API_KEY não configurada')
+
+  const res = await fetch('https://api.x.ai/v1/tts', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: params.script,
+      voice_id: params.voice_id || 'ara',
+      language: inferSpeechLanguageCode(params.script) === 'pt' ? 'pt-BR' : 'auto',
+      output_format: { codec: 'mp3', sample_rate: 24000 },
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Grok TTS erro ${res.status}: ${err}`)
+  }
+
+  const buffer = Buffer.from(await res.arrayBuffer())
+  const path = `${params.userId}/${params.assetId}.mp3`
+  const { error } = await admin.storage.from('studio').upload(path, buffer, { contentType: 'audio/mpeg', upsert: true })
+  if (error) throw new Error(`Upload áudio falhou: ${error.message}`)
+  const { data: { publicUrl: grokPublicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return grokPublicUrl
+}
+
 // â”€â”€ Caption â€” Whisper via fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export async function generateCaption(params: {
   audio_url: string
@@ -3506,6 +3540,61 @@ function buildVeoPolicySafeMotionPrompt(params: {
     sourceTextLogoLock: params.sourceTextLogoLock,
     sourceColorLock: params.sourceColorLock,
     sceneLivre: params.sceneLivre,
+  })
+}
+
+export async function startGrokVideoGeneration(params: {
+  source_image_url?: string
+  motion_prompt: string
+  motion_prompt_raw?: string
+  motion_prompt_normalized?: string
+  duration?: number
+  aspect_ratio?: string
+  generate_audio?: boolean
+  assetId: string
+  userId: string
+  inputParamsPatch?: Record<string, unknown>
+}) {
+  const apiKey = process.env.XAI_API_KEY
+  if (!apiKey) throw new Error('XAI_API_KEY não configurada')
+
+  const admin = createAdminClient()
+  const body: Record<string, unknown> = {
+    model: 'grok-imagine-video',
+    prompt: params.motion_prompt,
+    duration: params.duration ?? 8,
+    aspect_ratio: params.aspect_ratio ?? '9:16',
+    resolution: '720p',
+  }
+  if (params.source_image_url) {
+    body.image_url = params.source_image_url
+  }
+
+  const res = await fetch('https://api.x.ai/v1/videos/generations', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Grok Video erro ${res.status}: ${err}`)
+  }
+
+  const { id: requestId } = await res.json()
+  if (!requestId) throw new Error('Grok Video não retornou request_id')
+
+  await mergeAssetInputParams(admin, params.assetId, {
+    prediction_id: requestId,
+    provider: 'grok',
+    engine: 'grok',
+    source_image_url: params.source_image_url ?? '',
+    motion_prompt: params.motion_prompt_raw ?? params.motion_prompt,
+    motion_prompt_raw: params.motion_prompt_raw ?? params.motion_prompt,
+    motion_prompt_normalized: params.motion_prompt_normalized ?? params.motion_prompt,
+    duration: params.duration ?? 8,
+    aspect_ratio: params.aspect_ratio ?? '9:16',
+    ...(params.inputParamsPatch ?? {}),
   })
 }
 

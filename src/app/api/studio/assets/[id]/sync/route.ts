@@ -769,6 +769,62 @@ export async function POST(
     }
   }
 
+  if ((logicalType === 'video') && provider === 'grok') {
+    const apiKey = process.env.XAI_API_KEY
+    if (!apiKey) {
+      return failAssetAndRespond({ admin, assetId: id, errorMsg: 'XAI_API_KEY nao configurada', refundReason: 'sync:grok-server-config' })
+    }
+    try {
+      const statusRes = await fetch(`https://api.x.ai/v1/videos/${predictionId}`, {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+      })
+      if (!statusRes.ok) {
+        const err = await statusRes.text()
+        throw new Error(`Grok Video status ${statusRes.status}: ${err}`)
+      }
+      const statusData = await statusRes.json()
+      if (statusData.status === 'pending') {
+        return syncResponse({ status: 'processing', message: 'Grok Video gerando...' })
+      }
+      if (statusData.status === 'failed' || statusData.status === 'expired') {
+        return failAssetAndRespond({ admin, assetId: id, errorMsg: `Grok Video falhou: ${statusData.status}`, refundReason: 'sync:grok-video-failed' })
+      }
+      if (statusData.status !== 'done') {
+        return syncResponse({ status: 'processing', message: `Grok Video: ${statusData.status}` })
+      }
+
+      const videoUrl: string = statusData.video?.url ?? statusData.url ?? ''
+      if (!videoUrl) {
+        return failAssetAndRespond({ admin, assetId: id, errorMsg: 'Grok Video concluiu mas sem URL de vídeo.', refundReason: 'sync:grok-no-url' })
+      }
+
+      const videoRes = await fetch(videoUrl)
+      if (!videoRes.ok) throw new Error(`Falha ao baixar vídeo Grok: ${videoRes.status}`)
+      const buffer = Buffer.from(await videoRes.arrayBuffer())
+      const { createAdminClient: makeAdmin } = await import('@/lib/supabase/admin')
+      const adminLocal = makeAdmin()
+      const storagePath = `${user.id}/${id}.mp4`
+      const { error: uploadErr } = await adminLocal.storage.from('studio').upload(storagePath, buffer, { contentType: 'video/mp4', upsert: true })
+      if (uploadErr) throw new Error(`Upload Grok vídeo falhou: ${uploadErr.message}`)
+      const { data: { publicUrl: finalUrl } } = adminLocal.storage.from('studio').getPublicUrl(storagePath)
+
+      const lastFrameUrl = await saveLastFrame(finalUrl, user.id, id).catch(() => null)
+      await admin.from('studio_assets').update({
+        status: 'done',
+        result_url: finalUrl,
+        last_frame_url: lastFrameUrl || finalUrl,
+        error_msg: null,
+      }).eq('id', id)
+
+      return syncResponse({ status: 'done', result_url: finalUrl })
+    } catch (error: unknown) {
+      if (isRetryableSyncError(error)) {
+        return syncResponse({ status: 'processing', message: 'Erro temporário ao consultar Grok. Tentando novamente.' })
+      }
+      return failAssetAndRespond({ admin, assetId: id, errorMsg: getErrorMessage(error), refundReason: 'sync:grok-video-error' })
+    }
+  }
+
   if (logicalType === 'video' || logicalType === 'talking_video' || logicalType === 'lipsync') {
     const falKey = process.env.FAL_KEY
     if (!falKey) {
