@@ -2207,6 +2207,7 @@ function analyzeVideoPrompt(userRequest?: string, options?: { sceneLivre?: boole
       ? `Generate native spoken audio in ${dialogueLanguage}.`
       : 'Generate native spoken audio that matches the requested dialogue.',
     dialogueLine ? `Exact spoken line: "${dialogueLine}".` : '',
+    'Speak the complete spoken line from beginning to end without cutting. Do not shorten, skip, or truncate any word.',
     'Keep the requested language and spoken line exact.',
     speechGuidance
       ? `Delivery guidance: ${compactVideoSectionText(speechGuidance, { maxSentences: 3, maxChars: 220 })}.`
