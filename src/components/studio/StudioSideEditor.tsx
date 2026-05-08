@@ -14,7 +14,7 @@ import {
 } from './nodes/AssetNode'
 
 const VIDEO_LOCKED_TYPES: AssetType[] = ['video', 'talking_video', 'animate', 'lipsync']
-const PAID_PLANS = ['rookie', 'pro', 'elite', 'agency']
+const FREE_PLANS = ['free', '']
 
 function getTalkingVideoContinuationDraft(inputParams: Record<string, unknown>) {
   const remaining =
@@ -78,7 +78,7 @@ export default function StudioSideEditor({
         }
       : meta
 
-  const isVideoLocked = VIDEO_LOCKED_TYPES.includes(asset.type) && !PAID_PLANS.includes(userPlan ?? '')
+  const isVideoLocked = VIDEO_LOCKED_TYPES.includes(asset.type) && FREE_PLANS.includes(userPlan ?? 'free')
   const chainIndex = typeof asset.input_params.chain_index === 'number' ? asset.input_params.chain_index : null
   const chainTotal = typeof asset.input_params.chain_total === 'number' ? asset.input_params.chain_total : null
   const isChained = chainTotal !== null && chainTotal > 1
