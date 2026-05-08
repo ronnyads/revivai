@@ -2481,18 +2481,17 @@ const VEO_PROMPT_SANITIZE_RULES: Array<{ pattern: RegExp; replacement: string }>
   { pattern: /\bviralizar e monetizar\b/gi, replacement: 'criar videos profissionais para campanhas comerciais' },
   { pattern: /\bmonetizar\b/gi, replacement: 'fortalecer campanhas comerciais' },
   { pattern: /\bviralizar\b/gi, replacement: 'ter alto potencial publicitario' },
-  { pattern: /\bpare[çc]o real\b/gi, replacement: 'sou confiante e expressiva' },
-  { pattern: /\bsou real\b/gi, replacement: 'sou confiante' },
   { pattern: /\bclonagem\b/gi, replacement: 'representacao visual fiel' },
   { pattern: /\bclone de algu[eé]m\b/gi, replacement: 'personagem comercial original' },
   { pattern: /\bdentistas\b/gi, replacement: 'clinicas odontologicas em contexto publicitario neutro' },
   { pattern: /\bcl[ií]nicas? odontol[oó]gicas?\b/gi, replacement: 'clinicas odontologicas em contexto publicitario neutro' },
+  // Strip meta-narrative "real vs AI" language in brief sections (MAIN GOAL, VISUAL STYLE — not dialogue)
   { pattern: /is\s+this\s+(?:person|model|character|figure)\s+real\s+or\s+(?:AI|artificial\s+intelligence)\??/gi, replacement: 'premium commercial creative concept' },
   { pattern: /(?:real\s+or\s+AI|real\s+vs\.?\s+AI|AI\s+vs\.?\s+real)\b/gi, replacement: 'premium commercial' },
   { pattern: /\bAI\s+(?:reveal|identity|deepfake)\b/gi, replacement: 'creative commercial reveal' },
   { pattern: /\b(?:viewer|audience)\s+must\s+(?:feel|immediately\s+feel)\s+(?:curiosity\s+and\s+)?\bdoubt\b[^.]*(?:real|AI)[^.]*/gi, replacement: 'viewer experiences an engaging premium commercial moment' },
   { pattern: /\bpersonagem\s+virtual\s+(?:ficcional|hiper-realista)\b/gi, replacement: 'personagem comercial' },
-  // Strip deepfake-trigger realism descriptors
+  // Strip deepfake-trigger realism descriptors in CHARACTER/VISUAL sections
   { pattern: /\brealistic\s+(?:female|male|human)?\s*(?:model|person|individual)\b/gi, replacement: 'commercial presenter' },
   { pattern: /\b(?:ultra[\s-]?realistic|hyper[\s-]?realistic)\s+skin\b/gi, replacement: 'premium cinematic skin' },
   { pattern: /\bnatural\s+skin\s+texture\b/gi, replacement: 'clean commercial look' },
@@ -2500,9 +2499,6 @@ const VEO_PROMPT_SANITIZE_RULES: Array<{ pattern: RegExp; replacement: string }>
   { pattern: /\bnatural\s+facial\s+micro[\s-]?expressions?\b/gi, replacement: 'expressive performance' },
   { pattern: /\bno\s+artificial\s+plastic\s+look\b/gi, replacement: '' },
   { pattern: /\bno\s+exaggerated\s+beauty\s+filter\b/gi, replacement: '' },
-  // Strip AI-creation identity dialogue cues
-  { pattern: /\bou\s+s[oó]\s+uma\s+cria[çc][aã]o\b\??/gi, replacement: '' },
-  { pattern: /\bonly\s+a\s+creation\b\??/gi, replacement: '' },
   // Strip "premium AI" in commercial context (implies synthetic/AI media)
   { pattern: /\bpremium\s+AI\s+(?:video\s+)?ad\b/gi, replacement: 'premium commercial video' },
   { pattern: /\bAI\s+(?:video\s+)?(?:commercial|ad|advertising)\b/gi, replacement: 'premium commercial video' },
