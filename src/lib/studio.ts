@@ -2319,7 +2319,7 @@ function assembleStructuredVideoPromptSections(params: {
   const CHAR_LIMIT = sl ? 2000 : 880
 
   const openingLine = sl
-    ? 'Using the source model as visual identity reference, generate a new commercial video in this new scene.'
+    ? 'Generate a new commercial video featuring this fictional character in the described scene and setting.'
     : 'Animate this source frame into a short photorealistic commercial video.'
 
   let campaignLine = params.campaignContext
