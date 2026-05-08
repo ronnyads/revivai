@@ -518,6 +518,10 @@ function AssetNode({ data, selected }: NodeProps) {
     () => (asset.type === 'talking_video' ? getTalkingVideoContinuationDraft(asset.input_params) : null),
     [asset.type, asset.input_params],
   )
+  const chainIndex = typeof asset.input_params.chain_index === 'number' ? asset.input_params.chain_index : null
+  const chainTotal = typeof asset.input_params.chain_total === 'number' ? asset.input_params.chain_total : null
+  const isChained = chainTotal !== null && chainTotal > 1
+  const chainLabel = isChained ? `Parte ${(chainIndex ?? 0) + 1}/${chainTotal}` : null
   const provadorContinuationDraft = useMemo(
     () => (asset.type === 'compose' ? getProvadorContinuationDraft(asset.input_params) : null),
     [asset.type, asset.input_params],
@@ -585,6 +589,11 @@ function AssetNode({ data, selected }: NodeProps) {
         </button>
 
         <div className="flex shrink-0 items-center gap-1.5">
+          {chainLabel ? (
+            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-300">
+              {chainLabel}
+            </span>
+          ) : null}
           <span className="rounded-full border border-white/12 bg-white/[0.08] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">
             {asset.credits_cost} CR
           </span>
@@ -610,6 +619,11 @@ function AssetNode({ data, selected }: NodeProps) {
       <div className="px-4 py-4">
         {isVideoLocked ? (
           <LockedPlanState />
+        ) : asset.status === 'idle' && asset.input_params.pipeline_stage === 'chain_waiting' ? (
+          <div className="rounded-[16px] border border-cyan-500/14 bg-[#0A1419] px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-400/80">{chainLabel}</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-white/60">Aguardando a parte anterior concluir para gerar automaticamente...</p>
+          </div>
         ) : asset.status === 'processing' ? (
           <ProcessingCard
             type={asset.type}
@@ -627,7 +641,14 @@ function AssetNode({ data, selected }: NodeProps) {
         ) : isDonePreview ? (
           <div className="space-y-3">
             <ResultPreview type={asset.type} url={asset.result_url!} params={asset.input_params} donePreview />
-            {asset.type === 'talking_video' && talkingVideoContinuationDraft ? (
+            {asset.type === 'talking_video' && isChained ? (
+              <div className="rounded-[18px] border border-cyan-500/18 bg-[#0D171B] p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-300">{chainLabel} concluída</p>
+                <p className="mt-1 text-[12px] leading-relaxed text-white/80">
+                  A próxima parte já está sendo gerada automaticamente no card ao lado.
+                </p>
+              </div>
+            ) : asset.type === 'talking_video' && talkingVideoContinuationDraft ? (
               <div className="rounded-[18px] border border-cyan-500/18 bg-[#0D171B] p-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-100">restante pronto para continuar</p>
                 <p className="mt-1 text-[12px] leading-relaxed text-white/80">
@@ -670,7 +691,7 @@ function AssetNode({ data, selected }: NodeProps) {
                   Download
                 </button>
               ) : null}
-              {asset.type === 'talking_video' && talkingVideoContinuationDraft ? (
+              {asset.type === 'talking_video' && !isChained && talkingVideoContinuationDraft ? (
                 <button
                   type="button"
                   onClick={() => onDuplicate(asset.id, talkingVideoContinuationDraft)}

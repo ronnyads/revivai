@@ -18,7 +18,9 @@ import {
   normalizeTalkingWhitespace,
   parseTalkingVideoIdeaInput,
   planTalkingVideoSpeechChunk,
+  planAllTalkingVideoChunks,
   type TalkingVideoAudioSource,
+  type TalkingVideoChunkItem,
 } from '@/lib/talkingVideoIdea'
 
 type StudioAssetRecord = {
@@ -866,6 +868,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  let allSpeechChunks: TalkingVideoChunkItem[] = []
+
   if (type === 'talking_video') {
     const sourceImageUrl = normalizeOptionalUrl(normalizedInputParams.source_image_url)
     const externalAudioUrl = normalizeOptionalUrl(normalizedInputParams.audio_url)
@@ -942,6 +946,14 @@ export async function POST(req: NextRequest) {
           maxSeconds: 7.95,
         })
       : planTalkingVideoSpeechChunk({ text: '', speed })
+    allSpeechChunks = talkingVideoMode === 'exact_speech'
+      ? planAllTalkingVideoChunks({
+          text: talkingPolicy.speechTextNormalized,
+          speed,
+          targetSeconds: 7.35,
+          maxSeconds: 7.95,
+        })
+      : []
     const continuationIdeaPrompt = speechChunkPlan.hasRemaining
       ? buildTalkingVideoIdeaFromParts({
           speechText: speechChunkPlan.remainingText,
@@ -955,12 +967,16 @@ export async function POST(req: NextRequest) {
       ? 'connected_audio'
       : audioGenerationRequested
         ? 'veo_native'
-        : 'none'
+        : talkingVideoMode === 'exact_speech'
+          ? 'generated_tts'
+          : 'none'
     const talkingVideoDeliveryMode = hasExternalAudio
       ? 'external_audio_lipsync'
       : audioGenerationRequested
         ? 'native_veo_audio'
-        : 'silent_veo_only'
+        : talkingVideoMode === 'exact_speech'
+          ? 'external_audio_lipsync'
+          : 'silent_veo_only'
 
     normalizedInputParams = {
       ...normalizedInputParams,
@@ -1171,8 +1187,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Geração de vídeo disponível apenas nos planos pagos. Faça upgrade para continuar.' }, { status: 403 })
   }
 
-  if (!isDraft && (!profile || profile.credits < effectiveCost)) {
-    return NextResponse.json({ error: `Saldo insuficiente. Necessário ${effectiveCost} cr.` }, { status: 402 })
+  const totalChunks = allSpeechChunks.length > 1 ? allSpeechChunks.length : 1
+  const totalCost = effectiveCost * totalChunks
+  if (!isDraft && (!profile || profile.credits < totalCost)) {
+    const label = totalChunks > 1 ? ` (${totalChunks} partes × ${effectiveCost} cr)` : ''
+    return NextResponse.json({ error: `Saldo insuficiente. Necessário ${totalCost} cr${label}.` }, { status: 402 })
   }
 
   // 2. Registro do Asset (Smart Upsert)
@@ -1622,6 +1641,68 @@ export async function POST(req: NextRequest) {
             audio_generation_requested: useNativeVeoAudio,
           },
         })
+      }
+
+      // Auto-chain: criar assets filhos para chunks restantes
+      if (allSpeechChunks.length > 1) {
+        const chainId = crypto.randomUUID()
+        const siblingIds = allSpeechChunks.slice(1).map(() => crypto.randomUUID())
+
+        // Atualizar asset 0 com metadados da cadeia
+        await admin.from('studio_assets').update({
+          input_params: {
+            ...normalizedInputParams,
+            chain_id: chainId,
+            chain_index: 0,
+            chain_total: allSpeechChunks.length,
+            chain_next_asset_id: siblingIds[0],
+          },
+        }).eq('id', asset.id)
+
+        // Cobrar créditos dos chunks restantes de uma vez
+        const remainingChunkCost = effectiveCost * (allSpeechChunks.length - 1)
+        await admin.rpc('debit_credits_bulk', { user_id_param: user.id, amount_param: remainingChunkCost })
+
+        // Criar assets idle para chunks 1..N-1
+        for (let ci = 1; ci < allSpeechChunks.length; ci++) {
+          const chunk = allSpeechChunks[ci]
+          const siblingId = siblingIds[ci - 1]
+          const nextSiblingId = ci < allSpeechChunks.length - 1 ? siblingIds[ci] : null
+          const remainingAfter = allSpeechChunks.slice(ci + 1)
+          const siblingParams: Record<string, unknown> = {
+            ...normalizedInputParams,
+            speech_text_chunk: chunk.text,
+            speech_text_chunk_normalized: chunk.text,
+            speech_text_remaining: remainingAfter.map(c => c.text).join(' '),
+            speech_text_remaining_normalized: remainingAfter.map(c => c.text).join(' '),
+            estimated_chunk_seconds: chunk.seconds,
+            estimated_remaining_speech_seconds: remainingAfter.reduce((acc, c) => acc + c.seconds, 0),
+            generated_voice_url: '',
+            generated_voice_asset_id: '',
+            source_image_url: '',
+            pipeline_stage: 'chain_waiting',
+            talking_video_chunked: remainingAfter.length > 0,
+            continuation_available: remainingAfter.length > 0,
+            continuation_idea_prompt: '',
+            chain_id: chainId,
+            chain_index: ci,
+            chain_total: allSpeechChunks.length,
+            chain_next_asset_id: nextSiblingId ?? '',
+            chain_prev_asset_id: ci === 1 ? asset.id : siblingIds[ci - 2],
+          }
+          await admin.from('studio_assets').insert({
+            id: siblingId,
+            project_id,
+            user_id: user.id,
+            type: persistedType,
+            status: 'idle',
+            input_params: siblingParams,
+            credits_cost: effectiveCost,
+            board_order: asset.board_order,
+            position_x: ((asset as unknown as Record<string, unknown>).position_x as number ?? 0) + ci * 380,
+            position_y: (asset as unknown as Record<string, unknown>).position_y as number ?? 0,
+          })
+        }
       }
 
       return NextResponse.json({ asset: { ...responseAsset, status: 'processing' } }, { status: 201 })

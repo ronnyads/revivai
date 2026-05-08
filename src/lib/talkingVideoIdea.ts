@@ -223,6 +223,37 @@ export function planTalkingVideoSpeechChunk(params: {
   }
 }
 
+export type TalkingVideoChunkItem = {
+  text: string
+  seconds: number
+  index: number
+}
+
+export function planAllTalkingVideoChunks(params: {
+  text: string
+  speed?: number
+  targetSeconds?: number
+  maxSeconds?: number
+}): TalkingVideoChunkItem[] {
+  const chunks: TalkingVideoChunkItem[] = []
+  let remaining = params.text
+  let index = 0
+  while (remaining.trim()) {
+    const plan = planTalkingVideoSpeechChunk({
+      text: remaining,
+      speed: params.speed,
+      targetSeconds: params.targetSeconds,
+      maxSeconds: params.maxSeconds,
+    })
+    if (!plan.selectedText) break
+    chunks.push({ text: plan.selectedText, seconds: plan.selectedSeconds, index })
+    remaining = plan.remainingText
+    index++
+    if (!plan.hasRemaining) break
+  }
+  return chunks
+}
+
 function extractQuotedSegments(value: string) {
   return Array.from(value.matchAll(QUOTED_SEGMENT_RE))
     .map((match) => normalizeTalkingWhitespace(match[1] ?? ''))

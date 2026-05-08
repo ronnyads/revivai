@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { GoogleAuth } from 'google-auth-library'
 import Replicate from 'replicate'
-import { classifyVeoGuidelineBlockMessage, extractVeoSupportCode, finalizeTalkingVideoBaseGeneration, isVeoGuidelineBlockMessage, startVeo3DirectGoogle } from '@/lib/studio'
+import { classifyVeoGuidelineBlockMessage, extractVeoSupportCode, finalizeTalkingVideoBaseGeneration, isVeoGuidelineBlockMessage, startVeo3DirectGoogle, startTalkingVideoMotionGeneration, generateVoiceGrok } from '@/lib/studio'
 import { getLogicalStudioAssetType, mapStudioAssetType } from '@/lib/studioAssetType'
 import { saveLastFrame } from '@/lib/videoUtils'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
@@ -70,6 +70,92 @@ function parseVertexCredentials(raw: string): Record<string, unknown> {
     ? JSON.parse(raw)
     : raw
   return typeof normalized === 'string' ? JSON.parse(normalized) : normalized
+}
+
+async function triggerChainContinuation(params: {
+  admin: ReturnType<typeof createAdminClient>
+  completedAssetId: string
+  completedAssetInputParams: Record<string, unknown>
+  userId: string
+  appUrl: string
+}) {
+  const chainNextAssetId = typeof params.completedAssetInputParams.chain_next_asset_id === 'string'
+    ? params.completedAssetInputParams.chain_next_asset_id.trim()
+    : ''
+  if (!chainNextAssetId) return
+
+  const { data: nextAsset } = await params.admin
+    .from('studio_assets')
+    .select('*')
+    .eq('id', chainNextAssetId)
+    .eq('user_id', params.userId)
+    .single()
+
+  if (!nextAsset || nextAsset.status !== 'idle') return
+
+  // Busca last_frame_url do asset completado (salvo pelo finalize)
+  const completedAssetResult = await params.admin
+    .from('studio_assets')
+    .select('last_frame_url')
+    .eq('id', params.completedAssetId)
+    .single()
+
+  const lastFrameUrl = (completedAssetResult.data as { last_frame_url?: string } | null)?.last_frame_url
+  if (!lastFrameUrl) return
+
+  const nextParams = nextAsset.input_params as Record<string, unknown>
+  const talkingMode = typeof nextParams.talking_video_mode === 'string' ? nextParams.talking_video_mode : 'exact_speech'
+  const quality = typeof nextParams.quality === 'string' ? nextParams.quality : '720p'
+  const speechText = typeof nextParams.speech_text_chunk === 'string' ? nextParams.speech_text_chunk.trim() : ''
+  const aspectRatio = typeof nextParams.aspect_ratio === 'string' ? nextParams.aspect_ratio : '9:16'
+
+  let updatedParams: Record<string, unknown> = { ...nextParams, source_image_url: lastFrameUrl, pipeline_stage: 'validating' }
+  let autoVoiceUrl = ''
+
+  if (talkingMode === 'exact_speech' && speechText) {
+    try {
+      autoVoiceUrl = await generateVoiceGrok({
+        script: speechText,
+        voice_id: typeof updatedParams.voice_id === 'string' ? updatedParams.voice_id : 'ara',
+        assetId: chainNextAssetId,
+        userId: params.userId,
+      })
+      updatedParams = { ...updatedParams, generated_voice_url: autoVoiceUrl }
+    } catch (ttsErr) {
+      console.error('[chain] Grok TTS falhou para chunk encadeado:', ttsErr)
+    }
+  }
+
+  await params.admin.from('studio_assets').update({
+    status: 'processing',
+    input_params: updatedParams,
+  }).eq('id', chainNextAssetId)
+
+  await startTalkingVideoMotionGeneration({
+    source_image_url: lastFrameUrl,
+    motion_prompt: typeof updatedParams.visual_prompt_normalized === 'string'
+      ? updatedParams.visual_prompt_normalized
+      : typeof updatedParams.visual_prompt === 'string' ? updatedParams.visual_prompt : '',
+    aspect_ratio: aspectRatio,
+    generate_audio: false,
+    duration: 8,
+    quality,
+    assetId: chainNextAssetId,
+    userId: params.userId,
+    appUrl: params.appUrl,
+    strict_source_fidelity: updatedParams.source_fidelity_mode === 'strict',
+    source_visible_item_manifest: Array.isArray(updatedParams.source_visible_item_manifest)
+      ? updatedParams.source_visible_item_manifest.filter((v): v is string => typeof v === 'string')
+      : [],
+    source_text_logo_lock: Boolean(updatedParams.source_text_logo_lock),
+    source_color_lock: Boolean(updatedParams.source_color_lock),
+    inputParamsPatch: {
+      pipeline_stage: 'veo_generating',
+      generated_voice_url: autoVoiceUrl,
+      talking_video_audio_source: autoVoiceUrl ? 'generated_tts' : 'none',
+      talking_video_delivery_mode: autoVoiceUrl ? 'external_audio_lipsync' : 'silent_veo_only',
+    },
+  })
 }
 
 async function getVertexAccessToken(feature: string): Promise<string> {
@@ -718,6 +804,10 @@ export async function POST(
           })
         }
 
+        // Encadear próximo chunk automaticamente
+        if (currentInputParams.chain_next_asset_id) {
+          await triggerChainContinuation({ admin, completedAssetId: id, completedAssetInputParams: currentInputParams, userId: user.id, appUrl: resolveAppUrl(req) }).catch(e => console.error('[chain] trigger falhou (veo-google):', e))
+        }
         return syncResponse({ status: 'done', result_url: finalized.resultUrl ?? finalUrl })
       }
 
@@ -938,6 +1028,10 @@ export async function POST(
             })
           }
 
+          // Encadear próximo chunk automaticamente
+          if (currentInputParams.chain_next_asset_id) {
+            await triggerChainContinuation({ admin, completedAssetId: id, completedAssetInputParams: currentInputParams, userId: user.id, appUrl: resolveAppUrl(req) }).catch(e => console.error('[chain] trigger falhou (fal-finalize):', e))
+          }
           return syncResponse({ status: 'done', result_url: finalized.resultUrl ?? permanentUrl })
         }
 
@@ -955,6 +1049,10 @@ export async function POST(
             : currentInputParams,
         }).eq('id', id)
 
+        // Encadear próximo chunk (lipsync done)
+        if (logicalType === 'talking_video' && currentInputParams.chain_next_asset_id) {
+          await triggerChainContinuation({ admin, completedAssetId: id, completedAssetInputParams: currentInputParams, userId: user.id, appUrl: resolveAppUrl(req) }).catch(e => console.error('[chain] trigger falhou (fal-lipsync-done):', e))
+        }
         return syncResponse({ status: 'done', result_url: permanentUrl })
       }
 
