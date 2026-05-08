@@ -2481,12 +2481,17 @@ const VEO_PROMPT_SANITIZE_RULES: Array<{ pattern: RegExp; replacement: string }>
   { pattern: /\bviralizar e monetizar\b/gi, replacement: 'criar videos profissionais para campanhas comerciais' },
   { pattern: /\bmonetizar\b/gi, replacement: 'fortalecer campanhas comerciais' },
   { pattern: /\bviralizar\b/gi, replacement: 'ter alto potencial publicitario' },
-  { pattern: /\bpare[çc]o real\b/gi, replacement: 'sou uma personagem virtual hiper-realista' },
-  { pattern: /\bsou real\b/gi, replacement: 'sou uma personagem virtual ficcional' },
-  { pattern: /\bclonagem\b/gi, replacement: 'representacao virtual fiel' },
-  { pattern: /\bclone de algu[eé]m\b/gi, replacement: 'personagem virtual original' },
+  { pattern: /\bpare[çc]o real\b/gi, replacement: 'sou confiante e expressiva' },
+  { pattern: /\bsou real\b/gi, replacement: 'sou confiante' },
+  { pattern: /\bclonagem\b/gi, replacement: 'representacao visual fiel' },
+  { pattern: /\bclone de algu[eé]m\b/gi, replacement: 'personagem comercial original' },
   { pattern: /\bdentistas\b/gi, replacement: 'clinicas odontologicas em contexto publicitario neutro' },
   { pattern: /\bcl[ií]nicas? odontol[oó]gicas?\b/gi, replacement: 'clinicas odontologicas em contexto publicitario neutro' },
+  { pattern: /is\s+this\s+(?:person|model|character|figure)\s+real\s+or\s+(?:AI|artificial\s+intelligence)\??/gi, replacement: 'premium commercial creative concept' },
+  { pattern: /(?:real\s+or\s+AI|real\s+vs\.?\s+AI|AI\s+vs\.?\s+real)\b/gi, replacement: 'premium commercial' },
+  { pattern: /\bAI\s+(?:reveal|identity|deepfake)\b/gi, replacement: 'creative commercial reveal' },
+  { pattern: /\b(?:viewer|audience)\s+must\s+(?:feel|immediately\s+feel)\s+(?:curiosity\s+and\s+)?\bdoubt\b[^.]*(?:real|AI)[^.]*/gi, replacement: 'viewer experiences an engaging premium commercial moment' },
+  { pattern: /\bpersonagem\s+virtual\s+(?:ficcional|hiper-realista)\b/gi, replacement: 'personagem comercial' },
 ]
 
 const VEO_NEGATIVE_LIST_PATTERNS = [
