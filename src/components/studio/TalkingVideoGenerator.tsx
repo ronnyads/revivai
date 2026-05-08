@@ -8,7 +8,6 @@ import {
   StudioFormShell,
   StudioPanel,
   StudioPrimaryButton,
-  StudioSummaryChip,
 } from './StudioFormShell'
 import { STUDIO_ASPECT_RATIO_PRESETS } from './aspectRatio'
 import {
@@ -282,29 +281,19 @@ function TalkingVideoGeneratorBody({ initial, onGenerate }: Props) {
           <StudioPanel title="O que acontece no video?" compact>
             <StudioFieldLabel
               trailing={
-                mode === 'exact_speech'
-                  ? (
-                    <span
-                      className={`rounded-full px-2 py-1 text-[9px] font-semibold ${
-                        !parsedIdea.speechDetected
-                          ? 'border border-amber-500/20 bg-amber-500/10 text-amber-200'
-                          : speechWillContinue
-                            ? 'border border-amber-500/20 bg-amber-500/10 text-amber-200'
-                            : estimateTone === 'safe'
-                            ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
-                            : estimateTone === 'warning'
-                              ? 'border border-amber-500/20 bg-amber-500/10 text-amber-200'
-                              : 'border border-red-500/20 bg-red-500/10 text-red-200'
-                      }`}
-                    >
-                      {!parsedIdea.speechDetected
-                        ? 'Fala nao detectada'
-                        : speechWillContinue
-                          ? `Total ${estimateSeconds.toFixed(1)}s -> parte 1 ${chunkPlan.selectedSeconds.toFixed(1)}s`
-                          : `Estimativa: ${estimateSeconds.toFixed(1)}s / 8s`}
-                    </span>
-                  )
-                  : null
+                mode === 'exact_speech' && parsedIdea.speechDetected ? (
+                  <span className={`rounded-full px-2 py-1 text-[9px] font-semibold ${
+                    speechWillContinue
+                      ? 'border border-amber-500/20 bg-amber-500/10 text-amber-200'
+                      : estimateTone === 'safe'
+                        ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
+                        : 'border border-amber-500/20 bg-amber-500/10 text-amber-200'
+                  }`}>
+                    {speechWillContinue
+                      ? `${chunkPlan.selectedSeconds.toFixed(1)}s (parte 1)`
+                      : `${estimateSeconds.toFixed(1)}s`}
+                  </span>
+                ) : null
               }
             >
               Ideia completa
@@ -316,31 +305,6 @@ function TalkingVideoGeneratorBody({ initial, onGenerate }: Props) {
               rows={3}
               className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-2.5 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-cyan-400/30"
             />
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <StudioSummaryChip tone={parsedIdea.speechDetected ? 'success' : 'warning'}>
-                {parsedIdea.speechDetected ? 'fala detectada' : 'fala faltando'}
-              </StudioSummaryChip>
-              <StudioSummaryChip tone={parsedIdea.emotionDetected ? 'success' : 'neutral'}>
-                {parsedIdea.emotionDetected ? 'tom detectado' : 'tom automatico'}
-              </StudioSummaryChip>
-              <StudioSummaryChip tone={parsedIdea.sceneDetected ? 'success' : 'neutral'}>
-                {parsedIdea.sceneDetected ? 'cena detectada' : 'cena aberta'}
-              </StudioSummaryChip>
-              <StudioSummaryChip tone={scenePreset.id === 'none' ? 'neutral' : 'cyan'}>
-                {scenePreset.shortLabel}
-              </StudioSummaryChip>
-              <StudioSummaryChip tone="neutral">modelo preservada</StudioSummaryChip>
-              <StudioSummaryChip tone={mode === 'exact_speech' ? 'cyan' : 'warning'}>
-                {speechWillContinue ? 'continua em partes' : mode === 'exact_speech' ? 'speech-safe ativo' : 'audio mais livre'}
-              </StudioSummaryChip>
-              <StudioSummaryChip tone={hasExternalAudio ? 'cyan' : mode === 'veo_natural' ? 'success' : 'warning'}>
-                {hasExternalAudio
-                  ? 'audio conectado + lipsync'
-                  : mode === 'veo_natural'
-                    ? 'audio nativo do Veo'
-                    : 'conecte audio para frase exata'}
-              </StudioSummaryChip>
-            </div>
           </StudioPanel>
 
           <StudioPanel compact>
@@ -393,20 +357,6 @@ function TalkingVideoGeneratorBody({ initial, onGenerate }: Props) {
 
           <StudioPanel title="Saida" compact>
             <div className="grid gap-3 sm:grid-cols-2">
-              {mode === 'exact_speech' ? (
-                  <div>
-                    <StudioFieldLabel>Audio conectado</StudioFieldLabel>
-                    <div className={`rounded-[16px] border px-3 py-2.5 text-[11px] ${
-                      hasExternalAudio
-                        ? 'border-cyan-500/20 bg-cyan-500/[0.06] text-cyan-100'
-                        : 'border-amber-500/20 bg-amber-500/10 text-amber-100'
-                    }`}>
-                      {hasExternalAudio
-                        ? 'Usando o audio conectado como fonte oficial do lipsync.'
-                        : 'Conecte um card de audio para liberar o modo Frase exata.'}
-                    </div>
-                  </div>
-              ) : null}
               <div>
                 <StudioFieldLabel>Formato</StudioFieldLabel>
                 <select
