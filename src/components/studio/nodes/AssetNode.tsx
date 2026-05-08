@@ -361,6 +361,7 @@ export interface AssetNodeData {
   onUpdateParams: (id: string, params: Record<string, unknown>) => void
   onRefreshAsset?: (id: string, fallback?: Partial<StudioAsset>) => Promise<void>
   onDuplicate: (id: string, overrides?: Record<string, unknown>) => void
+  onEdit: (id: string) => void
   [key: string]: unknown
 }
 
@@ -471,11 +472,21 @@ function getProvadorContinuationDraft(inputParams: Record<string, unknown>) {
   return continuationParams
 }
 
+function getPrimaryConnectedImageUrl(params: Record<string, unknown>): string | null {
+  const keys = ['source_image_url', 'portrait_url', 'source_url', 'product_url', 'image_url', 'source_face_url']
+  for (const key of keys) {
+    const val = params[key]
+    if (typeof val === 'string' && val.trim().length > 0) return val
+  }
+  return null
+}
+
 function AssetNode({ data, selected }: NodeProps) {
   const {
     asset,
     onDelete,
     onDuplicate,
+    onEdit,
   } = data as AssetNodeData
 
   const meta = TYPE_META[asset.type]
@@ -538,23 +549,22 @@ function AssetNode({ data, selected }: NodeProps) {
       </div>
 
       {/* Media area */}
-      <div className="mx-3 overflow-hidden rounded-[12px] border border-white/6 bg-black/30" style={{ height: 140 }}>
+      <button
+        type="button"
+        onClick={() => onEdit(asset.id)}
+        className="relative mx-3 block w-[calc(100%-24px)] overflow-hidden rounded-[12px] border border-white/6 bg-black/30 transition-colors hover:border-white/14"
+        style={{ height: 140 }}
+      >
         {asset.status === 'done' && asset.result_url && !isText ? (
           isVideo ? (
-            <video
-              src={asset.result_url}
-              className="h-full w-full object-cover"
-              muted playsInline preload="metadata"
-            />
+            <video src={asset.result_url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
           ) : (
             <img src={asset.result_url} alt="" className="h-full w-full object-cover" />
           )
         ) : asset.status === 'done' && isText && asset.result_url ? (
           <div className="flex h-full items-center justify-center p-3">
             <p className="line-clamp-4 text-center text-[10px] leading-relaxed text-white/60">
-              {typeof asset.input_params.script === 'string'
-                ? asset.input_params.script.slice(0, 160)
-                : 'Texto gerado'}
+              {typeof asset.input_params.script === 'string' ? asset.input_params.script.slice(0, 160) : 'Texto gerado'}
             </p>
           </div>
         ) : asset.status === 'processing' ? (
@@ -565,9 +575,9 @@ function AssetNode({ data, selected }: NodeProps) {
         ) : asset.status === 'error' ? (
           <div className="flex h-full flex-col items-center justify-center gap-1.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10">
-              <span className="text-[16px]">✕</span>
+              <span className="text-base">✕</span>
             </div>
-            <span className="text-[10px] text-red-400/80">Falha</span>
+            <span className="text-[10px] text-red-400/80">Falha — clique para tentar novamente</span>
           </div>
         ) : isChainWaiting ? (
           <div className="flex h-full flex-col items-center justify-center gap-1.5 px-3 text-center">
@@ -576,15 +586,30 @@ function AssetNode({ data, selected }: NodeProps) {
             </div>
             <span className="text-[10px] text-cyan-400/70">Aguardando parte anterior...</span>
           </div>
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-[16px] border ${displayMeta.chip} opacity-50`}>
-              {displayMeta.icon}
+        ) : (() => {
+          const connectedImg = getPrimaryConnectedImageUrl(asset.input_params)
+          return connectedImg ? (
+            <div className="relative h-full w-full">
+              <img src={connectedImg} alt="" className="h-full w-full object-cover opacity-40" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
+                <div className={`flex h-8 w-8 items-center justify-center rounded-[14px] border ${displayMeta.chip}`}>
+                  {displayMeta.icon}
+                </div>
+                <span className="rounded-full border border-white/14 bg-black/60 px-2 py-0.5 text-[9px] font-semibold text-white/80 backdrop-blur-sm">
+                  Toque para configurar
+                </span>
+              </div>
             </div>
-            <span className="text-[10px] text-white/25">Clique para editar</span>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2">
+              <div className={`flex h-10 w-10 items-center justify-center rounded-[16px] border ${displayMeta.chip} opacity-50`}>
+                {displayMeta.icon}
+              </div>
+              <span className="text-[10px] text-white/30">Clique para configurar</span>
+            </div>
+          )
+        })()}
+      </button>
 
       {/* Footer */}
       <div className="flex items-center justify-between gap-2 px-3 pb-3 pt-2">

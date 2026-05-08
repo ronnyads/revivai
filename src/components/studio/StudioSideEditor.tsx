@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowRight, Download, Pencil, RotateCcw, X } from 'lucide-react'
+import { ArrowRight, Download, Pencil, RotateCcw, Trash2, X } from 'lucide-react'
 import { AssetType, StudioAsset } from '@/types'
 import {
   TYPE_META,
@@ -46,6 +46,7 @@ interface StudioSideEditorProps {
   onDelete: (assetId: string) => void
   onDuplicate: (assetId: string, overrides?: Record<string, unknown>) => void
   onRefreshAsset: (assetId: string, fallback?: Partial<StudioAsset>) => Promise<void>
+  onClose?: () => void
 }
 
 export default function StudioSideEditor({
@@ -56,6 +57,7 @@ export default function StudioSideEditor({
   onDelete,
   onDuplicate,
   onRefreshAsset,
+  onClose,
 }: StudioSideEditorProps) {
   const [editingDone, setEditingDone] = useState(false)
 
@@ -124,12 +126,22 @@ export default function StudioSideEditor({
           </span>
           <button
             type="button"
-            onClick={() => onDelete(asset.id)}
+            onClick={() => { onDelete(asset.id); onClose?.() }}
             title="Excluir"
             className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/60 transition-colors hover:border-red-500/24 hover:bg-red-500/10 hover:text-red-300"
           >
-            <X size={13} />
+            <Trash2 size={13} />
           </button>
+          {onClose ? (
+            <button
+              type="button"
+              onClick={onClose}
+              title="Fechar"
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-white/60 transition-colors hover:border-white/20 hover:text-white"
+            >
+              <X size={13} />
+            </button>
+          ) : null}
         </div>
       </div>
 
