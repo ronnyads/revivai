@@ -3,6 +3,52 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Clapperboard, Lightbulb, Loader2, PanelRightClose, Send, Sparkles } from 'lucide-react'
 
+function parseInline(text: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, i) =>
+    /^\*\*[^*]+\*\*$/.test(part)
+      ? <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>
+      : part as React.ReactNode
+  )
+}
+
+function renderMarkdown(text: string): React.ReactNode[] {
+  const lines = text.split('\n')
+  const elements: React.ReactNode[] = []
+  let listItems: string[] = []
+
+  const flushList = (key: string) => {
+    if (listItems.length === 0) return
+    elements.push(
+      <ul key={key} className="my-1 space-y-0.5 pl-4">
+        {listItems.map((item, i) => (
+          <li key={i} className="list-disc text-sm leading-6 text-[#D7E4E8]">{parseInline(item)}</li>
+        ))}
+      </ul>
+    )
+    listItems = []
+  }
+
+  lines.forEach((line, i) => {
+    const key = `line-${i}`
+    if (/^#{1,3}\s/.test(line)) {
+      flushList(key + '-list')
+      const content = line.replace(/^#{1,3}\s/, '')
+      elements.push(<p key={key} className="mt-3 mb-0.5 text-sm font-semibold text-white">{parseInline(content)}</p>)
+    } else if (/^[-*]\s/.test(line)) {
+      listItems.push(line.replace(/^[-*]\s/, ''))
+    } else if (line.trim() === '') {
+      flushList(key + '-list')
+      elements.push(<div key={key} className="h-2" />)
+    } else {
+      flushList(key + '-list')
+      elements.push(<p key={key} className="text-sm leading-6 text-[#D7E4E8]">{parseInline(line)}</p>)
+    }
+  })
+  flushList('end-list')
+  return elements
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
@@ -271,13 +317,17 @@ export default function StudioChatPanel({ projectId, userId, onClose }: Props) {
                           <span>{isAssistant ? agentMeta.label : 'Voce'}</span>
                         </div>
 
-                        <div className="whitespace-pre-wrap text-sm leading-7">
-                          {message.content || (
-                            <span className="inline-flex items-center gap-1">
-                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current/50" />
-                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current/40 [animation-delay:120ms]" />
-                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current/30 [animation-delay:240ms]" />
-                            </span>
+                        <div className="space-y-0">
+                          {isAssistant ? (
+                            message.content
+                              ? renderMarkdown(message.content)
+                              : <span className="inline-flex items-center gap-1">
+                                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current/50" />
+                                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current/40 [animation-delay:120ms]" />
+                                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current/30 [animation-delay:240ms]" />
+                                </span>
+                          ) : (
+                            <p className="whitespace-pre-wrap text-sm leading-6">{message.content}</p>
                           )}
                           {isStreamingMessage && (
                             <span className="ml-1 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-[#54D6F6]" />
