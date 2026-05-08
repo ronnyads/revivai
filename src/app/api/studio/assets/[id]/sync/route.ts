@@ -651,7 +651,9 @@ export async function POST(
         const nestedReasons = Array.isArray(generatedVideoResponse.raiMediaFilteredReasons ?? generatedVideoResponse.rai_media_filtered_reasons)
           ? (generatedVideoResponse.raiMediaFilteredReasons ?? generatedVideoResponse.rai_media_filtered_reasons) as unknown[]
           : []
-        const reason = directReasons[0] || nestedReasons[0] || 'Bloqueado pelos filtros de seguranca do Google'
+        const allReasons = [...directReasons, ...nestedReasons]
+        console.log(`[studio-sync:rai-block] assetId=${id} count=${raiFilteredCount} reasons=${JSON.stringify(allReasons)}`)
+        const reason = allReasons[0] || 'Bloqueado pelos filtros de seguranca do Google'
         return failAssetAndRespond({
           admin,
           assetId: id,
