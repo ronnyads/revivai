@@ -2319,7 +2319,7 @@ function assembleStructuredVideoPromptSections(params: {
   const CHAR_LIMIT = sl ? 2000 : 880
 
   const openingLine = sl
-    ? 'Generate a new commercial video featuring this fictional character in the described scene and setting.'
+    ? 'Animate this character into a short commercial video in the new scene and setting described below.'
     : 'Animate this source frame into a short photorealistic commercial video.'
 
   let campaignLine = params.campaignContext
@@ -2493,6 +2493,7 @@ const VEO_PROMPT_SANITIZE_RULES: Array<{ pattern: RegExp; replacement: string }>
   { pattern: /\b(?:viewer|audience)\s+must\s+(?:feel|immediately\s+feel)\s+(?:curiosity\s+and\s+)?\bdoubt\b[^.]*(?:real|AI)[^.]*/gi, replacement: 'viewer experiences an engaging premium commercial moment' },
   { pattern: /\bpersonagem\s+virtual\s+(?:ficcional|hiper-realista)\b/gi, replacement: 'personagem comercial' },
   // Strip deepfake-trigger realism descriptors
+  { pattern: /\brealistic\s+(?:female|male|human)?\s*(?:model|person|individual)\b/gi, replacement: 'commercial presenter' },
   { pattern: /\b(?:ultra[\s-]?realistic|hyper[\s-]?realistic)\s+skin\b/gi, replacement: 'premium cinematic skin' },
   { pattern: /\bnatural\s+skin\s+texture\b/gi, replacement: 'clean commercial look' },
   { pattern: /\brealistic\s+eyes\b/gi, replacement: 'expressive eyes' },
