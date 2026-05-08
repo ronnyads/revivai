@@ -39,9 +39,9 @@ export const PLANS_DEFAULT = {
   },
   starter: {
     name: 'Rookie',
-    price: 39.90,
-    credits: 500,
-    description: '500 créditos/mês — Imagens, vídeos e áudios para iniciantes.',
+    price: 47.00,
+    credits: 600,
+    description: '600 créditos/mês — Imagens, vídeos e áudios para iniciantes.',
   },
   popular: {
     name: 'Creator',
