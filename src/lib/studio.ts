@@ -1908,6 +1908,8 @@ const VIDEO_CINEMATIC_QUALITY_UGC =
   'Shot on cinema camera. Shallow depth of field, natural bokeh. Warm filmic color grade. Soft professional studio lighting. Clean commercial aesthetic.'
 const VIDEO_CINEMATIC_QUALITY_CHARACTER =
   'Vivid commercial quality. Crisp sharp rendering. Dynamic studio lighting. Bold cinematic color palette. Professional advertising aesthetic.'
+const VIDEO_MOTION_RULES_SCENE_LIVRE =
+  'Follow camera movement and action instructions from the user request. Stable anatomy and hands. No face distortion or warping.'
 
 const VIDEO_SCENE_CHANGE_PATTERNS = [
   /\b(em|na|no|numa|num|inside|at|in front of|on a|from a)\s+(cafeteria|cafe|cozinha|kitchen|praia|beach|rua|street|cidade|city|paris|londres|london|dubai|tokyo|roma|rome|floresta|forest|hotel|escritorio|office|quarto|bedroom|banheiro|bathroom|restaurante|restaurant|mall|shopping|studio|estudio)\b/i,
@@ -2346,7 +2348,9 @@ function assembleStructuredVideoPromptSections(params: {
   const cinematicLine = sl
     ? `CINEMATIC: ${params.isUgcModel ? VIDEO_CINEMATIC_QUALITY_UGC : VIDEO_CINEMATIC_QUALITY_CHARACTER}`
     : ''
-  let motionLine = `MOTION: ${VIDEO_FIXED_MOTION_RULES}`
+  let motionLine = sl
+    ? `MOTION: ${VIDEO_MOTION_RULES_SCENE_LIVRE}`
+    : `MOTION: ${VIDEO_FIXED_MOTION_RULES}`
 
   const buildPrompt = () =>
     [
@@ -2376,7 +2380,7 @@ function assembleStructuredVideoPromptSections(params: {
     if (prompt.length <= CHAR_LIMIT) return prompt
   }
 
-  motionLine = `MOTION: ${VIDEO_FIXED_MOTION_RULES_COMPACT}`
+  motionLine = sl ? motionLine : `MOTION: ${VIDEO_FIXED_MOTION_RULES_COMPACT}`
   prompt = buildPrompt()
   if (prompt.length <= CHAR_LIMIT) return prompt
 
