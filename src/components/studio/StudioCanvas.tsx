@@ -23,6 +23,7 @@ import {
   STUDIO_NODE_GRID_SPACING_X,
   STUDIO_NODE_GRID_SPACING_Y,
 } from './node-layout'
+import { mapScriptFormatToAspectRatio } from './aspectRatio'
 import {
   HERO_SELFIE_TEMPLATE_ID,
   PENDING_GENERATION_STORAGE_KEY,
@@ -141,7 +142,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   script:  { product: '', audience: '', format: 'reels', hook_style: 'problema' },
   image:   { prompt: '', style: 'ugc', aspect_ratio: '9:16' },
   voice:   { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 },
-  video:   { source_image_url: '', motion_prompt: '', duration: 5 },
+  video:   { source_image_url: '', motion_prompt: '', duration: 8, aspect_ratio: '9:16' },
   talking_video: {
     source_image_url: '',
     talking_video_mode: 'exact_speech',
@@ -152,6 +153,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
     voice_id: 'EXAVITQu4vr4xnSDxMaL',
     speed: 1.0,
     quality: '720p',
+    aspect_ratio: '9:16',
   },
   caption: { audio_url: '' },
   upscale: { source_url: '', scale: 4 },
@@ -229,6 +231,242 @@ function buildLookSplitComposeParams(sourceAsset: StudioAsset): Record<string, u
       .map((reference) => reference.url)
       .filter((url): url is string => typeof url === 'string' && url.trim().length > 0),
     reference_source_mode: 'split-look-card',
+  }
+}
+
+function buildDuplicateInputParams(asset: StudioAsset, overrides?: Record<string, unknown>) {
+  const merged = { ...asset.input_params, ...(overrides ?? {}) }
+
+  if (asset.type === 'model') {
+    return {
+      ...DEFAULT_PARAMS.model,
+      gender: typeof merged.gender === 'string' ? merged.gender : '',
+      age_range: typeof merged.age_range === 'string' ? merged.age_range : '',
+      skin_tone: typeof merged.skin_tone === 'string' ? merged.skin_tone : '',
+      body_type: typeof merged.body_type === 'string' ? merged.body_type : '',
+      style: typeof merged.style === 'string' ? merged.style : '',
+      extra_details: typeof merged.extra_details === 'string' ? merged.extra_details : '',
+      engine: typeof merged.engine === 'string' ? merged.engine : undefined,
+    }
+  }
+
+  if (asset.type === 'script') {
+    return {
+      ...DEFAULT_PARAMS.script,
+      product: typeof merged.product === 'string' ? merged.product : '',
+      audience: typeof merged.audience === 'string' ? merged.audience : '',
+      format: typeof merged.format === 'string' && merged.format.trim().length > 0 ? merged.format : 'reels',
+      hook_style: typeof merged.hook_style === 'string' && merged.hook_style.trim().length > 0 ? merged.hook_style : 'problema',
+    }
+  }
+
+  if (asset.type === 'image') {
+    return {
+      ...DEFAULT_PARAMS.image,
+      prompt: typeof merged.prompt === 'string' ? merged.prompt : '',
+      style: typeof merged.style === 'string' && merged.style.trim().length > 0 ? merged.style : 'ugc',
+      aspect_ratio: typeof merged.aspect_ratio === 'string' && merged.aspect_ratio.trim().length > 0 ? merged.aspect_ratio : '9:16',
+      model_prompt: typeof merged.model_prompt === 'string' ? merged.model_prompt : '',
+      source_face_url: typeof merged.source_face_url === 'string' ? merged.source_face_url : '',
+    }
+  }
+
+  if (asset.type === 'voice') {
+    return {
+      ...DEFAULT_PARAMS.voice,
+      script: typeof merged.script === 'string' ? merged.script : '',
+      voice_id: typeof merged.voice_id === 'string' && merged.voice_id.trim().length > 0 ? merged.voice_id : 'EXAVITQu4vr4xnSDxMaL',
+      speed: Number.isFinite(Number(merged.speed)) ? Number(merged.speed) : 1,
+    }
+  }
+
+  if (asset.type === 'caption') {
+    return {
+      ...DEFAULT_PARAMS.caption,
+      audio_url: typeof merged.audio_url === 'string' ? merged.audio_url : '',
+    }
+  }
+
+  if (asset.type === 'upscale') {
+    return {
+      ...DEFAULT_PARAMS.upscale,
+      source_url: typeof merged.source_url === 'string' ? merged.source_url : '',
+      scale: Number.isFinite(Number(merged.scale)) ? Number(merged.scale) : 4,
+      quality: typeof merged.quality === 'string' ? merged.quality : undefined,
+    }
+  }
+
+  if (asset.type === 'talking_video') {
+    return {
+      ...DEFAULT_PARAMS.talking_video,
+      source_image_url: typeof merged.source_image_url === 'string' ? merged.source_image_url : '',
+      talking_video_mode: String(merged.talking_video_mode ?? 'exact_speech') === 'veo_natural' ? 'veo_natural' : 'exact_speech',
+      scene_preset_id: typeof merged.scene_preset_id === 'string' ? merged.scene_preset_id : 'none',
+      idea_prompt: typeof merged.idea_prompt === 'string' ? merged.idea_prompt : '',
+      speech_text: typeof merged.speech_text === 'string' ? merged.speech_text : '',
+      expression_direction: typeof merged.expression_direction === 'string' ? merged.expression_direction : '',
+      visual_prompt: typeof merged.visual_prompt === 'string' ? merged.visual_prompt : '',
+      voice_id: typeof merged.voice_id === 'string' && merged.voice_id.trim().length > 0
+        ? merged.voice_id
+        : String(DEFAULT_PARAMS.talking_video.voice_id ?? 'EXAVITQu4vr4xnSDxMaL'),
+      speed: Number.isFinite(Number(merged.speed)) ? Number(merged.speed) : 1,
+      quality: typeof merged.quality === 'string' && merged.quality.trim().length > 0 ? merged.quality : '720p',
+      aspect_ratio: typeof merged.aspect_ratio === 'string' && merged.aspect_ratio.trim().length > 0 ? merged.aspect_ratio : '9:16',
+      audio_url: typeof merged.audio_url === 'string' ? merged.audio_url : '',
+    }
+  }
+
+  if (asset.type === 'video') {
+    return {
+      ...DEFAULT_PARAMS.video,
+      source_image_url: typeof merged.source_image_url === 'string' ? merged.source_image_url : '',
+      continuation_frame: typeof merged.continuation_frame === 'string' ? merged.continuation_frame : '',
+      motion_prompt: typeof merged.motion_prompt === 'string' ? merged.motion_prompt : '',
+      duration: Number.isFinite(Number(merged.duration)) ? Number(merged.duration) : 8,
+      aspect_ratio: typeof merged.aspect_ratio === 'string' && merged.aspect_ratio.trim().length > 0 ? merged.aspect_ratio : '9:16',
+      quality: typeof merged.quality === 'string' ? merged.quality : undefined,
+      model_prompt: typeof merged.model_prompt === 'string' ? merged.model_prompt : '',
+      audio_url: typeof merged.audio_url === 'string' ? merged.audio_url : '',
+    }
+  }
+
+  if (asset.type === 'scene') {
+    return {
+      ...DEFAULT_PARAMS.scene,
+      source_url: typeof merged.source_url === 'string' ? merged.source_url : '',
+      extra_source_urls: Array.isArray(merged.extra_source_urls)
+        ? merged.extra_source_urls.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        : [],
+      scene_prompt: typeof merged.scene_prompt === 'string' ? merged.scene_prompt : '',
+      aspect_ratio: typeof merged.aspect_ratio === 'string' && merged.aspect_ratio.trim().length > 0 ? merged.aspect_ratio : '9:16',
+    }
+  }
+
+  if (asset.type === 'animate') {
+    return {
+      ...DEFAULT_PARAMS.animate,
+      portrait_image_url: typeof merged.portrait_image_url === 'string' ? merged.portrait_image_url : '',
+      driving_video_url: typeof merged.driving_video_url === 'string' ? merged.driving_video_url : '',
+      motion_prompt: typeof merged.motion_prompt === 'string' ? merged.motion_prompt : '',
+    }
+  }
+
+  if (asset.type === 'compose') {
+    return {
+      ...DEFAULT_PARAMS.compose,
+      portrait_url: typeof merged.portrait_url === 'string' ? merged.portrait_url : '',
+      product_url: typeof merged.product_url === 'string' ? merged.product_url : '',
+      product_urls: Array.isArray(merged.product_urls)
+        ? merged.product_urls.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        : [],
+      position: typeof merged.position === 'string' && merged.position.trim().length > 0 ? merged.position : 'southeast',
+      product_scale: Number.isFinite(Number(merged.product_scale)) ? Number(merged.product_scale) : 0.35,
+      aspect_ratio: typeof merged.aspect_ratio === 'string' && merged.aspect_ratio.trim().length > 0 ? merged.aspect_ratio : '9:16',
+      compose_variant: typeof merged.compose_variant === 'string' && merged.compose_variant.trim().length > 0 ? merged.compose_variant : 'fitting',
+      compose_mode: typeof merged.compose_mode === 'string' && merged.compose_mode.trim().length > 0 ? merged.compose_mode : 'gemini',
+      fitting_pose_preset: typeof merged.fitting_pose_preset === 'string' ? merged.fitting_pose_preset : 'three-quarter',
+      fitting_energy_preset: typeof merged.fitting_energy_preset === 'string' ? merged.fitting_energy_preset : 'natural',
+      costume_prompt: typeof merged.costume_prompt === 'string' ? merged.costume_prompt : '',
+      smart_prompt: typeof merged.smart_prompt === 'string' ? merged.smart_prompt : '',
+      vton_category: typeof merged.vton_category === 'string' ? merged.vton_category : undefined,
+      fitting_category: typeof merged.fitting_category === 'string' ? merged.fitting_category : undefined,
+      fitting_group: typeof merged.fitting_group === 'string' ? merged.fitting_group : undefined,
+      guided_overlay_references: Array.isArray(merged.guided_overlay_references)
+        ? merged.guided_overlay_references.filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value))
+        : undefined,
+    }
+  }
+
+  if (asset.type === 'lipsync') {
+    return {
+      ...DEFAULT_PARAMS.lipsync,
+      face_url: typeof merged.face_url === 'string' ? merged.face_url : '',
+      audio_url: typeof merged.audio_url === 'string' ? merged.audio_url : '',
+    }
+  }
+
+  if (asset.type === 'face') {
+    return {
+      ...DEFAULT_PARAMS.face,
+      face_image_url: typeof merged.face_image_url === 'string' ? merged.face_image_url : '',
+    }
+  }
+
+  if (asset.type === 'join') {
+    return {
+      ...DEFAULT_PARAMS.join,
+      video_urls: Array.isArray(merged.video_urls)
+        ? merged.video_urls.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        : [],
+    }
+  }
+
+  if (asset.type === 'angles') {
+    return {
+      ...DEFAULT_PARAMS.angles,
+      source_url: typeof merged.source_url === 'string' ? merged.source_url : '',
+      angle: typeof merged.angle === 'string' && merged.angle.trim().length > 0 ? merged.angle : 'frontal',
+      pose: typeof merged.pose === 'string' && merged.pose.trim().length > 0 ? merged.pose : 'straight',
+      engine: typeof merged.engine === 'string' && merged.engine.trim().length > 0 ? merged.engine : 'flux',
+      aspect_ratio: typeof merged.aspect_ratio === 'string' && merged.aspect_ratio.trim().length > 0 ? merged.aspect_ratio : '9:16',
+    }
+  }
+
+  if (asset.type === 'music') {
+    return {
+      ...DEFAULT_PARAMS.music,
+      prompt: typeof merged.prompt === 'string' ? merged.prompt : '',
+      style: typeof merged.style === 'string' && merged.style.trim().length > 0 ? merged.style : 'lofi',
+      source_image_url: typeof merged.source_image_url === 'string' ? merged.source_image_url : '',
+    }
+  }
+
+  if (asset.type === 'ugc_bundle') {
+    return {
+      ...DEFAULT_PARAMS.ugc_bundle,
+      source_url: typeof merged.source_url === 'string' ? merged.source_url : '',
+    }
+  }
+
+  if (asset.type === 'look_split') {
+    return {
+      ...DEFAULT_PARAMS.look_split,
+      source_url: typeof merged.source_url === 'string' ? merged.source_url : '',
+      smart_prompt: typeof merged.smart_prompt === 'string' ? merged.smart_prompt : '',
+    }
+  }
+
+  if (asset.type === 'render') {
+    return {
+      ...DEFAULT_PARAMS.render,
+      source_image_url: typeof merged.source_image_url === 'string' ? merged.source_image_url : '',
+      audio_url: typeof merged.audio_url === 'string' ? merged.audio_url : '',
+    }
+  }
+
+  return merged
+}
+
+function getCanvasDefaultVisualAspectRatio(assets: StudioAsset[]) {
+  const latestScript = [...assets]
+    .filter((asset) => asset.type === 'script')
+    .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())[0]
+
+  return mapScriptFormatToAspectRatio(latestScript?.input_params?.format)
+}
+
+function applyCanvasVisualAspectDefaults(
+  assets: StudioAsset[],
+  type: AssetType,
+  params?: Record<string, unknown>,
+) {
+  const nextParams = { ...DEFAULT_PARAMS[type], ...(params ?? {}) }
+  if (!['image', 'scene', 'compose', 'video', 'talking_video'].includes(type)) return nextParams
+  const hasExplicitAspectRatio = typeof params?.aspect_ratio === 'string' && params.aspect_ratio.trim().length > 0
+  if (hasExplicitAspectRatio) return nextParams
+  return {
+    ...nextParams,
+    aspect_ratio: getCanvasDefaultVisualAspectRatio(assets),
   }
 }
 
@@ -822,7 +1060,37 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     const original = assets.find(a => a.id === id)
     if (!original) return
     const newId = crypto.randomUUID()
-    const nextParams = { ...original.input_params, ...(overrides ?? {}) }
+    const incomingConnections = connections.filter((connection) => connection.target_id === id)
+    let nextParams = buildDuplicateInputParams(original, overrides)
+
+    for (const connection of incomingConnections) {
+      const sourceAsset = assets.find((asset) => asset.id === connection.source_id)
+      if (!sourceAsset || (!sourceAsset.result_url && sourceAsset.type !== 'look_split')) continue
+
+      const fillValue = (connection.target_handle === 'continuation_frame'
+        ? (sourceAsset.last_frame_url ?? sourceAsset.result_url)
+        : sourceAsset.result_url) ?? ''
+
+      if (connection.target_handle === 'product_bundle' && sourceAsset.type === 'look_split') {
+        nextParams = {
+          ...nextParams,
+          ...(buildLookSplitComposeParams(sourceAsset) ?? {}),
+        }
+        continue
+      }
+
+      if (connection.target_handle.startsWith('video_')) {
+        const idx = parseInt(connection.target_handle.split('_')[1] ?? '0', 10)
+        const currentArray = [...(Array.isArray(nextParams.video_urls) ? nextParams.video_urls : [])]
+        currentArray[idx] = fillValue
+        nextParams = { ...nextParams, video_urls: currentArray }
+        continue
+      }
+
+      const field = HANDLE_TO_FIELD[connection.target_handle] ?? connection.target_handle
+      nextParams = { ...nextParams, [field]: fillValue }
+    }
+
     const copy: StudioAsset = {
       ...original,
       id: newId,
@@ -856,10 +1124,36 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
       })
       if (res.ok) {
         const { asset } = await res.json()
-        if (asset) setAssets(prev => prev.map(a => a.id === newId ? { ...asset, isLocal: false } : a))
+        if (asset) {
+          setAssets(prev => prev.map(a => a.id === newId ? { ...asset, isLocal: false } : a))
+
+          for (const connection of incomingConnections) {
+            try {
+              const connRes = await fetch('/api/studio/connections', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  project_id: original.project_id,
+                  source_id: connection.source_id,
+                  target_id: asset.id,
+                  source_handle: connection.source_handle,
+                  target_handle: connection.target_handle,
+                }),
+              })
+
+              if (!connRes.ok) continue
+              const { connection: duplicatedConnection } = await connRes.json()
+              if (duplicatedConnection) {
+                setConnections(prev => [...prev, duplicatedConnection])
+              }
+            } catch {
+              // segue com o card mesmo se a conexao falhar
+            }
+          }
+        }
       }
     } catch { /* fica local se falhar */ }
-  }, [assets, focusNodeInViewport])
+  }, [assets, connections, focusNodeInViewport, setConnections])
 
   const nodeCallbacks = useMemo<Omit<AssetNodeData, 'asset' | 'selectionActive'>>(() => ({
     onDelete: handleDelete,
@@ -1143,6 +1437,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
         case 'talking_video':
           if (isImage(s))        return 'source_image_url'
+          if (isAudio(s))        return 'audio_url'
           break
 
         case 'voice':
@@ -1356,7 +1651,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     }
     
     // 1. Cria localmente para feedback instantâneo (otimista)
-    const nextParams = { ...DEFAULT_PARAMS[type], ...(presetParams ?? {}) }
+    const nextParams = applyCanvasVisualAspectDefaults(assets, type, presetParams)
     const newAsset: StudioAsset = {
       id: frontend_id,
       project_id: project.id,

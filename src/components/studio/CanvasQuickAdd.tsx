@@ -51,7 +51,7 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
   {
     label: 'Video e Movimento',
     items: [
-      { type: 'video', icon: <Video size={20} />, label: 'Video / Anima', desc: 'Veo 3.1 / Kling AI', gradient: 'from-zinc-600 to-zinc-800' },
+      { type: 'video', icon: <Video size={20} />, label: 'Video / Anima', desc: 'Google Veo 3.1', gradient: 'from-zinc-600 to-zinc-800' },
       { type: 'talking_video', icon: <Mic size={20} />, label: 'Video com Fala', desc: 'Avatar falante com Veo', gradient: 'from-blue-500 to-cyan-500' },
       { type: 'animate', icon: <Sparkles size={20} />, label: 'Movimento Guiado', desc: 'Usa o video como referencia', gradient: 'from-fuchsia-500 to-rose-500' },
       { type: 'lipsync', icon: <Wand2 size={20} />, label: 'Lip Sync', desc: 'Sincronia labial real', gradient: 'from-cyan-400 to-sky-500' },

@@ -50,6 +50,7 @@ import SceneGenerator from '../SceneGenerator'
 import UGCBundleGenerator from '../UGCBundleGenerator'
 import LookSplitGenerator from '../LookSplitGenerator'
 import { getStudioNodeCardWidth } from '../node-layout'
+import { getStudioAspectRatioFrameClass } from '../aspectRatio'
 import { buildTalkingVideoIdeaFromParts } from '@/lib/talkingVideoIdea'
 import { resolveStudioPublicError } from '@/lib/studioPublicErrors'
 
@@ -222,7 +223,10 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
     { id: 'model_prompt', label: 'Modelo' },
     { id: 'audio_url', label: 'Audio' },
   ],
-  talking_video: [{ id: 'source_image_url', label: 'Imagem' }],
+  talking_video: [
+    { id: 'source_image_url', label: 'Imagem' },
+    { id: 'audio_url', label: 'Audio' },
+  ],
   upscale: [{ id: 'source_url', label: 'Imagem' }],
   voice: [{ id: 'script', label: 'Script' }],
   caption: [{ id: 'audio_url', label: 'Audio' }],
@@ -935,8 +939,8 @@ function ResultPreview({
   const visualFrameClass = donePreview
     ? 'mx-auto overflow-hidden rounded-[22px] border border-white/10 bg-black/30'
     : 'overflow-hidden rounded-[22px] border border-white/8 bg-black/20'
-  const imageAspectClass = donePreview ? 'aspect-[4/5] w-full' : ''
-  const videoAspectClass = donePreview ? 'aspect-[9/16] w-full' : ''
+  const imageAspectClass = donePreview ? `${getStudioAspectRatioFrameClass(params.aspect_ratio, '4:5')} w-full` : ''
+  const videoAspectClass = donePreview ? `${getStudioAspectRatioFrameClass(params.aspect_ratio, '9:16')} w-full` : ''
   const mediaPreviewUrl = getPreviewMediaUrl(url)
 
   if (type === 'model') {
@@ -1350,7 +1354,11 @@ function ErrorCard({
             className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/78 transition-colors hover:border-white/18 hover:text-white"
           >
             <RotateCcw size={12} />
-            {publicError.code === 'precisamos_de_uma_foto_mais_limpa' ? 'Tentar com outra foto' : 'Tentar de novo'}
+            {publicError.code === 'precisamos_de_uma_foto_mais_limpa'
+              ? 'Tentar com outra foto'
+              : publicError.code === 'imagem_base_bloqueada_pelo_provedor'
+                ? 'Tentar com outra imagem'
+                : 'Tentar de novo'}
           </button>
         )}
       </div>

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { StudioAsset, StudioProject, AssetType } from '@/types'
 import AssetCard from './AssetCard'
 import AddCardMenu from './AddCardMenu'
+import { mapScriptFormatToAspectRatio } from './aspectRatio'
 import { resolveStudioPublicError } from '@/lib/studioPublicErrors'
 
 interface Props {
@@ -22,7 +23,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   script:  { product: '', audience: '', format: 'reels', hook_style: 'problema' },
   image:   { prompt: '', style: 'ugc', aspect_ratio: '9:16' },
   voice:   { script: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0 },
-  video:   { source_image_url: '', motion_prompt: '', duration: 5 },
+  video:   { source_image_url: '', motion_prompt: '', duration: 8, aspect_ratio: '9:16' },
   talking_video: {
     source_image_url: '',
     talking_video_mode: 'exact_speech',
@@ -33,6 +34,7 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
     voice_id: 'EXAVITQu4vr4xnSDxMaL',
     speed: 1.0,
     quality: '720p',
+    aspect_ratio: '9:16',
   },
   caption: { audio_url: '' },
   upscale: { source_url: '', scale: 4 },
@@ -74,6 +76,29 @@ function normalizeProcessingAssetState<T extends StudioAsset>(asset: T): T {
   }
 
   return asset
+}
+
+function getBoardDefaultVisualAspectRatio(assets: StudioAsset[]) {
+  const latestScript = [...assets]
+    .filter((asset) => asset.type === 'script')
+    .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())[0]
+
+  return mapScriptFormatToAspectRatio(latestScript?.input_params?.format)
+}
+
+function applyBoardVisualAspectDefaults(
+  assets: StudioAsset[],
+  type: AssetType,
+  params?: Record<string, unknown>,
+) {
+  const nextParams = { ...DEFAULT_PARAMS[type], ...(params ?? {}) }
+  if (!['image', 'scene', 'compose', 'video', 'talking_video'].includes(type)) return nextParams
+  const hasExplicitAspectRatio = typeof params?.aspect_ratio === 'string' && params.aspect_ratio.trim().length > 0
+  if (hasExplicitAspectRatio) return nextParams
+  return {
+    ...nextParams,
+    aspect_ratio: getBoardDefaultVisualAspectRatio(assets),
+  }
 }
 
 export default function BoardClient({ project, initialAssets, userCredits }: Props) {
@@ -147,13 +172,14 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
   // ── Adicionar card idle ──────────────────────────────────────────────────
   function addIdleCard(type: AssetType, prefillParams?: Record<string, unknown>) {
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const nextParams = applyBoardVisualAspectDefaults(assets, type, prefillParams)
     const tempAsset: StudioAsset = {
       id: tempId,
       project_id: project.id,
       user_id: project.user_id,
       type,
       status: 'idle',
-      input_params: { ...DEFAULT_PARAMS[type], ...prefillParams },
+      input_params: nextParams,
       credits_cost: CREDIT_COST[type],
       board_order: assets.length,
       created_at: new Date().toISOString(),
@@ -176,7 +202,7 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
     if (existingIdle) {
       setAssets(prev => prev.map(a =>
         a.id === existingIdle.id
-          ? { ...a, input_params: { ...a.input_params, ...prefillParams } }
+          ? { ...a, input_params: applyBoardVisualAspectDefaults(assets, targetType, { ...a.input_params, ...prefillParams }) }
           : a
       ))
       // Scroll suave para o card
@@ -203,7 +229,7 @@ export default function BoardClient({ project, initialAssets, userCredits }: Pro
       user_id: project.user_id,
       type,
       status: 'idle',
-      input_params: DEFAULT_PARAMS[type],
+      input_params: applyBoardVisualAspectDefaults([], type, DEFAULT_PARAMS[type]),
       credits_cost: CREDIT_COST[type],
       board_order: i,
       created_at: new Date().toISOString(),

@@ -15,12 +15,55 @@ import {
   assessRestorationQualityWithVertex,
   maybeUpscaleRestorationWithVertex,
   restorePhotoWithVertex,
+  sanitizeVertexPersonPrompt,
 } from '@/lib/vertexRestore'
 
 const DOCUMENT_PROMPT = 'Restore this identity document photograph. Preserve the exact facial features, bone structure, skin tone and identity of the person with zero modification. Clean background contamination, paper stains, scanning residue and edge noise only. White or neutral background, sharp uniform edges. Do not beautify, rejuvenate or alter the face in any way. Identity lock is absolute.'
 const GROUP_PROMPT = 'Restore this group photograph. Lock the identity and facial geometry of every person in the scene. Do not touch any face region. Remove only physical damage outside face zones: background tears, paper cracks, border stains, mold marks, sky fading. Rebuild clothing texture, flooring and environmental background in damaged areas. Preserve relative proportions, expressions and composition exactly.'
 const CONSERVATIVE_PROMPT = 'Restore this photograph with minimal intervention. Remove only clearly visible damage marks, dust particles, thin scratches and isolated stains. Sharpen softly blurred regions while preserving photographic character. Do not change faces, expressions, composition or overall appearance. Output should look like a professionally cleaned original scan.'
 const ULTRA_CONSERVATIVE_PROMPT = 'Remove only dust and thin surface scratches from this photograph. Preserve all details exactly as they are: faces, expressions, clothing, background, grain, color balance and composition. Minimal touch, maximal authenticity.'
+const RESTORE_CREDIT_COST = 1
+
+async function debitRestoreCredits(userId: string) {
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const admin = createAdminClient()
+
+  const bulkDebit = await admin.rpc('debit_credits_bulk', {
+    user_id_param: userId,
+    amount_param: RESTORE_CREDIT_COST,
+  })
+
+  if (!bulkDebit.error) {
+    if (bulkDebit.data === false) {
+      throw new Error('INSUFFICIENT_CREDITS')
+    }
+    return
+  }
+
+  const singleDebit = await admin.rpc('debit_credit', { user_id_param: userId })
+  if (singleDebit.error) {
+    throw new Error(`CREDIT_DEBIT_FAILED:${singleDebit.error.message}`)
+  }
+  if (singleDebit.data === false) {
+    throw new Error('INSUFFICIENT_CREDITS')
+  }
+}
+
+async function refundRestoreCredits(userId: string, reason: string) {
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const admin = createAdminClient()
+  const { error } = await admin.rpc('add_credits', {
+    user_id_param: userId,
+    amount: RESTORE_CREDIT_COST,
+  })
+
+  if (error) {
+    console.error(`[restore] refund failed (${reason}): ${error.message}`)
+    return
+  }
+
+  console.log(`[restore] refunded ${RESTORE_CREDIT_COST} credit for ${userId} | reason=${reason}`)
+}
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -155,6 +198,23 @@ export async function POST(req: NextRequest) {
     effectivePrompt = `${effectivePrompt} Preserve all facial features and identities exactly.`
   }
 
+  const sanitizedEffectivePrompt = sanitizeVertexPersonPrompt(effectivePrompt)
+  if (sanitizedEffectivePrompt !== effectivePrompt) {
+    console.log('[restore] prompt sanitized for provider safety policy')
+    effectivePrompt = sanitizedEffectivePrompt
+  }
+
+  try {
+    await debitRestoreCredits(user.id)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message === 'INSUFFICIENT_CREDITS') {
+      return NextResponse.json({ error: 'Sem creditos. Adquira um plano para continuar.' }, { status: 402 })
+    }
+    console.error('[restore] credit debit failed:', message)
+    return NextResponse.json({ error: 'Falha ao debitar creditos da restauracao.' }, { status: 500 })
+  }
+
   const { data: photo, error: photoInsertError } = await insertPhotoCompat({
     client: supabase,
     payload: {
@@ -175,6 +235,7 @@ export async function POST(req: NextRequest) {
   })
 
   if (!photo || photoInsertError) {
+    await refundRestoreCredits(user.id, 'photo_insert_failed')
     return NextResponse.json({ error: 'Erro ao salvar no banco' }, { status: 500 })
   }
 
@@ -335,8 +396,6 @@ export async function POST(req: NextRequest) {
       filters: [{ column: 'id', value: photo.id }],
     })
 
-    await adminClient.rpc('debit_credit', { user_id_param: user.id })
-
     console.log(
       JSON.stringify({
         event: 'restoration_complete',
@@ -385,6 +444,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (error: any) {
     console.error('[restore] Vertex failed:', error.message)
+    await refundRestoreCredits(user.id, 'restore_failed')
     const { createAdminClient } = await import('@/lib/supabase/admin')
     await updatePhotoCompat({
       client: createAdminClient(),

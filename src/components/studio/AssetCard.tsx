@@ -17,6 +17,7 @@ import AngleGenerator from './AngleGenerator'
 import MusicGenerator from './MusicGenerator'
 import AnimateGenerator from './AnimateGenerator'
 import LookSplitGenerator from './LookSplitGenerator'
+import { getStudioAspectRatioFrameClass, normalizeStudioAspectRatio } from './aspectRatio'
 import { resolveStudioPublicError } from '@/lib/studioPublicErrors'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string }> = {
@@ -41,6 +42,17 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   look_split: { icon: <Scissors size={15} />, label: 'Separar Look',       color: 'text-cyan-400' },
 }
 
+function getAssetAspectRatio(asset: Pick<StudioAsset, 'type' | 'input_params'>) {
+  const fallback = asset.type === 'video' || asset.type === 'talking_video' || asset.type === 'animate' || asset.type === 'join'
+    ? '9:16'
+    : '4:5'
+  return normalizeStudioAspectRatio(asset.input_params.aspect_ratio, fallback as '9:16' | '4:5' | '1:1')
+}
+
+function shouldInheritVisualAspectRatio(targetType: AssetType) {
+  return targetType === 'image' || targetType === 'scene' || targetType === 'compose' || targetType === 'video' || targetType === 'talking_video'
+}
+
 // Mapeamento: tipo de origem → ações "Usar em..."
 const USE_AS_ACTIONS: Partial<Record<AssetType, Array<{ targetType: AssetType; label: string; getParams: (asset: StudioAsset) => Record<string, unknown> }>>> = {
   face: [
@@ -48,13 +60,13 @@ const USE_AS_ACTIONS: Partial<Record<AssetType, Array<{ targetType: AssetType; l
     { targetType: 'ugc_bundle', label: 'Gerar 8 Poses UGC', getParams: a => ({ source_url: a.result_url }) },
   ],
   image: [
-    { targetType: 'talking_video', label: 'Usar no Video com Fala', getParams: a => ({ source_image_url: a.result_url, talking_video_mode: 'exact_speech', idea_prompt: '', speech_text: '', expression_direction: '', visual_prompt: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0, quality: '720p' }) },
+    { targetType: 'talking_video', label: 'Usar no Video com Fala', getParams: a => ({ source_image_url: a.result_url, talking_video_mode: 'exact_speech', idea_prompt: '', speech_text: '', expression_direction: '', visual_prompt: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0, quality: '720p', aspect_ratio: getAssetAspectRatio(a) }) },
     { targetType: 'video',   label: 'Usar no Vídeo',   getParams: a => ({ source_image_url: a.result_url, motion_prompt: '', duration: 5 }) },
     { targetType: 'upscale', label: 'Fazer Upscale',   getParams: a => ({ source_url: a.result_url, scale: 4 }) },
     { targetType: 'ugc_bundle', label: 'Gerar 8 Poses UGC', getParams: a => ({ source_url: a.result_url }) },
   ],
   upscale: [
-    { targetType: 'talking_video', label: 'Usar no Video com Fala', getParams: a => ({ source_image_url: a.result_url, talking_video_mode: 'exact_speech', idea_prompt: '', speech_text: '', expression_direction: '', visual_prompt: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0, quality: '720p' }) },
+    { targetType: 'talking_video', label: 'Usar no Video com Fala', getParams: a => ({ source_image_url: a.result_url, talking_video_mode: 'exact_speech', idea_prompt: '', speech_text: '', expression_direction: '', visual_prompt: '', voice_id: 'EXAVITQu4vr4xnSDxMaL', speed: 1.0, quality: '720p', aspect_ratio: getAssetAspectRatio(a) }) },
     { targetType: 'video',   label: 'Usar no Vídeo',   getParams: a => ({ source_image_url: a.result_url, motion_prompt: '', duration: 5 }) },
   ],
   script: [
@@ -172,7 +184,15 @@ export default function AssetCard({ asset, stepNumber, onDelete, onRetry, onGene
                 {useAsActions.map(action => (
                   <button
                     key={action.targetType}
-                    onClick={() => onUseAs(action.targetType, action.getParams(asset))}
+                    onClick={() => {
+                      const nextParams = action.getParams(asset)
+                      onUseAs(
+                        action.targetType,
+                        shouldInheritVisualAspectRatio(action.targetType) && typeof nextParams.aspect_ratio !== 'string'
+                          ? { ...nextParams, aspect_ratio: getAssetAspectRatio(asset) }
+                          : nextParams,
+                      )
+                    }}
                     className="flex items-center justify-between text-xs text-zinc-400 hover:text-accent border border-zinc-800 hover:border-accent/40 px-3 py-2 rounded-xl transition-all group"
                   >
                     {action.label}
@@ -210,11 +230,21 @@ export default function AssetCard({ asset, stepNumber, onDelete, onRetry, onGene
 // ── Result preview by type ─────────────────────────────────────────────────
 function ResultPreview({ type, url, params }: { type: AssetType; url: string; params: Record<string, unknown> }) {
   const mediaPreviewUrl = getPreviewMediaUrl(url)
-  if (type === 'image' || type === 'upscale' || type === 'face') {
-    return <img src={url} alt="Resultado" className="w-full rounded-xl object-cover max-h-64" />
+  const imageFrameClass = getStudioAspectRatioFrameClass(params.aspect_ratio, '4:5')
+  const videoFrameClass = getStudioAspectRatioFrameClass(params.aspect_ratio, '9:16')
+  if (type === 'image' || type === 'upscale' || type === 'face' || type === 'scene' || type === 'compose' || type === 'angles') {
+    return (
+      <div className={`${imageFrameClass} overflow-hidden rounded-xl border border-zinc-800 bg-black/20`}>
+        <img src={url} alt="Resultado" className="h-full w-full object-contain" />
+      </div>
+    )
   }
   if (type === 'video' || type === 'talking_video' || type === 'animate' || type === 'join') {
-    return <video src={mediaPreviewUrl} controls className="w-full rounded-xl max-h-64" playsInline preload="metadata" />
+    return (
+      <div className={`${videoFrameClass} overflow-hidden rounded-xl border border-zinc-800 bg-black/20`}>
+        <video src={mediaPreviewUrl} controls className="h-full w-full object-contain" playsInline preload="metadata" />
+      </div>
+    )
   }
   if (type === 'voice' || type === 'music') {
     return <audio src={url} controls className="w-full" />

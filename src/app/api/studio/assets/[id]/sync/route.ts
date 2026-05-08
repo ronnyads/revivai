@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { GoogleAuth } from 'google-auth-library'
 import Replicate from 'replicate'
-import { finalizeTalkingVideoBaseGeneration } from '@/lib/studio'
+import { classifyVeoGuidelineBlockMessage, extractVeoSupportCode, finalizeTalkingVideoBaseGeneration, isVeoGuidelineBlockMessage, startVeo3DirectGoogle } from '@/lib/studio'
 import { getLogicalStudioAssetType, mapStudioAssetType } from '@/lib/studioAssetType'
 import { saveLastFrame } from '@/lib/videoUtils'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
@@ -258,12 +258,14 @@ async function failAssetAndRespond(params: {
   errorMsg: string
   refundReason: string
   code?: string
+  extraInputParams?: Record<string, unknown>
 }) {
   await markStudioAssetFailed({
     admin: params.admin,
     assetId: params.assetId,
     errorMsg: params.errorMsg,
     refundReason: params.refundReason,
+    extraInputParams: params.extraInputParams,
   })
 
   return syncResponse({
@@ -281,11 +283,34 @@ function logGoogleSync(params: {
   httpStatus?: number
   done?: boolean
   hasError?: boolean
+  errorCode?: string
+  errorMessage?: string
+  errorDetails?: unknown
   reason?: string
   topLevelKeys?: string[]
   responseKeys?: string[]
 }) {
   console.log('[studio-sync:google]', JSON.stringify(params))
+}
+
+function normalizeVeoAttemptHistory(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
+    .map((item) => ({ ...item }))
+}
+
+function markLatestVeoAttempt(
+  history: Record<string, unknown>[],
+  patch: Record<string, unknown>,
+) {
+  if (history.length === 0) return history
+  const nextHistory = [...history]
+  nextHistory[nextHistory.length - 1] = {
+    ...nextHistory[nextHistory.length - 1],
+    ...patch,
+  }
+  return nextHistory
 }
 
 export async function POST(
@@ -378,6 +403,9 @@ export async function POST(
         httpStatus: opRes.status,
         done: Boolean(op.done),
         hasError: Boolean(op.error),
+        errorCode: typeof op?.error?.code === 'string' ? op.error.code : undefined,
+        errorMessage: typeof op?.error?.message === 'string' ? op.error.message : undefined,
+        errorDetails: op?.error?.details,
         topLevelKeys: Object.keys(op ?? {}),
         responseKeys: op?.response ? Object.keys(op.response) : [],
       })
@@ -387,11 +415,221 @@ export async function POST(
       }
 
       if (op.error) {
+        const providerErrorMessage = typeof op.error.message === 'string' ? op.error.message : 'Falha na geracao do Veo3'
+        const providerErrorCode = typeof op.error.code === 'number' ? op.error.code : undefined
+        const providerSupportCode = extractVeoSupportCode(providerErrorMessage)
+        const videoGuidelineBlockKind = logicalType === 'video'
+          ? classifyVeoGuidelineBlockMessage(providerErrorMessage)
+          : 'none'
+        const currentRetryCount = Math.max(0, Number(assetInputParams.veo_prompt_retry_count ?? 0))
+        const currentAttemptHistory = normalizeVeoAttemptHistory(assetInputParams.veo_prompt_attempt_history)
+        const nextAttemptHistory = markLatestVeoAttempt(currentAttemptHistory, {
+          status: 'blocked_async',
+          guideline_block_kind: videoGuidelineBlockKind !== 'none' ? videoGuidelineBlockKind : undefined,
+          provider_error_message: providerErrorMessage,
+          provider_error_code: providerErrorCode ?? null,
+          provider_support_code: providerSupportCode || null,
+          blocked_at: new Date().toISOString(),
+        })
+
+        console.error('[studio-sync:google:provider-error]', {
+          assetId: id,
+          logicalType,
+          operationName: predictionId,
+          providerError: op.error,
+        })
+
+        if (logicalType === 'video' && videoGuidelineBlockKind === 'prompt' && currentRetryCount < 2) {
+          const nextRetryCount = currentRetryCount + 1
+          const nextInputParams = {
+            ...assetInputParams,
+            veo_prompt_retry_count: nextRetryCount,
+            veo_prompt_attempt_history: nextAttemptHistory,
+            veo_guideline_block_kind: videoGuidelineBlockKind,
+            veo_provider_error_code: providerErrorCode ?? null,
+            veo_provider_error_message: providerErrorMessage,
+            veo_provider_support_code: providerSupportCode || null,
+            veo_blocked_source_image_url: String(assetInputParams.source_image_url ?? ''),
+          }
+
+          await admin.from('studio_assets').update({
+            status: 'processing',
+            error_msg: null,
+            input_params: nextInputParams,
+          }).eq('id', id)
+
+          await startVeo3DirectGoogle({
+            source_image_url: String(assetInputParams.source_image_url ?? ''),
+            motion_prompt: String(assetInputParams.motion_prompt_normalized ?? assetInputParams.motion_prompt ?? ''),
+            aspect_ratio: String(assetInputParams.aspect_ratio ?? '9:16'),
+            model_prompt: typeof assetInputParams.model_prompt === 'string' ? assetInputParams.model_prompt : undefined,
+            motion_prompt_raw: String(assetInputParams.motion_prompt_raw ?? assetInputParams.motion_prompt ?? ''),
+            motion_prompt_normalized: String(assetInputParams.motion_prompt_normalized ?? assetInputParams.motion_prompt ?? ''),
+            removed_directives: Array.isArray(assetInputParams.removed_directives)
+              ? assetInputParams.removed_directives.filter((value): value is string => typeof value === 'string')
+              : [],
+            video_lock_policy: typeof assetInputParams.video_lock_policy === 'string' ? assetInputParams.video_lock_policy : '',
+            scene_change_requested: Boolean(assetInputParams.scene_change_requested),
+            scene_change_blocked: Boolean(assetInputParams.scene_change_blocked),
+            duration: Number(assetInputParams.duration ?? 8),
+            quality: String(assetInputParams.quality ?? assetInputParams.quality_requested ?? '720p'),
+            assetId: id,
+            userId: user.id,
+            prompt_override: typeof assetInputParams.prompt_override === 'string' ? assetInputParams.prompt_override : undefined,
+            generate_audio: Boolean(assetInputParams.generate_audio),
+            strict_source_fidelity: String(assetInputParams.source_fidelity_mode ?? '') === 'strict',
+            source_visible_item_manifest: Array.isArray(assetInputParams.source_visible_item_manifest)
+              ? assetInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
+              : [],
+            source_text_logo_lock: Boolean(assetInputParams.source_text_logo_lock),
+            source_color_lock: Boolean(assetInputParams.source_color_lock),
+            guideline_block_handling: 'video',
+            inputParamsPatch: {
+              ...nextInputParams,
+            },
+          })
+
+          return syncResponse({
+            status: 'processing',
+            message: 'Prompt ajustado para compatibilidade com Veo. Tentando novamente.',
+          })
+        }
+
+        if (logicalType === 'talking_video' && isVeoGuidelineBlockMessage(providerErrorMessage) && currentRetryCount < 2) {
+          const nextRetryCount = currentRetryCount + 1
+          const nextInputParams = {
+            ...assetInputParams,
+            veo_prompt_retry_count: nextRetryCount,
+            veo_prompt_attempt_history: nextAttemptHistory,
+            veo_provider_error_code: providerErrorCode ?? null,
+            veo_provider_error_message: providerErrorMessage,
+            veo_provider_support_code: providerSupportCode || null,
+          }
+
+          await admin.from('studio_assets').update({
+            status: 'processing',
+            error_msg: null,
+            input_params: nextInputParams,
+          }).eq('id', id)
+
+          await startVeo3DirectGoogle({
+            source_image_url: String(assetInputParams.source_image_url ?? ''),
+            motion_prompt: String(assetInputParams.motion_prompt_normalized ?? assetInputParams.motion_prompt ?? ''),
+            aspect_ratio: String(assetInputParams.aspect_ratio ?? '9:16'),
+            model_prompt: typeof assetInputParams.model_prompt === 'string' ? assetInputParams.model_prompt : undefined,
+            motion_prompt_raw: String(assetInputParams.motion_prompt_raw ?? assetInputParams.motion_prompt ?? ''),
+            motion_prompt_normalized: String(assetInputParams.motion_prompt_normalized ?? assetInputParams.motion_prompt ?? ''),
+            removed_directives: Array.isArray(assetInputParams.removed_directives)
+              ? assetInputParams.removed_directives.filter((value): value is string => typeof value === 'string')
+              : [],
+            video_lock_policy: typeof assetInputParams.video_lock_policy === 'string' ? assetInputParams.video_lock_policy : '',
+            scene_change_requested: Boolean(assetInputParams.scene_change_requested),
+            scene_change_blocked: Boolean(assetInputParams.scene_change_blocked),
+            duration: Number(assetInputParams.duration ?? 8),
+            quality: String(assetInputParams.quality ?? assetInputParams.quality_requested ?? '720p'),
+            assetId: id,
+            userId: user.id,
+            prompt_override: typeof assetInputParams.prompt_override === 'string' ? assetInputParams.prompt_override : undefined,
+            generate_audio: Boolean(assetInputParams.generate_audio),
+            strict_source_fidelity: String(assetInputParams.source_fidelity_mode ?? '') === 'strict',
+            source_visible_item_manifest: Array.isArray(assetInputParams.source_visible_item_manifest)
+              ? assetInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
+              : [],
+            source_text_logo_lock: Boolean(assetInputParams.source_text_logo_lock),
+            source_color_lock: Boolean(assetInputParams.source_color_lock),
+            inputParamsPatch: {
+              ...nextInputParams,
+            },
+          })
+
+          return syncResponse({
+            status: 'processing',
+            message: 'Prompt ajustado para compatibilidade com Veo. Tentando novamente.',
+          })
+        }
+
+        if (logicalType === 'video' && videoGuidelineBlockKind === 'input_image') {
+          const friendlyMessage = 'O provedor de video bloqueou a imagem usada como base deste video. Tente outra imagem base ou gere uma nova cena antes de animar.'
+          return failAssetAndRespond({
+            admin,
+            assetId: id,
+            errorMsg: friendlyMessage,
+            refundReason: 'sync:veo-input-image-blocked',
+            extraInputParams: {
+              veo_prompt_retry_count: currentRetryCount,
+              veo_prompt_attempt_history: nextAttemptHistory,
+              veo_guideline_block_kind: videoGuidelineBlockKind,
+              veo_provider_error_code: providerErrorCode ?? null,
+              veo_provider_error_message: providerErrorMessage,
+              veo_provider_support_code: providerSupportCode || null,
+              veo_blocked_source_image_url: String(assetInputParams.source_image_url ?? ''),
+              public_error_code: 'imagem_base_bloqueada_pelo_provedor',
+              public_error_title: 'A imagem base nao pode ser animada',
+              public_error_message: friendlyMessage,
+            },
+          })
+        }
+
+        if (logicalType === 'video' && videoGuidelineBlockKind === 'unknown') {
+          const friendlyMessage = 'O provedor de video bloqueou esta geracao. Tente ajustar o brief do video ou usar outra imagem base.'
+          return failAssetAndRespond({
+            admin,
+            assetId: id,
+            errorMsg: friendlyMessage,
+            refundReason: 'sync:veo-guideline-unknown-blocked',
+            extraInputParams: {
+              veo_prompt_retry_count: currentRetryCount,
+              veo_prompt_attempt_history: nextAttemptHistory,
+              veo_guideline_block_kind: videoGuidelineBlockKind,
+              veo_provider_error_code: providerErrorCode ?? null,
+              veo_provider_error_message: providerErrorMessage,
+              veo_provider_support_code: providerSupportCode || null,
+              veo_blocked_source_image_url: String(assetInputParams.source_image_url ?? ''),
+              public_error_code: 'falha_na_geracao',
+              public_error_title: 'Bloqueio do provedor de video',
+              public_error_message: friendlyMessage,
+            },
+          })
+        }
+
+        if ((logicalType === 'video' && videoGuidelineBlockKind === 'prompt') || (logicalType === 'talking_video' && isVeoGuidelineBlockMessage(providerErrorMessage))) {
+          const friendlyMessage = 'Ajustamos seu prompt automaticamente para compatibilidade com o Veo, mas o provedor ainda bloqueou o conteudo. Tente remover promessas de resultado, temas sensiveis ou referencias a pessoas reais.'
+          return failAssetAndRespond({
+            admin,
+            assetId: id,
+            errorMsg: friendlyMessage,
+            refundReason: 'sync:veo-guideline-terminal',
+            code: 'prompt_safety_block',
+            extraInputParams: {
+              veo_prompt_retry_count: currentRetryCount,
+              veo_prompt_attempt_history: nextAttemptHistory,
+              veo_guideline_block_kind: logicalType === 'video' ? videoGuidelineBlockKind : 'prompt',
+              veo_provider_error_code: providerErrorCode ?? null,
+              veo_provider_error_message: providerErrorMessage,
+              veo_provider_support_code: providerSupportCode || null,
+              veo_blocked_source_image_url: logicalType === 'video' ? String(assetInputParams.source_image_url ?? '') : undefined,
+              public_error_code: 'prompt_safety_block',
+              public_error_title: 'Prompt bloqueado pelo provedor',
+              public_error_message: friendlyMessage,
+            },
+          })
+        }
+
         return failAssetAndRespond({
           admin,
           assetId: id,
-          errorMsg: op.error.message ?? 'Falha na geracao do Veo3',
+          errorMsg: providerErrorMessage,
           refundReason: 'sync:veo-provider-error',
+          extraInputParams: {
+            veo_prompt_attempt_history: nextAttemptHistory,
+            veo_guideline_block_kind: logicalType === 'video' ? videoGuidelineBlockKind : undefined,
+            veo_provider_error_code: providerErrorCode ?? null,
+            veo_provider_error_message: providerErrorMessage,
+            veo_provider_support_code: providerSupportCode || null,
+            veo_blocked_source_image_url: logicalType === 'video' && videoGuidelineBlockKind !== 'none'
+              ? String(assetInputParams.source_image_url ?? '')
+              : undefined,
+          },
         })
       }
 
@@ -495,6 +733,13 @@ export async function POST(
       const errorMessage = getErrorMessage(error)
       const errorStatus = getErrorStatus(error)
       const errorCode = getErrorCode(error)
+      const failureMetadata =
+        error && typeof error === 'object'
+          ? error as {
+              studioFailureData?: Record<string, unknown>
+              studioRefundReason?: string
+            }
+          : {}
       console.error('[studio-sync:google:error]', {
         assetId: id,
         logicalType,
@@ -515,8 +760,9 @@ export async function POST(
         admin,
         assetId: id,
         errorMsg: errorMessage,
-        refundReason: `sync:google-terminal:${errorCode ?? errorStatus}`,
+        refundReason: failureMetadata.studioRefundReason ?? `sync:google-terminal:${errorCode ?? errorStatus}`,
         code: errorCode,
+        extraInputParams: failureMetadata.studioFailureData,
       })
     }
   }

@@ -149,7 +149,7 @@ const PROMPT_GROUPS: {
         rows: 3,
       },
       {
-        key: 'image_realism_personagem_cartoon',
+        key: 'image_realism_cartoon',
         label: '🎨 Refinamento de Cartoons (2D)',
         description: 'Sufixo usado em cartoons para garantir visual plano e artístico sem elementos 3D.',
         rows: 3,
@@ -210,6 +210,48 @@ const PROMPT_GROUPS: {
         label: '🎬 Movimento Padrão (Google Veo)',
         description: 'Ferramenta: Google Veo. O que faz: Comando de movimento usado quando você não escreve nada no card de vídeo.',
         rows: 3,
+      },
+      {
+        key: 'video_veo_safe_template_generic_commercial',
+        label: 'Template Seguro - Comercial Generico',
+        description: 'Template seguro usado pelo Prompt Safety Gateway quando o nicho do Veo cair no modo comercial generico.',
+        rows: 5,
+      },
+      {
+        key: 'video_veo_safe_template_moda',
+        label: 'Template Seguro - Moda',
+        description: 'Template seguro do Veo para campanhas de moda e looks.',
+        rows: 5,
+      },
+      {
+        key: 'video_veo_safe_template_produto',
+        label: 'Template Seguro - Produto',
+        description: 'Template seguro do Veo para campanhas de produto e showcase comercial.',
+        rows: 5,
+      },
+      {
+        key: 'video_veo_safe_template_academia',
+        label: 'Template Seguro - Academia',
+        description: 'Template seguro do Veo para fitness, wellness e campanhas de academia.',
+        rows: 5,
+      },
+      {
+        key: 'video_veo_safe_template_clinica',
+        label: 'Template Seguro - Clinica',
+        description: 'Template seguro do Veo para contexto clinico publicitario neutro, sem claims medicos.',
+        rows: 5,
+      },
+      {
+        key: 'video_veo_safe_template_podcast',
+        label: 'Template Seguro - Podcast',
+        description: 'Template seguro do Veo para estudios de conteudo, entrevistas e podcast.',
+        rows: 5,
+      },
+      {
+        key: 'video_veo_safe_template_restaurante',
+        label: 'Template Seguro - Restaurante',
+        description: 'Template seguro do Veo para gastronomia, hospitalidade e restaurantes.',
+        rows: 5,
       },
       {
         key: 'video_latentsync_config',

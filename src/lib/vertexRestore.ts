@@ -20,6 +20,14 @@ const QUALITY_WEIGHTS: Record<
   unknown: { identity: 0.3, composition: 0.3, visual: 0.25, hallucination: 0.15 },
 }
 
+const VERTEX_PERSON_GENERATION_SAFE_MODE = 'allow_all'
+const PERSON_SAFETY_NEUTRAL_REPLACEMENTS: Array<{ pattern: RegExp; replacement: string }> = [
+  { pattern: /\b(sensual|sensualidade|sexy)\b/gi, replacement: 'natural' },
+  { pattern: /\b(suor|suada|suado|sweat|sweaty)\b/gi, replacement: '' },
+  { pattern: /\b(biquini|bikini|lingerie)\b/gi, replacement: 'summer outfit' },
+  { pattern: /\b(foco no corpo|enfase no corpo|ênfase no corpo|focus on (her|the) body|body focus)\b/gi, replacement: 'natural framing' },
+]
+
 const DEFAULT_ANALYSIS: EnterpriseAnalysis = {
   has_scratches: false,
   has_tears_or_holes: false,
@@ -128,6 +136,28 @@ function extractGenerateContentImageBase64(payload: any): string | null {
 
   console.warn('[vertex-restore] extractGenerateContentImageBase64: no image found in payload keys:', Object.keys(payload ?? {}))
   return null
+}
+
+export function sanitizeVertexPersonPrompt(prompt: string): string {
+  const basePrompt = String(prompt ?? '').trim()
+  if (!basePrompt) return ''
+
+  let sanitized = basePrompt
+  for (const rule of PERSON_SAFETY_NEUTRAL_REPLACEMENTS) {
+    sanitized = sanitized.replace(rule.pattern, rule.replacement)
+  }
+
+  sanitized = sanitized
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;:])/g, '$1')
+    .replace(/([,.;:])\1+/g, '$1')
+    .replace(/,\s*,+/g, ', ')
+    .replace(/\(\s*\)/g, '')
+    .trim()
+    .replace(/^[,.;:\s-]+/, '')
+    .replace(/[,.;:\s-]+$/, '')
+
+  return sanitized || 'Restore this photograph with neutral, non-sexualized language and strict identity preservation.'
 }
 
 function extractPredictImageBase64(payload: any): string | null {
@@ -546,6 +576,7 @@ async function restorePhotoWithImagenEditModel(params: {
     sampleCount: 1,
     // INPAINT_REMOVAL = apaga danos e recria a região (correto para restauração)
     editMode: 'EDIT_MODE_INPAINT_REMOVAL',
+    personGeneration: VERTEX_PERSON_GENERATION_SAFE_MODE,
     outputOptions: {
       mimeType: 'image/jpeg',
       compressionQuality: 92,
@@ -670,6 +701,7 @@ export async function restorePhotoWithVertex(params: {
   persona?: string | null
   prompt: string
 }): Promise<{ buffer: Buffer; diagnostics: VertexRestoreDiagnostics; modelId: string }> {
+  const sanitizedPrompt = sanitizeVertexPersonPrompt(params.prompt)
   const primaryMaskProfile = resolveRestoreMaskProfile({
     analysis: params.analysis,
     engineProfile: params.engineProfile,
@@ -677,7 +709,7 @@ export async function restorePhotoWithVertex(params: {
   })
   const primaryInstruction = buildRestorationInstructions(
     params.engineProfile,
-    params.prompt,
+    sanitizedPrompt,
     params.persona,
     params.modeName,
     primaryMaskProfile.name,

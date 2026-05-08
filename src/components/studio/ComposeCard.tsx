@@ -10,6 +10,7 @@ import {
   StudioPanel,
   StudioPrimaryButton,
 } from './StudioFormShell'
+import { STUDIO_ASPECT_RATIO_PRESETS } from './aspectRatio'
 import { CREDIT_COST } from '@/constants/studio'
 
 interface Props {
@@ -45,13 +46,6 @@ const FITTING_ENERGY_PRESETS = [
   { value: 'natural', label: 'Natural' },
   { value: 'sorriso-suave', label: 'Sorriso suave' },
   { value: 'editorial-leve', label: 'Editorial leve' },
-]
-
-const ASPECT_RATIO_PRESETS = [
-  { value: '9:16', label: 'Stories', hint: '9:16' },
-  { value: '4:5', label: 'Feed', hint: '4:5' },
-  { value: '1:1', label: 'Catalogo', hint: '1:1' },
-  { value: '16:9', label: 'Horizontal', hint: '16:9' },
 ]
 
 function getDefaultFittingPose(category: string): string {
@@ -149,9 +143,10 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
   const fittingReferenceUrls = referenceUrls.map((url) => url.trim())
   const activeFittingReferenceUrls = fittingReferenceUrls.filter(Boolean)
   const hasProduct = isProductVariant ? !!productUrl.trim() : activeFittingReferenceUrls.length > 0
+  const multiReferenceMode = !isProductVariant && activeFittingReferenceUrls.length > 1
   const cost = isProductVariant ? CREDIT_COST.compose : 24
   const title = isProductVariant ? 'Modelo + Produto' : 'Provador'
-  const selectedAspect = ASPECT_RATIO_PRESETS.find((item) => item.value === aspectRatio)
+  const selectedAspect = STUDIO_ASPECT_RATIO_PRESETS.find((item) => item.value === aspectRatio)
   const selectedPoseLabel = FITTING_POSE_PRESETS.find((item) => item.value === fittingPosePreset)?.label ?? 'Pose'
 
   function setReferenceAt(index: number, url: string) {
@@ -304,7 +299,11 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
                     />
                   </div>
                 </div>
-                <StudioHint>1 look ou ate 3 referencias.</StudioHint>
+                <StudioHint>
+                  {multiReferenceMode
+                    ? 'Ate 3 referencias. Se duas imagens refinarem a mesma peca, vamos tentar mesclar antes de gerar.'
+                    : '1 look ou ate 3 referencias complementares.'}
+                </StudioHint>
               </div>
             </div>
           )}
@@ -317,7 +316,7 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
               <div className={`grid gap-3 ${isProductVariant ? '' : 'sm:grid-cols-3'}`}>
                 <div>
                   <StudioFieldLabel>Formato</StudioFieldLabel>
-                  <CompactSelect value={aspectRatio} onChange={setAspectRatio} options={ASPECT_RATIO_PRESETS} />
+                  <CompactSelect value={aspectRatio} onChange={setAspectRatio} options={STUDIO_ASPECT_RATIO_PRESETS} />
                 </div>
 
                 {!isProductVariant ? (
@@ -402,7 +401,9 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
                 <StudioHint tone="warning">
                   {isProductVariant
                     ? 'Para ambiente custom, use Cena Livre.'
-                    : 'Nao muda modelagem, estampa ou ferragens das referencias.'}
+                    : multiReferenceMode
+                      ? 'Nao muda modelagem, estampa ou ferragens. Se as refs forem inconciliaveis, avisamos qual peca travou.'
+                      : 'Nao muda modelagem, estampa ou ferragens das referencias.'}
                 </StudioHint>
               </div>
             </StudioPanel>

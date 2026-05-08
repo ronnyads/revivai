@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { Mic, Upload, Loader2 } from 'lucide-react'
 import { CREDIT_COST } from '@/constants/studio'
 
+const MAX_VOICE_CLONE_FILE_BYTES = 4 * 1024 * 1024
+
 const BR_VOICES = [
   { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (masculino)' },
   { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (feminino)' },
@@ -33,6 +35,13 @@ export default function VoiceGenerator({ initial, onGenerate }: Props) {
   async function handleClone(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    e.target.value = ''
+
+    if (file.size > MAX_VOICE_CLONE_FILE_BYTES) {
+      setCloneMsg('O audio esta grande demais para clonagem por upload direto. Envie um arquivo menor que 4 MB.')
+      return
+    }
+
     setCloning(true)
     setCloneMsg('')
     try {
@@ -40,13 +49,28 @@ export default function VoiceGenerator({ initial, onGenerate }: Props) {
       form.append('audio', file)
       form.append('name', 'Minha Voz')
       const res = await fetch('/api/studio/voice-clone', { method: 'POST', body: form })
-      const data = await res.json()
-      if (data.voice_id) {
-        setVoiceId(data.voice_id)
+      const contentType = res.headers.get('content-type') ?? ''
+      const responseBody = contentType.includes('application/json')
+        ? await res.json().catch(() => ({} as { error?: string; voice_id?: string }))
+        : { error: await res.text() }
+
+      if (!res.ok) {
+        if (res.status === 413) {
+          setCloneMsg('O audio ultrapassou o limite de upload da plataforma. Envie um arquivo menor que 4 MB.')
+          return
+        }
+        setCloneMsg(responseBody.error ?? 'Erro ao clonar voz')
+        return
+      }
+
+      if (responseBody.voice_id) {
+        setVoiceId(responseBody.voice_id)
         setCloneMsg('Voz clonada com sucesso!')
       } else {
-        setCloneMsg(data.error ?? 'Erro ao clonar voz')
+        setCloneMsg(responseBody.error ?? 'Erro ao clonar voz')
       }
+    } catch {
+      setCloneMsg('Nao foi possivel enviar o audio para clonagem agora. Tente novamente.')
     } finally {
       setCloning(false)
     }

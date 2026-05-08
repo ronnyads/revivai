@@ -9,6 +9,7 @@ import {
   StudioPanel,
   StudioPrimaryButton,
 } from './StudioFormShell'
+import { getStudioAspectRatioFrameClass, STUDIO_ASPECT_RATIO_PRESETS } from './aspectRatio'
 import { CREDIT_COST } from '@/constants/studio'
 
 interface Props {
@@ -35,12 +36,6 @@ const SCENE_PRESETS = [
 ]
 
 const MAX_EXTRA = 5
-const ASPECT_RATIO_OPTIONS = [
-  { id: '9:16', label: '9:16 - Stories' },
-  { id: '1:1', label: '1:1 - Catalogo' },
-  { id: '4:5', label: '4:5 - Feed' },
-]
-
 function CompactSelect({
   value,
   onChange,
@@ -82,6 +77,7 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
   const sourceUrl = (uploadedUrl || initial.source_url) as string
   const resultUrl = initial.url as string
   const selectedPresetConfig = SCENE_PRESETS.find((preset) => preset.id === selectedPreset) ?? null
+  const aspectFrameClass = getStudioAspectRatioFrameClass(aspectRatio)
 
   async function uploadFile(file: File, onDone: (url: string) => void, setLoading: (value: boolean) => void) {
     setLoading(true)
@@ -130,8 +126,8 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
         ]}
         media={
           <StudioPanel title="Preview" compact>
-            <div className={`${aspectRatio === '9:16' ? 'aspect-[9/16]' : aspectRatio === '1:1' ? 'aspect-square' : 'aspect-[4/5]'} overflow-hidden rounded-[16px] border border-white/8 bg-black/20`}>
-              <img src={resultUrl} alt="Cena gerada" className="h-full w-full object-cover" />
+            <div className={`${aspectFrameClass} overflow-hidden rounded-[16px] border border-white/8 bg-black/20`}>
+              <img src={resultUrl} alt="Cena gerada" className="h-full w-full object-contain" />
             </div>
           </StudioPanel>
         }
@@ -174,14 +170,14 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
         <>
           <StudioPanel title="Base" compact>
             {sourceUrl ? (
-              <div className={`${aspectRatio === '9:16' ? 'aspect-[9/16]' : aspectRatio === '1:1' ? 'aspect-square' : 'aspect-[4/5]'} relative overflow-hidden rounded-[16px] border border-white/8 bg-black/20`}>
-                <img src={sourceUrl} alt="Fonte principal" className="h-full w-full object-cover opacity-90" />
+              <div className={`${aspectFrameClass} relative overflow-hidden rounded-[16px] border border-white/8 bg-black/20`}>
+                <img src={sourceUrl} alt="Fonte principal" className="h-full w-full object-contain opacity-90" />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-2">
                   <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/78">Fonte pronta</span>
                 </div>
               </div>
             ) : (
-              <div className={`${aspectRatio === '9:16' ? 'aspect-[9/16]' : aspectRatio === '1:1' ? 'aspect-square' : 'aspect-[4/5]'} flex flex-col items-center justify-center gap-2.5 rounded-[16px] border border-dashed border-white/10 bg-[#0B0D0F] p-4 text-center`}>
+              <div className={`${aspectFrameClass} flex flex-col items-center justify-center gap-2.5 rounded-[16px] border border-dashed border-white/10 bg-[#0B0D0F] p-4 text-center`}>
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.04] text-white/34">
                   <Camera size={18} />
                 </div>
@@ -240,6 +236,11 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
                 </>
               ) : null}
             </div>
+            <div className="mt-2">
+              <StudioHint>
+                Envie aqui vestido, look, produto ou refs extras da modelo. Se o prompt pedir troca de roupa ou produto, essas refs viram a base oficial da troca.
+              </StudioHint>
+            </div>
           </StudioPanel>
         </>
       }
@@ -252,7 +253,7 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
                 <CompactSelect
                   value={aspectRatio}
                   onChange={setAspectRatio}
-                  options={ASPECT_RATIO_OPTIONS.map((option) => ({ value: option.id, label: option.label }))}
+                  options={STUDIO_ASPECT_RATIO_PRESETS.map((option) => ({ value: option.value, label: `${option.hint} - ${option.label}` }))}
                 />
               </div>
 
@@ -293,8 +294,8 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
               }}
               placeholder={
                 selectedPresetConfig
-                  ? 'Ex: luz mais dourada, camera um pouco mais aberta, vibe editorial.'
-                  : 'Ex: cobertura em Dubai ao entardecer, skyline ao fundo, luz dourada.'
+                  ? 'Ex: colocar nela o vestido da ref extra, luz mais dourada, camera um pouco mais aberta, vibe editorial.'
+                  : 'Ex: colocar nela o vestido da ref extra, trocar o produto da mao pela ref extra e levar para a praia ao entardecer.'
               }
               rows={selectedPresetConfig ? 3 : 4}
               className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-violet-400/30"
@@ -302,8 +303,8 @@ export default function SceneGenerator({ initial, onGenerate }: Props) {
             <div className="mt-2">
               <StudioHint>
                 {selectedPresetConfig
-                  ? 'O preset cuida do cenario principal; este campo refina o resultado sem ocupar espaco com muitos botoes.'
-                  : 'Descreva o ambiente final. Se quiser agilizar, escolha um preset fixo no dropdown acima.'}
+                  ? 'O preset cuida do cenario principal. Aqui voce pode pedir troca de roupa, produto e ajustes finos usando as refs extras.'
+                  : 'Descreva o ambiente final e, se quiser, peça para vestir a roupa da ref extra ou trocar para o produto enviado.'}
               </StudioHint>
             </div>
           </StudioPanel>

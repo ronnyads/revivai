@@ -49,7 +49,8 @@ export function getStudioNodeCardWidth(
   const visualState = getStudioNodeVisualState(type, options)
 
   if (visualState === 'done-preview') {
-    if (type === 'video' || type === 'talking_video' || type === 'render' || type === 'animate' || type === 'lipsync' || type === 'join') return 320
+    if (type === 'join') return 360
+    if (type === 'video' || type === 'talking_video' || type === 'render' || type === 'animate' || type === 'lipsync') return 320
     if (type === 'look_split' || type === 'ugc_bundle') return 420
     if (type === 'voice' || type === 'music' || type === 'script' || type === 'caption') return 420
     if (type === 'image' || type === 'upscale' || type === 'compose' || type === 'face' || type === 'angles' || type === 'scene' || type === 'model') return 390
@@ -76,11 +77,13 @@ export function getStudioNodeCardWidth(
     if (type === 'image' || type === 'look_split') return 760
     if (type === 'model') return 570
     if (EXPANDED_NODE_TYPES.has(type)) return 540
+    if (type === 'join') return 560
     if (ACTIVE_NODE_TYPES.has(type)) return 500
     return 450
   }
 
   if (type === 'compose') return 410
+  if (type === 'join') return 420
   if (EXPANDED_NODE_TYPES.has(type) || ACTIVE_NODE_TYPES.has(type)) return 380
 
   return 352

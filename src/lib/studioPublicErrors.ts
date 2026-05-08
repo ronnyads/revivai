@@ -3,6 +3,7 @@ export type StudioPublicErrorCode =
   | 'precisamos_de_uma_foto_mais_limpa'
   | 'tentando_novamente_nos_bastidores'
   | 'resultado_pronto_para_revisao'
+  | 'imagem_base_bloqueada_pelo_provedor'
   | 'falha_na_geracao'
 
 export type StudioPublicErrorEnvelope = {
@@ -32,6 +33,11 @@ const DEFAULT_PUBLIC_ERRORS: Record<StudioPublicErrorCode, Omit<StudioPublicErro
     code: 'resultado_pronto_para_revisao',
     title: 'Resultado pronto para revisao',
     message: 'Preparamos as pecas principais para voce seguir com um look mais estavel em um clique.',
+  },
+  imagem_base_bloqueada_pelo_provedor: {
+    code: 'imagem_base_bloqueada_pelo_provedor',
+    title: 'A imagem base nao pode ser animada',
+    message: 'O provedor de video bloqueou a imagem usada como base deste video. Tente outra imagem base ou gere uma nova cena antes de animar.',
   },
   falha_na_geracao: {
     code: 'falha_na_geracao',

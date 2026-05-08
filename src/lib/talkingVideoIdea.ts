@@ -1,4 +1,5 @@
 export type SharedTalkingVideoMode = 'exact_speech' | 'veo_natural'
+export type TalkingVideoAudioSource = 'veo_native' | 'connected_audio' | 'generated_tts' | 'none'
 
 import { CREDIT_COST } from '@/constants/studio'
 
@@ -463,15 +464,19 @@ export function parseTalkingVideoIdeaInput(params: {
 }
 
 export function calculateTalkingVideoCredits(params: {
-  mode: SharedTalkingVideoMode
   quality?: string
-  speechDetected: boolean
+  audioSource?: TalkingVideoAudioSource
 }) {
   const baseVideoCost = CREDIT_COST.talking_video ?? CREDIT_COST.video_veo ?? 50
   const qualitySurcharge = params.quality === '1080p' ? (CREDIT_COST.video_veo ?? 50) : 0
-  const requiresVoicePipeline = params.mode === 'exact_speech' || params.speechDetected
+  const audioSource = params.audioSource ?? 'none'
+  const ttsSurcharge = audioSource === 'generated_tts' ? (CREDIT_COST.voice ?? 8) : 0
+  const lipsyncSurcharge = audioSource === 'connected_audio' || audioSource === 'generated_tts'
+    ? (CREDIT_COST.lipsync ?? 20)
+    : 0
 
   return baseVideoCost
     + qualitySurcharge
-    + (requiresVoicePipeline ? (CREDIT_COST.voice ?? 8) + (CREDIT_COST.lipsync ?? 20) : 0)
+    + ttsSurcharge
+    + lipsyncSurcharge
 }

@@ -10,12 +10,14 @@ import {
   StudioPrimaryButton,
   StudioSummaryChip,
 } from './StudioFormShell'
+import { STUDIO_ASPECT_RATIO_PRESETS } from './aspectRatio'
 import {
   buildTalkingVideoIdeaFromParts,
   calculateTalkingVideoCredits,
   estimateTalkingSpeechDurationSeconds,
   planTalkingVideoSpeechChunk,
   parseTalkingVideoIdeaInput,
+  type TalkingVideoAudioSource,
 } from '@/lib/talkingVideoIdea'
 
 interface Props {
@@ -25,14 +27,6 @@ interface Props {
 
 type TalkingVideoMode = 'exact_speech' | 'veo_natural'
 type ScenePresetId = 'none' | 'podcast' | 'beach' | 'office'
-
-const BR_VOICES = [
-  { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (masculino)' },
-  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (feminino)' },
-  { id: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi (feminino)' },
-  { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli (feminino)' },
-  { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh (masculino)' },
-]
 
 const SCENE_PRESETS: Array<{
   id: ScenePresetId
@@ -112,6 +106,22 @@ function getInitialScenePreset(initial: Record<string, unknown>): ScenePresetId 
 }
 
 export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
+  const syncKey = JSON.stringify({
+    source_image_url: initial.source_image_url ?? '',
+    talking_video_mode: initial.talking_video_mode ?? 'exact_speech',
+    idea_prompt: initial.idea_prompt ?? '',
+    speech_text: initial.speech_text ?? '',
+    expression_direction: initial.expression_direction ?? '',
+    visual_prompt: initial.visual_prompt ?? '',
+    quality: initial.quality ?? '720p',
+    aspect_ratio: initial.aspect_ratio ?? '9:16',
+    audio_url: initial.audio_url ?? '',
+  })
+
+  return <TalkingVideoGeneratorBody key={syncKey} initial={initial} onGenerate={onGenerate} />
+}
+
+function TalkingVideoGeneratorBody({ initial, onGenerate }: Props) {
   const savedIdeaPrompt = getInitialIdeaPrompt(initial)
   const hasSavedIdeaPrompt = savedIdeaPrompt.trim().length > 0
   const [imageUrl, setImageUrl] = useState(String(initial.source_image_url ?? ''))
@@ -134,9 +144,9 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
     if (raw.trim()) return raw
     return hasSavedIdeaPrompt ? '' : String(initial.visual_prompt ?? '')
   })
-  const [voiceId, setVoiceId] = useState(String(initial.voice_id ?? 'EXAVITQu4vr4xnSDxMaL'))
   const speed = 1.0
   const [quality, setQuality] = useState(String(initial.quality ?? '720p'))
+  const [aspectRatio, setAspectRatio] = useState(String(initial.aspect_ratio ?? '9:16'))
   const [scenePresetId, setScenePresetId] = useState<ScenePresetId>(getInitialScenePreset(initial))
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
@@ -178,20 +188,26 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
   )
   const speechWillContinue = mode === 'exact_speech' && chunkPlan.hasRemaining
   const estimateTone = getEstimateTone(speechWillContinue ? chunkPlan.selectedSeconds : estimateSeconds)
-  const requiresVoicePipeline = mode === 'exact_speech' || parsedIdea.speechDetected
+  const hasExternalAudio = String(initial.audio_url ?? '').trim().length > 0
+  const audioSource: TalkingVideoAudioSource = hasExternalAudio
+    ? 'connected_audio'
+    : mode === 'veo_natural'
+      ? 'veo_native'
+      : 'none'
+  const usesExternalAudioPipeline = audioSource === 'connected_audio'
   const cost = calculateTalkingVideoCredits({
-    mode,
     quality,
-    speechDetected: parsedIdea.speechDetected,
+    audioSource,
   })
+  const exactAudioMissing = mode === 'exact_speech' && !hasExternalAudio
   const exactSpeechMissing = mode === 'exact_speech' && !parsedIdea.speechDetected
   const naturalMissing = !imageUrl.trim() || (!parsedIdea.speechDetected && !parsedIdea.sceneDetected)
   const isDisabled = mode === 'exact_speech'
-    ? !imageUrl.trim() || exactSpeechMissing
+    ? !imageUrl.trim() || exactAudioMissing || exactSpeechMissing
     : naturalMissing
   const modeLabel = mode === 'exact_speech' ? 'Frase exata' : 'Veo natural'
   const modeDescription = mode === 'exact_speech'
-    ? 'A modelo fala exatamente a frase detectada em ate 8 segundos.'
+    ? 'Usa o audio conectado para preservar a fala literal com lipsync.'
     : 'A IA pode adaptar ritmo, entonacao e pequenas variacoes para soar mais organico.'
   const visualOverridePlaceholder = parsedIdeaBase.visualPrompt || scenePreset.prompt || 'Override manual de cena, camera e atmosfera'
 
@@ -207,6 +223,7 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
       controlsColumnClassName="space-y-2.5"
       chips={[
         { label: mode === 'exact_speech' ? 'Frase exata' : 'Veo natural', tone: mode === 'exact_speech' ? 'cyan' : 'warning' },
+        { label: STUDIO_ASPECT_RATIO_PRESETS.find((option) => option.value === aspectRatio)?.hint ?? aspectRatio, tone: 'neutral' },
         { label: quality === '1080p' ? '1080p HQ' : '720p', tone: quality === '1080p' ? 'warning' : 'neutral' },
         { label: '8 segundos', tone: 'neutral' },
       ]}
@@ -315,9 +332,13 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
               <StudioSummaryChip tone={mode === 'exact_speech' ? 'cyan' : 'warning'}>
                 {speechWillContinue ? 'continua em partes' : mode === 'exact_speech' ? 'speech-safe ativo' : 'audio mais livre'}
               </StudioSummaryChip>
-              {requiresVoicePipeline ? (
-                <StudioSummaryChip tone="cyan">voice + lipsync incluidos</StudioSummaryChip>
-              ) : null}
+              <StudioSummaryChip tone={hasExternalAudio ? 'cyan' : mode === 'veo_natural' ? 'success' : 'warning'}>
+                {hasExternalAudio
+                  ? 'audio conectado + lipsync'
+                  : mode === 'veo_natural'
+                    ? 'audio nativo do Veo'
+                    : 'conecte audio para frase exata'}
+              </StudioSummaryChip>
             </div>
           </StudioPanel>
 
@@ -370,23 +391,35 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
           </StudioPanel>
 
           <StudioPanel title="Saida" compact>
-            <div className={`grid gap-3 ${mode === 'exact_speech' ? 'sm:grid-cols-2' : 'sm:grid-cols-2'}`}>
+            <div className="grid gap-3 sm:grid-cols-2">
               {mode === 'exact_speech' ? (
-                <>
                   <div>
-                    <StudioFieldLabel>Voz</StudioFieldLabel>
-                    <select
-                      value={voiceId}
-                      onChange={(event) => setVoiceId(event.target.value)}
-                      className="w-full rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 text-[11px] text-white outline-none transition-colors focus:border-cyan-400/30"
-                    >
-                      {BR_VOICES.map((voice) => (
-                        <option key={voice.id} value={voice.id}>{voice.name}</option>
-                      ))}
-                    </select>
+                    <StudioFieldLabel>Audio conectado</StudioFieldLabel>
+                    <div className={`rounded-[16px] border px-3 py-2.5 text-[11px] ${
+                      hasExternalAudio
+                        ? 'border-cyan-500/20 bg-cyan-500/[0.06] text-cyan-100'
+                        : 'border-amber-500/20 bg-amber-500/10 text-amber-100'
+                    }`}>
+                      {hasExternalAudio
+                        ? 'Usando o audio conectado como fonte oficial do lipsync.'
+                        : 'Conecte um card de audio para liberar o modo Frase exata.'}
+                    </div>
                   </div>
-                </>
               ) : null}
+              <div>
+                <StudioFieldLabel>Formato</StudioFieldLabel>
+                <select
+                  value={aspectRatio}
+                  onChange={(event) => setAspectRatio(event.target.value)}
+                  className="w-full rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 text-[11px] text-white outline-none transition-colors focus:border-cyan-400/30"
+                >
+                  {STUDIO_ASPECT_RATIO_PRESETS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} - {option.hint}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <StudioFieldLabel>Qualidade</StudioFieldLabel>
                 <select
@@ -417,17 +450,19 @@ export default function TalkingVideoGenerator({ initial, onGenerate }: Props) {
                 speech_text: speechOverride,
                 expression_direction: expressionOverride,
                 visual_prompt: resolvedVisualPrompt,
-                voice_id: voiceId,
                 speed,
                 quality,
+                aspect_ratio: aspectRatio,
               })
             }
           >
             <Clapperboard size={16} />
             {mode === 'exact_speech'
-              ? `Gerar video falado - ${cost} CR`
-              : requiresVoicePipeline
-                ? `Gerar Veo natural falado - ${cost} CR`
+              ? exactAudioMissing
+                ? 'Conecte audio para frase exata'
+                : `Gerar frase exata - ${cost} CR`
+              : usesExternalAudioPipeline
+                ? `Gerar Veo + lipsync - ${cost} CR`
                 : `Gerar Veo natural - ${cost} CR`}
           </StudioPrimaryButton>
         </>

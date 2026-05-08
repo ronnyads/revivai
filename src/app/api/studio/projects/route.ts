@@ -20,7 +20,7 @@ const TEMPLATE_ASSETS: Record<StudioTemplate, Array<{ type: string; board_order:
   product_showcase: [
     { type: 'image',   board_order: 0, input_params: { prompt: 'foto profissional do produto', style: 'product', aspect_ratio: '1:1' } },
     { type: 'image',   board_order: 1, input_params: { prompt: 'pessoa usando o produto no dia a dia', style: 'lifestyle', aspect_ratio: '9:16' } },
-    { type: 'video',   board_order: 2, input_params: { source_image_url: '', motion_prompt: 'smooth product showcase', duration: 5 } },
+    { type: 'video',   board_order: 2, input_params: { source_image_url: '', motion_prompt: 'smooth product showcase', duration: 8 } },
     { type: 'caption', board_order: 3, input_params: { audio_url: '' } },
   ],
 }
