@@ -1904,6 +1904,11 @@ const VIDEO_FIXED_MOTION_RULES =
 const VIDEO_FIXED_MOTION_RULES_COMPACT =
   'Natural cinematic micro-motion only: subtle breathing, blinking, tiny posture shifts, stable anatomy and hands, smooth push-in.'
 
+const VIDEO_CINEMATIC_QUALITY_UGC =
+  'Shot on cinema camera. Shallow depth of field, natural bokeh. Warm filmic color grade. Soft professional studio lighting. Clean commercial aesthetic.'
+const VIDEO_CINEMATIC_QUALITY_CHARACTER =
+  'Vivid commercial quality. Crisp sharp rendering. Dynamic studio lighting. Bold cinematic color palette. Professional advertising aesthetic.'
+
 const VIDEO_SCENE_CHANGE_PATTERNS = [
   /\b(em|na|no|numa|num|inside|at|in front of|on a|from a)\s+(cafeteria|cafe|cozinha|kitchen|praia|beach|rua|street|cidade|city|paris|londres|london|dubai|tokyo|roma|rome|floresta|forest|hotel|escritorio|office|quarto|bedroom|banheiro|bathroom|restaurante|restaurant|mall|shopping|studio|estudio)\b/i,
   /\b(background|fundo|cenario|cenario novo|ambiente|location|localizacao|setting)\b/i,
@@ -2140,7 +2145,7 @@ function hasVideoNativeSpeechIntent(params: {
   return Boolean(hasSpeechVerb && (hasLanguageSignal || quotedSpeechFallback))
 }
 
-function analyzeVideoPrompt(userRequest?: string): VideoPromptAnalysis {
+function analyzeVideoPrompt(userRequest?: string, options?: { sceneLivre?: boolean }): VideoPromptAnalysis {
   const normalizedPrompt = normalizeVideoUserRequest(userRequest)
   if (!normalizedPrompt) {
     return {
@@ -2190,7 +2195,7 @@ function analyzeVideoPrompt(userRequest?: string): VideoPromptAnalysis {
     buildVideoLiteralRequestLine('Performance tone', sections.get('performance') ?? sections.get('expression') ?? '', { maxSentences: 2, maxChars: 140 }),
     buildVideoLiteralRequestLine('Visual style', sections.get('visual') ?? '', { maxSentences: 2, maxChars: 180 }),
     buildVideoLiteralRequestLine('Lighting mood', sections.get('lighting') ?? '', { maxSentences: 1, maxChars: 120 }),
-    buildVideoLiteralRequestLine('Main goal', sections.get('main_goal') ?? sections.get('final_feeling') ?? '', { maxSentences: 2, maxChars: 180 }),
+    buildVideoLiteralRequestLine('Main goal', options?.sceneLivre ? '' : (sections.get('main_goal') ?? sections.get('final_feeling') ?? ''), { maxSentences: 2, maxChars: 180 }),
   ]
     .filter(Boolean)
     .join(' ')
@@ -2314,6 +2319,7 @@ function assembleStructuredVideoPromptSections(params: {
   speechInstruction?: string
   dynamicLocks?: string
   sceneLivre?: boolean
+  isUgcModel?: boolean
 }) {
   const sl = params.sceneLivre ?? false
   const CHAR_LIMIT = sl ? 2000 : 880
@@ -2337,6 +2343,9 @@ function assembleStructuredVideoPromptSections(params: {
   let rulesLine = sl
     ? 'RULES: Do not render subtitles, captions, on-screen text, or watermark.'
     : 'RULES: Do not render subtitles, captions, on-screen text, or watermark. Do not alter wardrobe unless explicitly requested by the user. Preserve the original environment unless explicitly requested by the user.'
+  const cinematicLine = sl
+    ? `CINEMATIC: ${params.isUgcModel ? VIDEO_CINEMATIC_QUALITY_UGC : VIDEO_CINEMATIC_QUALITY_CHARACTER}`
+    : ''
   let motionLine = `MOTION: ${VIDEO_FIXED_MOTION_RULES}`
 
   const buildPrompt = () =>
@@ -2348,6 +2357,7 @@ function assembleStructuredVideoPromptSections(params: {
       preservationLine,
       sourceLocksLine,
       rulesLine,
+      cinematicLine,
       motionLine,
     ]
       .filter(Boolean)
@@ -2399,7 +2409,7 @@ function buildStructuredVideoPrompt(params: {
 }) {
   const promptAnalysis = params.promptMode || params.speechInstruction !== undefined
     ? null
-    : analyzeVideoPrompt(params.userRequest)
+    : analyzeVideoPrompt(params.userRequest, { sceneLivre: params.sceneLivre })
   const finalUserRequest =
     normalizeVideoUserRequest(promptAnalysis?.veoUserRequest ?? params.userRequest) || VIDEO_DEFAULT_USER_REQUEST
   const speechInstruction = normalizeTalkingWhitespace(
@@ -2413,6 +2423,7 @@ function buildStructuredVideoPrompt(params: {
     speechInstruction,
     dynamicLocks,
     sceneLivre: params.sceneLivre,
+    isUgcModel: params.sceneLivre ? !!params.modelPrompt : false,
   })
 }
 
