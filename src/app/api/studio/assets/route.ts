@@ -1392,7 +1392,7 @@ export async function POST(req: NextRequest) {
             : [],
           source_text_logo_lock: Boolean(normalizedInputParams.source_text_logo_lock),
           source_color_lock: Boolean(normalizedInputParams.source_color_lock),
-          generate_audio: useNativeVideoSpeech,
+          generate_audio: false,
           scene_livre: Boolean(normalizedInputParams.scene_livre),
           guideline_block_handling: 'video',
           inputParamsPatch: {

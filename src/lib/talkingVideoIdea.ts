@@ -467,16 +467,22 @@ export function calculateTalkingVideoCredits(params: {
   quality?: string
   audioSource?: TalkingVideoAudioSource
 }) {
-  const baseVideoCost = CREDIT_COST.talking_video ?? CREDIT_COST.video_veo ?? 50
+  const baseVideoCost = CREDIT_COST.talking_video ?? 60
   const qualitySurcharge = params.quality === '1080p' ? (CREDIT_COST.video_veo ?? 50) : 0
   const audioSource = params.audioSource ?? 'none'
-  const ttsSurcharge = audioSource === 'generated_tts' ? (CREDIT_COST.voice ?? 8) : 0
+
+  // Padrão: Grok TTS + SyncLabs lipsync
+  const ttsSurcharge = audioSource === 'generated_tts' ? (CREDIT_COST.voice_grok ?? 3) : 0
   const lipsyncSurcharge = audioSource === 'connected_audio' || audioSource === 'generated_tts'
-    ? (CREDIT_COST.lipsync ?? 20)
+    ? (CREDIT_COST.lipsync ?? 30)
     : 0
+
+  // Premium: áudio nativo Veo ($3,20 vs $0,80 silent)
+  const veoNativeSurcharge = audioSource === 'veo_native' ? (CREDIT_COST.veo_native_audio ?? 140) : 0
 
   return baseVideoCost
     + qualitySurcharge
     + ttsSurcharge
     + lipsyncSurcharge
+    + veoNativeSurcharge
 }

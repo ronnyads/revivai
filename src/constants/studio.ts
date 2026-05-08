@@ -15,6 +15,7 @@ export const CREDIT_COST: Record<string, number> = {
   script:  3,   // GPT-4o
   voice:   8,   // ElevenLabs / Google TTS
   voice_grok: 3, // Grok TTS (xAI) — 14x mais barato que ElevenLabs
+  veo_native_audio: 140, // surcharge áudio nativo Veo (60 base + 140 = 200 CR total)
   model:   8,   // Flux Pro + GPT-4o
   image:   8,   // Flux Pro Ultra
   compose: 12,  // IDM-VTON/overlay

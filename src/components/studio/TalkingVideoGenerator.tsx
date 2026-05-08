@@ -237,14 +237,14 @@ function TalkingVideoGeneratorBody({ initial, onGenerate }: Props) {
             <div className="grid gap-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <StudioFieldLabel>Modo</StudioFieldLabel>
+                  <StudioFieldLabel>Áudio</StudioFieldLabel>
                   <select
                     value={mode}
                     onChange={(event) => setMode(event.target.value as TalkingVideoMode)}
                     className="w-full rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 text-[11px] text-white outline-none transition-colors focus:border-cyan-400/30"
                   >
-                    <option value="exact_speech">Frase exata</option>
-                    <option value="veo_natural">Veo natural</option>
+                    <option value="exact_speech">Padrão — Grok TTS + Lipsync (93 CR)</option>
+                    <option value="veo_natural">Premium — Áudio Nativo Veo (200 CR)</option>
                   </select>
                 </div>
                 <div>
