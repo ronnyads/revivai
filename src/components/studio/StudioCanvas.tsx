@@ -892,6 +892,9 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         if (normalizedAsset.status === 'done' || normalizedAsset.status === 'error') {
           stopPolling()
           setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...normalizedAsset } : a))
+          fetch('/api/studio/balance').then(r => r.json()).then(d => {
+            if (typeof d?.credits === 'number') setCredits(d.credits)
+          }).catch(() => {})
           return
         }
 
@@ -913,6 +916,9 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
                   ? { status: 'error', error_msg: syncData.error ?? 'Falha ao sincronizar o asset.' }
                   : { status: 'done', result_url: syncData.result_url ?? null },
               )
+              fetch('/api/studio/balance').then(r => r.json()).then(d => {
+                if (typeof d?.credits === 'number') setCredits(d.credits)
+              }).catch(() => {})
               return
             }
           } catch { /* ignora erro silencioso no sync */ }
