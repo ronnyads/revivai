@@ -471,51 +471,18 @@ function getProvadorContinuationDraft(inputParams: Record<string, unknown>) {
   return continuationParams
 }
 
-function CompactThumbnail({ url, type }: { url: string; type: AssetType }) {
-  const isVideo = ['video', 'talking_video', 'animate', 'lipsync', 'render', 'join'].includes(type)
-  const isText = ['script', 'caption'].includes(type)
-
-  if (isText) return null
-
-  if (isVideo) {
-    return (
-      <video
-        src={url}
-        className="h-10 w-10 rounded-lg object-cover border border-white/10"
-        muted
-        playsInline
-        preload="metadata"
-      />
-    )
-  }
-
-  return (
-    <img
-      src={url}
-      alt=""
-      className="h-10 w-10 rounded-lg object-cover border border-white/10"
-    />
-  )
-}
-
 function AssetNode({ data, selected }: NodeProps) {
   const {
     asset,
     onDelete,
     onDuplicate,
   } = data as AssetNodeData
+
   const meta = TYPE_META[asset.type]
   const composeVariant = asset.type === 'compose' ? String(asset.input_params.compose_variant ?? 'fitting') : ''
   const displayMeta =
     asset.type === 'compose'
-      ? {
-          ...meta,
-          label: composeVariant === 'product' ? 'Modelo + Produto' : 'Provador',
-          hint:
-            composeVariant === 'product'
-              ? 'Hero product em fundo branco com pose clean.'
-              : 'Auto-detecta roupa, calcado e acessorios com fidelidade de prova.',
-        }
+      ? { ...meta, label: composeVariant === 'product' ? 'Modelo + Produto' : 'Provador' }
       : meta
 
   const inputHandles = useMemo(() => INPUT_HANDLES[asset.type] ?? [], [asset.type])
@@ -524,95 +491,115 @@ function AssetNode({ data, selected }: NodeProps) {
   const isChained = chainTotal !== null && chainTotal > 1
   const chainLabel = isChained ? `Parte ${(chainIndex ?? 0) + 1}/${chainTotal}` : null
   const isChainWaiting = asset.status === 'idle' && asset.input_params.pipeline_stage === 'chain_waiting'
+  const isVideo = ['video', 'talking_video', 'animate', 'lipsync', 'render', 'join'].includes(asset.type)
+  const isText = ['script', 'caption'].includes(asset.type)
   const cardWidth = getStudioNodeCardWidth(asset.type, { status: asset.status, selected })
+
+  const handleCount = inputHandles.length
+  const headerTop = 20
+  const outputTop = Math.max(headerTop + 20, headerTop + Math.floor(handleCount / 2) * 22)
+
   return (
     <div
-      className={`group/node overflow-visible rounded-[20px] border transition-[box-shadow,border-color,background-color] duration-200 ${
+      className={`group/node overflow-hidden rounded-[18px] border transition-[box-shadow,border-color,background-color] duration-200 ${
         selected
-          ? 'border-[#54D6F6]/40 bg-[#0E1011]/97 shadow-[0_16px_48px_rgba(0,173,204,0.18)]'
+          ? 'border-[#54D6F6]/50 bg-[#0D1013]/98 shadow-[0_0_0_1px_rgba(84,214,246,0.12),0_20px_60px_rgba(0,173,204,0.20)]'
           : asset.isNew
-            ? 'border-orange-400/35 bg-[#111111]/96 shadow-[0_14px_40px_rgba(249,115,22,0.16)]'
-            : 'border-white/8 bg-[#101112]/94 shadow-[0_10px_32px_rgba(0,0,0,0.30)]'
+            ? 'border-orange-400/40 bg-[#111111]/96 shadow-[0_14px_40px_rgba(249,115,22,0.16)]'
+            : 'border-white/10 bg-[#0F1113]/96 shadow-[0_8px_28px_rgba(0,0,0,0.40)]'
       }`}
       style={{ width: cardWidth }}
     >
       {inputHandles.map((handle, index) => (
-        <HandleTag
-          key={handle.id}
-          id={handle.id}
-          label={handle.label}
-          side="left"
-          top={44 + index * 24}
-          selected={selected}
-        />
+        <HandleTag key={handle.id} id={handle.id} label={handle.label} side="left" top={headerTop + index * 24} selected={selected} />
       ))}
+      <HandleTag id="output" label={displayMeta.output} side="right" top={outputTop} selected={selected} />
 
-      <HandleTag
-        id="output"
-        label={displayMeta.output}
-        side="right"
-        top={Math.max(56, 44 + Math.floor(inputHandles.length / 2) * 22)}
-        selected={selected}
-      />
-
-      {/* Compact header */}
-      <div className="flex items-center gap-2 px-3 py-2.5">
-        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[12px] border ${displayMeta.chip}`}>
-          {displayMeta.icon}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <p className={`truncate text-[12px] font-semibold tracking-tight ${displayMeta.color}`}>{displayMeta.label}</p>
-            <StatusPill status={asset.status} />
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 px-3 pt-3 pb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-[10px] border ${displayMeta.chip}`}>
+            {displayMeta.icon}
           </div>
+          <p className={`truncate text-[11px] font-semibold uppercase tracking-[0.08em] ${displayMeta.color}`}>
+            {displayMeta.label}
+          </p>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          {chainLabel ? (
-            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-cyan-300">
-              {chainLabel}
-            </span>
-          ) : null}
-          <span className="rounded-full border border-white/12 bg-white/[0.08] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-white">
-            {asset.credits_cost} CR
-          </span>
-          <button
-            type="button"
-            onClick={() => onDuplicate(asset.id)}
-            title="Duplicar"
-            className="flex h-6 w-6 items-center justify-center rounded-lg border border-[#54D6F6]/20 bg-[#0D171B] text-cyan-200/70 transition-colors hover:text-white"
-          >
+        <div className="flex shrink-0 items-center gap-1 opacity-0 group-hover/node:opacity-100 transition-opacity">
+          <button type="button" onClick={() => onDuplicate(asset.id)} title="Duplicar"
+            className="flex h-5 w-5 items-center justify-center rounded-md text-white/40 hover:text-white/90 transition-colors">
             <CopyPlus size={11} />
           </button>
-          <button
-            type="button"
-            onClick={() => onDelete(asset.id)}
-            title="Excluir"
-            className="flex h-6 w-6 items-center justify-center rounded-lg border border-white/8 bg-white/[0.03] text-white/50 transition-colors hover:border-red-500/20 hover:bg-red-500/8 hover:text-red-300"
-          >
+          <button type="button" onClick={() => onDelete(asset.id)} title="Excluir"
+            className="flex h-5 w-5 items-center justify-center rounded-md text-white/40 hover:text-red-400 transition-colors">
             <Trash2 size={11} />
           </button>
         </div>
       </div>
 
-      {/* Compact body */}
-      {isChainWaiting ? (
-        <div className="border-t border-white/5 px-3 pb-2.5 pt-2">
-          <p className="text-[10px] leading-relaxed text-cyan-400/70">Aguardando parte anterior...</p>
+      {/* Media area */}
+      <div className="mx-3 overflow-hidden rounded-[12px] border border-white/6 bg-black/30" style={{ height: 140 }}>
+        {asset.status === 'done' && asset.result_url && !isText ? (
+          isVideo ? (
+            <video
+              src={asset.result_url}
+              className="h-full w-full object-cover"
+              muted playsInline preload="metadata"
+            />
+          ) : (
+            <img src={asset.result_url} alt="" className="h-full w-full object-cover" />
+          )
+        ) : asset.status === 'done' && isText && asset.result_url ? (
+          <div className="flex h-full items-center justify-center p-3">
+            <p className="line-clamp-4 text-center text-[10px] leading-relaxed text-white/60">
+              {typeof asset.input_params.script === 'string'
+                ? asset.input_params.script.slice(0, 160)
+                : 'Texto gerado'}
+            </p>
+          </div>
+        ) : asset.status === 'processing' ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2">
+            <Loader2 size={22} className="animate-spin text-[#54D6F6]/70" />
+            <span className="text-[10px] font-medium text-white/40">Gerando...</span>
+          </div>
+        ) : asset.status === 'error' ? (
+          <div className="flex h-full flex-col items-center justify-center gap-1.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10">
+              <span className="text-[16px]">✕</span>
+            </div>
+            <span className="text-[10px] text-red-400/80">Falha</span>
+          </div>
+        ) : isChainWaiting ? (
+          <div className="flex h-full flex-col items-center justify-center gap-1.5 px-3 text-center">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-cyan-500/20 bg-cyan-500/8">
+              {displayMeta.icon}
+            </div>
+            <span className="text-[10px] text-cyan-400/70">Aguardando parte anterior...</span>
+          </div>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-2">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-[16px] border ${displayMeta.chip} opacity-50`}>
+              {displayMeta.icon}
+            </div>
+            <span className="text-[10px] text-white/25">Clique para editar</span>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between gap-2 px-3 pb-3 pt-2">
+        <StatusPill status={asset.status} />
+        <div className="flex items-center gap-1.5">
+          {chainLabel ? (
+            <span className="rounded-full border border-cyan-500/25 bg-cyan-500/8 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-cyan-300">
+              {chainLabel}
+            </span>
+          ) : null}
+          <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-white/70">
+            {asset.credits_cost} CR
+          </span>
         </div>
-      ) : asset.status === 'processing' ? (
-        <div className="flex items-center gap-1.5 border-t border-white/5 px-3 pb-2.5 pt-2">
-          <Loader2 size={11} className="animate-spin text-[#54D6F6]" />
-          <span className="text-[10px] text-white/50">Gerando...</span>
-        </div>
-      ) : asset.status === 'error' ? (
-        <div className="border-t border-white/5 px-3 pb-2.5 pt-2">
-          <p className="text-[10px] text-red-400/80">Falha — veja no painel</p>
-        </div>
-      ) : asset.status === 'done' && asset.result_url ? (
-        <div className="border-t border-white/5 px-3 pb-2.5 pt-2">
-          <CompactThumbnail url={asset.result_url} type={asset.type} />
-        </div>
-      ) : null}
+      </div>
     </div>
   )
 }
