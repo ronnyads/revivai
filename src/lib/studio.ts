@@ -2492,6 +2492,19 @@ const VEO_PROMPT_SANITIZE_RULES: Array<{ pattern: RegExp; replacement: string }>
   { pattern: /\bAI\s+(?:reveal|identity|deepfake)\b/gi, replacement: 'creative commercial reveal' },
   { pattern: /\b(?:viewer|audience)\s+must\s+(?:feel|immediately\s+feel)\s+(?:curiosity\s+and\s+)?\bdoubt\b[^.]*(?:real|AI)[^.]*/gi, replacement: 'viewer experiences an engaging premium commercial moment' },
   { pattern: /\bpersonagem\s+virtual\s+(?:ficcional|hiper-realista)\b/gi, replacement: 'personagem comercial' },
+  // Strip deepfake-trigger realism descriptors
+  { pattern: /\b(?:ultra[\s-]?realistic|hyper[\s-]?realistic)\s+skin\b/gi, replacement: 'premium cinematic skin' },
+  { pattern: /\bnatural\s+skin\s+texture\b/gi, replacement: 'clean commercial look' },
+  { pattern: /\brealistic\s+eyes\b/gi, replacement: 'expressive eyes' },
+  { pattern: /\bnatural\s+facial\s+micro[\s-]?expressions?\b/gi, replacement: 'expressive performance' },
+  { pattern: /\bno\s+artificial\s+plastic\s+look\b/gi, replacement: '' },
+  { pattern: /\bno\s+exaggerated\s+beauty\s+filter\b/gi, replacement: '' },
+  // Strip AI-creation identity dialogue cues
+  { pattern: /\bou\s+s[oó]\s+uma\s+cria[çc][aã]o\b\??/gi, replacement: '' },
+  { pattern: /\bonly\s+a\s+creation\b\??/gi, replacement: '' },
+  // Strip "premium AI" in commercial context (implies synthetic/AI media)
+  { pattern: /\bpremium\s+AI\s+(?:video\s+)?ad\b/gi, replacement: 'premium commercial video' },
+  { pattern: /\bAI\s+(?:video\s+)?(?:commercial|ad|advertising)\b/gi, replacement: 'premium commercial video' },
 ]
 
 const VEO_NEGATIVE_LIST_PATTERNS = [
