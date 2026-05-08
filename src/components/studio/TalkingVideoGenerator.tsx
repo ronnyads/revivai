@@ -193,21 +193,22 @@ function TalkingVideoGeneratorBody({ initial, onGenerate }: Props) {
     ? 'connected_audio'
     : mode === 'veo_natural'
       ? 'veo_native'
-      : 'none'
+      : 'generated_tts'
   const usesExternalAudioPipeline = audioSource === 'connected_audio'
   const cost = calculateTalkingVideoCredits({
     quality,
     audioSource,
   })
-  const exactAudioMissing = mode === 'exact_speech' && !hasExternalAudio
   const exactSpeechMissing = mode === 'exact_speech' && !parsedIdea.speechDetected
   const naturalMissing = !imageUrl.trim() || (!parsedIdea.speechDetected && !parsedIdea.sceneDetected)
   const isDisabled = mode === 'exact_speech'
-    ? !imageUrl.trim() || exactAudioMissing || exactSpeechMissing
+    ? !imageUrl.trim() || exactSpeechMissing
     : naturalMissing
   const modeLabel = mode === 'exact_speech' ? 'Frase exata' : 'Veo natural'
   const modeDescription = mode === 'exact_speech'
-    ? 'Usa o audio conectado para preservar a fala literal com lipsync.'
+    ? hasExternalAudio
+      ? 'Usa o audio conectado para preservar a fala literal com lipsync.'
+      : 'Gera voz automaticamente com Grok TTS e aplica lipsync preciso.'
     : 'A IA pode adaptar ritmo, entonacao e pequenas variacoes para soar mais organico.'
   const visualOverridePlaceholder = parsedIdeaBase.visualPrompt || scenePreset.prompt || 'Override manual de cena, camera e atmosfera'
 
@@ -458,9 +459,7 @@ function TalkingVideoGeneratorBody({ initial, onGenerate }: Props) {
           >
             <Clapperboard size={16} />
             {mode === 'exact_speech'
-              ? exactAudioMissing
-                ? 'Conecte audio para frase exata'
-                : `Gerar frase exata - ${cost} CR`
+              ? `Gerar frase exata - ${cost} CR`
               : usesExternalAudioPipeline
                 ? `Gerar Veo + lipsync - ${cost} CR`
                 : `Gerar Veo natural - ${cost} CR`}
