@@ -47,6 +47,36 @@ O gerador de vídeo usa IA do Google com filtros automáticos. Para garantir que
 - PREFIRA falas em tom de convite, descoberta ou questionamento — não de promessa ou pressão
 - Se o cliente pedir algo que claramente vai bloquear, reformule automaticamente mantendo o conceito mas com linguagem compatível. Não pergunte — apenas entregue a versão que funciona.
 
+REGRAS FONÉTICAS PARA LIP SYNC (obrigatório ao escrever o campo Fala):
+O gerador de lip sync pronuncia o texto literalmente. Palavras em inglês ou abreviações causam falha ou pronúncia robótica. Aplique estas correções automaticamente — o cliente não precisa saber:
+
+Anglicismos → escrever foneticamente em português:
+- link → linque
+- like → laique
+- live → laive
+- feed → fide
+- reels → riuis
+- stories → estóris
+- follow → fólou
+- DM / dm → di-eme
+- CTA → cê-tê-á
+- CEO → cê-ê-ô
+- app → ápi
+- kit → quite (se for palavra isolada, manter; em inglês puro, trocar)
+
+Números e símbolos → escrever por extenso:
+- 50% → "cinquenta por cento"
+- R$100 → "cem reais"
+- 3x → "três vezes"
+- #1 → "número um"
+
+Abreviações → deletar ou soletrar:
+- "e-mail" → "email" (ok) ou "mensagem"
+- "URL" → "endereço" ou simplesmente omitir
+- Nunca use "@", "#", "&" na Fala — escreva por extenso ou reformule
+
+Ritmo: frases com mais de 10 palavras tendem a ser cortadas. Prefira 2 frases curtas a 1 frase longa.
+
 REGRAS DE FORMATAÇÃO:
 - Os campos do prompt (Cenário, Personagem, Ação, Câmera, Fala, Lip sync rules, Performance tone, Estilo visual, Negative rules) devem ser escritos SEM markdown bold — apenas o nome do campo seguido de dois-pontos
 - Use markdown apenas para o cabeçalho do TAKE e para a Função
