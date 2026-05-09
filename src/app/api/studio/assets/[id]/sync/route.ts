@@ -448,7 +448,7 @@ export async function POST(
   const engine = typeof assetInputParams.engine === 'string' ? assetInputParams.engine : undefined
   const providerFamily = typeof assetInputParams.provider_family === 'string' ? assetInputParams.provider_family : undefined
 
-  if ((logicalType === 'video' || logicalType === 'talking_video' || logicalType === 'animate') && (provider === 'google' || engine === 'veo' || providerFamily === 'google_cloud')) {
+  if ((logicalType === 'video' || logicalType === 'talking_video' || logicalType === 'animate') && engine !== 'sync-lipsync' && provider !== 'fal' && (provider === 'google' || engine === 'veo' || providerFamily === 'google_cloud')) {
     const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? 'vertex-managed'
     if (!apiKey) {
       return failAssetAndRespond({
