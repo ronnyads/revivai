@@ -3665,10 +3665,11 @@ export async function startVideoGeneration(params: {
   if (params.engine === 'veo') {
     falModelPath = FAL_VEO_PATH
     endpoint = `https://queue.fal.run/${FAL_VEO_PATH}`
+    const veoDuration = rawDuration >= 7 ? '8' : '5'
     payload = {
       image_url: params.source_image_url,
       prompt: finalVideoPrompt,
-      duration: config.veo_duration || `${requestedDuration}s`,
+      duration: config.veo_duration || `${veoDuration}s`,
       aspect_ratio: params.aspect_ratio ?? '9:16',
       webhook_url: webhookUrl,
       ...config

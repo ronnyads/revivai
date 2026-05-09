@@ -5,7 +5,7 @@ import { Video, Link2, User, ChevronDown, Loader2 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import { STUDIO_ASPECT_RATIO_PRESETS } from './aspectRatio'
 import {
-  getVideoGenerationCost,
+  getVideoGenerationCostByDuration,
   normalizeStudioVideoQuality,
   type StudioVideoQuality,
 } from '@/constants/studio'
@@ -80,12 +80,13 @@ function VideoBody({ initial, onGenerate }: Props) {
   const [aspectRatio, setAspectRatio] = useState(normalizeVideoAspectRatio(initial.aspect_ratio))
   const [scenePreset, setScenePreset] = useState('none')
   const [sceneLivre, setSceneLivre]   = useState(false)
+  const [duration, setDuration]       = useState<5 | 8>(8)
   const [loading, setLoading]         = useState(false)
 
   const selectedScene  = VIDEO_SCENE_PRESETS.find((o) => o.value === scenePreset) ?? VIDEO_SCENE_PRESETS[0]
   const selectedFormat = STUDIO_ASPECT_RATIO_PRESETS.find((o) => o.value === aspectRatio)
   const finalBrief     = joinPromptParts([selectedScene.prompt, brief])
-  const cost           = getVideoGenerationCost(quality)
+  const cost           = getVideoGenerationCostByDuration(quality, duration)
   const canGenerate    = !loading && (isContinuation || imageUrl.trim().length > 0)
 
   return (
@@ -143,22 +144,40 @@ function VideoBody({ initial, onGenerate }: Props) {
         />
       </div>
 
-      {/* Cena Livre + meta */}
+      {/* Duração + Cena Livre */}
       <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => setSceneLivre((v) => !v)}
-          className={`flex items-center gap-1.5 rounded-[9px] border px-2.5 py-1.5 text-[10px] font-semibold transition-colors ${
-            sceneLivre
-              ? 'border-purple-500/28 bg-purple-500/10 text-purple-200'
-              : 'border-white/8 bg-white/[0.04] text-white/40'
-          }`}
-        >
-          <span className={`h-1.5 w-1.5 rounded-full transition-colors ${sceneLivre ? 'bg-purple-400' : 'bg-white/20'}`} />
-          Cena Livre
-        </button>
+        <div className="flex items-center gap-1.5">
+          {/* Duração */}
+          {([5, 8] as const).map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setDuration(d)}
+              className={`rounded-[9px] border px-2.5 py-1.5 text-[10px] font-semibold transition-colors ${
+                duration === d
+                  ? 'border-blue-500/40 bg-blue-500/14 text-blue-200'
+                  : 'border-white/8 bg-white/[0.04] text-white/40'
+              }`}
+            >
+              {d}s
+            </button>
+          ))}
+          {/* Cena Livre */}
+          <button
+            type="button"
+            onClick={() => setSceneLivre((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-[9px] border px-2.5 py-1.5 text-[10px] font-semibold transition-colors ${
+              sceneLivre
+                ? 'border-purple-500/28 bg-purple-500/10 text-purple-200'
+                : 'border-white/8 bg-white/[0.04] text-white/40'
+            }`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full transition-colors ${sceneLivre ? 'bg-purple-400' : 'bg-white/20'}`} />
+            Cena Livre
+          </button>
+        </div>
         <span className="text-[9px] text-white/40">
-          {selectedFormat?.hint ?? aspectRatio} · 8s · <span className="font-semibold text-white/60">{cost} CR</span>
+          {selectedFormat?.hint ?? aspectRatio} · <span className="font-semibold text-white/60">{cost} CR</span>
         </span>
       </div>
 
@@ -172,7 +191,7 @@ function VideoBody({ initial, onGenerate }: Props) {
             source_image_url: imageUrl,
             continuation_frame: isContinuation ? imageUrl : undefined,
             motion_prompt: finalBrief,
-            duration: 8,
+            duration,
             engine: 'veo',
             quality,
             aspect_ratio: aspectRatio,

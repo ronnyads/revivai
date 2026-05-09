@@ -5,6 +5,18 @@ export const VIDEO_GENERATION_COST: Record<StudioVideoQuality, number> = {
   '1080p': 100,
 }
 
+// Custo por duração: 5s é ~33% mais barato
+export const VIDEO_GENERATION_COST_BY_DURATION: Record<StudioVideoQuality, Record<5 | 8, number>> = {
+  '720p':  { 5: 50, 8: 75  },
+  '1080p': { 5: 65, 8: 100 },
+}
+
+export function getVideoGenerationCostByDuration(quality: unknown, duration: unknown): number {
+  const q = normalizeStudioVideoQuality(quality)
+  const d = Number(duration ?? 8) >= 7 ? 8 : 5
+  return VIDEO_GENERATION_COST_BY_DURATION[q][d as 5 | 8]
+}
+
 export const CREDIT_COST: Record<string, number> = {
   face:    0,   // upload, sem API
   join:    0,   // FFmpeg local
