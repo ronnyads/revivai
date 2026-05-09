@@ -13,7 +13,6 @@ import Link from 'next/link'
 import { StudioAsset, StudioConnection, StudioProject, AssetType } from '@/types'
 import AssetNode, { AssetNodeData } from './nodes/AssetNode'
 import LightEdge from './edges/LightEdge'
-import StudioSideEditor from './StudioSideEditor'
 import AddCardMenu from './AddCardMenu'
 import CanvasQuickAdd from './CanvasQuickAdd'
 import CampaignWizard, { WizardResult } from './CampaignWizard'
@@ -566,7 +565,6 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
   } | null>(null)
   const [undoToast,    setUndoToast]    = useState<{ label: string } | null>(null)
   const [quickAddMenu, setQuickAddMenu] = useState<{ x: number; y: number } | null>(null)
-  const [editingAssetId, setEditingAssetId] = useState<string | null>(null)
   const [saveState,    setSaveState]    = useState<'saved' | 'saving' | 'error'>('saved')
   const [lastSavedAt,  setLastSavedAt]  = useState(() => (project.updated_at ? new Date(project.updated_at) : null))
   const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -1163,17 +1161,14 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     } catch { /* fica local se falhar */ }
   }, [assets, connections, focusNodeInViewport, setConnections])
 
-  const handleEdit = useCallback((id: string) => setEditingAssetId(id), [])
-
   const nodeCallbacks = useMemo<Omit<AssetNodeData, 'asset' | 'selectionActive'>>(() => ({
     onDelete: handleDelete,
     onGenerate: handleGenerate,
     onUpdateParams: handleUpdateParams,
     onRefreshAsset: refreshAssetFromServer,
     onDuplicate: handleDuplicate,
-    onEdit: handleEdit,
     userPlan,
-  }), [handleDelete, handleGenerate, handleUpdateParams, refreshAssetFromServer, handleDuplicate, handleEdit, userPlan])
+  }), [handleDelete, handleGenerate, handleUpdateParams, refreshAssetFromServer, handleDuplicate, userPlan])
 
 
   // ── React Flow state ─────────────────────────────────────────────────────
@@ -2187,27 +2182,6 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
         </div>
       )}
 
-      {/* Side Editor modal overlay */}
-      {editingAssetId && (() => {
-        const editingAsset = assets.find(a => a.id === editingAssetId) ?? null
-        return (
-          <div className="fixed inset-0 z-40 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEditingAssetId(null)} />
-            <div className="relative z-10 w-full max-w-[420px] mx-4 max-h-[90vh] overflow-y-auto rounded-[24px]">
-              <StudioSideEditor
-                asset={editingAsset}
-                userPlan={userPlan}
-                onGenerate={(type, params, assetId) => { handleGenerate(type, params, assetId); setEditingAssetId(null) }}
-                onUpdateParams={handleUpdateParams}
-                onDelete={(id) => { handleDelete(id); setEditingAssetId(null) }}
-                onDuplicate={handleDuplicate}
-                onRefreshAsset={refreshAssetFromServer}
-                onClose={() => setEditingAssetId(null)}
-              />
-            </div>
-          </div>
-        )
-      })()}
     </div>
   )
 }

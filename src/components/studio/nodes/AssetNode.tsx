@@ -361,7 +361,6 @@ export interface AssetNodeData {
   onUpdateParams: (id: string, params: Record<string, unknown>) => void
   onRefreshAsset?: (id: string, fallback?: Partial<StudioAsset>) => Promise<void>
   onDuplicate: (id: string, overrides?: Record<string, unknown>) => void
-  onEdit: (id: string) => void
   [key: string]: unknown
 }
 
@@ -486,8 +485,12 @@ function AssetNode({ data, selected }: NodeProps) {
     asset,
     onDelete,
     onDuplicate,
-    onEdit,
+    onGenerate,
+    onUpdateParams,
+    userPlan,
   } = data as AssetNodeData
+
+  const [hovered, setHovered] = useState(false)
 
   const meta = TYPE_META[asset.type]
   const composeVariant = asset.type === 'compose' ? String(asset.input_params.compose_variant ?? 'fitting') : ''
@@ -510,16 +513,22 @@ function AssetNode({ data, selected }: NodeProps) {
   const headerTop = 20
   const outputTop = Math.max(headerTop + 20, headerTop + Math.floor(handleCount / 2) * 22)
 
+  const expandedWidth = 380
+
   return (
     <div
-      className={`group/node overflow-hidden rounded-[18px] border transition-[box-shadow,border-color,background-color] duration-200 ${
+      className={`group/node overflow-hidden rounded-[18px] border transition-all duration-200 ${
         selected
           ? 'border-[#54D6F6]/50 bg-[#0D1013]/98 shadow-[0_0_0_1px_rgba(84,214,246,0.12),0_20px_60px_rgba(0,173,204,0.20)]'
           : asset.isNew
             ? 'border-orange-400/40 bg-[#111111]/96 shadow-[0_14px_40px_rgba(249,115,22,0.16)]'
-            : 'border-white/10 bg-[#0F1113]/96 shadow-[0_8px_28px_rgba(0,0,0,0.40)]'
+            : hovered
+              ? 'border-white/20 bg-[#0F1113]/98 shadow-[0_16px_48px_rgba(0,0,0,0.56)]'
+              : 'border-white/10 bg-[#0F1113]/96 shadow-[0_8px_28px_rgba(0,0,0,0.40)]'
       }`}
-      style={{ width: cardWidth }}
+      style={{ width: hovered ? expandedWidth : cardWidth }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       {inputHandles.map((handle, index) => (
         <HandleTag key={handle.id} id={handle.id} label={handle.label} side="left" top={headerTop + index * 24} selected={selected} />
@@ -549,10 +558,8 @@ function AssetNode({ data, selected }: NodeProps) {
       </div>
 
       {/* Media area */}
-      <button
-        type="button"
-        onClick={() => onEdit(asset.id)}
-        className="relative mx-3 block w-[calc(100%-24px)] overflow-hidden rounded-[12px] border border-white/6 bg-black/30 transition-colors hover:border-white/14"
+      <div
+        className="relative mx-3 block w-[calc(100%-24px)] overflow-hidden rounded-[12px] border border-white/6 bg-black/30"
         style={{ height: 140 }}
       >
         {asset.status === 'done' && asset.result_url && !isText ? (
@@ -605,11 +612,11 @@ function AssetNode({ data, selected }: NodeProps) {
               <div className={`flex h-10 w-10 items-center justify-center rounded-[16px] border ${displayMeta.chip} opacity-50`}>
                 {displayMeta.icon}
               </div>
-              <span className="text-[10px] text-white/30">Clique para configurar</span>
+              <span className="text-[10px] text-white/30">Passe o mouse para configurar</span>
             </div>
           )
         })()}
-      </button>
+      </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between gap-2 px-3 pb-3 pt-2">
@@ -625,6 +632,20 @@ function AssetNode({ data, selected }: NodeProps) {
           </span>
         </div>
       </div>
+
+      {/* Hover-expanded form — monta ao primeiro hover, fica visível enquanto hovered */}
+      {hovered && (
+        <div className="nodrag nopan border-t border-white/8 px-3 pb-3 pt-2">
+          <FormForType
+            type={asset.type}
+            initialParams={asset.input_params}
+            onGenerate={(params) => {
+              onUpdateParams(asset.id, params)
+              onGenerate(asset.type, params, asset.id)
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
