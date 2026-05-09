@@ -12893,6 +12893,16 @@ export async function finalizeTalkingVideoBaseGeneration(params: {
   }
 
   if (talkingMode === 'exact_speech' && pipelineStage === 'veo_generating') {
+    console.error('[finalize:talking-video] audio missing at lipsync stage', {
+      assetId: params.assetId,
+      talkingMode,
+      pipelineStage,
+      talkingVideoDeliveryMode,
+      lipsyncAudioSource,
+      hasConnectedAudio: Boolean(connectedAudioUrl),
+      hasGeneratedVoice: Boolean(generatedVoiceUrl),
+      generatedVoiceUrlLength: generatedVoiceUrl.length,
+    })
     await markStudioAssetFailed({
       admin,
       assetId: params.assetId,
