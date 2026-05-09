@@ -2138,7 +2138,12 @@ function extractVideoDialogueLineStrict(
   const finalizeDialogueLine = (value: string) => {
     const normalized = normalizeTalkingWhitespace(value)
     if (normalized.length <= 260) return normalized
-    return `${normalized.slice(0, 259).trimEnd()}...`
+    // Truncate at last sentence boundary to avoid Veo literally speaking "..."
+    const truncated = normalized.slice(0, 260)
+    const lastSentenceEnd = truncated.search(/[.!?][^.!?]*$/)
+    if (lastSentenceEnd > 40) return truncated.slice(0, lastSentenceEnd + 1).trim()
+    const lastSpace = truncated.lastIndexOf(' ')
+    return lastSpace > 0 ? truncated.slice(0, lastSpace).trim() : truncated.trim()
   }
   const cleanedSection = normalizeTalkingWhitespace(dialogueSectionValue)
     .replace(/^[â€œ"'`]+/, '')
@@ -2253,10 +2258,16 @@ function analyzeVideoPrompt(userRequest?: string, options?: { sceneLivre?: boole
     .filter(Boolean)
     .join(' ')
 
+  // In native_speech_script mode, avoid putting a truncated dialogue version in USER REQUEST
+  // (full dialogue is already in speechInstruction/SPEECH section). Use scene-only fallback instead.
+  const fallbackUserRequest = promptMode === 'native_speech_script'
+    ? (buildVideoScenePrepassFallbackBrief(normalizedPrompt) || VIDEO_DEFAULT_USER_REQUEST)
+    : deriveVideoVeoUserBrief(normalizedPrompt)
+
   return {
     promptMode,
     normalizedPrompt,
-    veoUserRequest: nativeRequest || deriveVideoVeoUserBrief(normalizedPrompt),
+    veoUserRequest: nativeRequest || fallbackUserRequest,
     speechInstruction,
     dialogueLanguage,
     dialogueLine,
