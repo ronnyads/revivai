@@ -569,8 +569,8 @@ function AssetNode({ data, selected }: NodeProps) {
         </div>
       </div>
 
-      {/* Media area */}
-      <div
+      {/* Media area — visível só quando fechado */}
+      {!expanded && <div
         className="relative mx-3 block w-[calc(100%-24px)] overflow-hidden rounded-[12px] border border-white/6 bg-black/30"
         style={{ height: 140 }}
       >
@@ -627,7 +627,7 @@ function AssetNode({ data, selected }: NodeProps) {
             </div>
           )
         })()}
-      </div>
+      </div>}
 
       {/* Footer */}
       <div className="flex items-center justify-between gap-2 px-3 pb-3 pt-2">
