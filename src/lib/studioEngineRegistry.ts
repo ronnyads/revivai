@@ -385,6 +385,7 @@ export function applyStudioEngineMetadata(
 
 export function assertStudioAssetExecutionReady(policy: StudioAssetEnginePolicy) {
   if (policy.parityStatus !== 'gap') return
+  if (policy.legacyFallbackAllowed) return
 
   throw new StudioEnginePolicyError({
     code: policy.reasonCode ?? 'parity_gap_requires_migration',
