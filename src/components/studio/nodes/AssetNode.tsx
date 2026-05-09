@@ -633,7 +633,7 @@ function AssetNode({ data, selected }: NodeProps) {
 
       {/* Conteúdo expandido */}
       {expanded && (
-        <div className="nodrag nopan border-t border-white/8 px-3 pb-3 pt-2">
+        <div className="nodrag nopan border-t border-white/8 px-3 pb-3 pt-2" onClick={(e) => e.stopPropagation()}>
           {asset.status === 'done' && asset.result_url ? (
             <ExpandedDonePanel
               asset={asset}
