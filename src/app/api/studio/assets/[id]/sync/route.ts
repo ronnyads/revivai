@@ -527,8 +527,12 @@ export async function POST(
           providerError: op.error,
         })
 
-        if (logicalType === 'video' && videoGuidelineBlockKind === 'prompt' && currentRetryCount < 2) {
+        if (logicalType === 'video' && videoGuidelineBlockKind === 'prompt' && currentRetryCount < 3) {
           const nextRetryCount = currentRetryCount + 1
+          // Na terceira tentativa (retry 2) cai no Veo 3.0 que tem filtros menos agressivos
+          const contentFallbackModel = currentRetryCount >= 1
+            ? (process.env.GOOGLE_VEO_CONTENT_FALLBACK_MODEL ?? 'veo-3.0-generate-001')
+            : undefined
           const nextInputParams = {
             ...assetInputParams,
             veo_prompt_retry_count: nextRetryCount,
@@ -538,6 +542,7 @@ export async function POST(
             veo_provider_error_message: providerErrorMessage,
             veo_provider_support_code: providerSupportCode || null,
             veo_blocked_source_image_url: String(assetInputParams.source_image_url ?? ''),
+            ...(contentFallbackModel ? { veo_content_fallback_model: contentFallbackModel } : {}),
           }
 
           await admin.from('studio_assets').update({
@@ -572,6 +577,7 @@ export async function POST(
             source_text_logo_lock: Boolean(assetInputParams.source_text_logo_lock),
             source_color_lock: Boolean(assetInputParams.source_color_lock),
             guideline_block_handling: 'video',
+            model_override: contentFallbackModel,
             inputParamsPatch: {
               ...nextInputParams,
             },
@@ -579,7 +585,9 @@ export async function POST(
 
           return syncResponse({
             status: 'processing',
-            message: 'Prompt ajustado para compatibilidade com Veo. Tentando novamente.',
+            message: contentFallbackModel
+              ? `Tentando com modelo alternativo (${contentFallbackModel}) para compatibilidade com filtros.`
+              : 'Prompt ajustado para compatibilidade com Veo. Tentando novamente.',
           })
         }
 

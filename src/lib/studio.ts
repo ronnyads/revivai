@@ -12297,6 +12297,7 @@ export async function startVeo3DirectGoogle(params: {
   source_color_lock?: boolean
   guideline_block_handling?: 'legacy' | 'video'
   scene_livre?: boolean
+  model_override?: string
   inputParamsPatch?: Record<string, unknown>
 }) {
   const hasVertex = !!process.env.GOOGLE_VERTEX_KEY && !!process.env.VERTEX_PROJECT_ID
@@ -12346,10 +12347,11 @@ export async function startVeo3DirectGoogle(params: {
       .filter((model, index, array) => array.indexOf(model) === index)
   }
 
-  const primaryModel = wantsAudio
-    ? (process.env.GOOGLE_VEO_AUDIO_MODEL ?? 'veo-3.1-generate-001')
-    : (process.env.GOOGLE_VEO_SILENT_MODEL ?? 'veo-3.1-generate-001')
-  const audioFallbackModels = wantsAudio
+  const primaryModel = params.model_override
+    ?? (wantsAudio
+      ? (process.env.GOOGLE_VEO_AUDIO_MODEL ?? 'veo-3.1-generate-001')
+      : (process.env.GOOGLE_VEO_SILENT_MODEL ?? 'veo-3.1-generate-001'))
+  const audioFallbackModels = wantsAudio && !params.model_override
     ? uniqueModelList([
         process.env.GOOGLE_VEO_AUDIO_FALLBACK_MODEL,
         'veo-3.1-fast-generate-001',
