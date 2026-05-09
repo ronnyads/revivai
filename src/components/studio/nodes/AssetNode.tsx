@@ -609,12 +609,9 @@ function AssetNode({ data, selected }: NodeProps) {
           const connectedImg = getPrimaryConnectedImageUrl(asset.input_params)
           return connectedImg ? (
             <div className="relative h-full w-full">
-              <img src={connectedImg} alt="" className={`h-full w-full object-cover ${expanded ? 'opacity-60' : 'opacity-40'}`} />
+              <img src={connectedImg} alt="" className="h-full w-full object-cover" />
               {!expanded && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-[14px] border ${displayMeta.chip}`}>
-                    {displayMeta.icon}
-                  </div>
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-center bg-gradient-to-t from-black/70 to-transparent py-2">
                   <span className="rounded-full border border-white/14 bg-black/60 px-2 py-0.5 text-[9px] font-semibold text-white/80 backdrop-blur-sm">
                     Clique para configurar
                   </span>
