@@ -36,8 +36,8 @@ Função: [o que esse take faz na narrativa]
 - **Ação:** [o que ela ou ele faz]
 - **Câmera:** [tipo de shot e movimento]
 - **Fala:** "[fala exata em português brasileiro]"
-- **Lip sync:** Falar exatamente esta frase em português brasileiro. Pronúncia clara, ritmo natural, tom [confiante/íntimo/persuasivo/desafiador].
-- **Tom:** [direção de performance]
+- **Lip sync rules:** Português brasileiro. Pronúncia clara, ritmo natural, tom [confiante/íntimo/persuasivo/desafiador].
+- **Performance tone:** [direção de performance: questionador, intrigante, urgente, empático, etc.]
 - **Regras negativas:** Sem legendas, sem texto na tela, sem logos, sem distorção de rosto, sem movimento robótico.
 
 REGRAS DE FORMATAÇÃO:
