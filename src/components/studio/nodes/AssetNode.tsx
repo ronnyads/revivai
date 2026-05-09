@@ -631,17 +631,24 @@ function AssetNode({ data, selected }: NodeProps) {
         </div>
       </div>
 
-      {/* Form expandido — visível enquanto expanded */}
+      {/* Conteúdo expandido */}
       {expanded && (
         <div className="nodrag nopan border-t border-white/8 px-3 pb-3 pt-2">
-          <FormForType
-            type={asset.type}
-            initialParams={asset.input_params}
-            onGenerate={(params) => {
-              onUpdateParams(asset.id, params)
-              onGenerate(asset.type, params, asset.id)
-            }}
-          />
+          {asset.status === 'done' && asset.result_url ? (
+            <ExpandedDonePanel
+              asset={asset}
+              onRegenerate={() => onGenerate(asset.type, asset.input_params as Record<string, unknown>, asset.id)}
+            />
+          ) : (
+            <FormForType
+              type={asset.type}
+              initialParams={asset.input_params}
+              onGenerate={(params) => {
+                onUpdateParams(asset.id, params)
+                onGenerate(asset.type, params, asset.id)
+              }}
+            />
+          )}
         </div>
       )}
     </div>
@@ -1389,6 +1396,50 @@ export function ProcessingCard({
           {syncMessage ? <p className="text-[11px] text-white/56">{syncMessage}</p> : null}
         </div>
       ) : null}
+    </div>
+  )
+}
+
+function ExpandedDonePanel({ asset, onRegenerate }: { asset: StudioAsset; onRegenerate: () => void }) {
+  const isVideo = ['video', 'talking_video', 'animate', 'lipsync', 'render', 'join'].includes(asset.type)
+  const url = asset.result_url!
+
+  return (
+    <div className="space-y-2.5 pt-1">
+      {/* Preview */}
+      <div className="overflow-hidden rounded-[12px] border border-white/8 bg-black/40">
+        {isVideo ? (
+          <video
+            src={url}
+            controls
+            playsInline
+            className="w-full"
+            style={{ maxHeight: 220 }}
+          />
+        ) : (
+          <img src={url} alt="resultado" className="w-full object-contain" style={{ maxHeight: 220 }} />
+        )}
+      </div>
+
+      {/* Ações */}
+      <div className="flex gap-2">
+        <a
+          href={url}
+          download
+          target="_blank"
+          rel="noreferrer"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-[11px] border border-white/12 bg-white/[0.05] py-2.5 text-[11px] font-semibold text-white/80 transition-colors hover:bg-white/[0.09] hover:text-white"
+        >
+          <Download size={13} /> Baixar
+        </a>
+        <button
+          type="button"
+          onClick={onRegenerate}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-[11px] border border-white/12 bg-white/[0.05] py-2.5 text-[11px] font-semibold text-white/80 transition-colors hover:bg-white/[0.09] hover:text-white"
+        >
+          <RotateCcw size={13} /> Regenerar
+        </button>
+      </div>
     </div>
   )
 }
