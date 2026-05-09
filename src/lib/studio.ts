@@ -12854,6 +12854,13 @@ export async function finalizeTalkingVideoBaseGeneration(params: {
   }
 
   if (pipelineStage === 'veo_generating' && lipsyncAudioUrl) {
+    console.log('[finalize:talking-video] starting lipsync', {
+      assetId: params.assetId,
+      lipsyncAudioSource,
+      audioUrlLength: lipsyncAudioUrl.length,
+      audioUrlPrefix: lipsyncAudioUrl.slice(0, 60),
+      videoUrlPrefix: params.finalUrl.slice(0, 60),
+    })
     const pipelineAttempts = incrementTalkingPipelineAttempts(currentInputParams.pipeline_attempts, 'lipsyncing')
     await admin.from('studio_assets').update({
       status: 'processing',
