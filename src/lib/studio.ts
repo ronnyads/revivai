@@ -135,7 +135,7 @@ const SCENE_IDENTITY_CHANGE_PATTERNS = [
 ]
 
 const SCENE_PROTECTED_ELEMENT_CHANGE_PATTERNS = [
-  /\b(trocar|mudar|substituir|replace|swap|remove|remover|tirar|hide|ocultar)\b.{0,64}\b(logo|texto|text|branding|rotulo|r[oó]tulo|label|cor|color|produto|product|item|objeto|object|acessorio|accessory|prop)\b/i,
+  /\b(trocar|mudar|substituir|replace|swap|remove|remover|tirar|hide|ocultar)\b.{0,64}\b(logo|branding|rotulo|r[oó]tulo|label|produto|product)\b/i,
   /\b(change color|trocar cor|mudar cor|recolor|recolorir|different color|nova cor|other colorway|novo tom)\b/i,
 ]
 
