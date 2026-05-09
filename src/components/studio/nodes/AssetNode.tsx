@@ -651,14 +651,21 @@ function AssetNode({ data, selected }: NodeProps) {
               onRefreshAsset={onRefreshAsset}
             />
           ) : (
-            <FormForType
-              type={asset.type}
-              initialParams={asset.input_params}
-              onGenerate={(params) => {
-                onUpdateParams(asset.id, params)
-                onGenerate(asset.type, params, asset.id)
-              }}
-            />
+            <>
+              {asset.status === 'error' && asset.error_msg && (
+                <div className="mb-2 rounded-[10px] border border-red-500/20 bg-red-500/8 px-3 py-2.5">
+                  <p className="text-[11px] leading-snug text-red-400">{asset.error_msg}</p>
+                </div>
+              )}
+              <FormForType
+                type={asset.type}
+                initialParams={asset.input_params}
+                onGenerate={(params) => {
+                  onUpdateParams(asset.id, params)
+                  onGenerate(asset.type, params, asset.id)
+                }}
+              />
+            </>
           )}
         </div>
       )}
