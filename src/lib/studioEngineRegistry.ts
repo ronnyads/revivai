@@ -38,7 +38,7 @@ export class StudioEnginePolicyError extends Error {
     super(params.message)
     this.name = 'StudioEnginePolicyError'
     this.code = params.code
-    this.status = params.status ?? 503
+    this.status = params.status ?? 422
     this.policy = params.policy
   }
 }

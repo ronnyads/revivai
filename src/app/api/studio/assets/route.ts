@@ -1120,6 +1120,14 @@ export async function POST(req: NextRequest) {
       assertStudioAssetExecutionReady(enginePolicy)
     } catch (error) {
       if (error instanceof StudioEnginePolicyError) {
+        console.warn('[studio] engine_policy_blocked', JSON.stringify({
+          type,
+          code: error.code,
+          status: error.status,
+          billingRoute: error.policy.billingRoute,
+          parityStatus: error.policy.parityStatus,
+          message: error.message,
+        }))
         return NextResponse.json({
           error: 'google_primary_required',
           code: error.code,
