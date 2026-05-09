@@ -946,7 +946,9 @@ export async function POST(req: NextRequest) {
           maxSeconds: 7.95,
         })
       : planTalkingVideoSpeechChunk({ text: '', speed })
-    allSpeechChunks = talkingVideoMode === 'exact_speech'
+    // Siblings da chain já têm chunk próprio — não replanejar o texto completo
+    const isChainChild = Boolean(normalizedInputParams.is_chain_child)
+    allSpeechChunks = (talkingVideoMode === 'exact_speech' && !isChainChild)
       ? planAllTalkingVideoChunks({
           text: talkingPolicy.speechTextNormalized,
           speed,
@@ -1674,10 +1676,17 @@ export async function POST(req: NextRequest) {
         const chainId = crypto.randomUUID()
         const siblingIds = allSpeechChunks.slice(1).map(() => crypto.randomUUID())
 
-        // Atualizar asset 0 com metadados da cadeia
+        // Re-ler input_params do DB para capturar prediction_id salvo por startTalkingVideoMotionGeneration
+        const { data: freshAssetForChain } = await admin.from('studio_assets')
+          .select('input_params')
+          .eq('id', asset.id)
+          .single()
+        const freshParamsForChain = (freshAssetForChain?.input_params as Record<string, unknown> | null) ?? normalizedInputParams
+
+        // Atualizar asset 0 com metadados da cadeia (preservando prediction_id)
         await admin.from('studio_assets').update({
           input_params: {
-            ...normalizedInputParams,
+            ...freshParamsForChain,
             chain_id: chainId,
             chain_index: 0,
             chain_total: allSpeechChunks.length,
@@ -1697,6 +1706,9 @@ export async function POST(req: NextRequest) {
           const remainingAfter = allSpeechChunks.slice(ci + 1)
           const siblingParams: Record<string, unknown> = {
             ...normalizedInputParams,
+            // Limpar prediction_id para que cada sibling tenha o seu próprio
+            prediction_id: undefined,
+            is_chain_child: true,
             speech_text_chunk: chunk.text,
             speech_text_chunk_normalized: chunk.text,
             speech_text_remaining: remainingAfter.map(c => c.text).join(' '),

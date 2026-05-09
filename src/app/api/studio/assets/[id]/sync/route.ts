@@ -437,9 +437,11 @@ export async function POST(
 
   const predictionId = typeof assetInputParams.prediction_id === 'string' ? assetInputParams.prediction_id : undefined
   if (!predictionId) {
-    return asset.status === 'processing'
-      ? syncResponse({ status: 'processing', message: 'Asset ainda aguardando prediction_id.' })
-      : syncResponse({ status: 'error', error: 'prediction_id nao encontrado' })
+    if (asset.status === 'processing') {
+      return syncResponse({ status: 'processing', message: 'Asset ainda aguardando prediction_id.' })
+    }
+    console.error('[studio-sync:missing-prediction-id]', { assetId: id, logicalType, status: asset.status })
+    return syncResponse({ status: 'error', error: 'prediction_id nao encontrado' })
   }
 
   const provider = typeof assetInputParams.provider === 'string' ? assetInputParams.provider : undefined
