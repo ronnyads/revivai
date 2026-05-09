@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Handle, NodeProps, Position } from '@xyflow/react'
 import {
   ArrowRight,
@@ -490,7 +490,19 @@ function AssetNode({ data, selected }: NodeProps) {
     userPlan,
   } = data as AssetNodeData
 
-  const [hovered, setHovered] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!expanded) return
+    function onOutside(e: MouseEvent) {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setExpanded(false)
+      }
+    }
+    document.addEventListener('mousedown', onOutside)
+    return () => document.removeEventListener('mousedown', onOutside)
+  }, [expanded])
 
   const meta = TYPE_META[asset.type]
   const composeVariant = asset.type === 'compose' ? String(asset.input_params.compose_variant ?? 'fitting') : ''
@@ -517,18 +529,18 @@ function AssetNode({ data, selected }: NodeProps) {
 
   return (
     <div
+      ref={cardRef}
       className={`group/node overflow-hidden rounded-[18px] border transition-all duration-200 ${
         selected
           ? 'border-[#54D6F6]/50 bg-[#0D1013]/98 shadow-[0_0_0_1px_rgba(84,214,246,0.12),0_20px_60px_rgba(0,173,204,0.20)]'
           : asset.isNew
             ? 'border-orange-400/40 bg-[#111111]/96 shadow-[0_14px_40px_rgba(249,115,22,0.16)]'
-            : hovered
+            : expanded
               ? 'border-white/20 bg-[#0F1113]/98 shadow-[0_16px_48px_rgba(0,0,0,0.56)]'
               : 'border-white/10 bg-[#0F1113]/96 shadow-[0_8px_28px_rgba(0,0,0,0.40)]'
       }`}
-      style={{ width: hovered ? expandedWidth : cardWidth }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      style={{ width: expanded ? expandedWidth : cardWidth }}
+      onClick={() => { if (!expanded) setExpanded(true) }}
     >
       {inputHandles.map((handle, index) => (
         <HandleTag key={handle.id} id={handle.id} label={handle.label} side="left" top={headerTop + index * 24} selected={selected} />
@@ -597,22 +609,24 @@ function AssetNode({ data, selected }: NodeProps) {
           const connectedImg = getPrimaryConnectedImageUrl(asset.input_params)
           return connectedImg ? (
             <div className="relative h-full w-full">
-              <img src={connectedImg} alt="" className="h-full w-full object-cover opacity-40" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-[14px] border ${displayMeta.chip}`}>
-                  {displayMeta.icon}
+              <img src={connectedImg} alt="" className={`h-full w-full object-cover ${expanded ? 'opacity-60' : 'opacity-40'}`} />
+              {!expanded && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-[14px] border ${displayMeta.chip}`}>
+                    {displayMeta.icon}
+                  </div>
+                  <span className="rounded-full border border-white/14 bg-black/60 px-2 py-0.5 text-[9px] font-semibold text-white/80 backdrop-blur-sm">
+                    Clique para configurar
+                  </span>
                 </div>
-                <span className="rounded-full border border-white/14 bg-black/60 px-2 py-0.5 text-[9px] font-semibold text-white/80 backdrop-blur-sm">
-                  Toque para configurar
-                </span>
-              </div>
+              )}
             </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2">
               <div className={`flex h-10 w-10 items-center justify-center rounded-[16px] border ${displayMeta.chip} opacity-50`}>
                 {displayMeta.icon}
               </div>
-              <span className="text-[10px] text-white/30">Passe o mouse para configurar</span>
+              {!expanded && <span className="text-[10px] text-white/30">Clique para configurar</span>}
             </div>
           )
         })()}
@@ -633,8 +647,8 @@ function AssetNode({ data, selected }: NodeProps) {
         </div>
       </div>
 
-      {/* Hover-expanded form — monta ao primeiro hover, fica visível enquanto hovered */}
-      {hovered && (
+      {/* Form expandido — visível enquanto expanded */}
+      {expanded && (
         <div className="nodrag nopan border-t border-white/8 px-3 pb-3 pt-2">
           <FormForType
             type={asset.type}
