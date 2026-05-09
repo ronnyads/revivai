@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { Handle, NodeProps, Position } from '@xyflow/react'
 import {
   ArrowRight,
@@ -356,6 +356,7 @@ export interface AssetNodeData {
   asset: StudioAsset
   userPlan: string
   selectionActive?: boolean
+  expanded?: boolean
   onDelete: (id: string) => void
   onGenerate: (type: AssetType, params: Record<string, unknown>, existingId: string) => void
   onUpdateParams: (id: string, params: Record<string, unknown>) => void
@@ -490,19 +491,7 @@ function AssetNode({ data, selected }: NodeProps) {
     userPlan,
   } = data as AssetNodeData
 
-  const [expanded, setExpanded] = useState(false)
-  const cardRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!expanded) return
-    function onOutside(e: MouseEvent) {
-      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
-        setExpanded(false)
-      }
-    }
-    document.addEventListener('mousedown', onOutside)
-    return () => document.removeEventListener('mousedown', onOutside)
-  }, [expanded])
+  const expanded = !!(data as AssetNodeData).expanded
 
   const meta = TYPE_META[asset.type]
   const composeVariant = asset.type === 'compose' ? String(asset.input_params.compose_variant ?? 'fitting') : ''
@@ -529,7 +518,6 @@ function AssetNode({ data, selected }: NodeProps) {
 
   return (
     <div
-      ref={cardRef}
       className={`group/node overflow-hidden rounded-[18px] border transition-all duration-200 ${
         selected
           ? 'border-[#54D6F6]/50 bg-[#0D1013]/98 shadow-[0_0_0_1px_rgba(84,214,246,0.12),0_20px_60px_rgba(0,173,204,0.20)]'
@@ -540,7 +528,6 @@ function AssetNode({ data, selected }: NodeProps) {
               : 'border-white/10 bg-[#0F1113]/96 shadow-[0_8px_28px_rgba(0,0,0,0.40)]'
       }`}
       style={{ width: expanded ? expandedWidth : cardWidth }}
-      onClick={() => { if (!expanded) setExpanded(true) }}
     >
       {inputHandles.map((handle, index) => (
         <HandleTag key={handle.id} id={handle.id} label={handle.label} side="left" top={headerTop + index * 24} selected={selected} />

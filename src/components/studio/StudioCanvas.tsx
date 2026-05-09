@@ -1161,7 +1161,9 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
     } catch { /* fica local se falhar */ }
   }, [assets, connections, focusNodeInViewport, setConnections])
 
-  const nodeCallbacks = useMemo<Omit<AssetNodeData, 'asset' | 'selectionActive'>>(() => ({
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
+
+  const nodeCallbacks = useMemo<Omit<AssetNodeData, 'asset' | 'selectionActive' | 'expanded'>>(() => ({
     onDelete: handleDelete,
     onGenerate: handleGenerate,
     onUpdateParams: handleUpdateParams,
@@ -1186,7 +1188,7 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           .filter(n => assetMap.has(n.id))
           .map(n => ({
             ...n,
-            data: { ...n.data, asset: assetMap.get(n.id)!, selectionActive: selectedNodeIds.length > 0, ...nodeCallbacks },
+            data: { ...n.data, asset: assetMap.get(n.id)!, selectionActive: selectedNodeIds.length > 0, expanded: expandedNodeId === n.id, ...nodeCallbacks },
             style: { overflow: 'visible' },
           }))
 
@@ -1200,13 +1202,13 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           x: asset.position_x ?? getDefaultNodePosition(offset + j, asset.type).x,
           y: asset.position_y ?? getDefaultNodePosition(offset + j, asset.type).y,
         },
-        data: { asset, selectionActive: selectedNodeIds.length > 0, ...nodeCallbacks } as unknown as Record<string, unknown>,
+        data: { asset, selectionActive: selectedNodeIds.length > 0, expanded: false, ...nodeCallbacks } as unknown as Record<string, unknown>,
         style: { overflow: 'visible' },
       }))
 
       return [...updated, ...newNodes]
     })
-  }, [assets, nodeCallbacks, selectedNodeIds]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [assets, nodeCallbacks, selectedNodeIds, expandedNodeId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // Merge: mantém edges temp visuais + sincroniza as do banco
@@ -2075,7 +2077,8 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
           onNodeDragStop={onNodeDragStop}
           onEdgesDelete={onEdgesDelete}
           onMoveEnd={handleMoveEnd}
-          onPaneClick={() => setQuickAddMenu(null)}
+          onNodeClick={(_e, node) => setExpandedNodeId(prev => prev === node.id ? null : node.id)}
+          onPaneClick={() => { setExpandedNodeId(null); setQuickAddMenu(null) }}
           onPaneContextMenu={e => {
             e.preventDefault();
             setQuickAddMenu({ x: e.clientX, y: e.clientY });
