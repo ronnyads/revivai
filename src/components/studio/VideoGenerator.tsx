@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Video, Link2, User, ChevronDown } from 'lucide-react'
+import { Video, Link2, User, ChevronDown, Loader2 } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import { STUDIO_ASPECT_RATIO_PRESETS } from './aspectRatio'
 import {
@@ -80,12 +80,13 @@ function VideoBody({ initial, onGenerate }: Props) {
   const [aspectRatio, setAspectRatio] = useState(normalizeVideoAspectRatio(initial.aspect_ratio))
   const [scenePreset, setScenePreset] = useState('none')
   const [sceneLivre, setSceneLivre]   = useState(false)
+  const [loading, setLoading]         = useState(false)
 
   const selectedScene  = VIDEO_SCENE_PRESETS.find((o) => o.value === scenePreset) ?? VIDEO_SCENE_PRESETS[0]
   const selectedFormat = STUDIO_ASPECT_RATIO_PRESETS.find((o) => o.value === aspectRatio)
   const finalBrief     = joinPromptParts([selectedScene.prompt, brief])
   const cost           = getVideoGenerationCost(quality)
-  const canGenerate    = isContinuation || imageUrl.trim().length > 0
+  const canGenerate    = !loading && (isContinuation || imageUrl.trim().length > 0)
 
   return (
     <div className="space-y-3 pt-1">
@@ -165,7 +166,8 @@ function VideoBody({ initial, onGenerate }: Props) {
       <button
         type="button"
         disabled={!canGenerate}
-        onClick={() =>
+        onClick={() => {
+          setLoading(true)
           onGenerate({
             source_image_url: imageUrl,
             continuation_frame: isContinuation ? imageUrl : undefined,
@@ -176,11 +178,11 @@ function VideoBody({ initial, onGenerate }: Props) {
             aspect_ratio: aspectRatio,
             scene_livre: sceneLivre,
           })
-        }
+        }}
         className="flex w-full items-center justify-center gap-2 rounded-[13px] bg-blue-500 py-3 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-35"
       >
-        <Video size={14} />
-        {isContinuation ? `Próximo segmento — ${cost} CR` : `Gerar vídeo — ${cost} CR`}
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} />}
+        {loading ? 'Gerando...' : isContinuation ? `Próximo segmento — ${cost} CR` : `Gerar vídeo — ${cost} CR`}
       </button>
     </div>
   )

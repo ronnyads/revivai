@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Clapperboard, ChevronDown, Mic, Sparkles } from 'lucide-react'
+import { Clapperboard, ChevronDown, Loader2, Mic, Sparkles } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import { STUDIO_ASPECT_RATIO_PRESETS } from './aspectRatio'
 import {
@@ -116,6 +116,7 @@ function TalkingVideoBody({ initial, onGenerate }: Props) {
   const [aspectRatio, setAspectRatio] = useState(String(initial.aspect_ratio ?? '9:16'))
   const [scenePresetId, setScenePresetId] = useState<ScenePresetId>(getInitialScenePreset(initial))
   const [advancedOpen, setAdvancedOpen]   = useState(false)
+  const [loading, setLoading]             = useState(false)
   const speed = 1.0
 
   const scenePreset = useMemo(() => SCENE_PRESETS.find((p) => p.id === scenePresetId) ?? SCENE_PRESETS[0], [scenePresetId])
@@ -147,7 +148,7 @@ function TalkingVideoBody({ initial, onGenerate }: Props) {
 
   const exactSpeechMissing = mode === 'exact_speech' && !parsedIdea.speechDetected
   const naturalMissing     = !imageUrl.trim() || (!parsedIdea.speechDetected && !parsedIdea.sceneDetected)
-  const isDisabled         = mode === 'exact_speech' ? !imageUrl.trim() || exactSpeechMissing : naturalMissing
+  const isDisabled         = loading || (mode === 'exact_speech' ? !imageUrl.trim() || exactSpeechMissing : naturalMissing)
 
   const ctaLabel = mode === 'exact_speech'
     ? `Gerar frase exata — ${cost} CR`
@@ -319,7 +320,8 @@ function TalkingVideoBody({ initial, onGenerate }: Props) {
       <button
         type="button"
         disabled={isDisabled}
-        onClick={() =>
+        onClick={() => {
+          setLoading(true)
           onGenerate({
             source_image_url:     imageUrl,
             talking_video_mode:   mode,
@@ -332,11 +334,11 @@ function TalkingVideoBody({ initial, onGenerate }: Props) {
             quality,
             aspect_ratio:         aspectRatio,
           })
-        }
+        }}
         className="flex w-full items-center justify-center gap-2 rounded-[13px] bg-cyan-500 py-3 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-35"
       >
-        <Clapperboard size={14} />
-        {ctaLabel}
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <Clapperboard size={14} />}
+        {loading ? 'Gerando...' : ctaLabel}
       </button>
     </div>
   )
