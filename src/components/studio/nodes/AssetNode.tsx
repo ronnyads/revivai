@@ -68,10 +68,10 @@ export const TYPE_META: Record<
   },
   join: {
     icon: <Film size={14} />,
-    label: 'Video Master',
+    label: 'Unir Clipes',
     color: 'text-rose-100',
     chip: 'border-rose-500/20 bg-rose-500/10 text-rose-100',
-    hint: 'Costura clipes em um unico MP4.',
+    hint: 'Junta clipes em sequência num único MP4.',
     output: 'Video final',
   },
   model: {
@@ -95,7 +95,7 @@ export const TYPE_META: Record<
     label: 'Video',
     color: 'text-blue-100',
     chip: 'border-blue-500/20 bg-blue-500/10 text-blue-100',
-    hint: '',
+    hint: 'Anima imagem com câmera cinematográfica via IA.',
     output: 'Take pronto',
   },
   talking_video: {
@@ -103,7 +103,7 @@ export const TYPE_META: Record<
     label: 'Video com Fala',
     color: 'text-cyan-100',
     chip: 'border-cyan-500/20 bg-cyan-500/10 text-cyan-100',
-    hint: '',
+    hint: 'Modelo fala com voz e lábios sincronizados.',
     output: 'Avatar pronto',
   },
   voice: {
@@ -151,7 +151,7 @@ export const TYPE_META: Record<
     label: 'Movimento Guiado',
     color: 'text-fuchsia-100',
     chip: 'border-fuchsia-500/20 bg-fuchsia-500/10 text-fuchsia-100',
-    hint: '',
+    hint: 'Imita o movimento de um vídeo de referência.',
     output: 'Movimento pronto',
   },
   compose: {
