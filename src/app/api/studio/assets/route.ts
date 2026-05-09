@@ -1672,7 +1672,9 @@ export async function POST(req: NextRequest) {
       }
 
       // Auto-chain: criar assets filhos para chunks restantes
-      if (allSpeechChunks.length > 1) {
+      // Não recriar siblings se o card já faz parte de uma chain (regeneração)
+      const existingChainId = typeof normalizedInputParams.chain_id === 'string' ? normalizedInputParams.chain_id.trim() : ''
+      if (allSpeechChunks.length > 1 && !existingChainId) {
         const chainId = crypto.randomUUID()
         const siblingIds = allSpeechChunks.slice(1).map(() => crypto.randomUUID())
 
