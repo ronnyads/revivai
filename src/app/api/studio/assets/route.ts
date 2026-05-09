@@ -847,7 +847,8 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      if (videoPromptPolicy.productChangeRequested) {
+      const isSceneLivre = Boolean(input_params.scene_livre)
+      if (videoPromptPolicy.productChangeRequested && !isSceneLivre) {
         logProductSovereigntyBlock({
           type: 'video',
           userId: user.id,
