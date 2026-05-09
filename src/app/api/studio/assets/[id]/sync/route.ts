@@ -689,7 +689,10 @@ export async function POST(
         }
 
         if ((logicalType === 'video' && videoGuidelineBlockKind === 'prompt') || (logicalType === 'talking_video' && isVeoGuidelineBlockMessage(providerErrorMessage))) {
-          const friendlyMessage = 'Ajustamos seu prompt automaticamente para compatibilidade com o Veo, mas o provedor ainda bloqueou o conteudo. Tente remover promessas de resultado, temas sensiveis ou referencias a pessoas reais.'
+          const hasAudio = Boolean(assetInputParams.generate_audio)
+          const friendlyMessage = hasAudio
+            ? 'O gerador de vídeo bloqueou este prompt com fala. Para vídeos com fala garantida, use o card "Vídeo com Fala" — ele usa um motor dedicado que entrega a frase exata sem bloqueios.'
+            : 'O gerador de vídeo bloqueou este prompt após várias tentativas. Tente simplificar o brief: remova referências a pessoas reais, promessas de resultado ou termos muito específicos.'
           return failAssetAndRespond({
             admin,
             assetId: id,
@@ -705,7 +708,7 @@ export async function POST(
               veo_provider_support_code: providerSupportCode || null,
               veo_blocked_source_image_url: logicalType === 'video' ? String(assetInputParams.source_image_url ?? '') : undefined,
               public_error_code: 'prompt_safety_block',
-              public_error_title: 'Prompt bloqueado pelo provedor',
+              public_error_title: hasAudio ? 'Use o card "Vídeo com Fala"' : 'Prompt bloqueado pelo gerador',
               public_error_message: friendlyMessage,
             },
           })
