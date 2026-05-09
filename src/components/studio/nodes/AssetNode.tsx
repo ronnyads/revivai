@@ -488,6 +488,7 @@ function AssetNode({ data, selected }: NodeProps) {
     onDuplicate,
     onGenerate,
     onUpdateParams,
+    onRefreshAsset,
     userPlan,
   } = data as AssetNodeData
 
@@ -638,6 +639,14 @@ function AssetNode({ data, selected }: NodeProps) {
             <ExpandedDonePanel
               asset={asset}
               onRegenerate={() => onGenerate(asset.type, asset.input_params as Record<string, unknown>, asset.id)}
+            />
+          ) : asset.status === 'processing' ? (
+            <ProcessingCard
+              type={asset.type}
+              createdAt={asset.created_at}
+              assetId={asset.id}
+              pipelineStage={typeof asset.input_params?.pipeline_stage === 'string' ? asset.input_params.pipeline_stage : undefined}
+              onRefreshAsset={onRefreshAsset}
             />
           ) : (
             <FormForType
