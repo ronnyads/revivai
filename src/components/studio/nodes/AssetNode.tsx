@@ -640,6 +640,8 @@ function AssetNode({ data, selected }: NodeProps) {
               asset={asset}
               onRegenerate={() => onGenerate(asset.type, asset.input_params as Record<string, unknown>, asset.id)}
             />
+          ) : asset.status === 'done' ? (
+            <div className="py-6 text-center text-[11px] text-white/40">Pronto! Atualizando resultado...</div>
           ) : asset.status === 'processing' ? (
             <ProcessingCard
               type={asset.type}

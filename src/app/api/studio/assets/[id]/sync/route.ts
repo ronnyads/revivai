@@ -423,7 +423,7 @@ export async function POST(
   const logicalType = getLogicalStudioAssetType(asset.type, assetInputParams)
 
   if (asset.status === 'done') {
-    return syncResponse({ status: 'done', asset: mapStudioAssetType(asset) })
+    return syncResponse({ status: 'done', result_url: asset.result_url ?? null, asset: mapStudioAssetType(asset) })
   }
 
   if (asset.status === 'error') {

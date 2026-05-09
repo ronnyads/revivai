@@ -910,11 +910,12 @@ function StudioCanvasInner({ project, initialAssets, initialConnections, userCre
 
             if (syncData?.status === 'done' || syncData?.status === 'error') {
               stopPolling()
+              const syncResultUrl = syncData.result_url ?? (syncData as Record<string, unknown> & { asset?: { result_url?: string | null } })?.asset?.result_url ?? null
               await refreshAssetFromServer(
                 assetId,
                 syncData.status === 'error'
                   ? { status: 'error', error_msg: syncData.error ?? 'Falha ao sincronizar o asset.' }
-                  : { status: 'done', result_url: syncData.result_url ?? null },
+                  : { status: 'done', result_url: syncResultUrl },
               )
               fetch('/api/studio/balance').then(r => r.json()).then(d => {
                 if (typeof d?.credits === 'number') setCredits(d.credits)
