@@ -3083,6 +3083,8 @@ function analyzeVideoProtectedElementIntent(prompt: string) {
     || VIDEO_PROTECTED_NEGATED_CHANGE_PATTERNS.some((pattern) => pattern.test(normalized))
 
   let mutationProbe = normalized
+  // Remove seção "Negative rules:" — contém "sem logos/texto" como diretiva de overlay, não de produto
+  mutationProbe = mutationProbe.replace(/\bnegative rules?\s*:.*?(?=\n[A-ZÀ-Ú][^:\n]*:|$)/gis, ' ')
   for (const pattern of VIDEO_PROTECTED_PRESERVE_CLAUSE_PATTERNS) {
     mutationProbe = mutationProbe.replace(pattern, ' ')
   }
