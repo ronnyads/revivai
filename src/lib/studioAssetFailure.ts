@@ -69,13 +69,30 @@ export async function markStudioAssetFailed({
   if (!alreadyRefundedAt) {
     const creditCost = Number(asset.credits_cost ?? 0)
     if (creditCost > 0 && asset.user_id) {
-      const { error: refundErr } = await admin.rpc('add_credits', {
+      const { data: refundOk, error: refundErr } = await admin.rpc('add_credits', {
         user_id_param: asset.user_id,
         amount: creditCost,
       })
 
-      if (refundErr) {
-        console.warn(`[studio-fail] Falha ao reembolsar asset ${assetId}: ${refundErr.message}`)
+      const refundSucceeded = !refundErr && refundOk === true
+
+      await admin.from('studio_refund_audit').insert({
+        asset_id: assetId,
+        user_id: asset.user_id,
+        amount: creditCost,
+        success: refundSucceeded,
+        reason: refundReason ?? safeErrorMsg,
+        error_detail: refundErr?.message ?? (!refundSucceeded ? 'add_credits returned false (0 rows updated)' : null),
+      }).catch(() => {})
+
+      if (!refundSucceeded) {
+        console.error(`[studio-fail] REEMBOLSO FALHOU asset=${assetId} err=${refundErr?.message ?? '0 rows'}`)
+        nextInputParams = {
+          ...nextInputParams,
+          credit_refund_pending: true,
+          credit_refund_error: refundErr?.message ?? '0 rows updated',
+          credit_refund_amount_pending: creditCost,
+        }
       } else {
         refunded = true
         nextInputParams = {

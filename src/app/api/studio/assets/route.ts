@@ -1241,10 +1241,55 @@ export async function POST(req: NextRequest) {
 
   // 3. COBRANÇA IMEDIATA (Atomic Debit)
   // Debita antes de gastar com as APIs externas de IA.
+
+  // Anti-trapaça: resolver reembolso pendente e checar limite diário
+  if (effectiveCost > 0) {
+    // Resolver reembolso pendente antes de nova cobrança
+    const { data: pendingRefundAsset } = await admin
+      .from('studio_assets')
+      .select('id, credits_cost, input_params')
+      .eq('user_id', user.id)
+      .eq('status', 'error')
+      .filter('input_params->>credit_refund_pending', 'eq', 'true')
+      .limit(1)
+      .maybeSingle()
+
+    if (pendingRefundAsset) {
+      const pendingAmount = Number((pendingRefundAsset.input_params as Record<string, unknown>)?.credit_refund_amount_pending ?? pendingRefundAsset.credits_cost ?? 0)
+      if (pendingAmount > 0) {
+        const { data: resolved } = await admin.rpc('add_credits', { user_id_param: user.id, amount: pendingAmount })
+        if (resolved) {
+          await admin.from('studio_assets').update({
+            input_params: {
+              ...(pendingRefundAsset.input_params as Record<string, unknown>),
+              credit_refund_pending: false,
+              credit_refunded_at: new Date().toISOString(),
+              credit_refunded_amount: pendingAmount,
+              credit_refund_reason: 'resolved_on_next_generation',
+            },
+          }).eq('id', pendingRefundAsset.id)
+          console.log(`[studio] Reembolso pendente resolvido: asset=${pendingRefundAsset.id} amount=${pendingAmount}`)
+        }
+      }
+    }
+
+    // Limite de reembolsos automáticos por usuário por 24h (anti-trapaça)
+    const { count: refundsToday } = await admin
+      .from('studio_refund_audit')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('success', true)
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+
+    if ((refundsToday ?? 0) >= 5) {
+      return NextResponse.json({ error: 'Limite de reembolsos automáticos atingido nas últimas 24h. Entre em contato com o suporte.' }, { status: 429 })
+    }
+  }
+
   try {
-    await admin.rpc('debit_credits_bulk', { 
-      user_id_param: user.id, 
-      amount_param: effectiveCost 
+    await admin.rpc('debit_credits_bulk', {
+      user_id_param: user.id,
+      amount_param: effectiveCost
     })
   } catch (chargeErr: unknown) {
     const chargeMessage = chargeErr instanceof Error ? chargeErr.message : String(chargeErr)
