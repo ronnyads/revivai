@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { Clapperboard, ChevronDown, Loader2, Mic, Sparkles } from 'lucide-react'
 import ImageUpload from './ImageUpload'
 import { STUDIO_ASPECT_RATIO_PRESETS } from './aspectRatio'
+import VoiceLibraryPicker from './VoiceLibraryPicker'
 import {
   buildTalkingVideoIdeaFromParts,
   calculateTalkingVideoCredits,
@@ -117,6 +118,7 @@ function TalkingVideoBody({ initial, onGenerate }: Props) {
   const [scenePresetId, setScenePresetId] = useState<ScenePresetId>(getInitialScenePreset(initial))
   const [advancedOpen, setAdvancedOpen]   = useState(false)
   const [loading, setLoading]             = useState(false)
+  const [voiceId, setVoiceId]             = useState(String(initial.voice_id ?? 'EXAVITQu4vr4xnSDxMaL'))
   const speed = 1.0
 
   const scenePreset = useMemo(() => SCENE_PRESETS.find((p) => p.id === scenePresetId) ?? SCENE_PRESETS[0], [scenePresetId])
@@ -215,6 +217,19 @@ function TalkingVideoBody({ initial, onGenerate }: Props) {
           className="w-full resize-none rounded-[12px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 text-[11px] leading-relaxed text-white outline-none placeholder:text-white/22 focus:border-cyan-400/28 transition-colors"
         />
       </div>
+
+      {/* Voz (apenas exact_speech sem áudio externo) */}
+      {mode === 'exact_speech' && !hasExternalAudio && (
+        <div>
+          <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/36">Voz</p>
+          <VoiceLibraryPicker
+            value={voiceId}
+            onChange={setVoiceId}
+            accentClass="cyan"
+            showCloneUpload={false}
+          />
+        </div>
+      )}
 
       {/* Áudio + Cenário */}
       <div className="grid grid-cols-2 gap-2">
@@ -333,6 +348,7 @@ function TalkingVideoBody({ initial, onGenerate }: Props) {
             speed,
             quality,
             aspect_ratio:         aspectRatio,
+            voice_id:             voiceId,
           })
         }}
         className="flex w-full items-center justify-center gap-2 rounded-[13px] bg-cyan-500 py-3 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-35"

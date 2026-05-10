@@ -3,14 +3,7 @@
 import { useState } from 'react'
 import { Wand2 } from 'lucide-react'
 import { CREDIT_COST } from '@/constants/studio'
-
-const TARGET_VOICES = [
-  { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella (feminino)' },
-  { id: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi (feminino)' },
-  { id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli (feminino)' },
-  { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam (masculino)' },
-  { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh (masculino)' },
-]
+import VoiceLibraryPicker from './VoiceLibraryPicker'
 
 interface Props {
   initial: Record<string, unknown>
@@ -58,20 +51,12 @@ export default function VoiceConvertGenerator({ initial, onGenerate }: Props) {
         <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 mb-1.5 block">
           Voz Destino
         </label>
-        <div className="relative">
-          <select
-            value={targetVoiceId}
-            onChange={e => setTargetVoiceId(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-[13px] text-white focus:outline-none focus:border-violet-500/50 appearance-none cursor-pointer transition-all font-medium"
-          >
-            {TARGET_VOICES.map(v => (
-              <option key={v.id} value={v.id}>{v.name}</option>
-            ))}
-          </select>
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
-            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M19 9l-7 7-7-7" /></svg>
-          </div>
-        </div>
+        <VoiceLibraryPicker
+          value={targetVoiceId}
+          onChange={setTargetVoiceId}
+          accentClass="violet"
+          showCloneUpload={false}
+        />
       </div>
 
       <button
