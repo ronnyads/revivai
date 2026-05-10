@@ -1577,7 +1577,47 @@ export async function generateVoiceGrok(params: {
   return grokPublicUrl
 }
 
-// â”€â”€ Caption â€” Whisper via fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Voice Convert — ElevenLabs Speech-to-Speech ────────────────────────────
+export async function generateVoiceConvert(params: {
+  audio_url: string
+  target_voice_id: string
+  assetId: string
+  userId: string
+}) {
+  const admin = createAdminClient()
+  const apiKey = process.env.ELEVENLABS_API_KEY
+  if (!apiKey) throw new Error('ELEVENLABS_API_KEY não configurada')
+
+  const audioRes = await fetch(params.audio_url)
+  if (!audioRes.ok) throw new Error(`Falha ao baixar áudio de origem: ${audioRes.status}`)
+  const audioBuffer = Buffer.from(await audioRes.arrayBuffer())
+
+  const form = new FormData()
+  form.append('audio', new Blob([audioBuffer], { type: 'audio/mpeg' }), 'source.mp3')
+  form.append('model_id', 'eleven_multilingual_sts_v2')
+  form.append('voice_settings', JSON.stringify({ stability: 0.5, similarity_boost: 0.8 }))
+
+  const res = await fetch(`https://api.elevenlabs.io/v1/speech-to-speech/${params.target_voice_id}`, {
+    method: 'POST',
+    headers: { 'xi-api-key': apiKey },
+    body: form,
+  })
+
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`ElevenLabs S2S erro ${res.status}: ${err}`)
+  }
+
+  const buffer = Buffer.from(await res.arrayBuffer())
+  const path = `${params.userId}/${params.assetId}-converted.mp3`
+  const { error } = await admin.storage.from('studio').upload(path, buffer, { contentType: 'audio/mpeg', upsert: true })
+  if (error) throw new Error(`Upload áudio convertido falhou: ${error.message}`)
+
+  const { data: { publicUrl } } = admin.storage.from('studio').getPublicUrl(path)
+  return publicUrl
+}
+
+// ── Caption — Whisper via fetch ────────────────────────────────────────────
 export async function generateCaption(params: {
   audio_url: string
   assetId: string

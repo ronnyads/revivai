@@ -35,6 +35,7 @@ import FaceGenerator from '../FaceGenerator'
 import ImageGenerator from '../ImageGenerator'
 import ScriptGenerator from '../ScriptGenerator'
 import VoiceGenerator from '../VoiceGenerator'
+import VoiceConvertGenerator from '../VoiceConvertGenerator'
 import VideoGenerator from '../VideoGenerator'
 import TalkingVideoGenerator from '../TalkingVideoGenerator'
 import CaptionGenerator from '../CaptionGenerator'
@@ -210,6 +211,14 @@ export const TYPE_META: Record<
     hint: 'Ferramenta manual para quebrar 1 look em ate 3 referencias fieis.',
     output: 'Refs prontas',
   },
+  voice_convert: {
+    icon: <Mic size={14} />,
+    label: 'Converter Voz',
+    color: 'text-violet-100',
+    chip: 'border-violet-500/20 bg-violet-500/10 text-violet-100',
+    hint: 'Transforma um áudio em outra voz (ex: masculino → feminino).',
+    output: 'Áudio convertido',
+  },
 }
 
 const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string }>>> = {
@@ -229,6 +238,7 @@ const INPUT_HANDLES: Partial<Record<AssetType, Array<{ id: string; label: string
   ],
   upscale: [{ id: 'source_url', label: 'Imagem' }],
   voice: [{ id: 'script', label: 'Script' }],
+  voice_convert: [{ id: 'audio_url', label: 'Áudio' }],
   caption: [{ id: 'audio_url', label: 'Audio' }],
   render: [
     { id: 'source_image_url', label: 'Video' },
@@ -1099,6 +1109,7 @@ export function FormForType({
   if (type === 'image') return <ImageGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'script') return <ScriptGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'voice') return <VoiceGenerator initial={initialParams} onGenerate={onGenerate} />
+  if (type === 'voice_convert') return <VoiceConvertGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'video') return <VideoGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'talking_video') return <TalkingVideoGenerator initial={initialParams} onGenerate={onGenerate} />
   if (type === 'caption') return <CaptionGenerator initial={initialParams} onGenerate={onGenerate} />

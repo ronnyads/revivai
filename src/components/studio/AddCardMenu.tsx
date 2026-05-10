@@ -55,6 +55,7 @@ const GROUPS: { label: string; items: CardDef[] }[] = [
       { type: 'talking_video', icon: <Mic size={20} />, label: 'Vídeo com Fala', desc: 'Avatar falante com Veo', gradient: 'from-blue-500 to-cyan-500' },
       { type: 'animate', icon: <Sparkles size={20} />, label: 'Movimento Guiado', desc: 'Imita movimento de referência', gradient: 'from-fuchsia-500 to-rose-500' },
       { type: 'lipsync', icon: <Wand2 size={20} />, label: 'Lip Sync', desc: 'Sincroniza fala no vídeo', gradient: 'from-cyan-400 to-sky-500' },
+      { type: 'voice_convert', icon: <Mic size={20} />, label: 'Converter Voz', desc: 'Muda o gênero ou timbre da voz', gradient: 'from-violet-500 to-purple-600' },
     ],
   },
   {

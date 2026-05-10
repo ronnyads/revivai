@@ -42,6 +42,7 @@ export const CREDIT_COST: Record<string, number> = {
   ugc_bundle: 60, // 8 variações cinematográficas (Imagen 3.0 Parallel)
   scene: 12,      // Cena Livre — modelo em qualquer ambiente (Gemini)
   look_split: 6,  // Separar Look - divide 1 foto em ate 3 referencias fieis
+  voice_convert: 10, // Converter Voz — ElevenLabs Speech-to-Speech
 }
 
 export function normalizeStudioVideoQuality(value: unknown): StudioVideoQuality {

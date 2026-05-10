@@ -4,7 +4,7 @@ export const maxDuration = 300
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CREDIT_COST, deriveVideoScenePrepassPrompt, generateImageGoogle, generateScriptGoogle, generateVoiceGoogle, generateCaptionGoogle, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModelGoogle, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideosRobust, generateAngles, generateMusicGoogle, generateUGCPositions, generateSceneVertexOnly, splitLookReferences, prepareLockedVideoMotionPrompt, prepareScenePromptPolicy, prepareTalkingVideoPrompt, estimateTalkingSpeechDurationSeconds, incrementTalkingPipelineAttempts, startTalkingVideoMotionGeneration, generateVoiceGrok, startGrokVideoGeneration } from '@/lib/studio'
+import { CREDIT_COST, deriveVideoScenePrepassPrompt, generateImageGoogle, generateScriptGoogle, generateVoiceGoogle, generateVoiceConvert, generateCaptionGoogle, generateUpscale, startVideoGeneration, startVeo3DirectGoogle, generateModelGoogle, mergeVideoAudio, startAnimateGeneration, composeProductScene, startLipsyncGeneration, joinVideosRobust, generateAngles, generateMusicGoogle, generateUGCPositions, generateSceneVertexOnly, splitLookReferences, prepareLockedVideoMotionPrompt, prepareScenePromptPolicy, prepareTalkingVideoPrompt, estimateTalkingSpeechDurationSeconds, incrementTalkingPipelineAttempts, startTalkingVideoMotionGeneration, generateVoiceGrok, startGrokVideoGeneration } from '@/lib/studio'
 import { markStudioAssetFailed } from '@/lib/studioAssetFailure'
 import { resolveStudioPublicError, type StudioPublicErrorEnvelope } from '@/lib/studioPublicErrors'
 import { getLogicalStudioAssetType, getPersistedStudioAssetType, mapStudioAssetType } from '@/lib/studioAssetType'
@@ -1341,6 +1341,15 @@ export async function POST(req: NextRequest) {
         script: String(normalizedInputParams.script ?? ''),
         voice_id: String(normalizedInputParams.voice_id ?? 'EXAVITQu4vr4xnSDxMaL'),
         speed: Number(normalizedInputParams.speed ?? 1.0),
+        assetId: asset.id,
+        userId: user.id,
+      })
+    } else if (type === 'voice_convert') {
+      const audioUrl = String(normalizedInputParams.audio_url ?? '').trim()
+      if (!audioUrl) throw Object.assign(new Error('Conecte um áudio ao card antes de converter.'), { studioRefundReason: 'voice_convert:missing_audio' })
+      resultUrl = await generateVoiceConvert({
+        audio_url: audioUrl,
+        target_voice_id: String(normalizedInputParams.target_voice_id ?? 'EXAVITQu4vr4xnSDxMaL'),
         assetId: asset.id,
         userId: user.id,
       })
