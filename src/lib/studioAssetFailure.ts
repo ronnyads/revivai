@@ -76,14 +76,16 @@ export async function markStudioAssetFailed({
 
       const refundSucceeded = !refundErr && refundOk === true
 
-      await admin.from('studio_refund_audit').insert({
-        asset_id: assetId,
-        user_id: asset.user_id,
-        amount: creditCost,
-        success: refundSucceeded,
-        reason: refundReason ?? safeErrorMsg,
-        error_detail: refundErr?.message ?? (!refundSucceeded ? 'add_credits returned false (0 rows updated)' : null),
-      }).then(() => {}).catch(() => {})
+      try {
+        await admin.from('studio_refund_audit').insert({
+          asset_id: assetId,
+          user_id: asset.user_id,
+          amount: creditCost,
+          success: refundSucceeded,
+          reason: refundReason ?? safeErrorMsg,
+          error_detail: refundErr?.message ?? (!refundSucceeded ? 'add_credits returned false (0 rows updated)' : null),
+        })
+      } catch { /* audit failure is non-critical */ }
 
       if (!refundSucceeded) {
         console.error(`[studio-fail] REEMBOLSO FALHOU asset=${assetId} err=${refundErr?.message ?? '0 rows'}`)
