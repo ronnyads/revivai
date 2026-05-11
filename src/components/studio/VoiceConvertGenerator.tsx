@@ -3,6 +3,8 @@
 import { useState, useRef } from 'react'
 import { Wand2, Upload, X } from 'lucide-react'
 import { CREDIT_COST } from '@/constants/studio'
+
+const MAX_AUDIO_BYTES = 10 * 1024 * 1024 // 10 MB (limite do Next.js bodySizeLimit)
 import VoiceLibraryPicker from './VoiceLibraryPicker'
 
 interface Props {
@@ -27,6 +29,11 @@ export default function VoiceConvertGenerator({ initial, onGenerate }: Props) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+
+    if (file.size > MAX_AUDIO_BYTES) {
+      setUploadName(`Arquivo muito grande (máx 10 MB)`)
+      return
+    }
 
     setUploading(true)
     try {
