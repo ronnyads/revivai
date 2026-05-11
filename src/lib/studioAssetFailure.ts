@@ -83,7 +83,7 @@ export async function markStudioAssetFailed({
         success: refundSucceeded,
         reason: refundReason ?? safeErrorMsg,
         error_detail: refundErr?.message ?? (!refundSucceeded ? 'add_credits returned false (0 rows updated)' : null),
-      }).catch(() => {})
+      }).then(() => {}).catch(() => {})
 
       if (!refundSucceeded) {
         console.error(`[studio-fail] REEMBOLSO FALHOU asset=${assetId} err=${refundErr?.message ?? '0 rows'}`)
