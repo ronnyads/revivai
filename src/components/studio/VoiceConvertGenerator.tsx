@@ -67,6 +67,13 @@ export default function VoiceConvertGenerator({ initial, onGenerate }: Props) {
         </div>
       </div>
 
+      <div className="bg-amber-500/8 border border-amber-500/20 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+        <span className="text-amber-400 text-[13px] mt-0.5 shrink-0">💡</span>
+        <p className="text-[10px] text-amber-300/80 leading-relaxed">
+          Você pode converter áudios de qualquer duração. Mas para usar o resultado em outros cards (Lip Sync, Vídeo Final), o áudio precisará ser editado em pedaços menores — cada card tem seu limite de tempo.
+        </p>
+      </div>
+
       <div>
         <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 mb-1.5 block">
           Áudio de Origem
