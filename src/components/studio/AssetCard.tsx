@@ -39,7 +39,8 @@ const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color
   music:   { icon: <Music size={15} />,    label: 'Trilha Sonora', color: 'text-amber-400' },
   ugc_bundle: { icon: <Sparkles size={15} />, label: 'Pacote 8 Poses UGC', color: 'text-indigo-400' },
   scene:      { icon: <Camera size={15} />,   label: 'Cena Livre',         color: 'text-violet-400' },
-  look_split: { icon: <Scissors size={15} />, label: 'Separar Look',       color: 'text-cyan-400' },
+  look_split:    { icon: <Scissors size={15} />, label: 'Separar Look',    color: 'text-cyan-400'    },
+  voice_convert: { icon: <Wand2 size={15} />,   label: 'Converter Voz',   color: 'text-violet-400'  },
 }
 
 function getAssetAspectRatio(asset: Pick<StudioAsset, 'type' | 'input_params'>) {
