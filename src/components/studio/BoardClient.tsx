@@ -59,10 +59,11 @@ const DEFAULT_PARAMS: Record<AssetType, Record<string, unknown>> = {
   music:   { prompt: '', style: 'lofi' },
   ugc_bundle: { source_url: '' },
   scene:   { source_url: '', scene_prompt: '', aspect_ratio: '9:16' },
-  look_split: { source_url: '', smart_prompt: '' },
+  look_split:    { source_url: '', smart_prompt: '' },
+  voice_convert: { audio_url: '', target_voice_id: 'EXAVITQu4vr4xnSDxMaL' },
 }
 const CREDIT_COST: Record<AssetType, number> = {
-  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, talking_video: 50, model: 8, render: 1, animate: 50, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12, look_split: 6,
+  image: 8, script: 3, voice: 8, caption: 2, upscale: 3, video: 15, talking_video: 50, model: 8, render: 1, animate: 50, compose: 12, lipsync: 20, face: 0, join: 0, angles: 12, music: 10, ugc_bundle: 60, scene: 12, look_split: 6, voice_convert: 10,
 }
 
 function normalizeProcessingAssetState<T extends StudioAsset>(asset: T): T {

@@ -358,6 +358,18 @@ export function resolveStudioAssetEnginePolicy(params: {
       legacyFallbackUsed: false,
       notes: 'Background removal legado fica inativo; segmentacao principal segue em Google-first.',
     },
+    voice_convert: {
+      assetType: 'voice_convert',
+      providerFamily: 'elevenlabs',
+      billingRoute: 'elevenlabs_sts',
+      runtimeEngine: 'elevenlabs_sts',
+      runtimeModel: 'eleven_multilingual_sts_v2',
+      targetEngine: 'elevenlabs_sts',
+      targetModel: 'eleven_multilingual_sts_v2',
+      parityStatus: 'ready',
+      legacyFallbackAllowed: false,
+      legacyFallbackUsed: false,
+    },
   }
 
   return baseByType[params.type]
