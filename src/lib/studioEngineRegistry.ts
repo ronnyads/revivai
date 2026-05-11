@@ -360,7 +360,7 @@ export function resolveStudioAssetEnginePolicy(params: {
     },
     voice_convert: {
       assetType: 'voice_convert',
-      providerFamily: 'elevenlabs',
+      providerFamily: 'native',
       billingRoute: 'elevenlabs_sts',
       runtimeEngine: 'elevenlabs_sts',
       runtimeModel: 'eleven_multilingual_sts_v2',
