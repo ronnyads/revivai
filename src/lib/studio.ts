@@ -3389,31 +3389,31 @@ export function prepareTalkingVideoPrompt(params: {
       ? 'SPEECH-SAFE CAMERA: keep the mouth clearly visible, prefer a medium or medium-close shot, avoid extreme head turns, heavy occlusion, fast cuts, violent zooms, or profile-only views.'
       : 'Camera can be more cinematic, but keep the subject readable and stable.'
 
-  const promptParts = [
-    'Create a short talking-performance video from this source image.',
-    'LOCK IDENTITY: preserve the exact same person, face, hair, skin tone, body proportions, and overall identity from the source frame.',
-    strictSourceInstruction,
-    visibleItemInstruction,
-    productLockInstruction,
-    wardrobeInstruction,
-    textLogoInstruction,
-    colorInstruction,
-    sceneInstruction,
-    cameraInstruction,
-    'Do not add subtitles, on-screen captions, or rendered text in the frame.',
-    `Emotional direction: ${expressionDirection}.`,
-    visualPromptNormalized ? `Visual direction: ${visualPromptNormalized}.` : '',
-  ].filter(Boolean)
+  const promptParts: string[] = []
 
   if (params.mode === 'exact_speech') {
+    // Veo gera vídeo silencioso — lipsync aplica o áudio depois
     promptParts.push(
-      'The exact spoken words will be applied later by lip sync. Generate a natural speaking performance with believable mouth-ready pacing, breathing, blinking, and subtle gestures, but do not rely on the literal speech text to stage the scene.',
+      ...[
+        visualPromptNormalized ? `LOCALIZACAO: ${visualPromptNormalized}.` : '',
+        'PERSONAGEM: mesma pessoa da imagem fonte, preservar identidade facial, rosto, cabelo, tom de pele.',
+        `EXPRESSAO: ${expressionDirection}.`,
+        'ACAO: performance de fala natural com boca pronta para lip sync. Sem áudio gerado.',
+        'CAMERA: manter boca visível, plano médio ou médio-close, sem cortes bruscos.',
+        wardrobeInstruction ? `LOOK: ${wardrobeInstruction}` : '',
+        sceneInstruction,
+      ].filter(Boolean),
     )
   } else {
+    // veo_natural: Veo gera vídeo + áudio nativamente — fala DEVE vir primeiro no prompt
     promptParts.push(
-      speechTextNormalized
-        ? `Generate audio and spoken dialogue. The person says: ${speechTextNormalized}.`
-        : 'Generate audio and a natural speaking delivery that matches the emotional direction.',
+      ...[
+        speechTextNormalized ? `FALA: ${speechTextNormalized}` : '',
+        visualPromptNormalized ? `LOCALIZACAO: ${visualPromptNormalized}.` : '',
+        'PERSONAGEM: mesma pessoa da imagem fonte, preservar identidade facial, rosto, cabelo, tom de pele.',
+        `EXPRESSAO: ${expressionDirection}.`,
+        'ACAO: performance de fala natural com áudio gerado pelo modelo.',
+      ].filter(Boolean),
     )
   }
 
