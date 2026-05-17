@@ -3,13 +3,6 @@
 import { useState } from 'react'
 import { Layers, Sparkles, ChevronDown } from 'lucide-react'
 import ImageUpload from './ImageUpload'
-import {
-  StudioFieldLabel,
-  StudioFormShell,
-  StudioHint,
-  StudioPanel,
-  StudioPrimaryButton,
-} from './StudioFormShell'
 import { STUDIO_ASPECT_RATIO_PRESETS } from './aspectRatio'
 import { CREDIT_COST } from '@/constants/studio'
 
@@ -21,432 +14,213 @@ interface Props {
 const DEFAULT_POSITION = 'southeast'
 const DEFAULT_SCALE = 0.35
 
-const PRODUCT_PROMPT_CHIPS = [
-  { label: 'Perto do rosto', value: 'produto perto do rosto, rotulo visivel' },
-  { label: 'Na altura do peito', value: 'produto na altura do peito, bem visivel' },
-  { label: 'Com duas maos', value: 'segurando com as duas maos, apresentacao estavel' },
-  { label: 'Apontando detalhe', value: 'uma mao segurando e a outra apontando detalhes do produto' },
-  { label: 'Sorriso suave', value: 'sorriso suave e natural' },
-  { label: 'Olhar confiante', value: 'olhar confiante para a camera' },
-]
-
 const FITTING_POSE_PRESETS = [
-  { value: 'frontal', label: 'Frontal' },
-  { value: 'three-quarter', label: '3/4' },
-  { value: 'full-body', label: 'Full body' },
-  { value: 'seated', label: 'Sentada' },
-  { value: 'standing', label: 'Em pe' },
-  { value: 'hand-in-pocket', label: 'Mao no bolso' },
-  { value: 'showing-bag', label: 'Mostrando bolsa' },
-  { value: 'adjusting-glasses', label: 'Ajustando oculos' },
+  { value: 'frontal',          label: 'Frontal'         },
+  { value: 'three-quarter',    label: '3/4'             },
+  { value: 'full-body',        label: 'Full body'       },
+  { value: 'seated',           label: 'Sentada'         },
+  { value: 'standing',         label: 'Em pé'           },
+  { value: 'hand-in-pocket',   label: 'Mão no bolso'   },
+  { value: 'showing-bag',      label: 'Mostrando bolsa' },
+  { value: 'adjusting-glasses',label: 'Ajust. óculos'  },
 ]
 
 const FITTING_ENERGY_PRESETS = [
-  { value: 'confiante', label: 'Confiante' },
-  { value: 'natural', label: 'Natural' },
-  { value: 'sorriso-suave', label: 'Sorriso suave' },
+  { value: 'confiante',      label: 'Confiante'      },
+  { value: 'natural',        label: 'Natural'        },
+  { value: 'sorriso-suave',  label: 'Sorriso suave'  },
   { value: 'editorial-leve', label: 'Editorial leve' },
 ]
 
-function getDefaultFittingPose(category: string): string {
+function getDefaultPose(category: string): string {
   switch (category) {
-    case 'bottoms':
-    case 'one-pieces':
-    case 'shoes':
-      return 'full-body'
-    case 'outerwear':
-      return 'standing'
-    case 'headwear':
-      return 'frontal'
-    case 'bags':
-      return 'showing-bag'
-    case 'glasses':
-      return 'adjusting-glasses'
-    case 'jewelry':
-      return 'frontal'
-    default:
-      return 'three-quarter'
+    case 'bottoms': case 'one-pieces': case 'shoes': return 'full-body'
+    case 'outerwear': return 'standing'
+    case 'headwear': case 'jewelry': return 'frontal'
+    case 'bags': return 'showing-bag'
+    case 'glasses': return 'adjusting-glasses'
+    default: return 'three-quarter'
   }
 }
 
-function CompactSelect({
-  value,
-  onChange,
-  options,
-}: {
-  options: { value: string; label: string; hint?: string }[]
+function Select({ value, onChange, options }: {
   value: string
-  onChange: (value: string) => void
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
 }) {
   return (
     <div className="relative">
       <select
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full appearance-none rounded-[16px] border border-white/8 bg-[#0B0D0F] px-3 py-2.5 pr-9 text-[11px] text-white outline-none transition-colors focus:border-orange-400/30"
+        onChange={e => onChange(e.target.value)}
+        className="w-full appearance-none rounded-xl border border-white/8 bg-zinc-900 px-3 py-2.5 pr-8 text-[12px] text-white outline-none focus:border-orange-400/30 transition-colors"
       >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.hint ? `${option.label} - ${option.hint}` : option.label}
-          </option>
-        ))}
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/38" />
+      <ChevronDown size={12} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/40" />
     </div>
   )
 }
 
 export default function ComposeCard({ initial, onGenerate }: Props) {
   const syncKey = JSON.stringify({
-    portrait_url: initial.portrait_url ?? '',
-    product_url: initial.product_url ?? '',
-    product_urls: Array.isArray(initial.product_urls) ? initial.product_urls : [],
-    aspect_ratio: initial.aspect_ratio ?? '9:16',
-    fitting_pose_preset: initial.fitting_pose_preset ?? '',
+    portrait_url:          initial.portrait_url          ?? '',
+    product_url:           initial.product_url           ?? '',
+    product_urls:          Array.isArray(initial.product_urls) ? initial.product_urls : [],
+    aspect_ratio:          initial.aspect_ratio          ?? '9:16',
+    fitting_pose_preset:   initial.fitting_pose_preset   ?? '',
     fitting_energy_preset: initial.fitting_energy_preset ?? '',
-    smart_prompt: initial.smart_prompt ?? '',
+    smart_prompt:          initial.smart_prompt          ?? '',
   })
-
   return <ComposeCardBody key={syncKey} initial={initial} onGenerate={onGenerate} />
 }
 
 function ComposeCardBody({ initial, onGenerate }: Props) {
   const variant = String(initial.compose_variant ?? 'fitting')
-  const initialFittingCategory =
-    typeof initial.fitting_category === 'string'
-      ? initial.fitting_category
-      : typeof initial.vton_category === 'string'
-        ? initial.vton_category
-        : ''
-  const initialReferenceUrls = Array.isArray(initial.product_urls)
-    ? initial.product_urls
-      .filter((value): value is string => typeof value === 'string')
-      .slice(0, 3)
-    : []
-  while (initialReferenceUrls.length < 3) initialReferenceUrls.push('')
+  const isProduct = variant === 'product'
+
+  const initialCategory = typeof initial.fitting_category === 'string'
+    ? initial.fitting_category
+    : typeof initial.vton_category === 'string' ? initial.vton_category : ''
+
+  const initialRefs = (() => {
+    const arr = Array.isArray(initial.product_urls)
+      ? initial.product_urls.filter((v): v is string => typeof v === 'string').slice(0, 3)
+      : []
+    while (arr.length < 3) arr.push('')
+    return arr
+  })()
 
   const [portraitUrl, setPortraitUrl] = useState(String(initial.portrait_url ?? ''))
-  const [productUrl, setProductUrl] = useState(String(initial.product_url ?? ''))
-  const [referenceUrls, setReferenceUrls] = useState<string[]>(
-    initialReferenceUrls.some((url) => url.trim().length > 0)
-      ? initialReferenceUrls
-      : [String(initial.product_url ?? ''), '', ''],
+  const [productUrl,  setProductUrl]  = useState(String(initial.product_url  ?? ''))
+  const [refs, setRefs]               = useState<string[]>(
+    initialRefs.some(u => u.trim()) ? initialRefs : [String(initial.product_url ?? ''), '', ''],
   )
-  const [aspectRatio, setAspectRatio] = useState(String(initial.aspect_ratio ?? '9:16'))
-  const [fittingPosePreset, setFittingPosePreset] = useState(String(initial.fitting_pose_preset ?? getDefaultFittingPose(initialFittingCategory || 'tops')))
-  const [fittingEnergyPreset, setFittingEnergyPreset] = useState(String(initial.fitting_energy_preset ?? 'natural'))
-  const [smartPrompt, setSmartPrompt] = useState(String(initial.smart_prompt ?? ''))
-  const [productPromptPreset, setProductPromptPreset] = useState('')
+  const [aspectRatio,    setAspectRatio]    = useState(String(initial.aspect_ratio          ?? '9:16'))
+  const [posePreset,     setPosePreset]     = useState(String(initial.fitting_pose_preset   ?? getDefaultPose(initialCategory || 'tops')))
+  const [energyPreset,   setEnergyPreset]   = useState(String(initial.fitting_energy_preset ?? 'natural'))
+  const [smartPrompt,    setSmartPrompt]    = useState(String(initial.smart_prompt          ?? ''))
 
-  const hasPortrait = !!portraitUrl.trim()
-  const isProductVariant = variant === 'product'
-  const fittingReferenceUrls = referenceUrls.map((url) => url.trim())
-  const activeFittingReferenceUrls = fittingReferenceUrls.filter(Boolean)
-  const hasProduct = isProductVariant ? !!productUrl.trim() : activeFittingReferenceUrls.length > 0
-  const multiReferenceMode = !isProductVariant && activeFittingReferenceUrls.length > 1
-  const cost = isProductVariant ? CREDIT_COST.compose : 24
-  const title = isProductVariant ? 'Modelo + Produto' : 'Provador'
-  const selectedAspect = STUDIO_ASPECT_RATIO_PRESETS.find((item) => item.value === aspectRatio)
-  const selectedPoseLabel = FITTING_POSE_PRESETS.find((item) => item.value === fittingPosePreset)?.label ?? 'Pose'
+  const hasPortrait   = !!portraitUrl.trim()
+  const activeRefs    = refs.map(u => u.trim()).filter(Boolean)
+  const hasProduct    = isProduct ? !!productUrl.trim() : activeRefs.length > 0
+  const cost          = isProduct ? CREDIT_COST.compose : 24
+  const title         = isProduct ? 'Modelo + Produto' : 'Provador'
 
-  function setReferenceAt(index: number, url: string) {
-    setReferenceUrls((current) => current.map((value, itemIndex) => (itemIndex === index ? url : value)))
+  function setRefAt(i: number, url: string) {
+    setRefs(prev => prev.map((v, idx) => idx === i ? url : v))
   }
-
-  function applyProductPromptChip(value: string) {
-    setSmartPrompt((current) => {
-      const trimmed = current.trim()
-      if (trimmed.toLowerCase().includes(value.toLowerCase())) return current
-      return trimmed ? `${trimmed}; ${value}` : value
-    })
-  }
-
-  const summaryChips = isProductVariant
-    ? [
-      { label: 'Produto', tone: 'orange' as const },
-      { label: 'Fundo branco', tone: 'neutral' as const },
-    ]
-    : [
-      { label: selectedAspect?.label ?? aspectRatio, tone: 'neutral' as const },
-      { label: selectedPoseLabel, tone: 'orange' as const },
-    ]
 
   return (
-    <StudioFormShell
-      accent="orange"
-      icon={<Layers size={18} />}
-      title={title}
-      chips={summaryChips}
-      hideHeader
-      layout="split"
-      mediaColumnClassName="space-y-0"
-      controlsColumnClassName="grid grid-cols-2 items-start gap-2.5 space-y-0"
-      action={
-        <span className="inline-flex rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/72">
-          {cost} CR
-        </span>
-      }
-      media={
-        <StudioPanel title={isProductVariant ? 'Modelo + produto' : 'Modelo + refs'} compact>
-          {isProductVariant ? (
-            <div className="grid grid-cols-2 gap-2.5">
-              <div>
-                {hasPortrait ? (
-                  <div className="group relative overflow-hidden rounded-[16px] border border-white/8 bg-black/20">
-                    <img src={portraitUrl} alt="Modelo base" className="aspect-[4/5] w-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setPortraitUrl('')}
-                      className="absolute inset-x-0 bottom-0 flex h-12 items-end justify-between bg-gradient-to-t from-black/80 via-black/30 to-transparent px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/80 opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      <span>Modelo pronto</span>
-                      <span className="text-white/58">Trocar</span>
-                    </button>
-                  </div>
-                ) : (
-                  <ImageUpload
-                    value={portraitUrl}
-                    onChange={setPortraitUrl}
-                    label="Modelo"
-                    accept="image/*"
-                    compact
-                    frameClassName="aspect-[4/5] min-h-[184px]"
-                  />
-                )}
-              </div>
-              <div>
-                {hasProduct ? (
-                  <div className="group relative overflow-hidden rounded-[16px] border border-white/8 bg-black/20">
-                    <img src={productUrl} alt="Produto" className="aspect-[4/5] w-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setProductUrl('')}
-                      className="absolute inset-x-0 bottom-0 flex h-12 items-end justify-between bg-gradient-to-t from-black/80 via-black/30 to-transparent px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/80 opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      <span>Produto pronto</span>
-                      <span className="text-white/58">Trocar</span>
-                    </button>
-                  </div>
-                ) : (
-                  <ImageUpload
-                    value={productUrl}
-                    onChange={setProductUrl}
-                    label="Produto"
-                    accept="image/*"
-                    compact
-                    frameClassName="aspect-[4/5] min-h-[184px]"
-                  />
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-[172px_minmax(0,1fr)] gap-2.5">
-              <div>
-                {hasPortrait ? (
-                  <div className="group relative overflow-hidden rounded-[16px] border border-white/8 bg-black/20">
-                    <img src={portraitUrl} alt="Modelo base" className="aspect-[4/5] w-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => setPortraitUrl('')}
-                      className="absolute inset-x-0 bottom-0 flex h-12 items-end justify-between bg-gradient-to-t from-black/80 via-black/30 to-transparent px-3 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/80 opacity-0 transition-opacity group-hover:opacity-100"
-                    >
-                      <span>Modelo pronto</span>
-                      <span className="text-white/58">Trocar</span>
-                    </button>
-                  </div>
-                ) : (
-                  <ImageUpload
-                    value={portraitUrl}
-                    onChange={setPortraitUrl}
-                    label="Modelo"
-                    accept="image/*"
-                    compact
-                    frameClassName="aspect-[4/5] min-h-[190px]"
-                  />
-                )}
-              </div>
+    <div className="flex flex-col gap-4">
+      {/* Header */}
+      <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex items-start gap-3">
+        <div className="p-2 bg-orange-500/20 rounded-xl mt-0.5">
+          <Layers size={18} className="text-orange-400" />
+        </div>
+        <div>
+          <h4 className="text-[13px] font-bold text-white leading-tight">{title}</h4>
+          <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+            {isProduct ? 'Coloca o produto nas mãos do modelo.' : 'Veste a peça no modelo com IA.'}
+          </p>
+        </div>
+      </div>
 
-              <div className="space-y-2">
-                <div className="rounded-[16px] border border-white/8 bg-black/10 p-1.5">
-                  <ImageUpload
-                    value={referenceUrls[0]}
-                    onChange={(url) => setReferenceAt(0, url)}
-                    label="Look principal"
-                    accept="image/*"
-                    compact
-                    frameClassName="aspect-[16/9] min-h-[112px]"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-[16px] border border-white/8 bg-black/10 p-1.5">
-                    <ImageUpload
-                      value={referenceUrls[1]}
-                      onChange={(url) => setReferenceAt(1, url)}
-                      label="Ref 2"
-                      accept="image/*"
-                      compact
-                      frameClassName="aspect-[4/5] min-h-[112px]"
-                    />
-                  </div>
-                  <div className="rounded-[16px] border border-white/8 bg-black/10 p-1.5">
-                    <ImageUpload
-                      value={referenceUrls[2]}
-                      onChange={(url) => setReferenceAt(2, url)}
-                      label="Ref 3"
-                      accept="image/*"
-                      compact
-                      frameClassName="aspect-[4/5] min-h-[112px]"
-                    />
-                  </div>
-                </div>
-                <StudioHint>
-                  {multiReferenceMode
-                    ? 'Ate 3 referencias. Se duas imagens refinarem a mesma peca, vamos tentar mesclar antes de gerar.'
-                    : '1 look ou ate 3 referencias complementares.'}
-                </StudioHint>
-              </div>
-            </div>
+      {/* Imagens */}
+      {isProduct ? (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 mb-1.5 block">Modelo</label>
+            <ImageUpload value={portraitUrl} onChange={setPortraitUrl} label="Modelo" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[140px]" />
+          </div>
+          <div>
+            <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 mb-1.5 block">Produto</label>
+            <ImageUpload value={productUrl} onChange={setProductUrl} label="Produto" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[140px]" />
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 mb-0.5 block">Modelo</label>
+          <ImageUpload value={portraitUrl} onChange={setPortraitUrl} label="Modelo" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[160px]" />
+
+          <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 mt-1 mb-0.5 block">Look / Referências</label>
+          <ImageUpload value={refs[0]} onChange={url => setRefAt(0, url)} label="Look principal" accept="image/*" compact frameClassName="aspect-video min-h-[100px]" />
+          <div className="grid grid-cols-2 gap-2">
+            <ImageUpload value={refs[1]} onChange={url => setRefAt(1, url)} label="Ref 2 (opcional)" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[90px]" />
+            <ImageUpload value={refs[2]} onChange={url => setRefAt(2, url)} label="Ref 3 (opcional)" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[90px]" />
+          </div>
+          {activeRefs.length > 1 && (
+            <p className="text-[10px] text-zinc-500 px-1">Até 3 referências — mesclamos antes de gerar.</p>
           )}
-        </StudioPanel>
-      }
-      controls={
-        <>
-          <div className={isProductVariant ? 'col-span-1' : 'col-span-2'}>
-            <StudioPanel title="Configuracao" compact>
-              <div className={`grid gap-3 ${isProductVariant ? '' : 'sm:grid-cols-3'}`}>
-                <div>
-                  <StudioFieldLabel>Formato</StudioFieldLabel>
-                  <CompactSelect value={aspectRatio} onChange={setAspectRatio} options={STUDIO_ASPECT_RATIO_PRESETS} />
-                </div>
+        </div>
+      )}
 
-                {!isProductVariant ? (
-                  <>
-                    <div>
-                      <StudioFieldLabel>Pose</StudioFieldLabel>
-                      <CompactSelect value={fittingPosePreset} onChange={setFittingPosePreset} options={FITTING_POSE_PRESETS} />
-                    </div>
-                    <div>
-                      <StudioFieldLabel>Energia</StudioFieldLabel>
-                      <CompactSelect value={fittingEnergyPreset} onChange={setFittingEnergyPreset} options={FITTING_ENERGY_PRESETS} />
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            </StudioPanel>
-          </div>
+      {/* Configuração */}
+      <div className={`grid gap-3 ${isProduct ? 'grid-cols-1' : 'grid-cols-3'}`}>
+        <div>
+          <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 mb-1.5 block">Formato</label>
+          <Select value={aspectRatio} onChange={setAspectRatio} options={STUDIO_ASPECT_RATIO_PRESETS} />
+        </div>
+        {!isProduct && (
+          <>
+            <div>
+              <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 mb-1.5 block">Pose</label>
+              <Select value={posePreset} onChange={setPosePreset} options={FITTING_POSE_PRESETS} />
+            </div>
+            <div>
+              <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 mb-1.5 block">Energia</label>
+              <Select value={energyPreset} onChange={setEnergyPreset} options={FITTING_ENERGY_PRESETS} />
+            </div>
+          </>
+        )}
+      </div>
 
-          <div className={isProductVariant ? 'col-span-1' : 'col-span-2'}>
-            <StudioPanel title={isProductVariant ? 'Direcao' : 'Ajuste'} compact>
-              <div className="space-y-3">
-                {isProductVariant ? (
-                  <div>
-                    <StudioFieldLabel
-                      trailing={
-                        <button
-                          type="button"
-                          onClick={() => setSmartPrompt('')}
-                          className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/40 transition-colors hover:text-white"
-                        >
-                          Limpar
-                        </button>
-                      }
-                    >
-                      Presets
-                    </StudioFieldLabel>
-                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                      <CompactSelect
-                        value={productPromptPreset}
-                        onChange={setProductPromptPreset}
-                        options={[
-                          { value: '', label: 'Escolha um preset rapido' },
-                          ...PRODUCT_PROMPT_CHIPS,
-                        ]}
-                      />
-                      <button
-                        type="button"
-                        disabled={!productPromptPreset}
-                        onClick={() => {
-                          applyProductPromptChip(productPromptPreset)
-                          setProductPromptPreset('')
-                        }}
-                        className="rounded-[16px] border border-white/10 bg-white/[0.04] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/72 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        Adicionar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setSmartPrompt('')}
-                      className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/40 transition-colors hover:text-white"
-                    >
-                      Limpar
-                    </button>
-                  </div>
-                )}
+      {/* Ajuste / Smart Prompt */}
+      <div>
+        <div className="flex items-center justify-between px-1 mb-1.5">
+          <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">
+            {isProduct ? 'Direção' : 'Ajuste'}
+          </label>
+          {smartPrompt && (
+            <button onClick={() => setSmartPrompt('')} className="text-[9px] text-zinc-600 hover:text-white uppercase tracking-widest transition-colors">
+              Limpar
+            </button>
+          )}
+        </div>
+        <textarea
+          value={smartPrompt}
+          onChange={e => setSmartPrompt(e.target.value)}
+          placeholder={isProduct ? 'Ex: produto perto do rosto, rótulo visível.' : 'Ex: pose frontal, mostrar melhor bolsa e óculos.'}
+          rows={3}
+          className="w-full resize-none rounded-2xl border border-zinc-700/60 bg-zinc-900 px-4 py-3 text-[12px] text-white placeholder-zinc-600 outline-none focus:border-orange-400/30 transition-colors leading-relaxed"
+        />
+      </div>
 
-                <textarea
-                  value={smartPrompt}
-                  onChange={(event) => setSmartPrompt(event.target.value)}
-                  placeholder={
-                    isProductVariant
-                      ? 'Ex: sorriso leve, produto na altura do peito, rotulo visivel.'
-                      : 'Ex: pose frontal, mostrar melhor bolsa e oculos.'
-                  }
-                  rows={isProductVariant ? 4 : 5}
-                  className="w-full resize-none rounded-[18px] border border-white/8 bg-[#0B0D0F] px-3.5 py-3 text-[12px] leading-relaxed text-white outline-none transition-colors placeholder:text-white/24 focus:border-orange-400/30"
-                />
-              </div>
-            </StudioPanel>
-          </div>
-
-          <div className="col-span-2">
-            <StudioPrimaryButton
-              accent="orange"
-              className="max-w-none"
-              disabled={!hasPortrait || !hasProduct}
-              onClick={() =>
-                onGenerate(
-                  isProductVariant
-                    ? {
-                      portrait_url: portraitUrl,
-                      product_url: productUrl,
-                      compose_mode: 'gemini',
-                      compose_variant: variant,
-                      position: DEFAULT_POSITION,
-                      product_scale: DEFAULT_SCALE,
-                      aspect_ratio: aspectRatio,
-                      fitting_pose_preset: fittingPosePreset,
-                      fitting_energy_preset: fittingEnergyPreset,
-                      costume_prompt: '',
-                      smart_prompt: smartPrompt,
-                    }
-                    : {
-                      portrait_url: portraitUrl,
-                      product_url: activeFittingReferenceUrls[0] ?? '',
-                      product_urls: activeFittingReferenceUrls,
-                      fitting_group: '',
-                      compose_mode: 'gemini',
-                      compose_variant: variant,
-                      position: DEFAULT_POSITION,
-                      product_scale: DEFAULT_SCALE,
-                      aspect_ratio: aspectRatio,
-                      fitting_pose_preset: fittingPosePreset,
-                      fitting_energy_preset: fittingEnergyPreset,
-                      costume_prompt: '',
-                      smart_prompt: smartPrompt,
-                    },
-                )
-              }
-            >
-              <Sparkles size={16} />
-              {isProductVariant ? `Gerar modelo + produto - ${cost} CR` : `Gerar provador - ${cost} CR`}
-            </StudioPrimaryButton>
-          </div>
-        </>
-      }
-    />
+      {/* Botão */}
+      <button
+        disabled={!hasPortrait || !hasProduct}
+        onClick={() => onGenerate(
+          isProduct ? {
+            portrait_url: portraitUrl, product_url: productUrl,
+            compose_mode: 'gemini', compose_variant: variant,
+            position: DEFAULT_POSITION, product_scale: DEFAULT_SCALE,
+            aspect_ratio: aspectRatio, fitting_pose_preset: posePreset,
+            fitting_energy_preset: energyPreset, costume_prompt: '', smart_prompt: smartPrompt,
+          } : {
+            portrait_url: portraitUrl, product_url: activeRefs[0] ?? '',
+            product_urls: activeRefs, fitting_group: '',
+            compose_mode: 'gemini', compose_variant: variant,
+            position: DEFAULT_POSITION, product_scale: DEFAULT_SCALE,
+            aspect_ratio: aspectRatio, fitting_pose_preset: posePreset,
+            fitting_energy_preset: energyPreset, costume_prompt: '', smart_prompt: smartPrompt,
+          }
+        )}
+        className="group relative flex items-center justify-center gap-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-[13px] font-bold px-4 py-4 rounded-2xl transition-all disabled:opacity-40 w-full shadow-[0_10px_30px_-10px_rgba(234,88,12,0.5)] active:scale-[0.98] overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <Sparkles size={18} className="group-hover:scale-110 transition-transform" />
+        {isProduct ? `GERAR MODELO + PRODUTO — ${cost} CR` : `GERAR PROVADOR — ${cost} CR`}
+      </button>
+    </div>
   )
 }
