@@ -33,6 +33,11 @@ const SCENE_PRESETS = [
   { id: 'luxury_hotel', label: 'Hotel Luxo', prompt: 'in a luxury 5-star hotel lobby, marble floors, chandelier lighting, elegant and sophisticated atmosphere' },
   { id: 'studio_clean', label: 'Fundo Limpo', prompt: 'in a clean minimal photo studio, soft studio lighting, neutral grey gradient background, professional shoot' },
   { id: 'nature_forest', label: 'Natureza', prompt: 'standing in a lush green forest, dappled sunlight through trees, fresh natural environment' },
+  { id: 'winter_snow', label: 'Neve/Inverno', prompt: 'in a snowy winter landscape, soft snowflakes falling, cold crisp air, cozy winter atmosphere, light snow on the ground' },
+  { id: 'desert_golden', label: 'Deserto', prompt: 'in a golden desert landscape, warm sandy dunes, dramatic sunlight, vast open horizon, dry arid atmosphere' },
+  { id: 'autumn_park', label: 'Outono', prompt: 'in an autumn park, colorful orange and red fallen leaves, warm golden sunlight filtering through trees, cozy fall atmosphere' },
+  { id: 'mountain_peak', label: 'Montanha', prompt: 'on a scenic mountain viewpoint, dramatic mountain peaks in background, clear crisp air, expansive natural landscape' },
+  { id: 'night_city', label: 'Noite Urbana', prompt: 'on a city rooftop at night, glittering city lights in background, dark sky, sophisticated urban nighttime atmosphere' },
 ]
 
 const MAX_EXTRA = 5

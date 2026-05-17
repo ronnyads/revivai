@@ -116,9 +116,10 @@ function buildGeminiImageGenerationConfig(aspectRatio?: string) {
 }
 
 const SCENE_ENVIRONMENT_CHANGE_PATTERNS = [
-  /\b(trocar|mudar|substituir|colocar|levar|passar|transformar|move|put|set)\b.{0,64}\b(cenario|cenario|fundo|ambiente|background|location|setting|praia|beach|podcast|microfone|escritorio|escrit[oó]rio|office|quarto|hotel|cafe|caf[eé]|restaurante|rua|street|studio|estudio)\b/i,
-  /\b(agora|coloca|deixa)\b.{0,28}\b(no|na|em)\b.{0,28}\b(praia|beach|podcast|escritorio|escrit[oó]rio|office|quarto|hotel|cafe|caf[eé]|restaurante|rua|street|studio|estudio)\b/i,
-  /\b(background|backdrop|cenario|cenario|ambiente|location|setting)\b/i,
+  /\b(trocar|mudar|substituir|colocar|levar|passar|transformar|move|put|set)\b.{0,64}\b(cenario|fundo|ambiente|background|location|setting|praia|beach|podcast|microfone|escritorio|escrit[oó]rio|office|quarto|hotel|cafe|caf[eé]|restaurante|rua|street|studio|estudio|neve|inverno|frio|deserto|floresta|jungle|montanha|campo|natureza)\b/i,
+  /\b(agora|coloca|deixa|p[oõ]e|bota)\b.{0,28}\b(no|na|em|num|numa)\b.{0,28}\b(praia|beach|podcast|escritorio|escrit[oó]rio|office|quarto|hotel|cafe|caf[eé]|restaurante|rua|street|studio|estudio|neve|inverno|frio|gelado|deserto|floresta|montanha|natureza)\b/i,
+  /\b(background|backdrop|cenario|ambiente|location|setting)\b/i,
+  /\b(neve|nevasca|inverno|frio|gelado|gelo|icy|snowy|snow|winter|cold|outono|autumn|fall|primavera|spring|verao|ver[aã]o|summer|deserto|desert|floresta|forest|jungle|selva|montanha|mountain|campo|countryside|natureza|nature|c[eé]u|sky|noite|night|amanhecer|sunset|sunrise)\b/i,
 ]
 
 const SCENE_WARDROBE_CHANGE_PATTERNS = [
