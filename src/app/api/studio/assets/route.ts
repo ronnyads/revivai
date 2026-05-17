@@ -774,19 +774,6 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      if (scenePromptPolicy.requestedIdentityChange) {
-        return createAssetInputError(
-          'scene_identity_change_not_allowed',
-          'O Cena Livre preserva exatamente a mesma modelo. Para trocar rosto, idade, corpo ou identidade, use outro fluxo.',
-        )
-      }
-
-      if (scenePromptPolicy.shouldBlockProtectedElementChange) {
-        return createAssetInputError(
-          'scene_protected_elements_locked',
-          'Para trocar produto, logo, texto, cor ou objeto no Cena Livre, envie uma referencia extra dessa nova peca junto com o prompt.',
-        )
-      }
     }
   }
 
@@ -1923,15 +1910,7 @@ export async function POST(req: NextRequest) {
         aspect_ratio: String(normalizedInputParams.aspect_ratio ?? '9:16'),
         assetId: asset.id,
         userId: user.id,
-        requested_scene_change: Boolean(normalizedInputParams.requested_scene_change),
-        requested_wardrobe_change: Boolean(normalizedInputParams.requested_wardrobe_change),
-        requested_body_reframe: Boolean(normalizedInputParams.requested_body_reframe),
-        source_visible_item_manifest: Array.isArray(normalizedInputParams.source_visible_item_manifest)
-          ? normalizedInputParams.source_visible_item_manifest.filter((value): value is string => typeof value === 'string')
-          : [],
-        require_exact_text_logo: Boolean(normalizedInputParams.source_text_logo_lock),
-        require_exact_color: Boolean(normalizedInputParams.source_color_lock),
-        strict_source_fidelity: String(normalizedInputParams.source_fidelity_mode ?? '') === 'strict',
+        free_mode: true,
         model_override: typeof normalizedInputParams.runtime_model === 'string' ? normalizedInputParams.runtime_model : undefined,
       })
       resultUrl = sceneResult.url

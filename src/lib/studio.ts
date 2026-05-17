@@ -700,6 +700,42 @@ async function generateSceneImageViaImagenCapability(params: {
   }
 }
 
+function buildFreeFormScenePolicy(scenePrompt: string, aspectRatio?: string): ScenePromptPolicy {
+  const aspectLabel: Record<string, string> = {
+    '9:16': 'vertical 9:16 portrait',
+    '1:1': 'square 1:1',
+    '4:5': 'vertical 4:5 portrait',
+    '16:9': 'horizontal 16:9 landscape',
+    '3:4': 'vertical 3:4 portrait',
+  }
+  const ratioInstruction = `Output in ${aspectLabel[aspectRatio ?? '9:16'] ?? 'vertical 9:16 portrait'} format.`
+  return {
+    normalizedPrompt: scenePrompt,
+    requestedSceneChange: true,
+    requestedWardrobeChange: true,
+    requestedBodyReframe: false,
+    requestedIdentityChange: false,
+    requestedProductChange: true,
+    shouldBlockProtectedElementChange: false,
+    allowReferenceSwap: false,
+    swapReferenceCount: 0,
+    swapTask: 'none',
+    strictSourceFidelity: false,
+    sourceVisibleItemManifest: [],
+    editMode: 'scene_wardrobe_and_product',
+    finalPrompt: [
+      'Creative photo editing task.',
+      `Instructions: ${scenePrompt}.`,
+      'Apply all requested changes to the source image — background, scene, environment, lighting, wardrobe, products, props, composition.',
+      'You may change anything the instructions ask for.',
+      'Only preserve the facial identity of the person from the source image: same face, skin tone, and age appearance.',
+      'Photorealistic output. Natural lighting. Stable anatomy. No watermarks. No text overlay.',
+      ratioInstruction,
+    ].join(' '),
+    negativePrompt: 'different person, different face, identity drift, extra fingers, deformed anatomy, deformed hands, watermark, text overlay, cartoon, illustration',
+  }
+}
+
 export async function generateSceneVertexOnly(params: {
   source_url: string
   extra_source_urls?: string[]
@@ -707,6 +743,9 @@ export async function generateSceneVertexOnly(params: {
   aspect_ratio?: string
   assetId: string
   userId: string
+  free_mode?: boolean
+  model_override?: string
+  // Used only when free_mode is false (video prepass paths)
   mode?: 'generic' | 'talking_video' | 'video'
   requested_scene_change?: boolean
   requested_wardrobe_change?: boolean
@@ -715,35 +754,12 @@ export async function generateSceneVertexOnly(params: {
   require_exact_text_logo?: boolean
   require_exact_color?: boolean
   strict_source_fidelity?: boolean
-  model_override?: string
 }): Promise<{ url: string; modelUsed: string; strategyUsed: string }> {
   const admin = createAdminClient()
 
   if (!params.source_url?.startsWith('http')) throw new Error('URL da imagem fonte invalida')
 
-  const sourceVisibleItemManifest = dedupeNormalizedStrings(params.source_visible_item_manifest ?? []).slice(0, 16)
   const initialExtraUrls = (params.extra_source_urls ?? []).slice(0, 5)
-  const initialPromptPolicy = prepareScenePromptPolicy({
-    scenePrompt: params.scene_prompt,
-    aspectRatio: params.aspect_ratio,
-    mode: params.mode,
-    requestedSceneChange: params.requested_scene_change,
-    requestedWardrobeChange: params.requested_wardrobe_change,
-    requestedBodyReframe: params.requested_body_reframe,
-    sourceVisibleItemManifest,
-    requireExactTextLogo: params.require_exact_text_logo,
-    requireExactColor: params.require_exact_color,
-    strictSourceFidelity: params.strict_source_fidelity ?? true,
-    referenceSwapCount: initialExtraUrls.length,
-  })
-
-  if (initialPromptPolicy.requestedIdentityChange) {
-    throw new Error('Cena Livre preserva exatamente a mesma modelo. Remova qualquer pedido de trocar rosto, idade, corpo ou identidade.')
-  }
-
-  if (initialPromptPolicy.shouldBlockProtectedElementChange) {
-    throw new Error('Cena Livre so troca produto, logo, texto, cor ou objeto quando voce envia uma referencia extra aprovada para essa troca.')
-  }
 
   async function fetchInlineData(url: string) {
     const response = await fetch(url)
@@ -759,27 +775,30 @@ export async function generateSceneVertexOnly(params: {
   ).then((result) => result.filter(Boolean) as { mimeType: string; data: string }[])
 
   const hasMultiple = extraData.length > 0
-  const promptPolicy = prepareScenePromptPolicy({
-    scenePrompt: params.scene_prompt,
-    aspectRatio: params.aspect_ratio,
-    mode: params.mode,
-    requestedSceneChange: initialPromptPolicy.requestedSceneChange,
-    requestedWardrobeChange: initialPromptPolicy.requestedWardrobeChange,
-    requestedBodyReframe: params.requested_body_reframe,
-    sourceVisibleItemManifest,
-    requireExactTextLogo: params.require_exact_text_logo,
-    requireExactColor: params.require_exact_color,
-    strictSourceFidelity: params.strict_source_fidelity ?? true,
-    referenceSwapCount: extraData.length,
-  })
+
+  const promptPolicy: ScenePromptPolicy = params.free_mode
+    ? buildFreeFormScenePolicy(params.scene_prompt, params.aspect_ratio)
+    : (() => {
+        const sourceVisibleItemManifest = dedupeNormalizedStrings(params.source_visible_item_manifest ?? []).slice(0, 16)
+        const initial = prepareScenePromptPolicy({
+          scenePrompt: params.scene_prompt,
+          aspectRatio: params.aspect_ratio,
+          mode: params.mode,
+          requestedSceneChange: params.requested_scene_change,
+          requestedWardrobeChange: params.requested_wardrobe_change,
+          requestedBodyReframe: params.requested_body_reframe,
+          sourceVisibleItemManifest,
+          requireExactTextLogo: params.require_exact_text_logo,
+          requireExactColor: params.require_exact_color,
+          strictSourceFidelity: params.strict_source_fidelity ?? true,
+          referenceSwapCount: extraData.length,
+        })
+        return initial
+      })()
 
   console.log(
-    `[scene] policy asset=${params.assetId} refs=${hasMultiple ? extraData.length + 1 : 1} mode=${promptPolicy.editMode} swap_task=${promptPolicy.swapTask} scene_change=${promptPolicy.requestedSceneChange} wardrobe_change=${promptPolicy.requestedWardrobeChange} product_change=${promptPolicy.requestedProductChange} body_reframe=${promptPolicy.requestedBodyReframe} swap_refs=${promptPolicy.swapReferenceCount}`,
+    `[scene] ${params.free_mode ? 'free-form' : `policy mode=${promptPolicy.editMode}`} asset=${params.assetId} refs=${hasMultiple ? extraData.length + 1 : 1}`,
   )
-
-  if (promptPolicy.shouldBlockProtectedElementChange) {
-    throw new Error('Cena Livre so troca produto, logo, texto, cor ou objeto quando voce envia uma referencia extra aprovada para essa troca.')
-  }
 
   const imageParts = [
     { inlineData: primaryData },
