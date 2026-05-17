@@ -139,19 +139,22 @@ function ComposeCardBody({ initial, onGenerate }: Props) {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 mb-0.5 block">Modelo</label>
-          <ImageUpload value={portraitUrl} onChange={setPortraitUrl} label="Modelo" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[160px]" />
-
-          <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 mt-1 mb-0.5 block">Look / Referências</label>
-          <ImageUpload value={refs[0]} onChange={url => setRefAt(0, url)} label="Look principal" accept="image/*" compact frameClassName="aspect-video min-h-[100px]" />
-          <div className="grid grid-cols-2 gap-2">
-            <ImageUpload value={refs[1]} onChange={url => setRefAt(1, url)} label="Ref 2 (opcional)" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[90px]" />
-            <ImageUpload value={refs[2]} onChange={url => setRefAt(2, url)} label="Ref 3 (opcional)" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[90px]" />
+        <div className="grid grid-cols-2 gap-3">
+          {/* Coluna esquerda — Modelo */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 block">Modelo</label>
+            <ImageUpload value={portraitUrl} onChange={setPortraitUrl} label="Modelo" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[200px]" />
           </div>
-          {activeRefs.length > 1 && (
-            <p className="text-[10px] text-zinc-500 px-1">Até 3 referências — mesclamos antes de gerar.</p>
-          )}
+
+          {/* Coluna direita — Look + Refs */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest px-1 block">Look / Refs</label>
+            <ImageUpload value={refs[0]} onChange={url => setRefAt(0, url)} label="Look principal" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[120px]" />
+            <div className="grid grid-cols-2 gap-1.5">
+              <ImageUpload value={refs[1]} onChange={url => setRefAt(1, url)} label="Ref 2" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[75px]" />
+              <ImageUpload value={refs[2]} onChange={url => setRefAt(2, url)} label="Ref 3" accept="image/*" compact frameClassName="aspect-[4/5] min-h-[75px]" />
+            </div>
+          </div>
         </div>
       )}
 
