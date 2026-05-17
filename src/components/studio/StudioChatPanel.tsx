@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Clapperboard, Lightbulb, Loader2, PanelRightClose, Send, Sparkles } from 'lucide-react'
+import { Clapperboard, Lightbulb, Loader2, Mic, PanelRightClose, Send, Sparkles } from 'lucide-react'
 
 function parseInline(text: string): React.ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*)/g)
@@ -75,10 +75,17 @@ const AGENT_META = {
     emptyCopy: 'Storyboards, takes e narrativa viral.',
     Icon: Lightbulb,
   },
+  talking_video: {
+    label: 'Roteiro 8s',
+    prompt: 'Me ajuda a escrever uma fala para o Talking Video...',
+    emptyTitle: 'Roteiro de fala',
+    emptyCopy: 'Cola seu texto e eu adapto para 8 segundos.',
+    Icon: Mic,
+  },
 } as const
 
 export default function StudioChatPanel({ projectId, userId, onClose }: Props) {
-  const [agent, setAgent] = useState<'ugc' | 'video'>('ugc')
+  const [agent, setAgent] = useState<'ugc' | 'video' | 'talking_video'>('ugc')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -87,7 +94,7 @@ export default function StudioChatPanel({ projectId, userId, onClose }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const agentMeta = AGENT_META[agent]
 
-  const loadHistory = useCallback(async (agentType: 'ugc' | 'video') => {
+  const loadHistory = useCallback(async (agentType: 'ugc' | 'video' | 'talking_video') => {
     setLoading(true)
     try {
       const res = await fetch(`/api/studio/chat/history?projectId=${projectId}&agentType=${agentType}`)
