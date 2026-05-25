@@ -592,6 +592,7 @@ async function generateSceneImageViaVertexFallback(params: {
   logPrefix: 'scene' | 'preset-scene'
   prompt: string
   imageParts: Array<{ inlineData: { mimeType: string; data: string } }>
+  rawParts?: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }>
   aspectRatio?: string
   modelOverride?: string
 }): Promise<{ modelUsed: string; photoBuffer: Uint8Array }> {
@@ -604,12 +605,13 @@ async function generateSceneImageViaVertexFallback(params: {
 
   for (const model of modelChain) {
     try {
+      const parts = params.rawParts ?? [{ text: params.prompt }, ...params.imageParts]
       console.log(`[${params.logPrefix}] Tentando ${model} via Vertex para asset ${params.assetId} (${params.imageParts.length} referencia(s))`)
       const res = await fetchGoogleGenerateContent({
         model,
         feature: params.feature,
         body: {
-          contents: [{ role: 'user', parts: [{ text: params.prompt }, ...params.imageParts] }],
+          contents: [{ role: 'user', parts }],
           generationConfig: buildGeminiImageGenerationConfig(params.aspectRatio),
         },
       })
@@ -859,22 +861,27 @@ export async function generateSceneVertexOnly(params: {
     const ratioMatch = promptPolicy.finalPrompt.match(/Output in .+? format\./)
 
     let conversationalPrompt: string
+    let sceneRefRawParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> | undefined
 
     if (params.scene_from_ref && extraData.length > 0) {
-      // Galeria mode: ref image IS the target scene — place the person from Image [1] into it
-      conversationalPrompt = [
-        'I have two images for you.',
-        'Image [1] — PERSON: this is the person whose exact face, skin tone, hair, and identity must appear in the output. Preserve them exactly.',
-        'Image [2] — TARGET SCENE: recreate this scene exactly — same background, same secondary characters, same camera angle, same composition and framing.',
-        '',
-        `Scene context: ${translatedPrompt}`,
-        '',
-        'Task: produce a photorealistic image that looks like Image [2] but with the main person replaced by the person from Image [1]. The person from Image [1] must be naturally integrated into the exact scene from Image [2].',
-        'Do NOT change the background, secondary characters, camera angle, or composition from Image [2].',
-        'Do NOT copy the face or identity from Image [2] — only use Image [1] for the person\'s identity.',
+      // Galeria mode: interleave text+images so Gemini unambiguously knows which is person vs scene
+      const sceneData = extraData[0]
+      const taskText = [
+        `Scene: ${translatedPrompt}`,
+        'Task: produce a photorealistic composite — take the SCENE photo above and replace the main human subject with the PERSON photo above.',
+        'Keep every other element from the SCENE exactly: background, secondary characters, camera angle, composition, lighting, atmosphere.',
+        'Do NOT use the face or identity from the SCENE photo. The person\'s face/identity comes exclusively from the PERSON photo.',
         ratioMatch ? ratioMatch[0] : '',
         'Photorealistic. No watermarks.',
       ].filter(Boolean).join(' ')
+      sceneRefRawParts = [
+        { text: 'PERSON PHOTO — preserve this exact face, skin tone, hair and identity in the output:' },
+        { inlineData: primaryData },
+        { text: 'TARGET SCENE PHOTO — recreate this exact scene with the person above replacing the main subject:' },
+        { inlineData: sceneData },
+        { text: taskText },
+      ]
+      conversationalPrompt = ''
     } else {
       const refLines = extraData.map((_, i) =>
         `- Image [${i + 2}]: style/wardrobe/scene reference only — extract colors, outfit style, or scene inspiration from it. NEVER copy the face or body of anyone in this image.`,
@@ -907,6 +914,7 @@ export async function generateSceneVertexOnly(params: {
         logPrefix: 'scene',
         prompt: conversationalPrompt,
         imageParts,
+        rawParts: sceneRefRawParts,
         aspectRatio: params.aspect_ratio,
         modelOverride: params.model_override,
       })
