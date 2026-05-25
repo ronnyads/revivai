@@ -467,15 +467,17 @@ export async function POST(req: NextRequest) {
     } else {
       const templateSceneUrl = template.coverImageUrl || template.exampleImages[0]
 
-      // User's photo as source, template text prompt describes the scene.
-      // No template image ref — text is enough and avoids confusing the model with 2 images.
+      // User's photo as source, template cover image as the target scene reference.
+      // scene_from_ref=true tells Gemini: "put this person INTO that scene", not "style inspiration".
       const presetResult = await generateSceneVertexOnly({
         source_url: uploadedUrls[0],
-        scene_prompt: template.prompt,
+        extra_source_urls: templateSceneUrl ? [templateSceneUrl] : [],
+        scene_prompt: 'Place the person from the first image naturally into the scene from the second image.',
         aspect_ratio: '9:16',
         assetId: generationAssetId,
         userId: user.id,
         free_mode: true,
+        scene_from_ref: true,
         model_override: runtimeModelId,
       })
       resultUrl = presetResult.url

@@ -786,6 +786,7 @@ export async function generateSceneVertexOnly(params: {
   assetId: string
   userId: string
   free_mode?: boolean
+  scene_from_ref?: boolean  // ref image IS the target scene, not just inspiration
   model_override?: string
   // Used only when free_mode is false (video prepass paths)
   mode?: 'generic' | 'talking_video' | 'video'
@@ -856,28 +857,46 @@ export async function generateSceneVertexOnly(params: {
   if (params.free_mode) {
     // Free-form: Gemini as primary — understands natural language and multi-image context better
     const ratioMatch = promptPolicy.finalPrompt.match(/Output in .+? format\./)
-    const refLines = extraData.map((_, i) =>
-      `- Image [${i + 2}]: style/wardrobe/scene reference only — extract colors, outfit style, or scene inspiration from it. NEVER copy the face or body of anyone in this image.`,
-    )
-    const conversationalPrompt = [
-      'You are an expert photo compositor. Your PRIMARY CONSTRAINT is face and identity preservation — this overrides everything else.',
-      '',
-      '=== IDENTITY LOCK ===',
-      '- Image [1] is the SOURCE. The person in Image [1] is the ONLY person allowed in the output.',
-      '- Preserve EXACTLY: same face, same facial features, same skin tone, same age, same head size and proportions.',
-      '- DO NOT generate a new face. DO NOT blend faces. DO NOT resize the head. The head-to-body ratio must look natural and anatomically correct.',
-      '- If the instruction says "replace" something, it means replace only the clothing/background/scene — NEVER the person.',
-      '',
-      '=== REFERENCES ===',
-      ...refLines,
-      '',
-      '=== USER INSTRUCTION ===',
-      translatedPrompt,
-      '',
-      '=== OUTPUT ===',
-      'Apply all changes the user requested (wardrobe, scene, colors, background). Keep the exact face and head from Image [1]. Natural anatomy. Photorealistic. No watermarks.',
-      ratioMatch ? ratioMatch[0] : '',
-    ].filter(Boolean).join('\n')
+
+    let conversationalPrompt: string
+
+    if (params.scene_from_ref && extraData.length > 0) {
+      // Galeria mode: ref image IS the target scene — place the person from Image [1] into it
+      conversationalPrompt = [
+        'I have two images for you.',
+        'Image [1] — PERSON: this is the person whose exact face, skin tone, hair, and identity must appear in the output. Preserve them exactly.',
+        'Image [2] — TARGET SCENE: recreate this scene exactly — same background, same secondary characters (Elsa, heroes, etc.), same camera angle, same composition and framing.',
+        '',
+        'Task: produce a photorealistic image that looks like Image [2] but with the main person replaced by the person from Image [1]. The person from Image [1] must be naturally integrated into the exact scene from Image [2].',
+        'Do NOT change the background, secondary characters, camera angle, or composition from Image [2].',
+        'Do NOT copy the face or identity from Image [2] — only use Image [1] for the person\'s identity.',
+        ratioMatch ? ratioMatch[0] : '',
+        'Photorealistic. No watermarks.',
+      ].filter(Boolean).join(' ')
+    } else {
+      const refLines = extraData.map((_, i) =>
+        `- Image [${i + 2}]: style/wardrobe/scene reference only — extract colors, outfit style, or scene inspiration from it. NEVER copy the face or body of anyone in this image.`,
+      )
+      conversationalPrompt = [
+        'You are an expert photo compositor. Your PRIMARY CONSTRAINT is face and identity preservation — this overrides everything else.',
+        '',
+        '=== IDENTITY LOCK ===',
+        '- Image [1] is the SOURCE. The person in Image [1] is the ONLY person allowed in the output.',
+        '- Preserve EXACTLY: same face, same facial features, same skin tone, same age, same head size and proportions.',
+        '- DO NOT generate a new face. DO NOT blend faces. DO NOT resize the head. The head-to-body ratio must look natural and anatomically correct.',
+        '- If the instruction says "replace" something, it means replace only the clothing/background/scene — NEVER the person.',
+        '',
+        '=== REFERENCES ===',
+        ...refLines,
+        '',
+        '=== USER INSTRUCTION ===',
+        translatedPrompt,
+        '',
+        '=== OUTPUT ===',
+        'Apply all changes the user requested (wardrobe, scene, colors, background). Keep the exact face and head from Image [1]. Natural anatomy. Photorealistic. No watermarks.',
+        ratioMatch ? ratioMatch[0] : '',
+      ].filter(Boolean).join('\n')
+    }
 
     try {
       vertexResult = await generateSceneImageViaVertexFallback({
