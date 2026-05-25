@@ -740,6 +740,16 @@ function buildFreeFormScenePolicy(scenePrompt: string, aspectRatio?: string, ref
   }
 }
 
+function neutralizeSubjectLanguage(prompt: string): string {
+  return prompt
+    .replace(/\bcriança(s)?\b/gi, 'person')
+    .replace(/\bmenin[ao](s)?\b/gi, 'person')
+    .replace(/\bbebê(s)?\b/gi, 'person')
+    .replace(/\binfant(e|il)?\b/gi, 'person')
+    .replace(/\bchild(ren)?\b/gi, 'person')
+    .replace(/\bkid(s)?\b/gi, 'person')
+}
+
 async function translateScenePromptToEnglish(prompt: string): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) return prompt
@@ -801,7 +811,7 @@ export async function generateSceneVertexOnly(params: {
     return { mimeType, data }
   }
 
-  const translatedPrompt = await translateScenePromptToEnglish(params.scene_prompt)
+  const translatedPrompt = await translateScenePromptToEnglish(neutralizeSubjectLanguage(params.scene_prompt))
 
   const primaryData = await fetchInlineData(params.source_url)
   const extraData = await Promise.all(
@@ -883,12 +893,13 @@ export async function generateSceneVertexOnly(params: {
     } catch (geminiError: unknown) {
       const geminiMessage = geminiError instanceof Error ? geminiError.message : String(geminiError)
       console.warn(`[scene] Gemini free-form falhou para asset ${params.assetId}: ${geminiMessage}`)
+      // Imagen 3 capability only accepts 1 image — strip extra refs
       vertexResult = await generateSceneImageViaImagenCapability({
         assetId: params.assetId,
         feature: 'scene_generation',
         logPrefix: 'scene',
         promptPolicy,
-        references,
+        references: [primaryData],
         aspectRatio: params.aspect_ratio,
         modelOverride: params.model_override,
       })
