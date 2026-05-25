@@ -14029,20 +14029,18 @@ export async function generatePresetIdentityScene(params: {
     ? 'Dress the person in the same outfit as the main character in the SCENE image.'
     : "Keep the person's own clothing exactly as it appears in the PERSON image."
 
-  // Simple, direct prompt — mirrors how you'd ask in Gemini chat (complex prompts confuse the model)
+  // Single-image approach: only send the person photo — Gemini preserves identity far better
+  // with one face to focus on. The scene is described entirely via text (from template.prompt).
+  const sceneDescription = params.scene_prompt?.trim() || 'a fun themed photo scene'
   const conversationalParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
-    { text: 'I have two photos.' },
-    { text: 'Photo 1 — this is the PERSON. Study their face carefully: facial structure, eyes, nose, mouth, skin tone, hair color and texture, age.' },
+    { text: 'This is a photo of a person. Study their face very carefully — you must reproduce this exact person.' },
     ...identityData.map((item) => ({ inlineData: item })),
-    { text: 'Photo 2 — this is the SCENE. I want to keep everything in this scene exactly as it is, except replace the main person/child in the foreground with the person from Photo 1.' },
-    { inlineData: templateScene },
     {
       text: [
-        `Generate a new version of Photo 2 where the main person in the foreground is replaced by the person from Photo 1.`,
-        `The person from Photo 1 must look exactly the same — same face, same hair, same skin tone, same age — as if they were always in that scene.`,
+        `Generate a photorealistic photo of this exact person in the following scene: ${sceneDescription}`,
+        `The person must look exactly like in the photo above — same face, same facial features, same skin tone, same hair color and texture, same age. Do not change anything about how they look.`,
         outfitInstruction,
-        `Keep everything else from Photo 2 unchanged: the background, Elsa, other characters, the camera angle, the lighting, the composition.`,
-        `The result should look like a real photograph.`,
+        `The scene should look like a real photograph taken in that location.`,
         ratioInstruction,
       ].join(' '),
     },
