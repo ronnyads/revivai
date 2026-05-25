@@ -700,7 +700,7 @@ async function generateSceneImageViaImagenCapability(params: {
   }
 }
 
-function buildFreeFormScenePolicy(scenePrompt: string, aspectRatio?: string): ScenePromptPolicy {
+function buildFreeFormScenePolicy(scenePrompt: string, aspectRatio?: string, refCount = 0): ScenePromptPolicy {
   const aspectLabel: Record<string, string> = {
     '9:16': 'vertical 9:16 portrait',
     '1:1': 'square 1:1',
@@ -709,6 +709,9 @@ function buildFreeFormScenePolicy(scenePrompt: string, aspectRatio?: string): Sc
     '3:4': 'vertical 3:4 portrait',
   }
   const ratioInstruction = `Output in ${aspectLabel[aspectRatio ?? '9:16'] ?? 'vertical 9:16 portrait'} format.`
+  const refInstruction = refCount > 0
+    ? `Image [1] is the source person. ${refCount === 1 ? 'Image [2] is' : `Images [2]–[${refCount + 1}] are`} style/wardrobe reference${refCount > 1 ? 's' : ''} — use ${refCount > 1 ? 'them' : 'it'} as visual inspiration for the requested wardrobe, outfit, colors, or style changes described in the instructions. Do NOT copy the identity or face from the reference image(s).`
+    : ''
   return {
     normalizedPrompt: scenePrompt,
     requestedSceneChange: true,
@@ -725,13 +728,14 @@ function buildFreeFormScenePolicy(scenePrompt: string, aspectRatio?: string): Sc
     editMode: 'scene_wardrobe_and_product',
     finalPrompt: [
       'Creative photo editing task.',
+      refInstruction,
       `Instructions: ${scenePrompt}.`,
       'Apply all requested changes to the source image — background, scene, environment, lighting, wardrobe, products, props, composition.',
       'You may change anything the instructions ask for.',
       'Only preserve the facial identity of the person from the source image: same face, skin tone, and age appearance.',
       'Photorealistic output. Natural lighting. Stable anatomy. No watermarks. No text overlay.',
       ratioInstruction,
-    ].join(' '),
+    ].filter(Boolean).join(' '),
     negativePrompt: 'different person, different face, identity drift, extra fingers, deformed anatomy, deformed hands, watermark, text overlay, cartoon, illustration',
   }
 }
@@ -807,7 +811,7 @@ export async function generateSceneVertexOnly(params: {
   const hasMultiple = extraData.length > 0
 
   const promptPolicy: ScenePromptPolicy = params.free_mode
-    ? buildFreeFormScenePolicy(translatedPrompt, params.aspect_ratio)
+    ? buildFreeFormScenePolicy(translatedPrompt, params.aspect_ratio, extraData.length)
     : (() => {
         const sourceVisibleItemManifest = dedupeNormalizedStrings(params.source_visible_item_manifest ?? []).slice(0, 16)
         const initial = prepareScenePromptPolicy({
