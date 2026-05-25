@@ -466,13 +466,18 @@ export async function POST(req: NextRequest) {
       renderModelId = String(composeResult.extraData?.render_model_id ?? runtimeModelId)
     } else {
       const templateSceneUrl = template.coverImageUrl || template.exampleImages[0]
+      const rawPrompt = template.prompt?.trim() ?? ''
+      const isValidPrompt = rawPrompt.length > 10 && !rawPrompt.startsWith('{')
+      const scenePrompt = isValidPrompt
+        ? rawPrompt
+        : `Place the person from the first photo naturally into the exact scene from the second image. Preserve all characters, background elements, composition, and atmosphere. Only replace the main human subject.`
 
       // User's photo as source, template cover image as the target scene reference.
       // scene_from_ref=true tells Gemini: "put this person INTO that scene", not "style inspiration".
       const presetResult = await generateSceneVertexOnly({
         source_url: uploadedUrls[0],
         extra_source_urls: templateSceneUrl ? [templateSceneUrl] : [],
-        scene_prompt: 'Place the person from the first image naturally into the scene from the second image.',
+        scene_prompt: scenePrompt,
         aspect_ratio: '9:16',
         assetId: generationAssetId,
         userId: user.id,
