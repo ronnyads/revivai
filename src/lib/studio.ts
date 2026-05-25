@@ -865,7 +865,9 @@ export async function generateSceneVertexOnly(params: {
       conversationalPrompt = [
         'I have two images for you.',
         'Image [1] — PERSON: this is the person whose exact face, skin tone, hair, and identity must appear in the output. Preserve them exactly.',
-        'Image [2] — TARGET SCENE: recreate this scene exactly — same background, same secondary characters (Elsa, heroes, etc.), same camera angle, same composition and framing.',
+        'Image [2] — TARGET SCENE: recreate this scene exactly — same background, same secondary characters, same camera angle, same composition and framing.',
+        '',
+        `Scene context: ${translatedPrompt}`,
         '',
         'Task: produce a photorealistic image that looks like Image [2] but with the main person replaced by the person from Image [1]. The person from Image [1] must be naturally integrated into the exact scene from Image [2].',
         'Do NOT change the background, secondary characters, camera angle, or composition from Image [2].',
