@@ -736,6 +736,34 @@ function buildFreeFormScenePolicy(scenePrompt: string, aspectRatio?: string): Sc
   }
 }
 
+async function translateScenePromptToEnglish(prompt: string): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) return prompt
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0,
+        max_tokens: 1500,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a professional translator. Translate the user text to English. Preserve all formatting, line breaks, emojis, and technical details exactly. Output only the translated text, nothing else.',
+          },
+          { role: 'user', content: prompt },
+        ],
+      }),
+    })
+    if (!res.ok) return prompt
+    const json = await res.json()
+    return json.choices?.[0]?.message?.content?.trim() || prompt
+  } catch {
+    return prompt
+  }
+}
+
 export async function generateSceneVertexOnly(params: {
   source_url: string
   extra_source_urls?: string[]
@@ -769,6 +797,8 @@ export async function generateSceneVertexOnly(params: {
     return { mimeType, data }
   }
 
+  const translatedPrompt = await translateScenePromptToEnglish(params.scene_prompt)
+
   const primaryData = await fetchInlineData(params.source_url)
   const extraData = await Promise.all(
     initialExtraUrls.map((url) => fetchInlineData(url).catch(() => null)),
@@ -777,11 +807,11 @@ export async function generateSceneVertexOnly(params: {
   const hasMultiple = extraData.length > 0
 
   const promptPolicy: ScenePromptPolicy = params.free_mode
-    ? buildFreeFormScenePolicy(params.scene_prompt, params.aspect_ratio)
+    ? buildFreeFormScenePolicy(translatedPrompt, params.aspect_ratio)
     : (() => {
         const sourceVisibleItemManifest = dedupeNormalizedStrings(params.source_visible_item_manifest ?? []).slice(0, 16)
         const initial = prepareScenePromptPolicy({
-          scenePrompt: params.scene_prompt,
+          scenePrompt: translatedPrompt,
           aspectRatio: params.aspect_ratio,
           mode: params.mode,
           requestedSceneChange: params.requested_scene_change,
