@@ -605,13 +605,13 @@ async function generateSceneImageViaVertexFallback(params: {
 
   for (const model of modelChain) {
     try {
-      const parts = params.rawParts ?? [{ text: params.prompt }, ...params.imageParts]
+      const requestParts = params.rawParts ?? [{ text: params.prompt }, ...params.imageParts]
       console.log(`[${params.logPrefix}] Tentando ${model} via Vertex para asset ${params.assetId} (${params.imageParts.length} referencia(s))`)
       const res = await fetchGoogleGenerateContent({
         model,
         feature: params.feature,
         body: {
-          contents: [{ role: 'user', parts }],
+          contents: [{ role: 'user', parts: requestParts }],
           generationConfig: buildGeminiImageGenerationConfig(params.aspectRatio),
         },
       })
