@@ -467,12 +467,10 @@ export async function POST(req: NextRequest) {
     } else {
       const templateSceneUrl = template.coverImageUrl || template.exampleImages[0]
 
-      // Use Imagen 3 via generateSceneVertexOnly: user's photo as source + scene prompt as text.
-      // Gemini is not capable of precise identity swap across two images.
-      // Imagen 3 excels at "take this person and place them in a new scene described by text."
+      // User's photo as source, template text prompt describes the scene.
+      // No template image ref — text is enough and avoids confusing the model with 2 images.
       const presetResult = await generateSceneVertexOnly({
         source_url: uploadedUrls[0],
-        extra_source_urls: templateSceneUrl ? [templateSceneUrl] : [],
         scene_prompt: template.prompt,
         aspect_ratio: '9:16',
         assetId: generationAssetId,
