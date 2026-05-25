@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { insertPhotoCompat, updatePhotoCompat } from '@/lib/photos-schema-compat'
-import { composeProductScene, generatePresetIdentityScene } from '@/lib/studio'
+import { composeProductScene, generatePresetIdentityScene, generateSceneVertexOnly } from '@/lib/studio'
 import { getDefaultPromptTemplateById, normalizePromptTemplate, type PromptTemplateRow } from '@/lib/prompt-gallery'
 import {
   VERTEX_ANALYSIS_MODEL_ID,
@@ -466,17 +466,18 @@ export async function POST(req: NextRequest) {
       renderModelId = String(composeResult.extraData?.render_model_id ?? runtimeModelId)
     } else {
       const templateSceneUrl = template.coverImageUrl || template.exampleImages[0]
-      const useTemplateOutfit = template.outfitSource === 'template'
 
-      const presetResult = await generatePresetIdentityScene({
-        template_scene_url: templateSceneUrl,
-        identity_reference_urls: uploadedUrls,
-        scene_prompt: buildHiddenIdentityScenePrompt(template.title, template.prompt, useTemplateOutfit),
+      // Use Imagen 3 via generateSceneVertexOnly: user's photo as source + scene prompt as text.
+      // Gemini is not capable of precise identity swap across two images.
+      // Imagen 3 excels at "take this person and place them in a new scene described by text."
+      const presetResult = await generateSceneVertexOnly({
+        source_url: uploadedUrls[0],
+        extra_source_urls: templateSceneUrl ? [templateSceneUrl] : [],
+        scene_prompt: template.prompt,
         aspect_ratio: '9:16',
         assetId: generationAssetId,
         userId: user.id,
-        outfit_source: useTemplateOutfit ? 'template' : 'identity',
-        engine_profile: engineProfile,
+        free_mode: true,
         model_override: runtimeModelId,
       })
       resultUrl = presetResult.url
