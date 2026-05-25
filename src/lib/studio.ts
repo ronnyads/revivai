@@ -13996,50 +13996,38 @@ export async function generatePresetIdentityScene(params: {
     'RULE 6 â€” CAMERA & QUALITY: Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, film grain, 8K, ultra-detailed commercial photography. NEGATIVE: nÃ£o rotacione, nÃ£o aproxime, nÃ£o afaste, nÃ£o mude o Ã¢ngulo, perspectiva, pose, roupa, composiÃ§Ã£o, fundo, lente aparente ou enquadramento da cena-base.',
   ].join(' ')
 
-  const templatePreservationBlock = [
-    'TEMPLATE SCENE LOCK: a primeira imagem Ã© a cena-base absoluta.',
-    'Preserve com fidelidade mÃ¡xima a composiÃ§Ã£o, enquadramento, proporÃ§Ã£o da cÃ¢mera, distÃ¢ncia focal, Ã¢ngulo, pose, posiÃ§Ã£o corporal, gestos, fundo, profundidade, ambiente, posiÃ§Ã£o dos personagens secundÃ¡rios, objetos, atmosfera e storytelling da cena-base.',
-    'Substitua somente a pessoa humana principal da cena-base por person[1].',
-    ...(useTemplateOutfit
-      ? ['Preserve a roupa do personagem principal da cena-base. A troca Ã© de identidade/rosto, nÃ£o de vestuÃ¡rio.']
-      : []),
-    'Remova completamente a pessoa original da cena-base.',
-    'NÃ£o simplifique a imagem para um retrato isolado.',
-    'NÃ£o corte personagens secundÃ¡rios.',
-    'NÃ£o troque o fundo por outro ambiente.',
-    'NÃ£o mude pose, Ã¢ngulo, perspectiva, lente, zoom, rotaÃ§Ã£o, altura da cÃ¢mera ou posiÃ§Ã£o dos personagens.',
-    'NEGATIVE PROMPT: sem nova pose, sem novo figurino, sem nova cÃ¢mera, sem novo fundo, sem retrato de estÃºdio, sem crop diferente, sem zoom diferente, sem mudar distÃ¢ncia focal aparente, sem simplificar a cena.',
-    'NÃ£o transforme a saÃ­da em foto solo de estÃºdio, floresta ou fundo neutro se a cena-base for uma selfie urbana com personagens.',
-    'Se a cena-base for selfie, mantenha a lÃ³gica de selfie, braÃ§o estendido e perspectiva de cÃ¢mera em primeira pessoa.',
-    'A cena final deve parecer a mesma foto-base, porÃ©m com a pessoa principal trocada pela identidade de person[1].',
-  ].join(' ')
-
+  // Identity image FIRST (model edits this), template scene SECOND (reference for composition)
   const defaultGeminiPrompt = [
-    'You are a professional photo director and identity-preserving compositing artist.',
-    'The FIRST image is the master scene template. The NEXT images are identity references.',
-    `The NEXT ${identityData.length} image(s) are exclusive identity references for the person that must replace the original main subject in the template scene.`,
-    templatePreservationBlock,
-    'Replace only the main human subject from the template scene with person[1], and remove every trace of the original template person.',
-    'Do not change the other characters, props, environment, or overall storytelling of the template scene.',
+    'You are a professional photo compositor specializing in identity-preserving scene placement.',
+    `The FIRST ${identityData.length} image(s) are the IDENTITY SOURCE — the person you must place into the scene.`,
+    `The LAST image is the TARGET SCENE TEMPLATE — the scene composition, background, characters, and layout you must recreate exactly.`,
+    '',
+    '=== IDENTITY RULES ===',
+    'Preserve EXACTLY: same face, facial features, skin tone, age appearance, hair color and style from the identity source.',
+    'Do NOT copy the face, skin, or hair from the template scene person — they must be completely replaced.',
     useTemplateOutfit
-      ? 'Preserve the uploaded person exact face, facial structure, age appearance, skin tone, hair identity and expression energy, but use the template scene main character outfit exactly.'
-      : 'Preserve the uploaded person exact face, facial structure, age appearance, skin tone, hair identity, expression energy, body identity, and clothing fidelity.',
-    identityLockBlock,
-    'Do not generate a new generic portrait.',
-    'Do not improvise a new pose unrelated to the template scene.',
-    'Do not output a solo subject if the template scene contains multiple characters or a specific cinematic setup.',
-    'Quality pass: Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, subtle film grain, 8K commercial detail. Negative prompt: do not change camera angle, apparent lens, zoom distance, pose, outfit source, composition, background, secondary characters, framing or perspective.',
-    'Make the replacement look naturally integrated and commercially photorealistic.',
+      ? 'Use the outfit and clothing from the TEMPLATE SCENE main character — do not use the uploaded person\'s clothing.'
+      : 'Preserve the uploaded person\'s clothing and accessories exactly.',
+    '',
+    '=== SCENE RULES ===',
+    'Recreate the template scene with maximum fidelity: same composition, camera angle, lens perspective, framing, zoom, background, secondary characters, objects, atmosphere, and storytelling.',
+    'Place the identity person naturally into the same position, pose, and scale as the original main subject in the template.',
+    'Do not simplify the scene into a solo portrait.',
+    'Do not remove secondary characters (Elsa, Spider-Man, Hulk, etc.).',
+    'Do not change the background or environment.',
+    'If the template is a selfie, keep the selfie logic: extended arm, first-person camera perspective.',
+    '',
     `ADDITIONAL CREATIVE DIRECTION: ${params.scene_prompt}.`,
     ratioInstruction,
-    'Output: photorealistic commercial photo, shot on Hasselblad H6D, Zeiss Otus 85mm f/1.4 lens, Kodak Portra 400, film grain, natural depth of field, no watermarks.',
-  ].join(' ')
+    'Output: photorealistic commercial photo, Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, film grain, 8K. No watermarks. No text overlay.',
+  ].filter(Boolean).join(' ')
 
   const geminiPrompt = defaultGeminiPrompt
 
+  // Identity FIRST so model treats it as the source to edit, template LAST as scene reference
   const imageParts = [
-    { inlineData: templateScene },
     ...identityData.map((item) => ({ inlineData: item })),
+    { inlineData: templateScene },
   ]
 
   let photoBuffer: Uint8Array | null = null
