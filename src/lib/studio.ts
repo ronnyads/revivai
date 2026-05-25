@@ -14049,37 +14049,75 @@ export async function generatePresetIdentityScene(params: {
   ]
 
   let photoBuffer: Uint8Array | null = null
-  const geminiChain = ['gemini-2.5-flash-image', 'gemini-2.0-flash-preview-image-generation']
+  let presetModelUsed = 'unknown'
+
+  // 1. Replicate PhotoMaker — best identity preservation, no child safety filters
+  const replicateToken = process.env.REPLICATE_API_TOKEN
+  if (replicateToken && identityRefs[0]) {
+    try {
+      console.log(`[preset-scene] Tentando Replicate PhotoMaker para asset ${params.assetId}`)
+      const ReplicateSDK = (await import('replicate')).default
+      const replicate = new ReplicateSDK({ auth: replicateToken })
+      const photomakerPrompt = `a photorealistic selfie photo of img, ${params.scene_prompt}`
+      const output = await replicate.run('tencentarc/photomaker', {
+        input: {
+          prompt: photomakerPrompt,
+          input_image: identityRefs[0],
+          style_name: 'Photographic (Default)',
+          negative_prompt: 'ugly, deformed, distorted, blurry, bad anatomy, watermark, text, low quality',
+          num_steps: 50,
+          style_strength_ratio: 15,
+          num_outputs: 1,
+          guidance_scale: 5,
+        },
+      }) as string[] | string
+      const resultUrl = Array.isArray(output) ? output[0] : String(output)
+      if (!resultUrl) throw new Error('PhotoMaker nao retornou URL')
+      const imgRes = await fetch(resultUrl)
+      if (!imgRes.ok) throw new Error(`Download PhotoMaker falhou: ${imgRes.status}`)
+      photoBuffer = new Uint8Array(await imgRes.arrayBuffer())
+      presetModelUsed = 'photomaker'
+      console.log(`[preset-scene] Replicate PhotoMaker sucesso para asset ${params.assetId}`)
+    } catch (replicateError: any) {
+      console.warn(`[preset-scene] Replicate PhotoMaker falhou: ${replicateError.message}`)
+    }
+  }
+
+  // 2. Gemini fallback
+  const geminiChain = ['gemini-2.5-flash-image']
   let lastGeminiError = ''
 
-  for (const model of geminiChain) {
-    try {
-      console.log(`[preset-scene] Tentando ${model} via Vertex para asset ${params.assetId} (${conversationalParts.length} partes)`)
-      const res = await fetchGoogleGenerateContent({
-        model,
-        feature: 'preset_scene_generation',
-        body: {
-          contents: [{ role: 'user', parts: conversationalParts }],
-          generationConfig: buildGeminiImageGenerationConfig(params.aspect_ratio),
-        },
-      })
-      if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
-      const data = await res.json()
-      const parts = data.candidates?.[0]?.content?.parts ?? []
-      const imgPart = parts.find((p: any) => (p.inlineData?.mimeType || p.inline_data?.mime_type)?.startsWith('image/'))
-      if (!(imgPart?.inlineData?.data || imgPart?.inline_data?.data)) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
-      photoBuffer = new Uint8Array(Buffer.from((imgPart.inlineData?.data || imgPart.inline_data?.data), 'base64'))
-      console.log(`[preset-scene] Vertex sucesso: ${model}`)
-      break
-    } catch (e: any) {
-      lastGeminiError = e.message
-      console.warn(`[preset-scene] ${model} falhou: ${e.message}`)
+  if (!photoBuffer) {
+    for (const model of geminiChain) {
+      try {
+        console.log(`[preset-scene] Tentando ${model} via Vertex para asset ${params.assetId} (${conversationalParts.length} partes)`)
+        const res = await fetchGoogleGenerateContent({
+          model,
+          feature: 'preset_scene_generation',
+          body: {
+            contents: [{ role: 'user', parts: conversationalParts }],
+            generationConfig: buildGeminiImageGenerationConfig(params.aspect_ratio),
+          },
+        })
+        if (!res.ok) throw new Error(`${model}: ${res.status} ${await res.text()}`)
+        const data = await res.json()
+        const parts = data.candidates?.[0]?.content?.parts ?? []
+        const imgPart = parts.find((p: any) => (p.inlineData?.mimeType || p.inline_data?.mime_type)?.startsWith('image/'))
+        if (!(imgPart?.inlineData?.data || imgPart?.inline_data?.data)) throw new Error(`${model} sem imagem | reason=${data.candidates?.[0]?.finishReason}`)
+        photoBuffer = new Uint8Array(Buffer.from((imgPart.inlineData?.data || imgPart.inline_data?.data), 'base64'))
+        presetModelUsed = model
+        console.log(`[preset-scene] Vertex sucesso: ${model}`)
+        break
+      } catch (e: any) {
+        lastGeminiError = e.message
+        console.warn(`[preset-scene] ${model} falhou: ${e.message}`)
+      }
     }
   }
 
   if (!photoBuffer) {
     const falKey = process.env.FAL_KEY
-    if (!falKey) throw new Error(`Todos os modelos Gemini falharam para preset identity scene. Ãšltimo erro: ${lastGeminiError}`)
+    if (!falKey) throw new Error(`Todos os modelos falharam para preset identity scene. Ultimo erro: ${lastGeminiError}`)
 
     console.log(`[preset-scene] Gemini bloqueou/falhou; tentando fallback Flux PuLID para asset ${params.assetId}`)
     const fallbackOutfitInstructions = useTemplateOutfit
@@ -14124,6 +14162,7 @@ export async function generatePresetIdentityScene(params: {
     const imageRes = await fetch(fluxUrl)
     if (!imageRes.ok) throw new Error(`Download do fallback Flux PuLID falhou: ${imageRes.status}`)
     photoBuffer = new Uint8Array(await imageRes.arrayBuffer())
+    presetModelUsed = 'flux-pulid'
     console.log(`[preset-scene] Fallback Flux PuLID sucesso para asset ${params.assetId}`)
   }
 
@@ -14137,7 +14176,7 @@ export async function generatePresetIdentityScene(params: {
   const { data: urlData } = admin.storage.from('studio').getPublicUrl(filePath)
   return {
     url: urlData.publicUrl,
-    modelUsed: photoBuffer ? 'gemini-1.5' : 'flux-dev',
+    modelUsed: presetModelUsed,
     strategyUsed: 'preset_identity'
   }
 }
