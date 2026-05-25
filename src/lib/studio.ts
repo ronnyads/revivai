@@ -843,29 +843,72 @@ export async function generateSceneVertexOnly(params: {
   let vertexResult: { modelUsed: string; photoBuffer: Uint8Array }
   let strategyUsed = 'vertex_imagen_capability_predict'
 
-  try {
-    vertexResult = await generateSceneImageViaImagenCapability({
-      assetId: params.assetId,
-      feature: 'scene_generation',
-      logPrefix: 'scene',
-      promptPolicy,
-      references,
-      aspectRatio: params.aspect_ratio,
-      modelOverride: params.model_override,
-    })
-  } catch (primaryError: unknown) {
-    const primaryMessage = primaryError instanceof Error ? primaryError.message : String(primaryError)
-    console.warn(`[scene] Imagen capability falhou para asset ${params.assetId}: ${primaryMessage}`)
-    vertexResult = await generateSceneImageViaVertexFallback({
-      assetId: params.assetId,
-      feature: 'scene_generation',
-      logPrefix: 'scene',
-      prompt: promptPolicy.finalPrompt,
-      imageParts,
-      aspectRatio: params.aspect_ratio,
-      modelOverride: params.model_override,
-    })
-    strategyUsed = 'vertex_generate_content_fallback'
+  if (params.free_mode) {
+    // Free-form: Gemini as primary — understands natural language and multi-image context better
+    const refLines = extraData.map((_, i) =>
+      `Image [${i + 2}]: style/wardrobe/scene reference — use it as visual inspiration as requested.`,
+    )
+    const conversationalPrompt = [
+      'You are an expert photo editor. Follow the user\'s creative instructions precisely.',
+      '',
+      `User instruction: ${translatedPrompt}`,
+      '',
+      'Image [1]: the source person — preserve their face, identity, skin tone, and age exactly.',
+      ...refLines,
+      '',
+      'Apply every change the user asked for. Output a photorealistic photo. Preserve the person\'s facial identity. No watermarks. No text overlay.',
+      promptPolicy.finalPrompt.match(/Output in .+? format\./) ? promptPolicy.finalPrompt.match(/Output in .+? format\./)![0] : '',
+    ].filter(Boolean).join('\n')
+
+    try {
+      vertexResult = await generateSceneImageViaVertexFallback({
+        assetId: params.assetId,
+        feature: 'scene_generation',
+        logPrefix: 'scene',
+        prompt: conversationalPrompt,
+        imageParts,
+        aspectRatio: params.aspect_ratio,
+        modelOverride: params.model_override,
+      })
+      strategyUsed = 'gemini_free_form_primary'
+    } catch (geminiError: unknown) {
+      const geminiMessage = geminiError instanceof Error ? geminiError.message : String(geminiError)
+      console.warn(`[scene] Gemini free-form falhou para asset ${params.assetId}: ${geminiMessage}`)
+      vertexResult = await generateSceneImageViaImagenCapability({
+        assetId: params.assetId,
+        feature: 'scene_generation',
+        logPrefix: 'scene',
+        promptPolicy,
+        references,
+        aspectRatio: params.aspect_ratio,
+        modelOverride: params.model_override,
+      })
+    }
+  } else {
+    try {
+      vertexResult = await generateSceneImageViaImagenCapability({
+        assetId: params.assetId,
+        feature: 'scene_generation',
+        logPrefix: 'scene',
+        promptPolicy,
+        references,
+        aspectRatio: params.aspect_ratio,
+        modelOverride: params.model_override,
+      })
+    } catch (primaryError: unknown) {
+      const primaryMessage = primaryError instanceof Error ? primaryError.message : String(primaryError)
+      console.warn(`[scene] Imagen capability falhou para asset ${params.assetId}: ${primaryMessage}`)
+      vertexResult = await generateSceneImageViaVertexFallback({
+        assetId: params.assetId,
+        feature: 'scene_generation',
+        logPrefix: 'scene',
+        prompt: promptPolicy.finalPrompt,
+        imageParts,
+        aspectRatio: params.aspect_ratio,
+        modelOverride: params.model_override,
+      })
+      strategyUsed = 'vertex_generate_content_fallback'
+    }
   }
 
   const fileName = `scene-${params.assetId}-${Date.now()}.jpg`
