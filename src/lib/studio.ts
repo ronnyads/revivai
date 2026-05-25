@@ -13996,38 +13996,28 @@ export async function generatePresetIdentityScene(params: {
     'RULE 6 â€” CAMERA & QUALITY: Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, film grain, 8K, ultra-detailed commercial photography. NEGATIVE: nÃ£o rotacione, nÃ£o aproxime, nÃ£o afaste, nÃ£o mude o Ã¢ngulo, perspectiva, pose, roupa, composiÃ§Ã£o, fundo, lente aparente ou enquadramento da cena-base.',
   ].join(' ')
 
-  // Identity image FIRST (model edits this), template scene SECOND (reference for composition)
-  const defaultGeminiPrompt = [
-    'You are a professional photo compositor specializing in identity-preserving scene placement.',
-    `The FIRST ${identityData.length} image(s) are the IDENTITY SOURCE — the person you must place into the scene.`,
-    `The LAST image is the TARGET SCENE TEMPLATE — the scene composition, background, characters, and layout you must recreate exactly.`,
-    '',
-    '=== IDENTITY RULES ===',
-    'Preserve EXACTLY: same face, facial features, skin tone, age appearance, hair color and style from the identity source.',
-    'Do NOT copy the face, skin, or hair from the template scene person — they must be completely replaced.',
-    useTemplateOutfit
-      ? 'Use the outfit and clothing from the TEMPLATE SCENE main character — do not use the uploaded person\'s clothing.'
-      : 'Preserve the uploaded person\'s clothing and accessories exactly.',
-    '',
-    '=== SCENE RULES ===',
-    'Recreate the template scene with maximum fidelity: same composition, camera angle, lens perspective, framing, zoom, background, secondary characters, objects, atmosphere, and storytelling.',
-    'Place the identity person naturally into the same position, pose, and scale as the original main subject in the template.',
-    'Do not simplify the scene into a solo portrait.',
-    'Do not remove secondary characters (Elsa, Spider-Man, Hulk, etc.).',
-    'Do not change the background or environment.',
-    'If the template is a selfie, keep the selfie logic: extended arm, first-person camera perspective.',
-    '',
-    `ADDITIONAL CREATIVE DIRECTION: ${params.scene_prompt}.`,
-    ratioInstruction,
-    'Output: photorealistic commercial photo, Hasselblad H6D, Zeiss Otus 85mm f/1.4, Kodak Portra 400, film grain, 8K. No watermarks. No text overlay.',
-  ].filter(Boolean).join(' ')
+  const outfitInstruction = useTemplateOutfit
+    ? 'Dress the person in the same outfit as the main character in the SCENE image.'
+    : "Keep the person's own clothing exactly as it appears in the PERSON image."
 
-  const geminiPrompt = defaultGeminiPrompt
-
-  // Identity FIRST so model treats it as the source to edit, template LAST as scene reference
-  const imageParts = [
+  // Interleave text labels with images — Gemini understands each image's role much better this way
+  const conversationalParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+    { text: 'I have two images for you.' },
+    { text: 'PERSON image — this is the person whose face, skin tone, hair, and identity must appear in the final photo:' },
     ...identityData.map((item) => ({ inlineData: item })),
+    { text: 'SCENE image — this is the scene to recreate exactly. Keep everything: background, secondary characters, camera angle, lighting, composition. Just replace the main person with the PERSON above:' },
     { inlineData: templateScene },
+    {
+      text: [
+        `Task: recreate the SCENE photo but swap the main person with the person from the PERSON photo.`,
+        `Preserve from PERSON: exact face, facial features, skin tone, age, hair color and style.`,
+        outfitInstruction,
+        `Preserve from SCENE: background, Elsa/heroes/characters, camera angle, pose position, framing, lighting, atmosphere. Do not remove any character. Do not change the background.`,
+        `The result must look like a real photo — as if the person was always in that scene.`,
+        ratioInstruction,
+        `Photorealistic. No watermarks.`,
+      ].join(' '),
+    },
   ]
 
   let photoBuffer: Uint8Array | null = null
@@ -14036,12 +14026,12 @@ export async function generatePresetIdentityScene(params: {
 
   for (const model of geminiChain) {
     try {
-      console.log(`[preset-scene] Tentando ${model} via Vertex para asset ${params.assetId} (${imageParts.length} referência(s))`)
+      console.log(`[preset-scene] Tentando ${model} via Vertex para asset ${params.assetId} (${conversationalParts.length} partes)`)
       const res = await fetchGoogleGenerateContent({
         model,
         feature: 'preset_scene_generation',
         body: {
-          contents: [{ role: 'user', parts: [{ text: geminiPrompt }, ...imageParts] }],
+          contents: [{ role: 'user', parts: conversationalParts }],
           generationConfig: buildGeminiImageGenerationConfig(params.aspect_ratio),
         },
       })
