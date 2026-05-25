@@ -845,19 +845,28 @@ export async function generateSceneVertexOnly(params: {
 
   if (params.free_mode) {
     // Free-form: Gemini as primary — understands natural language and multi-image context better
+    const ratioMatch = promptPolicy.finalPrompt.match(/Output in .+? format\./)
     const refLines = extraData.map((_, i) =>
-      `Image [${i + 2}]: style/wardrobe/scene reference — use it as visual inspiration as requested.`,
+      `- Image [${i + 2}]: style/wardrobe/scene reference only — extract colors, outfit style, or scene inspiration from it. NEVER copy the face or body of anyone in this image.`,
     )
     const conversationalPrompt = [
-      'You are an expert photo editor. Follow the user\'s creative instructions precisely.',
+      'You are an expert photo compositor. Your PRIMARY CONSTRAINT is face and identity preservation — this overrides everything else.',
       '',
-      `User instruction: ${translatedPrompt}`,
+      '=== IDENTITY LOCK ===',
+      '- Image [1] is the SOURCE. The person in Image [1] is the ONLY person allowed in the output.',
+      '- Preserve EXACTLY: same face, same facial features, same skin tone, same age, same head size and proportions.',
+      '- DO NOT generate a new face. DO NOT blend faces. DO NOT resize the head. The head-to-body ratio must look natural and anatomically correct.',
+      '- If the instruction says "replace" something, it means replace only the clothing/background/scene — NEVER the person.',
       '',
-      'Image [1]: the source person — preserve their face, identity, skin tone, and age exactly.',
+      '=== REFERENCES ===',
       ...refLines,
       '',
-      'Apply every change the user asked for. Output a photorealistic photo. Preserve the person\'s facial identity. No watermarks. No text overlay.',
-      promptPolicy.finalPrompt.match(/Output in .+? format\./) ? promptPolicy.finalPrompt.match(/Output in .+? format\./)![0] : '',
+      '=== USER INSTRUCTION ===',
+      translatedPrompt,
+      '',
+      '=== OUTPUT ===',
+      'Apply all changes the user requested (wardrobe, scene, colors, background). Keep the exact face and head from Image [1]. Natural anatomy. Photorealistic. No watermarks.',
+      ratioMatch ? ratioMatch[0] : '',
     ].filter(Boolean).join('\n')
 
     try {
