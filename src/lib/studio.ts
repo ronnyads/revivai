@@ -13835,7 +13835,7 @@ export async function generateScene(params: {
   ]
 
   let photoBuffer: Uint8Array | null = null
-  const geminiChain = ['gemini-1.5-pro-002', 'gemini-1.5-flash-002']
+  const geminiChain = ['gemini-2.5-flash-image', 'gemini-2.0-flash-exp-image-generation']
   let lastGeminiError = ''
 
   for (const model of geminiChain) {
@@ -14043,7 +14043,7 @@ export async function generatePresetIdentityScene(params: {
   ]
 
   let photoBuffer: Uint8Array | null = null
-  const geminiChain = ['gemini-1.5-pro-002', 'gemini-1.5-flash-002']
+  const geminiChain = ['gemini-2.5-flash-image', 'gemini-2.0-flash-exp-image-generation']
   let lastGeminiError = ''
 
   for (const model of geminiChain) {
