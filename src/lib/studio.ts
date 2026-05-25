@@ -14029,25 +14029,27 @@ export async function generatePresetIdentityScene(params: {
     ? 'Dress the person in the same outfit as the main character in the SCENE image.'
     : "Keep the person's own clothing exactly as it appears in the PERSON image."
 
-  // Single-image approach: only send the person photo — Gemini preserves identity far better
-  // with one face to focus on. The scene is described entirely via text (from template.prompt).
-  const sceneDescription = params.scene_prompt?.trim() || 'a fun themed photo scene'
+  // Scene-first, person-second: Gemini treats the scene as the base to edit and the person
+  // as the face reference. Avoids IMAGE_PROHIBITED_CONTENT (triggered when child photo is sent alone).
   const conversationalParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
-    { text: 'This is a photo of a person. Study their face very carefully — you must reproduce this exact person.' },
+    { text: 'I need to edit a scene photo. Here is the scene:' },
+    { inlineData: templateScene },
+    { text: 'Here is the face reference — the person whose face must replace the main foreground person in the scene above:' },
     ...identityData.map((item) => ({ inlineData: item })),
     {
       text: [
-        `Generate a photorealistic photo of this exact person in the following scene: ${sceneDescription}`,
-        `The person must look exactly like in the photo above — same face, same facial features, same skin tone, same hair color and texture, same age. Do not change anything about how they look.`,
+        `Edit the scene photo: replace the main foreground person/child with the person from the face reference photo.`,
+        `The face reference person must appear with their exact face, skin tone, hair color, hair texture, and age — do not change anything about them.`,
         outfitInstruction,
-        `The scene should look like a real photograph taken in that location.`,
+        `Keep everything else in the scene exactly: background, secondary characters, camera angle, lighting, composition. Do not remove Elsa or any other characters.`,
+        `Photorealistic result, as if the face reference person was always in that scene.`,
         ratioInstruction,
       ].join(' '),
     },
   ]
 
   let photoBuffer: Uint8Array | null = null
-  const geminiChain = ['gemini-2.5-flash-image', 'gemini-2.0-flash-exp-image-generation']
+  const geminiChain = ['gemini-2.5-flash-image', 'gemini-2.0-flash-preview-image-generation']
   let lastGeminiError = ''
 
   for (const model of geminiChain) {
