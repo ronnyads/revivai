@@ -14029,22 +14029,21 @@ export async function generatePresetIdentityScene(params: {
     ? 'Dress the person in the same outfit as the main character in the SCENE image.'
     : "Keep the person's own clothing exactly as it appears in the PERSON image."
 
-  // Interleave text labels with images — Gemini understands each image's role much better this way
+  // Simple, direct prompt — mirrors how you'd ask in Gemini chat (complex prompts confuse the model)
   const conversationalParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
-    { text: 'I have two images for you.' },
-    { text: 'PERSON image — this is the person whose face, skin tone, hair, and identity must appear in the final photo:' },
+    { text: 'I have two photos.' },
+    { text: 'Photo 1 — this is the PERSON. Study their face carefully: facial structure, eyes, nose, mouth, skin tone, hair color and texture, age.' },
     ...identityData.map((item) => ({ inlineData: item })),
-    { text: 'SCENE image — this is the scene to recreate exactly. Keep everything: background, secondary characters, camera angle, lighting, composition. Just replace the main person with the PERSON above:' },
+    { text: 'Photo 2 — this is the SCENE. I want to keep everything in this scene exactly as it is, except replace the main person/child in the foreground with the person from Photo 1.' },
     { inlineData: templateScene },
     {
       text: [
-        `Task: recreate the SCENE photo but swap the main person with the person from the PERSON photo.`,
-        `Preserve from PERSON: exact face, facial features, skin tone, age, hair color and style.`,
+        `Generate a new version of Photo 2 where the main person in the foreground is replaced by the person from Photo 1.`,
+        `The person from Photo 1 must look exactly the same — same face, same hair, same skin tone, same age — as if they were always in that scene.`,
         outfitInstruction,
-        `Preserve from SCENE: background, Elsa/heroes/characters, camera angle, pose position, framing, lighting, atmosphere. Do not remove any character. Do not change the background.`,
-        `The result must look like a real photo — as if the person was always in that scene.`,
+        `Keep everything else from Photo 2 unchanged: the background, Elsa, other characters, the camera angle, the lighting, the composition.`,
+        `The result should look like a real photograph.`,
         ratioInstruction,
-        `Photorealistic. No watermarks.`,
       ].join(' '),
     },
   ]
