@@ -28,6 +28,15 @@ const VIDEO_SCENE_PRESETS = [
   { value: 'office',  label: 'Escritório',  prompt: 'escritorio contemporaneo, mesa organizada, luz suave de janela, atmosfera profissional premium' },
 ]
 
+const CAMERA_PRESETS = [
+  { id: 'dolly',    label: 'Dolly In',   prompt: 'camera slowly dollying in toward subject, smooth cinematic push' },
+  { id: 'pan',      label: 'Pan',        prompt: 'smooth cinematic pan from left to right, stable horizon' },
+  { id: 'drone',    label: 'Drone',      prompt: 'aerial establishing shot slowly descending, drone perspective' },
+  { id: 'handheld', label: 'Handheld',   prompt: 'handheld camera, organic subtle movement, documentary feel' },
+  { id: 'orbit',    label: 'Orbit',      prompt: 'camera orbiting subject in smooth arc 90 degrees' },
+  { id: 'pullback', label: 'Pull Back',  prompt: 'slow pullback reveal, camera moves away uncovering the scene' },
+]
+
 function normalizeVideoAspectRatio(value: unknown) {
   const v = String(value ?? '').trim()
   if (v === '4:5' || v === '16:9') return v
@@ -78,14 +87,16 @@ function VideoBody({ initial, onGenerate }: Props) {
   const [brief, setBrief]             = useState(String(initial.motion_prompt ?? ''))
   const [quality, setQuality]         = useState<StudioVideoQuality>(normalizeStudioVideoQuality(initial.quality))
   const [aspectRatio, setAspectRatio] = useState(normalizeVideoAspectRatio(initial.aspect_ratio))
-  const [scenePreset, setScenePreset] = useState('none')
-  const [sceneLivre, setSceneLivre]   = useState(false)
-  const [duration, setDuration]       = useState<5 | 8>(8)
-  const [loading, setLoading]         = useState(false)
+  const [scenePreset, setScenePreset]   = useState('none')
+  const [cameraPreset, setCameraPreset] = useState<string | null>(null)
+  const [sceneLivre, setSceneLivre]     = useState(false)
+  const [duration, setDuration]         = useState<5 | 8>(8)
+  const [loading, setLoading]           = useState(false)
 
   const selectedScene  = VIDEO_SCENE_PRESETS.find((o) => o.value === scenePreset) ?? VIDEO_SCENE_PRESETS[0]
+  const selectedCamera = CAMERA_PRESETS.find((c) => c.id === cameraPreset)
   const selectedFormat = STUDIO_ASPECT_RATIO_PRESETS.find((o) => o.value === aspectRatio)
-  const finalBrief     = joinPromptParts([selectedScene.prompt, brief])
+  const finalBrief     = joinPromptParts([selectedScene.prompt, selectedCamera?.prompt ?? '', brief])
   const cost           = getVideoGenerationCostByDuration(quality, duration)
   const canGenerate    = !loading && (isContinuation || imageUrl.trim().length > 0)
 
@@ -130,6 +141,30 @@ function VideoBody({ initial, onGenerate }: Props) {
       <div>
         <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/36">Cenário</p>
         <Select value={scenePreset} onChange={setScenePreset} options={VIDEO_SCENE_PRESETS.map((o) => ({ value: o.value, label: o.label }))} />
+      </div>
+
+      {/* Câmera */}
+      <div>
+        <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/36">Câmera</p>
+        <div className="flex flex-wrap gap-1.5">
+          {CAMERA_PRESETS.map((preset) => {
+            const active = cameraPreset === preset.id
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => setCameraPreset(active ? null : preset.id)}
+                className={`rounded-[8px] border px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                  active
+                    ? 'border-blue-500/40 bg-blue-500/14 text-blue-200'
+                    : 'border-white/8 bg-white/[0.03] text-white/40 hover:text-white/60 hover:border-white/14'
+                }`}
+              >
+                {preset.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Brief */}

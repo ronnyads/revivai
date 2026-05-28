@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Trash2, Download, RotateCcw, Loader2, Image, Video, Mic, Music, ZoomIn, FileText, Captions, Copy, Check, ArrowRight, Sparkles, Layers, Wand2, User, Film, Camera, Scissors } from 'lucide-react'
 import { StudioAsset, AssetType } from '@/types'
 import { getPreviewMediaUrl } from '@/lib/mediaUrl'
@@ -19,6 +19,7 @@ import AnimateGenerator from './AnimateGenerator'
 import LookSplitGenerator from './LookSplitGenerator'
 import { getStudioAspectRatioFrameClass, normalizeStudioAspectRatio } from './aspectRatio'
 import { resolveStudioPublicError } from '@/lib/studioPublicErrors'
+import VideoPlayer from './VideoPlayer'
 
 const TYPE_META: Record<AssetType, { icon: React.ReactNode; label: string; color: string }> = {
   face:    { icon: <User size={15} />,     label: 'Rosto Real',  color: 'text-indigo-400' },
@@ -138,16 +139,17 @@ export default function AssetCard({ asset, stepNumber, onDelete, onRetry, onGene
 
         {/* Processing */}
         {asset.status === 'processing' && (
-          <div className="flex flex-col items-center justify-center py-8 gap-3">
-            <Loader2 size={28} className="animate-spin text-accent" />
-            <p className="text-sm text-zinc-400">Gerando com IA...</p>
-            {asset.type === 'video' && (
-              <p className="text-xs text-zinc-600 text-center">Vídeos levam até 3 minutos</p>
-            )}
-            {asset.type === 'ugc_bundle' && (
-              <p className="text-xs text-zinc-600 text-center">Gerando 8 poses em paralelo...</p>
-            )}
-          </div>
+          (asset.type === 'video' || asset.type === 'talking_video' || asset.type === 'animate')
+            ? <VideoProcessingState />
+            : (
+              <div className="flex flex-col items-center justify-center py-8 gap-3">
+                <Loader2 size={28} className="animate-spin text-accent" />
+                <p className="text-sm text-zinc-400">Gerando com IA...</p>
+                {asset.type === 'ugc_bundle' && (
+                  <p className="text-xs text-zinc-600 text-center">Gerando 8 poses em paralelo...</p>
+                )}
+              </div>
+            )
         )}
 
         {/* Error */}
@@ -241,11 +243,7 @@ function ResultPreview({ type, url, params }: { type: AssetType; url: string; pa
     )
   }
   if (type === 'video' || type === 'talking_video' || type === 'animate' || type === 'join') {
-    return (
-      <div className={`${videoFrameClass} overflow-hidden rounded-xl border border-zinc-800 bg-black/20`}>
-        <video src={mediaPreviewUrl} controls className="h-full w-full object-contain" playsInline preload="metadata" />
-      </div>
-    )
+    return <VideoPlayer src={mediaPreviewUrl} frameClass={videoFrameClass} />
   }
   if (type === 'voice' || type === 'music') {
     return <audio src={url} controls className="w-full" />
@@ -334,6 +332,41 @@ function CaptionPreview({ url }: { url: string }) {
       <a href={url} download className="flex items-center justify-center gap-2 text-xs text-zinc-400 hover:text-white border border-zinc-700 px-3 py-2 rounded-xl transition-colors w-full">
         <Download size={13} /> Baixar .srt
       </a>
+    </div>
+  )
+}
+
+// ── Video processing state premium ────────────────────────────────────────
+const VIDEO_PROCESSING_MESSAGES = [
+  'Gerando cena com Veo...',
+  'Renderizando movimento...',
+  'Calculando câmera...',
+  'Sintetizando quadros...',
+  'Finalizando vídeo...',
+]
+
+function VideoProcessingState() {
+  const [idx, setIdx] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => setIdx(i => (i + 1) % VIDEO_PROCESSING_MESSAGES.length), 2500)
+    return () => clearInterval(t)
+  }, [])
+  const bars = [0.4, 0.65, 1, 0.75, 0.5, 0.85, 1, 0.6, 0.4]
+  return (
+    <div className="flex flex-col items-center justify-center py-10 gap-4">
+      <div className="flex items-end gap-[3px] h-10">
+        {bars.map((h, i) => (
+          <div
+            key={i}
+            className="w-[3px] bg-blue-400 rounded-full animate-pulse"
+            style={{ height: `${h * 40}px`, animationDelay: `${i * 90}ms`, animationDuration: '1.3s' }}
+          />
+        ))}
+      </div>
+      <p className="text-sm text-zinc-400 text-center transition-all duration-500">
+        {VIDEO_PROCESSING_MESSAGES[idx]}
+      </p>
+      <p className="text-xs text-zinc-600">até 3 minutos</p>
     </div>
   )
 }
